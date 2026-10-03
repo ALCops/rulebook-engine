@@ -78,7 +78,7 @@ site/
     _index.md                the matrix page
     _content.gotmpl          content adapter: one page per rule from data/rulebook.json
   layouts/
-    index.html               matrix grid rendered from .Site.Data.rulebook
+    index.html               matrix grid rendered from hugo.Data.rulebook
     rules/single.html        rule detail page
     partials/                cell, legend, filters, cart
   assets/js/
@@ -95,7 +95,7 @@ No Hugo theme and no Hugo modules, so no Go toolchain and no submodule. Everythi
 When `site.enabled` is true the Publish action (WP05):
 
 1. Writes `site/data/rulebook.json` (section 5) from the catalog, the settings and the generator's resolved output.
-2. Runs `hugo --source site --baseURL <baseUrl> --destination <staging>` with a Hugo version pinned in the engine action. Content adapters need Hugo 0.126 or later.
+2. Runs `hugo --source site --baseURL <baseUrl> --destination <staging>` with a Hugo version pinned in the engine action. Hugo 0.126 or later for content adapters; 0.156.0 or later for `hugo.Data` ([spike (h)](reference/spikes/h-hugo-content-adapter.md)).
 3. Copies `rulesets/`, the rendered `skeletons/` and `catalog/diagnostics.json` into the same staging root, then publishes the staging root as today.
 
 The site replaces the hand-written `index.html` of WP05. With `site.enabled` false the plain `index.html` is published, unchanged from WP05.
@@ -332,7 +332,7 @@ An organization that wants none of it sets `site.enabled: false` and keeps the W
 | Q1 | Measured URL limit for a prefilled issue, and whether a compact encoding is needed | Measure first; implement split and copy fallback regardless | WP01 (g), WP14 |
 | Q2 | Should `release` also accept an `action`, so releasing and setting an override is one change? | No: two changes in one cart do the same and keep the schema flat | WP15 |
 | Q3 | Should the apply workflow run Validate on the branch before opening the PR? | Yes, same as the WP07 proposal; cheap with WP03 | WP15 |
-| Q4 | Which Hugo version to pin, and whether to vendor the binary in the engine or download it | Pin Hugo 0.167.0 extended (latest stable on 2026-10-03; floor 0.156.0 for `hugo.Data`), download the `.deb` with checksum, no vendoring: install about 3 s, build under 1 s at 628 rules ([spike (h)](reference/spikes/h-hugo-content-adapter.md)); re-pin to the latest stable at WP14 time | WP01 (h), WP14 |
+| Q4 | Which Hugo version to pin, and whether to vendor the binary in the engine or download it | Pin Hugo 0.167.0 extended (latest stable on 2026-10-03; floor 0.156.0 for `hugo.Data`, per release note), download the `.deb` with checksum, no vendoring: install about 3 s, build under 1 s at 628 rules ([spike (h)](reference/spikes/h-hugo-content-adapter.md)); re-pin to the latest stable at WP14 time | WP01 (h), WP14 |
 | Q5 | Whether the matrix should also be exported as a standalone JSON for other tooling (VS Code extension later) | Yes: `rulebook.json` is already published next to `catalog/diagnostics.json` | WP14 |
 
 ## 12. References
