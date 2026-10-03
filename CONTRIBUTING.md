@@ -76,7 +76,7 @@ Applied on 2026-10-03 by the WP00 pull request ([#2](https://github.com/ALCops/r
 | Setting | Value | Command |
 |---|---|---|
 | Ruleset `protect-main` on the default branch | Pull request required, 0 approvals, deletion and force-push blocked, check `test` from GitHub Actions required, no bypass actors. | `gh api --method POST ... rulesets --input ruleset-engine.json` |
-| Workflow permissions | Read-only `GITHUB_TOKEN`; Actions may create and approve pull requests. | `gh api --method PUT ... actions/permissions/workflow` |
+| Workflow permissions | Read-only `GITHUB_TOKEN` (applied). "Actions may create and approve pull requests" is not applied yet: the repository-level PUT is refused (409) while the organization policy "Allow GitHub Actions to create and approve pull requests" is off. An org admin enables it under Org Settings > Actions > General; then the PUT below applies. | `gh api --method PUT ... actions/permissions/workflow` |
 | Labels | `dependencies` and `skip-changelog`, next to the defaults (`enhancement`, `bug`, `documentation`). | `gh label create` |
 
 The ruleset, saved as `ruleset-engine.json` outside the repository (`integration_id` 15368 is the GitHub Actions app, so a commit status of the same name from another source does not count):
