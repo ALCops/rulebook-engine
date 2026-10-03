@@ -71,7 +71,7 @@ Final run: [actions/runs/37143256030](https://github.com/ALCops/rulebook-engine/
 | Install | `dotnet tool install --global Microsoft.Dynamics.BusinessCentral.Development.Tools --version 18.0.43.1464` | 0 | 2.7 to 5.9 s (three runs) | `Tool '...development.tools' (version '18.0.43.1464') was successfully installed.` |
 | Version | `al --version` | 0 | 0.1 s | `18.0.43.1464+ad5c661...` |
 | Runtime | `al GetLatestSupportedRuntimeVersion 28.0` | 0 | 0.1 s | `17.1` (the four-part `28.0.0.0`, `27.0.0.0` and `26.0.0.0` give `Unknown platform version`, exit 1) |
-| Symbols | `curl -sSL -o platform.nupkg $FEED/microsoft.platform.symbols/28.0.54265/...nupkg` + `unzip -o -j platform.nupkg '*.app'` | 0 | 0.3 s | exactly one file: `System.app` |
+| Symbols | `curl -sSL -o platform.nupkg $FEED/microsoft.platform.symbols/28.0.54265/...nupkg` + `unzip -o -j platform.nupkg '*.app' -d fixture/.alpackages` | 0 | 0.3 s | exactly one file: `System.app` |
 | 1 no ruleset | `al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out1.app $COPS` | 0 | 1.6 s | `warning AA0137: Variable 'Unused' is unused in 'Probe'.`; `out1.app` 2,434 bytes |
 | 2 local ruleset | same + `/ruleset:aa0137-error.ruleset.json` | 1 | 1.4 s | `error AA0137: Variable 'Unused' is unused in 'Probe'.` |
 | 3 bare invocation | `dotnet $AL_BIN/alc.dll` + same switches as 2 | 1 | 1.4 s | `error AA0137: ...` (identical output: the `al` wrapper adds nothing) |
@@ -192,6 +192,8 @@ echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"          # al is on PATH from the n
 AL_BIN=$(dirname "$(find ~/.dotnet/tools/.store/microsoft.dynamics.businesscentral.development.tools -path '*/tools/net10.0/any/alc.dll')")
 ```
 
+`net10.0` is today's value on ubuntu-24.04; WP12 must resolve the folder at run time (the `altool.dll` path in `COREHOST_TRACE=1 al --version`, or the `DotnetToolSettings.xml` the shim uses) rather than hard-code it.
+
 Symbols (anonymous, no container):
 
 ```bash
@@ -216,13 +218,13 @@ al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/o
 
 ## Answer
 
-Yes. The stable `Microsoft.Dynamics.BusinessCentral.Development.Tools` 18.0.43.1464 installs as a global dotnet tool on `ubuntu-latest` in about 3 to 6 seconds without `setup-dotnet`, runs from `tools/net10.0/any`, and compiles a one-codeunit project in about 1.5 seconds with the four Microsoft cops and a local ruleset (AA0137 moved from Warning to Error as configured). A project without dependencies still needs a symbol download: the tool ships no `.app`, and the `System.app` from the public MSSymbols feed (`microsoft.platform.symbols` 28.0.54265, one `curl`) is enough; without it alc stops with AL1022. WP12's end-to-end compile can run on a plain `ubuntu-latest` runner without a container, provided the job takes the analyzers from the same TFM folder as `alc.dll` and fails on AL1003.
+Yes. The stable `Microsoft.Dynamics.BusinessCentral.Development.Tools` 18.0.43.1464 installs as a global dotnet tool on `ubuntu-latest` in about 3 to 6 seconds without `setup-dotnet`, runs from `tools/net10.0/any`, and compiles a one-codeunit project in about 1.5 seconds with CodeCop, UICop and PerTenantExtensionCop and a local ruleset (AA0137 moved from Warning to Error as configured); AppSourceCop also loads and runs, but reports errors on the per-tenant fixture. A project without dependencies still needs a symbol download: the tool ships no `.app`, and the `System.app` from the public MSSymbols feed (`microsoft.platform.symbols` 28.0.54265, one `curl`) is enough; without it alc stops with AL1022. WP12's end-to-end compile can run on a plain `ubuntu-latest` runner without a container, provided the job takes the analyzers from the same TFM folder as `alc.dll` and fails on AL1003.
 
 ## Consequences for blocked work packages
 
 | WP | Consequence | Action taken |
 |---|---|---|
-| WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) | End-to-end compile option is **go** on `ubuntu-latest` without a container. The reusable job: install pinned stable tool, `$GITHUB_PATH`, `$AL_BIN` from the shim's TFM folder, `System.app` from MSSymbols, compile; fail on AL1003, AL1022, AL1033 and AL0767. Note the Ubuntu 26 migration of `ubuntu-latest` from 2026-10-19. | Comment posted on [#14](https://github.com/ALCops/rulebook-engine/issues/14#issuecomment-5972051669) |
+| WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) | End-to-end compile option is **go** on `ubuntu-latest` without a container. The reusable job: install pinned stable tool, `$GITHUB_PATH`, `$AL_BIN` from the shim's TFM folder, `System.app` from MSSymbols, compile; fail on AL1003 and AL1022 (AL1033 and AL0767 abort the compile with exit 1 on their own). Note the Ubuntu 26 migration of `ubuntu-latest` from 2026-10-19. | Comment posted on [#14](https://github.com/ALCops/rulebook-engine/issues/14#issuecomment-5972051669) |
 | WP02 ([#4](https://github.com/ALCops/rulebook-engine/issues/4)) via spike (a) | A failing **root** ruleset URL aborts `alc` (exit 1, no compilation) instead of falling back to defaults; [compiler-ruleset-internals.md §7](../compiler-ruleset-internals.md#7-failure-model) and [ARCHITECTURE.md §10](../../ARCHITECTURE.md#10-failure-model-and-operational-risks) state a fallback. Spike (a) checks the include case and corrects those lines if confirmed. | None in this pull request; passed to spike (a) |
 | Spikes (a), (f) | Use the recipe above; `runtime: "17.0"` and `platform: "28.0.0.0"` work. Spike (f) adds AppSourceCop and should expect AS0051, AS0015, AS0052, AS0100 and AS0054 on a minimal manifest next to AS0084. | None (facts passed to the next executors) |
 
