@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd "$W"
+          set +e; cd "$W"
           {
             printf '%s\t%s\t%s\t%s\t%s\n' package version path size sha256
             while read -r p v; do
@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd "$W"
+          set +e; cd "$W"
           T=microsoft.dynamics.businesscentral.development.tools
           {
             for v in $(awk -v t=$T '$1==t {print $2}' pairs.txt); do
@@ -106,7 +106,7 @@ jobs:
       - name: Method 1 - pwsh reflection
         shell: bash
         run: |
-          cd "$W"
+          set +e; cd "$W"
           T=microsoft.dynamics.businesscentral.development.tools
           run() { # label toolsDir alcopsDir
             echo "== m1 $1"
@@ -129,13 +129,12 @@ jobs:
       - name: Method 2 - console with AssemblyLoadContext
         shell: bash
         run: |
-          cd "$W"
+          set +e; cd "$W"
           T=microsoft.dynamics.businesscentral.development.tools
           {
             s=$(date +%s%N)
-            dotnet build "$SB/m2" -c Release -nologo -v q -o /dev/null 2>&1 | tail -3 || true
             dotnet build "$SB/m2" -c Release -nologo -v q 2>&1 | tail -2
-            echo "build wall=$(( ($(date +%s%N) - s) / 1000000 )) ms (two builds, first includes restore)"
+            echo "restore+build wall=$(( ($(date +%s%N) - s) / 1000000 )) ms"
             st=$(awk -v t=$T '$1==t {print $2}' pairs.txt | head -1); pre=$(awk -v t=$T '$1==t {print $2}' pairs.txt | tail -1)
             as=$(awk '$1=="alcops.analyzers" {print $2}' pairs.txt | head -1); ap=$(awk '$1=="alcops.analyzers" {print $2}' pairs.txt | tail -1)
             run() { # label consoleTfm toolsDir alcopsDir
@@ -155,7 +154,7 @@ jobs:
       - name: Method 3 - strings and regex
         shell: bash
         run: |
-          cd "$W"
+          set +e; cd "$W"
           T=microsoft.dynamics.businesscentral.development.tools
           {
             st=$(awk -v t=$T '$1==t {print $2}' pairs.txt | head -1); pre=$(awk -v t=$T '$1==t {print $2}' pairs.txt | tail -1)
@@ -177,7 +176,7 @@ jobs:
       - name: Stable vs prerelease ids
         shell: bash
         run: |
-          cd "$W"
+          set +e; cd "$W"
           {
             for t in net10; do
               [ -f m1-stable-$t.json ] && [ -f m1-pre-$t.json ] || { echo "m1 $t output missing"; continue; }
@@ -198,7 +197,7 @@ jobs:
       - name: Machine-readable title and docsUrl probes
         shell: bash
         run: |
-          cd "$W"
+          set +e; cd "$W"
           {
             for u in https://alcops.dev/docs/analyzers/index.json https://alcops.dev/docs/analyzers/index.xml https://alcops.dev/index.json https://alcops.dev/index.xml https://alcops.dev/sitemap.xml \
                      https://alcops.dev/docs/analyzers/lintercop/lc0001/ \
