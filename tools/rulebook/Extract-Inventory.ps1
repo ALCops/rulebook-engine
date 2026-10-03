@@ -208,5 +208,5 @@ foreach ($p in $prefixOrder) {
     Set-Content -LiteralPath (Join-Path $OutDir "$p.md") -Value $sb.ToString() -Encoding utf8NoBOM -NoNewline
 }
 $summary = $sorted | Group-Object { $_.prefix } | ForEach-Object { [pscustomobject]@{ Prefix = $_.Name; Count = $_.Count; Error = @($_.Group | Where-Object default -eq 'Error').Count; Warning = @($_.Group | Where-Object default -eq 'Warning').Count; Info = @($_.Group | Where-Object default -eq 'Info').Count; Hidden = @($_.Group | Where-Object default -eq 'Hidden').Count; Disabled = @($_.Group | Where-Object enabled -eq $false).Count; Prerelease = @($_.Group | Where-Object since -eq 'prerelease').Count } }
-$summary | Sort-Object { [array]::IndexOf($prefixOrder, $_.Prefix) } | Format-Table -AutoSize | Out-String | Write-Output
-Write-Output "Total: $($sorted.Count)  (compiler Error codes not listed: $alErrorCount)"
+$summary | Sort-Object { [array]::IndexOf($prefixOrder, $_.Prefix) } | Format-Table -AutoSize | Out-String | Write-Host
+Write-Host "Total: $($sorted.Count)  (compiler Error codes not listed: $alErrorCount)"

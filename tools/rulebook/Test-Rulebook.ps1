@@ -273,11 +273,11 @@ foreach ($line in $fileLines) { if ($readmeDoc -notmatch [regex]::Escape($line))
 
 # ---- report ----
 if ($failures.Count) {
-    Write-Output "FAILED: $($failures.Count) finding(s)"
-    $failures | Select-Object -First 60 | ForEach-Object { Write-Output "  $_" }
+    Write-Host "FAILED: $($failures.Count) finding(s)" -ForegroundColor Red
+    $failures | Select-Object -First 60 | ForEach-Object { Write-Host "  $_" }
     exit 1
 }
-Write-Output "All checks V1-V14 passed. Inventory $($inv.Count) ids, matrix $($matrix.Count) rows, $($twins.count) twin pairs."
-Write-Output "Delta files (entries per file): $fileSizes"
-Write-Output "Sparse endpoints (listed ids per file): $sizes"
+Write-Host "All checks V1-V14 passed. Inventory $($inv.Count) ids, matrix $($matrix.Count) rows, $($twins.count) twin pairs."
+Write-Host "Delta files (entries per file): $fileSizes"
+Write-Host "Sparse endpoints (listed ids per file): $sizes"
 exit 0

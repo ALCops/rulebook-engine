@@ -370,5 +370,5 @@ $lines += '| File | Entries |'
 $lines += '|---|---|'
 foreach ($k in $fileCounts.Keys) { $lines += "| ``$k`` | $($fileCounts[$k]) |" }
 $lines -join "`n" | Set-Content -LiteralPath (Join-Path $matrixDir 'counts.md') -Encoding utf8NoBOM
-Write-Output "matrix rows: $($matrix.Count); twin pairs: $($pairs.Count)"
-$matrix | Group-Object { $_.Basis } | Sort-Object Name | ForEach-Object { Write-Output ("{0,-6} {1,4}" -f $_.Name, $_.Count) }
+Write-Host "matrix rows: $($matrix.Count); twin pairs: $($pairs.Count)"
+$matrix | Group-Object { $_.Basis } | Sort-Object Name | ForEach-Object { Write-Host ("{0,-6} {1,4}" -f $_.Name, $_.Count) }

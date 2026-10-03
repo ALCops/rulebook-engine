@@ -53,13 +53,15 @@ Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
 Invoke-Pester -Path ./tests -Output Detailed
 ```
 
-The analyzer must print nothing. Outside CI the Linux smoke case is skipped (it runs only when `$env:CI` is set).
+The analyzer must print nothing. Outside GitHub Actions the Linux smoke case is skipped (it runs only when `$env:GITHUB_ACTIONS` is set).
 
 When a change touches `tools/rulebook/` or `docs/rulebook/`, also run `pwsh ./tools/rulebook/Test-Rulebook.ps1`. Regenerating the level content with `Extract-Inventory.ps1` needs the sibling clones `../Analyzers` and `../nav-sdk-source`.
 
 ## 4. CI
 
-`.github/workflows/ci.yml` has one job, `test`, on `ubuntu-latest`. It installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push cancels the running job for the same branch.
+`.github/workflows/ci.yml` has one job, `test`, on `ubuntu-latest`. It installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push to a pull request cancels its running job; runs on `main` always finish.
+
+The module versions are pinned in `ci.yml` (PSScriptAnalyzer 1.25.0, Pester 6.2.0) and bumped by hand, because Dependabot does not cover the PowerShell Gallery; it only updates the action tags.
 
 ## 5. Branches and releases
 
@@ -114,15 +116,16 @@ gh api --method PUT repos/ALCops/rulebook-engine/actions/permissions/workflow \
   -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true
 
 gh label create dependencies -R ALCops/rulebook-engine --color 0366d6 --description "Dependency updates (Dependabot)"
-gh label create skip-changelog -R ALCops/rulebook-engine --color cfd3d7
+gh label create skip-changelog -R ALCops/rulebook-engine --color cfd3d7 --description "Exclude from release notes"
 ```
 
 `ALCops/rulebook` gets the same ruleset without the `required_status_checks` rule (it has no CI) and the same workflow permissions.
 
 ## 7. Pull requests
 
-- One release-note label: `enhancement`, `bug`, `documentation`, `dependencies`, or `skip-changelog` to leave the pull request out of the notes.
+- One release-note label: `enhancement`, `bug`, `documentation`, `dependencies`, or `skip-changelog` to leave the pull request out of the notes. An unlabelled pull request lands under "Other changes"; one with several labels is filed under the first matching category in `.github/release.yml`.
 - A title that reads as a release line, because it becomes one. A change to level content names the diagnostic ids and the file.
 - `Closes #n` for the issue it finishes.
+- Reviewed before merge: by another maintainer, or by an automated code review whose outcome is recorded in the PR body. The ruleset requires no approval, so this rule is kept by convention.
 - Work found on the way becomes its own issue through the *Task or spin-off* form, linked from the originating issue; it is not added to the current pull request.
 - The [definition of done](README.md#definition-of-done) in the README applies.

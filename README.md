@@ -66,7 +66,7 @@ A work package issue is done when all of the following hold:
 3. The Pester tests listed in its section 7 exist and are green on `ubuntu-latest` in the engine CI.
 4. `Invoke-ScriptAnalyzer` reports no error or warning on the touched `.ps1` and `.psm1` files.
 5. Docs touched by the issue are updated: `docs/ARCHITECTURE.md` when the design changed, a new record under `docs/adr/` when a decision was taken, the user docs in `ALCops/rulebook/docs` when behaviour visible to an organization changed. Design notes in the issue that describe the target design are lifted into `docs/`.
-6. The pull request was reviewed by someone other than the author, merged, and closes the issue (`Closes #n`).
+6. The pull request was reviewed before merge (another maintainer, or an automated code review whose outcome is recorded in the PR body), merged, and closes the issue (`Closes #n`).
 7. The pull request carries one release-note label and a title that reads as a release line (release notes are generated from both, [D38](docs/adr/0038-release-notes-are-generated-from-pull-request-labels.md)).
 
 For any other change: documentation updated, Pester green on `ubuntu-latest`, PSScriptAnalyzer clean, reviewed pull request, a release-note label and a title that reads as a release line.

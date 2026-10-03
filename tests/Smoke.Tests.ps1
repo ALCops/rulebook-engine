@@ -3,7 +3,7 @@ Describe 'Smoke' {
         $PSVersionTable.PSVersion.Major | Should-BeGreaterThanOrEqual 7
     }
 
-    It 'runs on Linux when executed in CI' -Skip:(-not $env:CI) {
+    It 'runs on Linux when executed on GitHub Actions' -Skip:(-not $env:GITHUB_ACTIONS) {
         $IsLinux | Should-BeTrue
     }
 }
