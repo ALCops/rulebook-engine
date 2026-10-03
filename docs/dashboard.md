@@ -2,7 +2,7 @@
 
 Design of the dashboard an organization gets with its rulebook repository: a Hugo site, published next to the endpoints, that shows the matrix of diagnostic ids by level and stage, and a write path that turns clicks into a pull request without any infrastructure beyond GitHub. Contributor document; the user-facing page is `docs/dashboard.md` in `ALCops/rulebook` (WP11).
 
-> **Status:** target design after the interview of 2026-10-03 (D31 to D37). Implemented by [WP14](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage+WP14+in%3Atitle) (site) and [WP15](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage+WP15+in%3Atitle) (write path). Names of files and settings keys are proposals that WP02 and WP14 finalise.
+> **Status:** target design after the interview of 2026-10-03 (D31 to D37). Implemented by [WP14](https://github.com/ALCops/rulebook-engine/issues/16) (site) and [WP15](https://github.com/ALCops/rulebook-engine/issues/17) (write path). Names of files and settings keys are proposals that WP02 and WP14 finalise.
 
 ---
 
@@ -339,7 +339,7 @@ An organization that wants none of it sets `site.enabled: false` and keeps the W
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) sections 4, 6.4, 7.3, 7.6, 8 and 9.
 - [adr/README.md](adr/README.md) D7, D11, D19, D30, D31 to D37.
-- Work package issues WP14, WP15, WP07 and WP09: [issues labeled `workpackage`](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).
+- Work package issues [WP14 (#16)](https://github.com/ALCops/rulebook-engine/issues/16), [WP15 (#17)](https://github.com/ALCops/rulebook-engine/issues/17), [WP07 (#9)](https://github.com/ALCops/rulebook-engine/issues/9), [WP09 (#11)](https://github.com/ALCops/rulebook-engine/issues/11).
 - GitHub, creating an issue from a URL with query parameters (issue form fields can be prefilled): https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-an-issue#creating-an-issue-from-a-url-query
 - GitHub, syntax for issue forms: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms
 - GitHub, `author_association` values: https://docs.github.com/en/graphql/reference/enums#commentauthorassociation

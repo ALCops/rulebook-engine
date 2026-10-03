@@ -2,7 +2,7 @@
 
 The engine behind [ALCops/rulebook](https://github.com/ALCops/rulebook): the composite GitHub Actions, PowerShell modules, tests and contributor documentation that the workflows in an org rulebook repo call. Users never create a repository from this one; they create it from the template and their workflows reference `ALCops/rulebook-engine/actions/<Name>@v1`.
 
-> **Status:** design phase. The architecture and the decisions are written; no action or module exists yet. The work is broken down into [work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) (WP00 to WP15), ordered and tracked on the **Rulebook v1** project board; the parent issue *Rulebook v1* holds the dependency graph and the suggested order.
+> **Status:** design phase. The architecture and the decisions are written; no action or module exists yet. The work is broken down into [work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) (WP00 to WP15), ordered and tracked on the **Rulebook v1** project board; the parent issue [Rulebook v1 (#18)](https://github.com/ALCops/rulebook-engine/issues/18) holds the dependency graph and the suggested order.
 
 ---
 
@@ -79,7 +79,7 @@ For any other change: documentation updated, Pester green on `ubuntu-latest`, PS
 | [docs/reference/compiler-ruleset-internals.md](docs/reference/compiler-ruleset-internals.md) | How the AL compiler loads and merges rulesets, from the SDK source. Every design constraint comes from here. |
 | [docs/reference/al-go-template-mechanics.md](docs/reference/al-go-template-mechanics.md) | How AL-Go implements templates, system-file updates and the GhTokenWorkflow secret, and what Rulebook reuses. |
 | [docs/rulebook/README.md](docs/rulebook/README.md) | The level content: inventory of every diagnostic id, the matrix placing each id per level and stage, the twin pairs, the placement algorithm, and the generator contract for the level files (a root delta plus one delta per further level), the stage files and the sparse endpoints in `template/base/`, `template/stages/` and `template/rulesets/`. |
-| [Work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) | The 16 work packages WP00 to WP15 as issues; the parent issue *Rulebook v1* has the dependency graph and the suggested order, the **Rulebook v1** project board the status. |
+| [Work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) | The 16 work packages WP00 to WP15 as issues; the parent issue [Rulebook v1 (#18)](https://github.com/ALCops/rulebook-engine/issues/18) has the dependency graph and the suggested order, the **Rulebook v1** project board the status. |
 
 ## License
 
