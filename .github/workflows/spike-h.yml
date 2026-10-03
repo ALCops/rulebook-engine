@@ -42,7 +42,7 @@ jobs:
 
       - name: Build per adapter variant
         run: |
-          set -uo pipefail
+          set +e -uo pipefail
           {
             echo "### Hugo $HUGO_VERSION"
             echo
