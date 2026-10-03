@@ -197,6 +197,8 @@ Microsoft Learn describes the rewrite as applying to actions "different from Non
 | Root path is a URL but external rulesets are disabled | **AL0767** (`ERR_ExternalRulesetPathNotAllowed`), default ruleset is used. |
 | Language server (VS Code) | Same fallback to the default ruleset when any diagnostic was produced while reading the ruleset. |
 
+> **Contested.** Observed 2026-10-03 in spike (c): on the `alc` command line a failing root ruleset URL aborts the compile with exit 1 (AL0767, AL1033) instead of falling back to defaults; spike (a) checks the include case. See [spikes/c-alc-on-ubuntu.md](spikes/c-alc-on-ubuntu.md).
+
 There is no depth limit and no maximum number of includes.
 
 For a CI/CD pipeline with warnings-as-errors this is the single most important operational risk: an outage of the hosting endpoint or a typo in one published file does not produce a slightly different result, it produces a build with **all** analyzers at full built-in severity. Since Rulebook follows the built-in severities for most rules (D21) the fallback is less far from the intended ruleset than it used to be, but every rule the level switched off, every documented downgrade and every organization override is lost, so a build can still go red. The AL1033 diagnostic is the only signal.
@@ -339,3 +341,5 @@ Error > Warning > Info > Hidden > Default > None
 |---|---|
 | AL1033 | An included ruleset could not be loaded or is invalid. The **whole** ruleset was discarded and compiler defaults are in effect. |
 | AL0767 | The root ruleset path is a URL but external rulesets are disabled. Compiler defaults are in effect. |
+
+> **Contested.** Observed 2026-10-03 in spike (c): on the `alc` command line a failing root ruleset URL aborts the compile with exit 1 (AL0767, AL1033) instead of falling back to defaults; spike (a) checks the include case. See [spikes/c-alc-on-ubuntu.md](spikes/c-alc-on-ubuntu.md).

@@ -8,7 +8,7 @@ Does `alc` from the NuGet tool run on `ubuntu-latest`?
 
 ## Method
 
-A throwaway workflow (`spike-c.yml`, `workflow_dispatch` plus push on `wp01/spike-c`, read-only token, removed before the pull request) ran on `ubuntu-latest`. It:
+A throwaway workflow (`spike-c.yml`, `workflow_dispatch` plus push on `wp01/spike-c`, read-only token, removed before the pull request; last version at `568bd7e:.github/workflows/spike-c.yml`) ran on `ubuntu-latest`. It:
 
 1. recorded the runner image and the installed .NET SDKs and runtimes;
 2. installed the latest **stable** `Microsoft.Dynamics.BusinessCentral.Development.Tools` as a global dotnet tool, pinned to `18.0.43.1464` (re-checked against the nuget.org flat-container index: still the latest stable on 2026-10-03), with no `actions/setup-dotnet`;
@@ -85,7 +85,7 @@ Final run: [actions/runs/37143256030](https://github.com/ALCops/rulebook-engine/
 Findings beyond the yes/no:
 
 - **Controls 4 and 5 abort the compile.** On the `alc` command line a root ruleset URL that is blocked (AL0767) or cannot be loaded (AL1033) is a command-line error: alc prints the one diagnostic, never reaches `Compilation started`, writes no `.app`, and exits 1. This differs from [compiler-ruleset-internals.md §7](../compiler-ruleset-internals.md#7-failure-model) and [ARCHITECTURE.md §10](../../ARCHITECTURE.md#10-failure-model-and-operational-risks), which say the compiler continues with its defaults. Whether the same holds when the failing URL is an *include* inside a local skeleton is left to spike (a).
-- **Analyzer DLLs must come from the TFM folder of the `alc.dll` that runs.** Mixing folders (step 8) does not fail the build: every rule is dropped with AL1003, the exit code is 0 and no analyzer diagnostic appears. A CI job must derive `$AL_BIN` from the folder the shim loads (or call `dotnet <folder>/alc.dll` with analyzers from the same folder) and should treat AL1003 as a failure.
+- **Analyzer DLLs must come from the TFM folder of the `alc.dll` that runs.** Mixing folders (step 8) does not fail the build: every rule is dropped with AL1003, the exit code is 0 and no analyzer diagnostic appears. A CI job must derive `$AL_BIN` from the folder the shim loads (or call `dotnet <folder>/alc.dll` with analyzers from the same folder) and should treat AL1003 as a failure by grepping the compile log (see the Recipe).
 - **The MSSymbols index is sorted newest first.** `jq -r '.versions[-1]'` returns `17.0.17020.31164`, the oldest entry; `.versions[0]` returned `28.0.54265`. The robust form is to filter on the major and sort numerically (command below).
 - **The tool package ships no `.app` files**, so a project without dependencies still needs the `System.app` download (step 6 is the error a job sees without it).
 - **AppSourceCop on a per-tenant fixture produces errors.** A fixture meant to be analyzer-quiet must leave AppSourceCop out (or be a full AppSource manifest); spikes that probe AS ids (f) expect these errors.
@@ -189,18 +189,21 @@ Install and PATH (no `setup-dotnet`; the runner's .NET 10 runtime is used):
 dotnet tool install --global Microsoft.Dynamics.BusinessCentral.Development.Tools --version 18.0.43.1464
 echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"          # al is on PATH from the next step on
 # analyzer folder = the TFM folder the al shim loads (net10.0 on ubuntu-24.04 today)
-AL_BIN=$(dirname "$(find ~/.dotnet/tools/.store/microsoft.dynamics.businesscentral.development.tools -path '*/tools/net10.0/any/alc.dll')")
+AL_BIN=$(dirname "$(find ~/.dotnet/tools/.store/microsoft.dynamics.businesscentral.development.tools -path '*/tools/net10.0/any/alc.dll' | head -1)")
+if [ ! -f "$AL_BIN/alc.dll" ]; then echo "::error::alc.dll not found in '$AL_BIN'"; exit 1; fi
 ```
 
-`net10.0` is today's value on ubuntu-24.04; WP12 must resolve the folder at run time (the `altool.dll` path in `COREHOST_TRACE=1 al --version`, or the `DotnetToolSettings.xml` the shim uses) rather than hard-code it.
+`net10.0` is today's value on ubuntu-24.04; WP12 must resolve the folder at run time from the shim (the `altool.dll` path printed by `COREHOST_TRACE=1 al --version`) or from the `DotnetToolSettings.xml` it uses, rather than hard-code it. The guard matters because `dirname ""` is `.`, which would turn every `/analyzer:` path into a missing file.
 
 Symbols (anonymous, no container):
 
 ```bash
 FEED=https://pkgs.dev.azure.com/dynamicssmb2/DynamicsBCPublicFeeds/_packaging/MSSymbols/nuget/v3/flat2
-V=$(curl -s $FEED/microsoft.platform.symbols/index.json \
-  | jq -r '[.versions[] | select(startswith("28."))] | sort_by(split(".") | map(tonumber)) | last')
-curl -sSL -o platform.nupkg "$FEED/microsoft.platform.symbols/$V/microsoft.platform.symbols.$V.nupkg"
+V=$(curl -fsS "$FEED/microsoft.platform.symbols/index.json" \
+  | jq -r '[.versions[] | select(startswith("28.") and (contains("-") | not))]
+           | sort_by(split(".") | map(tonumber)) | last // empty')
+if [ -z "$V" ]; then echo "::error::no stable 28.x platform symbols on the feed"; exit 1; fi
+curl -fsSL -o platform.nupkg "$FEED/microsoft.platform.symbols/$V/microsoft.platform.symbols.$V.nupkg"
 mkdir -p fixture/.alpackages && unzip -o -j platform.nupkg '*.app' -d fixture/.alpackages   # -> System.app
 ```
 
@@ -211,8 +214,13 @@ al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/o
   /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.CodeCop.dll \
   /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.UICop.dll \
   /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll \
-  /ruleset:<path-or-url> [/enableexternalrulesets]
+  /ruleset:<path-or-url> [/enableexternalrulesets] 2>&1 | tee compile.log
+rc=${PIPESTATUS[0]}
+if grep -q 'AL1003' compile.log; then echo "::error::analyzers failed to load (AL1003)"; exit 1; fi
+exit "$rc"
 ```
+
+The AL1003 check is needed because a run whose analyzers fail to load still exits 0 (step 8).
 
 `dotnet $AL_BIN/alc.dll <same switches>` is equivalent. Add `/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.AppSourceCop.dll` only when AppSourceCop findings are wanted.
 
@@ -224,8 +232,8 @@ Yes. The stable `Microsoft.Dynamics.BusinessCentral.Development.Tools` 18.0.43.1
 
 | WP | Consequence | Action taken |
 |---|---|---|
-| WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) | End-to-end compile option is **go** on `ubuntu-latest` without a container. The reusable job: install pinned stable tool, `$GITHUB_PATH`, `$AL_BIN` from the shim's TFM folder, `System.app` from MSSymbols, compile; fail on AL1003 and AL1022 (AL1033 and AL0767 abort the compile with exit 1 on their own). Note the Ubuntu 26 migration of `ubuntu-latest` from 2026-10-19. | Comment posted on [#14](https://github.com/ALCops/rulebook-engine/issues/14#issuecomment-5972051669) |
-| WP02 ([#4](https://github.com/ALCops/rulebook-engine/issues/4)) via spike (a) | A failing **root** ruleset URL aborts `alc` (exit 1, no compilation) instead of falling back to defaults; [compiler-ruleset-internals.md §7](../compiler-ruleset-internals.md#7-failure-model) and [ARCHITECTURE.md §10](../../ARCHITECTURE.md#10-failure-model-and-operational-risks) state a fallback. Spike (a) checks the include case and corrects those lines if confirmed. | None in this pull request; passed to spike (a) |
+| WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) | End-to-end compile option is **go** on `ubuntu-latest` without a container. The reusable job: install pinned stable tool, `$GITHUB_PATH`, `$AL_BIN` from the shim's TFM folder, `System.app` from MSSymbols, compile; fail on AL1003 (grep on the compile log) and AL1022 (AL1033 and AL0767 abort the compile with exit 1 on their own). Note the Ubuntu 26 migration of `ubuntu-latest` from 2026-10-19. | Comment posted on [#14](https://github.com/ALCops/rulebook-engine/issues/14#issuecomment-5972051669) |
+| WP02 ([#4](https://github.com/ALCops/rulebook-engine/issues/4)) via spike (a) | A failing **root** ruleset URL aborts `alc` (exit 1, no compilation) instead of falling back to defaults; [compiler-ruleset-internals.md §7](../compiler-ruleset-internals.md#7-failure-model) and [ARCHITECTURE.md §10](../../ARCHITECTURE.md#10-failure-model-and-operational-risks) state a fallback. Spike (a) checks the include case and corrects those lines if confirmed. | A one-sentence "Contested" note added under §7 and §13 of compiler-ruleset-internals.md and §10 of ARCHITECTURE.md (original text kept); passed to spike (a) |
 | Spikes (a), (f) | Use the recipe above; `runtime: "17.0"` and `platform: "28.0.0.0"` work. Spike (f) adds AppSourceCop and should expect AS0051, AS0015, AS0052, AS0100 and AS0054 on a minimal manifest next to AS0084. | None (facts passed to the next executors) |
 
 ## Not covered
@@ -240,4 +248,4 @@ Yes. The stable `Microsoft.Dynamics.BusinessCentral.Development.Tools` 18.0.43.1
 
 - Final run: <https://github.com/ALCops/rulebook-engine/actions/runs/37143256030> (all steps; job summary holds the result table).
 - Earlier iterations: [37143072312](https://github.com/ALCops/rulebook-engine/actions/runs/37143072312) (workflow file error: `runner` context not allowed in `defaults.run.working-directory`), [37143096407](https://github.com/ALCops/rulebook-engine/actions/runs/37143096407) (all four cops, AppSourceCop errors on the per-tenant fixture), [37143193714](https://github.com/ALCops/rulebook-engine/actions/runs/37143193714) (TFM mismatch first observed).
-- The throwaway workflow `.github/workflows/spike-c.yml` lived on `wp01/spike-c` and was removed in the last commit before the pull request. No scratch repository was created. Nothing besides this file and the spikes index is kept in the repository.
+- The throwaway workflow `.github/workflows/spike-c.yml` lived on `wp01/spike-c` and was removed in the last commit before the pull request; its last version, the file the final run executed, is `568bd7e:.github/workflows/spike-c.yml` (`git show 568bd7e:.github/workflows/spike-c.yml`). No scratch repository was created. Nothing besides this file and the spikes index is kept in the repository.

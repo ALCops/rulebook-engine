@@ -399,6 +399,8 @@ Every target ends with the same reachability check: `GET` each endpoint, compare
 | A cart exceeds the URL length GitHub accepts | The issue form opens empty or the request fails. | The cart shows its size against the measured limit and offers split and copy (spike WP01 (g)). |
 | An organization adapted `site/` and the template changed the same file | Dashboard fix not applied. | Customizable class skips and lists the file in the update PR (D35); `site.updateMode: "overwrite"` forces it. |
 
+> **Contested.** Observed 2026-10-03 in spike (c): on the `alc` command line a failing root ruleset URL aborts the compile with exit 1 (AL0767, AL1033) instead of falling back to defaults; spike (a) checks the include case. See [spikes/c-alc-on-ubuntu.md](reference/spikes/c-alc-on-ubuntu.md).
+
 ## 11. Open decisions
 
 See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinning, O4 secret name. O1 and O2 are closed by D19; O5 (third target name) is moot since D21; O6 (files per AL project) is closed by D28: one skeleton per stage.
