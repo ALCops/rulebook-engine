@@ -22,7 +22,7 @@ Every decision that shapes Rulebook, one file per decision, with the alternative
 
 ## Index
 
-D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, and D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path.
+D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, and D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6.
 
 | # | Title | Status | Date |
 |---|---|---|---|
@@ -34,10 +34,10 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D6](0006-levels-are-cumulative.md) | Levels are cumulative | Superseded by D18, partly reinstated by D27 (2026-10-01) | 2026-09-29 |
 | [D7](0007-hosting-is-pluggable-github-pages-is-the-default.md) | Hosting is pluggable, GitHub Pages is the default | Accepted | 2026-09-29 |
 | [D8](0008-endpoint-urls-are-unversioned-in-v1.md) | Endpoint URLs are unversioned in v1 | Accepted | 2026-09-29 |
-| [D9](0009-tooling-powershell-7-and-pester-on-ubuntu-runners.md) | Tooling: PowerShell 7 and Pester on ubuntu runners | Accepted | 2026-09-29 |
+| [D9](0009-tooling-powershell-7-and-pester-on-ubuntu-runners.md) | Tooling: PowerShell 7 and Pester on ubuntu runners | Partly superseded by D39 (2026-10-03) | 2026-09-29 |
 | [D10](0010-the-diagnostic-scan-runs-in-each-org-repo.md) | The diagnostic scan runs in each org repo | Accepted | 2026-09-29 |
 | [D11](0011-rule-changes-go-through-a-workflow-dispatch-form.md) | Rule changes go through a workflow_dispatch form | Partly superseded by D32 (2026-10-03) | 2026-09-29 |
-| [D12](0012-testing-scope-for-v1-is-pester-unit-tests.md) | Testing scope for v1 is Pester unit tests | Accepted | 2026-09-29 |
+| [D12](0012-testing-scope-for-v1-is-pester-unit-tests.md) | Testing scope for v1 is Pester unit tests | Partly superseded by D39 (2026-10-03) | 2026-09-29 |
 | [D13](0013-compiler-format-files-are-the-source-and-are-published-as-is.md) | Compiler-format files are the source and are published as-is | Accepted | 2026-09-29 |
 | [D14](0014-the-quarantine-policy-is-configured-per-org-with-no-default.md) | The quarantine policy is configured per org, with no default | Partly superseded by D26 (2026-10-01) | 2026-09-29 |
 | [D15](0015-four-named-content-levels-l0-kept-l5-dropped.md) | Four named content levels, L0 kept, L5 dropped | Superseded by D25, D26 and D28 (2026-10-01) | 2026-09-29 |
@@ -63,6 +63,8 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D35](0035-site-is-a-customizable-file-class-overwritten-only-when.md) | `site/**` is a customizable file class: overwritten only when unchanged locally | Accepted | 2026-10-03 |
 | [D36](0036-the-public-site-omits-the-organization-s-free-text.md) | The public site omits the organization's free-text justifications by default | Accepted | 2026-10-03 |
 | [D37](0037-justification-is-optional-in-every-change-path.md) | Justification is optional in every change path | Accepted | 2026-10-03 |
+| [D38](0038-release-notes-are-generated-from-pull-request-labels.md) | Release notes are generated from pull request labels | Accepted | 2026-10-03 |
+| [D39](0039-test-framework-is-pester-6.md) | Test framework is Pester 6 | Accepted | 2026-10-03 |
 
 ## Open decisions
 
@@ -79,6 +81,7 @@ Closed: O1 and O2 by D19 (and D17), O5 moot since D21, O6 by D28 (one skeleton f
 - Interview of 2026-10-01 (target removal, sparse endpoints, twins, default drift): D21 to D24.
 - Second interview of 2026-10-01 (no `L0`, configurable levels and stages, delta sources, slugs, rewritten dropdowns): D25 to D30.
 - Interview of 2026-10-03 (dashboard on the published site, issue-form write path, change sets, collaborator gate, customizable site files, exposure, optional justification): D31 to D37. Design in [dashboard.md](../dashboard.md).
+- Bootstrap interview of 2026-10-03 for WP00 ([#2](https://github.com/ALCops/rulebook-engine/issues/2)): generated release notes and Pester 6, D38 and D39.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
 - [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism behind D2, D3 and O3, O4.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).

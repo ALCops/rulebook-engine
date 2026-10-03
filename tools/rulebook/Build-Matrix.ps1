@@ -135,7 +135,7 @@ $DecisionRows = @(
 # Stage rules (S): derive Default, CI, vNext when the matched row did not pin them.
 # ---------------------------------------------------------------------------------------------
 $ciRelaxed = @('AL0603','AL1026','AL0472','AL0473','AL0479','AL1029','AL1030')
-function Get-StageColumns($row, $pinnedCi, $pinnedVnext) {
+function Get-StageColumn($row, $pinnedCi, $pinnedVnext) {
     $ci = '='; $vnext = '='
     if ($row.id -in $ciRelaxed) { $ci = 'Info' }                                        # S-2
     if ($null -ne $pinnedCi) { $ci = $pinnedCi }
@@ -182,7 +182,7 @@ foreach ($row in $inv) {
         }
     }
     $lad = Expand-Ladder $ladder
-    $sc = Get-StageColumns $row $pinCi $pinVnext
+    $sc = Get-StageColumn $row $pinCi $pinVnext
     $max = 120 - ("; $basis").Length
     if ($why.Length -gt $max) { $why = $why.Substring(0, $max - 3).TrimEnd() + '...' }
     $just = "$why; $basis"
@@ -370,5 +370,5 @@ $lines += '| File | Entries |'
 $lines += '|---|---|'
 foreach ($k in $fileCounts.Keys) { $lines += "| ``$k`` | $($fileCounts[$k]) |" }
 $lines -join "`n" | Set-Content -LiteralPath (Join-Path $matrixDir 'counts.md') -Encoding utf8NoBOM
-Write-Host "matrix rows: $($matrix.Count); twin pairs: $($pairs.Count)"
-$matrix | Group-Object { $_.Basis } | Sort-Object Name | ForEach-Object { Write-Host ("{0,-6} {1,4}" -f $_.Name, $_.Count) }
+Write-Output "matrix rows: $($matrix.Count); twin pairs: $($pairs.Count)"
+$matrix | Group-Object { $_.Basis } | Sort-Object Name | ForEach-Object { Write-Output ("{0,-6} {1,4}" -f $_.Name, $_.Count) }
