@@ -1,3 +1,0 @@
-baseURL: https://example.org/rulebook/
-title: Rulebook spike (h)
-disableKinds: [taxonomy, term, rss, sitemap]
