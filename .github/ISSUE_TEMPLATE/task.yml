@@ -1,0 +1,23 @@
+name: Task or spin-off
+description: Work found while doing something else, kept out of that issue's scope on purpose.
+labels: [spin-off]
+type: Task
+body:
+  - type: input
+    id: origin
+    attributes:
+      label: Found while working on
+      placeholder: "#12"
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What needs to be done and why it was not done in the originating issue.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance
+      value: |
+        - [ ]

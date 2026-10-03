@@ -1,0 +1,11 @@
+# D18. Every endpoint is one flat ruleset file; there is no include chain
+
+- **Status:** Partly superseded by D25 and D28 (2026-10-01)
+- **Date:** 2026-09-29
+
+- **Partly superseded** by D25 and D28 (2026-10-01): no `L0` file, endpoint names are lowercase slugs. Flat endpoints stay.
+- **Decision:** each endpoint `rulesets/L<n>.<target>.<stage>.ruleset.json` is a self-contained file: a `rules` array that lists **every** known diagnostic id with an explicit action (`None` included), no `includedRuleSets`, no `generalAction`. It is generated from the matrix in `docs/rulebook/` (base) plus the organization's inputs (D19). `L0.ruleset.json` is one file with every id at `None`. The only include left in the model is the AL project skeleton, which includes exactly one endpoint URL and carries project exceptions.
+- **Rationale:** the include chain existed only to let target and stage layers lower rules under the compiler's strictest-wins merge. It cost up to nine HTTP fetches per compile, each with a 15 second timeout and no cache, and any single failure discarded the whole ruleset (AL1033). A flat file needs one fetch, has no merge semantics to reason about, and gives the matrix full control: an unmentioned id would fall back to the analyzer default, so every id is written.
+- **Rejected:** the ancestor chain of D16 (works, but nine fetches and a merge model to explain); raise-only sibling overlays (cannot express a stage that lowers); omitting `None` entries with a `generalAction` (`generalAction` cannot say `None` and also touches compiler diagnostics).
+- **Consequences:** D6 (cumulative level files) and the chain half of D16 are superseded; "cumulative" is now a property of the matrix (invariant I2, check V11), not of files. D13 is superseded: there is a generation step, in the engine for the template and in the organization repository on validate and publish, and the generated files are committed so "what you see is what the compiler loads" still holds. The "54 endpoints" of D5 and the "45" of D15 become 37 files per set (36 endpoints plus `L0`). The validation rules lose tree resolution, disjointness and depth limits. `docs/rulebook/composition.md` is the generator's contract.
+- **Affects:** WP01, WP02, WP03, WP04, WP05, WP07, WP08, WP09, WP10, WP11, WP12.
