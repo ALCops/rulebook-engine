@@ -1,0 +1,160 @@
+name: spike-c
+
+# Throwaway workflow for spike (c), issue #21. Deleted before the pull request.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'wp01/spike-c' ]
+
+permissions:
+  contents: read
+
+env:
+  TOOLS_VERSION: 18.0.43.1464
+  FEED: https://pkgs.dev.azure.com/dynamicssmb2/DynamicsBCPublicFeeds/_packaging/MSSymbols/nuget/v3/flat2
+  MISSING_URL: https://raw.githubusercontent.com/ALCops/rulebook-engine/main/does-not-exist.ruleset.json
+
+jobs:
+  spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ runner.temp }}
+    steps:
+      - name: Helper
+        run: |
+          cat > "$RUNNER_TEMP/run.sh" <<'SH'
+          # usage: run.sh <label> <log> <cmd...>; times the command, records exit code, appends a table row to the summary
+          label="$1"; log="$2"; shift 2
+          echo "::group::$label"
+          echo "+ $*"
+          start=$(date +%s.%N)
+          "$@" > "$log" 2>&1
+          rc=$?
+          end=$(date +%s.%N)
+          wall=$(awk "BEGIN{printf \"%.1f\", $end-$start}")
+          cat "$log"
+          echo "::endgroup::"
+          key=$(grep -E 'AL[0-9]{4}|AA0137|rror|Compilation|nstalled|^[0-9]' "$log" | head -4 | tr '\n' ' ' | sed 's/|/\\|/g')
+          echo "RESULT | $label | exit $rc | ${wall}s | $key"
+          echo "| $label | \`$*\` | $rc | ${wall}s | ${key:0:400} |" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+          SH
+          chmod +x "$RUNNER_TEMP/run.sh"
+          { echo "## Spike (c) results"; echo; echo "| step | command | exit code | wall time | key output line |"; echo "|---|---|---|---|---|"; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Environment
+        run: |
+          {
+            echo "### Environment"
+            echo '```'
+            echo "ImageOS=$ImageOS ImageVersion=$ImageVersion"
+            grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release
+            echo "--- dotnet --list-sdks"; dotnet --list-sdks
+            echo "--- dotnet --list-runtimes"; dotnet --list-runtimes
+            echo '```'
+          } | tee env.txt
+          cat env.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check latest stable tool version
+        run: |
+          latest=$(curl -s https://api.nuget.org/v3-flatcontainer/microsoft.dynamics.businesscentral.development.tools/index.json | jq -r '[.versions[] | select(contains("-") | not)] | last')
+          echo "Latest stable Development.Tools: $latest (pinned: $TOOLS_VERSION)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Install tool
+        run: |
+          "$RUNNER_TEMP/run.sh" "install tool" install.log dotnet tool install --global Microsoft.Dynamics.BusinessCentral.Development.Tools --version "$TOOLS_VERSION"
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Tool version and layout
+        run: |
+          "$RUNNER_TEMP/run.sh" "al --version" alver.log al --version
+          "$RUNNER_TEMP/run.sh" "al GetLatestSupportedRuntimeVersion 28.0.0.0" rt.log al GetLatestSupportedRuntimeVersion 28.0.0.0
+          AL_BIN=$(dirname "$(find ~/.dotnet/tools/.store -name alc.dll | head -1)")
+          echo "AL_BIN=$AL_BIN" >> "$GITHUB_ENV"
+          {
+            echo "### Tool layout"
+            echo '```'
+            echo "AL_BIN=$AL_BIN"
+            echo "--- find alc.dll"; find ~/.dotnet/tools/.store -name alc.dll
+            echo "--- ls \$(dirname \$AL_BIN)"; ls "$(dirname "$AL_BIN")"
+            echo "--- cops"; ls "$AL_BIN" | grep -E 'Cop|CodeAnalysis.dll|^alc|^altool'
+            echo "--- runtimeconfig"; cat "$AL_BIN"/alc.runtimeconfig.json 2>/dev/null; cat "$AL_BIN"/altool.runtimeconfig.json 2>/dev/null
+            echo "--- .app files in tool"; find ~/.dotnet/tools/.store -name '*.app' | head
+            echo '```'
+          } | tee layout.txt
+          cat layout.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Symbols
+        run: |
+          {
+            echo "### Symbols"
+            echo '```'
+            curl -s "$FEED/microsoft.platform.symbols/index.json" > sym-index.json
+            echo "versions[0]=$(jq -r '.versions[0]' sym-index.json)  versions[-1]=$(jq -r '.versions[-1]' sym-index.json)"
+            V=$(jq -r '[.versions[] | select(startswith("28."))] | sort_by(split(".") | map(tonumber)) | last' sym-index.json)
+            echo "chosen=$V"
+            echo "SYM_VERSION=$V" >> "$GITHUB_ENV"
+            start=$(date +%s.%N)
+            curl -sSL -o platform.nupkg "$FEED/microsoft.platform.symbols/$V/microsoft.platform.symbols.$V.nupkg"
+            echo "curl exit $? in $(awk "BEGIN{printf \"%.1f\", $(date +%s.%N)-$start}")s, size $(stat -c %s platform.nupkg) bytes"
+            unzip -l platform.nupkg
+            mkdir -p fixture/.alpackages
+            unzip -o -j platform.nupkg '*.app' -d fixture/.alpackages
+            echo "--- .alpackages"; ls -l fixture/.alpackages
+            echo '```'
+          } | tee sym.txt
+          cat sym.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fixture
+        run: |
+          mkdir -p fixture/src empty/src empty/.alpackages
+          cat > fixture/app.json <<'J'
+          {
+            "id": "6f1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+            "name": "Spike",
+            "publisher": "Rulebook Spike",
+            "version": "1.0.0.0",
+            "platform": "28.0.0.0",
+            "runtime": "17.0",
+            "idRanges": [ { "from": 50000, "to": 50099 } ],
+            "target": "Cloud"
+          }
+          J
+          cat > fixture/src/Spike.Codeunit.al <<'A'
+          codeunit 50000 "Spike"
+          {
+              procedure Probe()
+              var
+                  Unused: Integer;
+              begin
+              end;
+          }
+          A
+          cat > aa0137-error.ruleset.json <<'J'
+          {
+            "name": "spike-c",
+            "rules": [ { "id": "AA0137", "action": "Error", "justification": "spike (c)" } ]
+          }
+          J
+          cp fixture/app.json empty/
+          cp fixture/src/Spike.Codeunit.al empty/src/
+          { echo "### Fixture"; echo '```json'; cat fixture/app.json; echo '```'; echo '```al'; cat fixture/src/Spike.Codeunit.al; echo '```'; echo '```json'; cat aa0137-error.ruleset.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Compile
+        run: |
+          COPS="/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.CodeCop.dll /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.UICop.dll /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.AppSourceCop.dll"
+          R="$RUNNER_TEMP/run.sh"
+          $R "1 no ruleset (al compile)" c1.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out1.app $COPS
+          $R "2 local ruleset AA0137=Error (al compile)" c2.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out2.app $COPS /ruleset:aa0137-error.ruleset.json
+          $R "3 bare dotnet alc.dll, local ruleset" c3.log dotnet "$AL_BIN/alc.dll" /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out3.app $COPS /ruleset:aa0137-error.ruleset.json
+          $R "4 control: URL without /enableexternalrulesets" c4.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out4.app $COPS /ruleset:$MISSING_URL
+          $R "5 control: 404 URL with /enableexternalrulesets" c5.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out5.app $COPS /ruleset:$MISSING_URL /enableexternalrulesets
+          $R "6 negative: empty .alpackages" c6.log al compile /project:empty /packagecachepath:empty/.alpackages /out:empty/out6.app $COPS /ruleset:aa0137-error.ruleset.json
+          ls -l fixture/*.app empty/*.app 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          { echo "### Diagnostics per compile"; echo '```'; for f in c1 c2 c3 c4 c5 c6; do echo "--- $f"; grep -E 'AL[0-9]{4}|AA0137|AS[0-9]{4}|PTE[0-9]{4}|rror|arning' "$f.log" | head -20; done; echo '```'; } > diag.txt
+          cat diag.txt
+          cat diag.txt >> "$GITHUB_STEP_SUMMARY"
