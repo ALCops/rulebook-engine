@@ -1,0 +1,10 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>{{ .Title }}</title></head>
+<body>
+<h1>{{ .Params.ruleId }}: {{ .Title }}</h1>
+{{ .Content }}
+<p>Analyzer: {{ .Params.analyzer }} · default: {{ .Params.default }} · <a href="{{ .Params.docsUrl }}">docs</a></p>
+<table>
+{{ range $k, $c := .Params.cells }}<tr><td>{{ $k }}</td><td>{{ $c.action }}</td><td>{{ $c.source }}</td></tr>
+{{ end }}</table>
+</body></html>

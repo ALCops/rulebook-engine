@@ -1,0 +1,8 @@
+{{ $data := os.ReadFile "data/rulebook.json" | transform.Unmarshal }}
+{{ with $data }}{{ warnf "spike-h probe variant=readfile rules=%v" (len .rules) }}{{ else }}{{ warnf "spike-h probe variant=readfile data=nil" }}{{ end }}
+{{ range $data.rules }}
+  {{ $content := dict "mediaType" "text/markdown" "value" (printf "Rule %s" .id) }}
+  {{ $params := dict "ruleId" .id "analyzer" .analyzer "default" .default "cells" .cells "docsUrl" .docsUrl }}
+  {{ $page := dict "path" (printf "rules/%s" .id) "title" .title "kind" "page" "content" $content "params" $params }}
+  {{ $.AddPage $page }}
+{{ end }}
