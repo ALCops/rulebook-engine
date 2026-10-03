@@ -22,7 +22,6 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{ runner.temp }}
     steps:
       - name: Helper
         run: |
