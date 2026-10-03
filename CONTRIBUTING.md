@@ -22,7 +22,7 @@ What exists today, and the work package that adds the rest. A folder is created 
 
 | Path | Content | Added by |
 |---|---|---|
-| `.github/workflows/ci.yml` | PSScriptAnalyzer and Pester on every pull request and every push to `main`. | WP00 |
+| `.github/workflows/ci.yml` | PSScriptAnalyzer and Pester on every pull request and every push to `main` and to a release branch (`v*`). | WP00 |
 | `.github/workflows/` (deploy) | Copies `template/` into `ALCops/rulebook` and pins action references to `@v1`. | WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)) |
 | `.github/release.yml` | Maps pull request labels to release-note sections ([D38](docs/adr/0038-release-notes-are-generated-from-pull-request-labels.md)). | WP00 |
 | `.github/dependabot.yml` | Weekly, grouped updates of the GitHub Actions used by the workflows. | WP00 |
@@ -59,7 +59,7 @@ When a change touches `tools/rulebook/` or `docs/rulebook/`, also run `pwsh ./to
 
 ## 4. CI
 
-`.github/workflows/ci.yml` has one job, `test`, on `ubuntu-latest`. It installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push to a pull request cancels its running job; runs on `main` always finish.
+`.github/workflows/ci.yml` has one job, `test`, on `ubuntu-latest` with a 15-minute timeout. It runs on every pull request and on every push to `main` or a release branch (`v*`). It installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push to a pull request cancels its running job; pushes to `main` and release branches always finish.
 
 The module versions are pinned in `ci.yml` (PSScriptAnalyzer 1.25.0, Pester 6.2.0) and bumped by hand, because Dependabot does not cover the PowerShell Gallery; it only updates the action tags.
 
