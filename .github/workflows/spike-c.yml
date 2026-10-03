@@ -163,9 +163,12 @@ jobs:
           $R "5 control: 404 URL with /enableexternalrulesets" c5.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out5.app $COPS /ruleset:$MISSING_URL /enableexternalrulesets
           $R "6 negative: empty .alpackages" c6.log al compile /project:empty /packagecachepath:empty/.alpackages /out:empty/out6.app $COPS /ruleset:aa0137-error.ruleset.json
           $R "7 all four cops incl. AppSourceCop, no ruleset" c7.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out7.app $COPS $ASCOP
-          $R "8 bare dotnet alc.dll from the other TFM folder, no ruleset" c8.log dotnet "$OTHER_BIN/alc.dll" /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out8.app $COPS
+          $R "8 pitfall: net8.0 alc.dll with net10.0 analyzers, no ruleset" c8.log dotnet "$OTHER_BIN/alc.dll" /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out8.app $COPS
+          OCOPS="/analyzer:$OTHER_BIN/Microsoft.Dynamics.Nav.CodeCop.dll /analyzer:$OTHER_BIN/Microsoft.Dynamics.Nav.UICop.dll /analyzer:$OTHER_BIN/Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll"
+          $R "9 bare dotnet alc.dll, other TFM folder with its own analyzers, local ruleset" c9.log dotnet "$OTHER_BIN/alc.dll" /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out9.app $OCOPS /ruleset:aa0137-error.ruleset.json
           echo "other TFM folder: $OTHER_BIN" | tee -a "$GITHUB_STEP_SUMMARY"
-          ls -l fixture/*.app empty/*.app 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
-          { echo "### Diagnostics per compile"; echo '```'; for f in c1 c2 c3 c4 c5 c6 c7 c8; do echo "--- $f"; grep -E 'AL[0-9]{4}|AA0137|AS[0-9]{4}|PTE[0-9]{4}|rror|arning' "$f.log" | head -20; done; echo '```'; } > diag.txt
+          echo "AL1003 count in c8: $(grep -c AL1003 c8.log)" | tee -a "$GITHUB_STEP_SUMMARY"
+          { ls -l fixture/*.app empty/*.app 2>&1 || true; } | tee -a "$GITHUB_STEP_SUMMARY"
+          { echo "### Diagnostics per compile"; echo '```'; for f in c1 c2 c3 c4 c5 c6 c7 c8 c9; do echo "--- $f"; grep -E 'AL[0-9]{4}|AA0137|AS[0-9]{4}|PTE[0-9]{4}|rror|arning' "$f.log" | head -20 || true; done; echo '```'; } > diag.txt
           cat diag.txt
           cat diag.txt >> "$GITHUB_STEP_SUMMARY"
