@@ -1,0 +1,30 @@
+{
+  "generatedBy": "tools/rulebook/Build-Matrix.ps1",
+  "setting": "levels",
+  "count": 4,
+  "levels": [
+    {
+      "name": "Essential",
+      "slug": "essential",
+      "file": "base/essential.ruleset.json"
+    },
+    {
+      "name": "Recommended",
+      "slug": "recommended",
+      "basedOn": "Essential",
+      "file": "base/recommended.ruleset.json"
+    },
+    {
+      "name": "Strict",
+      "slug": "strict",
+      "basedOn": "Recommended",
+      "file": "base/strict.ruleset.json"
+    },
+    {
+      "name": "Complete",
+      "slug": "complete",
+      "basedOn": "Strict",
+      "file": "base/complete.ruleset.json"
+    }
+  ]
+}

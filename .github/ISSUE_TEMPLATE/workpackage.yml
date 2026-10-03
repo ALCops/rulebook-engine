@@ -1,0 +1,80 @@
+name: Work package
+description: A unit of Rulebook work with its own deliverables, acceptance criteria and Pester tests.
+title: "WPnn: "
+labels: [workpackage]
+type: Feature
+body:
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      description: S = up to two days, M = up to a week, L = more than a week. Also add the matching `size:` label.
+      options: [S, M, L]
+    validations:
+      required: true
+  - type: input
+    id: depends
+    attributes:
+      label: Depends on
+      description: Issue numbers this work package is blocked by. Also add them as "Blocked by" relationships.
+      placeholder: "#12, #14"
+  - type: textarea
+    id: goal
+    attributes:
+      label: 1. Goal
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 2. Scope
+      value: |
+        ### In
+
+        -
+
+        ### Out
+
+        -
+    validations:
+      required: true
+  - type: textarea
+    id: inputs
+    attributes:
+      label: 3. Inputs
+      description: Architecture sections, ADRs (D numbers) and reference docs the implementer reads first.
+  - type: textarea
+    id: design
+    attributes:
+      label: 4. Design notes
+      description: Task-level notes. Anything that describes the target design is lifted into `docs/` before the issue closes.
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: 5. Deliverables
+      value: |
+        | Path | Repo | Description |
+        |---|---|---|
+        | | rulebook-engine | |
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 6. Acceptance criteria
+      value: |
+        - [ ]
+        - [ ] Design notes that describe the target design are lifted into `docs/`.
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: 7. Tests
+      description: Pester file and the cases.
+  - type: textarea
+    id: open
+    attributes:
+      label: 8. Open questions
+  - type: textarea
+    id: references
+    attributes:
+      label: 9. References

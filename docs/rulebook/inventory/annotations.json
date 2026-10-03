@@ -1,0 +1,1228 @@
+{
+  "AA0105": {
+    "family": "runtime"
+  },
+  "AA0106": {
+    "family": "runtime"
+  },
+  "AA0475": {
+    "family": "runtime"
+  },
+  "AC0000": {
+    "family": "internal"
+  },
+  "AC0014": {
+    "config": "alcops.json:ToolTipAllowedPunctuations"
+  },
+  "AC0026": {
+    "flags": [
+      "complements:AS0138",
+      "complements:PTE0026"
+    ]
+  },
+  "AC0027": {
+    "flags": [
+      "complements:AA0074"
+    ]
+  },
+  "AC0032": {
+    "flags": [
+      "codefix"
+    ]
+  },
+  "AL0269": {
+    "family": "future-error"
+  },
+  "AL0273": {
+    "family": "future-error"
+  },
+  "AL0299": {
+    "family": "future-error"
+  },
+  "AL0432": {
+    "family": "obsolete"
+  },
+  "AL0468": {
+    "family": "future-error"
+  },
+  "AL0481": {
+    "family": "future-error"
+  },
+  "AL0486": {
+    "family": "future-error"
+  },
+  "AL0493": {
+    "family": "future-error"
+  },
+  "AL0523": {
+    "family": "future-error"
+  },
+  "AL0524": {
+    "family": "future-error"
+  },
+  "AL0534": {
+    "family": "future-error"
+  },
+  "AL0545": {
+    "family": "future-error"
+  },
+  "AL0547": {
+    "family": "future-error"
+  },
+  "AL0548": {
+    "family": "future-error"
+  },
+  "AL0550": {
+    "family": "future-error"
+  },
+  "AL0551": {
+    "family": "future-error"
+  },
+  "AL0552": {
+    "family": "future-error"
+  },
+  "AL0556": {
+    "family": "future-error"
+  },
+  "AL0559": {
+    "family": "future-error"
+  },
+  "AL0560": {
+    "family": "future-error"
+  },
+  "AL0561": {
+    "family": "future-error"
+  },
+  "AL0562": {
+    "family": "future-error"
+  },
+  "AL0563": {
+    "family": "future-error"
+  },
+  "AL0568": {
+    "family": "future-error"
+  },
+  "AL0569": {
+    "family": "future-error"
+  },
+  "AL0571": {
+    "family": "future-error"
+  },
+  "AL0573": {
+    "family": "future-error"
+  },
+  "AL0586": {
+    "family": "future-error"
+  },
+  "AL0589": {
+    "family": "future-error"
+  },
+  "AL0590": {
+    "family": "future-error"
+  },
+  "AL0593": {
+    "family": "future-error"
+  },
+  "AL0598": {
+    "family": "future-error"
+  },
+  "AL0600": {
+    "family": "future-error"
+  },
+  "AL0601": {
+    "family": "future-error"
+  },
+  "AL0602": {
+    "family": "future-error"
+  },
+  "AL0604": {
+    "family": "future-error"
+  },
+  "AL0606": {
+    "family": "future-error"
+  },
+  "AL0608": {
+    "family": "future-error"
+  },
+  "AL0613": {
+    "family": "future-error"
+  },
+  "AL0614": {
+    "family": "future-error"
+  },
+  "AL0615": {
+    "family": "future-error"
+  },
+  "AL0617": {
+    "family": "future-error"
+  },
+  "AL0635": {
+    "family": "future-error"
+  },
+  "AL0639": {
+    "family": "future-error"
+  },
+  "AL0649": {
+    "family": "future-error"
+  },
+  "AL0650": {
+    "family": "future-error"
+  },
+  "AL0655": {
+    "family": "future-error"
+  },
+  "AL0660": {
+    "family": "future-error"
+  },
+  "AL0667": {
+    "family": "future-error"
+  },
+  "AL0677": {
+    "family": "future-error"
+  },
+  "AL0685": {
+    "family": "future-error"
+  },
+  "AL0692": {
+    "family": "future-error"
+  },
+  "AL0694": {
+    "family": "future-error"
+  },
+  "AL0695": {
+    "family": "future-error"
+  },
+  "AL0697": {
+    "family": "future-error"
+  },
+  "AL0700": {
+    "family": "future-error"
+  },
+  "AL0702": {
+    "family": "future-error"
+  },
+  "AL0711": {
+    "family": "future-error"
+  },
+  "AL0715": {
+    "family": "future-error"
+  },
+  "AL0727": {
+    "family": "future-error"
+  },
+  "AL0728": {
+    "family": "future-error"
+  },
+  "AL0729": {
+    "family": "future-error"
+  },
+  "AL0731": {
+    "family": "future-error"
+  },
+  "AL0733": {
+    "family": "future-error"
+  },
+  "AL0743": {
+    "family": "future-error"
+  },
+  "AL0745": {
+    "family": "future-error"
+  },
+  "AL0751": {
+    "family": "future-error"
+  },
+  "AL0753": {
+    "family": "future-error"
+  },
+  "AL0755": {
+    "family": "future-error"
+  },
+  "AL0758": {
+    "family": "future-error"
+  },
+  "AL0768": {
+    "family": "future-error"
+  },
+  "AL0769": {
+    "family": "future-error"
+  },
+  "AL0775": {
+    "family": "future-error"
+  },
+  "AL0778": {
+    "family": "future-error"
+  },
+  "AL0780": {
+    "family": "future-error"
+  },
+  "AL0782": {
+    "family": "future-error"
+  },
+  "AL0788": {
+    "family": "future-error"
+  },
+  "AL0801": {
+    "family": "obsolete"
+  },
+  "AL0803": {
+    "family": "future-error"
+  },
+  "AL0804": {
+    "family": "future-error"
+  },
+  "AL0805": {
+    "family": "future-error"
+  },
+  "AL0814": {
+    "family": "future-error"
+  },
+  "AL0816": {
+    "family": "future-error"
+  },
+  "AL0818": {
+    "family": "future-error"
+  },
+  "AL0826": {
+    "family": "future-error"
+  },
+  "AL0830": {
+    "family": "future-error"
+  },
+  "AL0837": {
+    "family": "future-error"
+  },
+  "AL0845": {
+    "family": "future-error"
+  },
+  "AL0864": {
+    "family": "future-error"
+  },
+  "AL0885": {
+    "family": "future-error"
+  },
+  "AL0910": {
+    "family": "future-error"
+  },
+  "AL0912": {
+    "family": "future-error"
+  },
+  "AL0920": {
+    "family": "future-error"
+  },
+  "AL1078": {
+    "family": "future-error"
+  },
+  "AL1401": {
+    "family": "personalization"
+  },
+  "AL1402": {
+    "family": "personalization"
+  },
+  "AL1403": {
+    "family": "personalization"
+  },
+  "AL1404": {
+    "family": "personalization"
+  },
+  "AL1405": {
+    "family": "personalization"
+  },
+  "AL1406": {
+    "family": "personalization"
+  },
+  "AL1407": {
+    "family": "personalization"
+  },
+  "AL1408": {
+    "family": "personalization"
+  },
+  "AL1409": {
+    "family": "personalization"
+  },
+  "AL1410": {
+    "family": "personalization"
+  },
+  "AL1411": {
+    "family": "personalization"
+  },
+  "AL1412": {
+    "family": "obsolete"
+  },
+  "AL1413": {
+    "family": "personalization"
+  },
+  "AL1414": {
+    "family": "personalization"
+  },
+  "AL1415": {
+    "family": "personalization"
+  },
+  "AL1416": {
+    "family": "personalization"
+  },
+  "AL1417": {
+    "family": "personalization"
+  },
+  "AL1418": {
+    "family": "personalization"
+  },
+  "AL1419": {
+    "family": "personalization"
+  },
+  "AL1420": {
+    "family": "personalization"
+  },
+  "AL1421": {
+    "family": "personalization"
+  },
+  "AL1422": {
+    "family": "personalization"
+  },
+  "AL1423": {
+    "family": "personalization"
+  },
+  "AL1424": {
+    "family": "personalization"
+  },
+  "AL1425": {
+    "family": "personalization"
+  },
+  "AL1426": {
+    "family": "personalization"
+  },
+  "AL1427": {
+    "family": "personalization"
+  },
+  "AL1428": {
+    "family": "personalization"
+  },
+  "AL1429": {
+    "family": "personalization"
+  },
+  "AS0001": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0002": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0003": {
+    "family": "config",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0004": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0005": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0006": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0007": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0008": {
+    "flags": [
+      "twin:PTE0021"
+    ]
+  },
+  "AS0009": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0010": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0011": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:baseline;AppSourceCop.json:mandatoryAffixes",
+    "flags": [
+      "contradicts:LC0054"
+    ]
+  },
+  "AS0013": {
+    "config": "app.json"
+  },
+  "AS0014": {
+    "config": "app.json"
+  },
+  "AS0015": {
+    "family": "marketplace",
+    "config": "app.json"
+  },
+  "AS0018": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0019": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0020": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0021": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0022": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0023": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0024": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0025": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0026": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0027": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0028": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0029": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0030": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0031": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0032": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0033": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0034": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0035": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0036": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0038": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0039": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0040": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0041": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0042": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0043": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0044": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0047": {
+    "config": "app.json",
+    "flags": [
+      "twin:PTE0010"
+    ]
+  },
+  "AS0048": {
+    "config": "app.json",
+    "flags": [
+      "twin:PTE0011"
+    ]
+  },
+  "AS0049": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0050": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0051": {
+    "family": "marketplace",
+    "config": "app.json"
+  },
+  "AS0052": {
+    "family": "marketplace",
+    "config": "app.json"
+  },
+  "AS0053": {
+    "config": "app.json",
+    "flags": [
+      "twin:PTE0005"
+    ]
+  },
+  "AS0054": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:mandatoryAffixes"
+  },
+  "AS0055": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:supportedCountries"
+  },
+  "AS0056": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:supportedCountries"
+  },
+  "AS0057": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:supportedCountries;xliff"
+  },
+  "AS0061": {
+    "flags": [
+      "twin:PTE0003"
+    ]
+  },
+  "AS0062": {
+    "flags": [
+      "twin:PTE0008"
+    ]
+  },
+  "AS0063": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0064": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0065": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0066": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0067": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0068": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0069": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0070": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0071": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0072": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline;AppSourceCop.json:obsoleteTag"
+  },
+  "AS0073": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline;AppSourceCop.json:obsoleteTag"
+  },
+  "AS0074": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline;AppSourceCop.json:obsoleteTag"
+  },
+  "AS0075": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline;AppSourceCop.json:obsoleteTag"
+  },
+  "AS0076": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline;AppSourceCop.json:obsoleteTag"
+  },
+  "AS0077": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0078": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0079": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:mandatoryAffixes"
+  },
+  "AS0080": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0081": {
+    "config": "app.json",
+    "flags": [
+      "twin:PTE0012"
+    ]
+  },
+  "AS0082": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0083": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0084": {
+    "family": "marketplace",
+    "config": "app.json"
+  },
+  "AS0085": {
+    "config": "app.json"
+  },
+  "AS0086": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0087": {
+    "config": "AppSourceCop.json:supportedCountries;xliff"
+  },
+  "AS0088": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0089": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0090": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0091": {
+    "family": "config",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0092": {
+    "family": "marketplace",
+    "config": "app.json"
+  },
+  "AS0094": {
+    "flags": [
+      "twin:PTE0014"
+    ]
+  },
+  "AS0095": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0096": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0097": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0098": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:baseline;AppSourceCop.json:mandatoryAffixes",
+    "flags": [
+      "contradicts:LC0054"
+    ]
+  },
+  "AS0099": {
+    "config": "app.json;AppSourceCop.json:baseline",
+    "flags": [
+      "twin:PTE0022"
+    ]
+  },
+  "AS0100": {
+    "config": "app.json"
+  },
+  "AS0101": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0102": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0103": {
+    "flags": [
+      "twin:PTE0004"
+    ]
+  },
+  "AS0104": {
+    "config": "app.json",
+    "flags": [
+      "twin:PTE0015"
+    ]
+  },
+  "AS0105": {
+    "config": "AppSourceCop.json:obsoleteTag"
+  },
+  "AS0106": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0107": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0108": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0109": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0110": {
+    "flags": [
+      "twin:PTE0016"
+    ]
+  },
+  "AS0111": {
+    "flags": [
+      "twin:PTE0017"
+    ]
+  },
+  "AS0112": {
+    "flags": [
+      "twin:PTE0018"
+    ]
+  },
+  "AS0113": {
+    "flags": [
+      "twin:PTE0019"
+    ]
+  },
+  "AS0114": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0115": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0116": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0117": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0118": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0119": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0120": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0121": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0122": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0123": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0124": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0125": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline;xliff"
+  },
+  "AS0126": {
+    "config": "app.json"
+  },
+  "AS0128": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0129": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0130": {
+    "flags": [
+      "twin:PTE0025"
+    ]
+  },
+  "AS0131": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:additiveChangeValidation;AppSourceCop.json:baseline"
+  },
+  "AS0132": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:additiveChangeValidation;AppSourceCop.json:baseline"
+  },
+  "AS0133": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:additiveChangeValidation;AppSourceCop.json:baseline"
+  },
+  "AS0134": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0135": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0136": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0137": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0138": {
+    "flags": [
+      "twin:PTE0026"
+    ]
+  },
+  "AS0139": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0140": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0142": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0146": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0147": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0148": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0149": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AS0150": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:mandatoryAffixes"
+  },
+  "AS0151": {
+    "family": "marketplace",
+    "config": "AppSourceCop.json:mandatoryAffixes"
+  },
+  "AS0152": {
+    "family": "breaking-change",
+    "config": "AppSourceCop.json:baseline"
+  },
+  "AW0007": {
+    "family": "runtime"
+  },
+  "CM0001": {
+    "family": "config"
+  },
+  "DC0000": {
+    "family": "internal"
+  },
+  "FC0000": {
+    "family": "internal"
+  },
+  "FC0004": {
+    "flags": [
+      "codefix"
+    ]
+  },
+  "FC0006": {
+    "flags": [
+      "codefix"
+    ]
+  },
+  "FC0007": {
+    "config": "alcops.json:StatementBlockSpacing"
+  },
+  "LC0000": {
+    "family": "internal"
+  },
+  "LC0007": {
+    "family": "metric",
+    "config": "alcops.json:MaintainabilityIndexThreshold"
+  },
+  "LC0008": {
+    "config": "alcops.json:MaintainabilityIndexThreshold"
+  },
+  "LC0009": {
+    "family": "metric",
+    "config": "alcops.json:CyclomaticComplexityThreshold"
+  },
+  "LC0010": {
+    "config": "alcops.json:CyclomaticComplexityThreshold"
+  },
+  "LC0054": {
+    "flags": [
+      "contradicts:AS0011",
+      "contradicts:AS0098"
+    ]
+  },
+  "LC0089": {
+    "family": "metric",
+    "config": "alcops.json:CognitiveComplexityThreshold"
+  },
+  "LC0089i": {
+    "family": "metric",
+    "config": "alcops.json:CognitiveComplexityThreshold"
+  },
+  "LC0090": {
+    "config": "alcops.json:CognitiveComplexityThreshold"
+  },
+  "LC0091": {
+    "config": "alcops.json:LanguagesToTranslate;xliff"
+  },
+  "LC0092": {
+    "config": "alcops.json:NamingPatterns",
+    "flags": [
+      "complements:AA0102"
+    ]
+  },
+  "LC0095": {
+    "flags": [
+      "codefix",
+      "extends:AA0137"
+    ]
+  },
+  "LC0098": {
+    "config": "alcops.json:KnownAcronyms;alcops.json:SubscriberNamingPattern"
+  },
+  "LC0099": {
+    "flags": [
+      "extends:AA0137"
+    ]
+  },
+  "PC0000": {
+    "family": "internal"
+  },
+  "PC0002": {
+    "family": "runtime"
+  },
+  "PC0003": {
+    "family": "runtime"
+  },
+  "PC0004": {
+    "family": "runtime"
+  },
+  "PC0007": {
+    "family": "runtime"
+  },
+  "PC0008": {
+    "family": "runtime"
+  },
+  "PC0013": {
+    "family": "runtime"
+  },
+  "PC0015": {
+    "family": "runtime"
+  },
+  "PC0018": {
+    "family": "runtime"
+  },
+  "PC0022": {
+    "flags": [
+      "extends:AA0139"
+    ]
+  },
+  "PC0025": {
+    "family": "runtime"
+  },
+  "PC0029": {
+    "config": "alcops.json:UseSequentialGuidScope"
+  },
+  "PC0030": {
+    "flags": [
+      "complements:AA0242"
+    ]
+  },
+  "PC0032": {
+    "family": "runtime"
+  },
+  "PC0034": {
+    "flags": [
+      "extends:AA0131"
+    ]
+  },
+  "PC0035": {
+    "flags": [
+      "codefix"
+    ]
+  },
+  "PTE0001": {
+    "family": "pte-only",
+    "config": "app.json"
+  },
+  "PTE0002": {
+    "family": "pte-only",
+    "config": "app.json"
+  },
+  "PTE0003": {
+    "flags": [
+      "twin:AS0061"
+    ]
+  },
+  "PTE0004": {
+    "flags": [
+      "twin:AS0103"
+    ]
+  },
+  "PTE0005": {
+    "config": "app.json",
+    "flags": [
+      "twin:AS0053"
+    ]
+  },
+  "PTE0008": {
+    "flags": [
+      "twin:AS0062"
+    ]
+  },
+  "PTE0009": {
+    "family": "pte-only",
+    "config": "app.json"
+  },
+  "PTE0010": {
+    "config": "app.json",
+    "flags": [
+      "twin:AS0047"
+    ]
+  },
+  "PTE0011": {
+    "config": "app.json",
+    "flags": [
+      "twin:AS0048"
+    ]
+  },
+  "PTE0012": {
+    "flags": [
+      "twin:AS0081"
+    ]
+  },
+  "PTE0013": {
+    "family": "pte-only"
+  },
+  "PTE0014": {
+    "flags": [
+      "twin:AS0094"
+    ]
+  },
+  "PTE0015": {
+    "config": "app.json",
+    "flags": [
+      "twin:AS0104"
+    ]
+  },
+  "PTE0016": {
+    "flags": [
+      "twin:AS0110"
+    ]
+  },
+  "PTE0017": {
+    "flags": [
+      "twin:AS0111"
+    ]
+  },
+  "PTE0018": {
+    "flags": [
+      "twin:AS0112"
+    ]
+  },
+  "PTE0019": {
+    "flags": [
+      "twin:AS0113"
+    ]
+  },
+  "PTE0020": {
+    "config": "app.json"
+  },
+  "PTE0021": {
+    "flags": [
+      "twin:AS0008"
+    ]
+  },
+  "PTE0022": {
+    "config": "app.json",
+    "flags": [
+      "twin:AS0099"
+    ]
+  },
+  "PTE0023": {
+    "family": "pte-only",
+    "config": "app.json"
+  },
+  "PTE0024": {
+    "family": "pte-only"
+  },
+  "PTE0025": {
+    "flags": [
+      "twin:AS0130"
+    ]
+  },
+  "PTE0026": {
+    "flags": [
+      "twin:AS0138"
+    ]
+  },
+  "TA0000": {
+    "family": "internal"
+  }
+}

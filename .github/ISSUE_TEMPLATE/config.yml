@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Rulebook v1 board
+    url: https://github.com/orgs/ALCops/projects
+    about: Status and order of the work packages.
