@@ -30,7 +30,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D2](0002-two-repositories-template-and-engine.md) | Two repositories: template and engine | Accepted | 2026-09-29 |
 | [D3](0003-managed-levels-are-vendored-into-the-org-repo.md) | Managed levels are vendored into the org repo | Accepted | 2026-09-29 |
 | [D4](0004-level-content-starts-empty-placeholder-names-l0-to-l5.md) | Level content starts empty, placeholder names L0 to L5 | Superseded by D25, D26 and D28 (2026-10-01) | 2026-09-29 |
-| [D5](0005-endpoint-dimensions-level-x-target-x-stage.md) | Endpoint dimensions: level x target x stage | Accepted | 2026-09-29 |
+| [D5](0005-endpoint-dimensions-level-x-target-x-stage.md) | Endpoint dimensions: level x target x stage | Partly superseded by D21 and D28 (2026-10-01) | 2026-09-29 |
 | [D6](0006-levels-are-cumulative.md) | Levels are cumulative | Superseded by D18, partly reinstated by D27 (2026-10-01) | 2026-09-29 |
 | [D7](0007-hosting-is-pluggable-github-pages-is-the-default.md) | Hosting is pluggable, GitHub Pages is the default | Accepted | 2026-09-29 |
 | [D8](0008-endpoint-urls-are-unversioned-in-v1.md) | Endpoint URLs are unversioned in v1 | Accepted | 2026-09-29 |
