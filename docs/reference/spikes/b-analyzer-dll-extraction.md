@@ -21,14 +21,25 @@ The three methods:
 - **Method 2, console app** (`m2/`, `TargetFrameworks` `net8.0;net10.0`, `RollForward` `LatestPatch`). A custom `AssemblyLoadContext` that resolves through an `AssemblyDependencyResolver` per `*.deps.json` in the tools folder, then probes the ALCops and tools folders, and leaves framework assemblies to the default context. Same enumeration through reflection, compiler ids without titles.
 - **Method 3, regex scan** (`m3-scan.sh`). `strings -e l` (UTF-16, the .NET user-string heap) and `strings` on `Microsoft.Dynamics.Nav.CodeAnalysis.dll`, the four Microsoft cops and the seven ALCops DLLs of the `net10.0` folders; once for strings that are exactly an id (`^(AA|AW|AS|PTE|AL|LC|AC|DC|FC|PC|TA|TAC|CM)[0-9]{4}$`), once for ids embedded anywhere in a string (`\b...[0-9]{4}i?\b`).
 
-The core of method 1, which WP08 can lift:
+The core of method 1, as run (the `AssemblyResolve` handler is required; without it types are lost, see Observed). WP08 should turn the partial-load branch into a failure or a reported count rather than accept it silently:
 
 ```powershell
+$searchDirs = @($AlcopsDir, $ToolsDir)
+[AppDomain]::CurrentDomain.add_AssemblyResolve({
+    param($s, $e)
+    $name = ([Reflection.AssemblyName]$e.Name).Name
+    foreach ($d in $searchDirs) { $p = Join-Path $d "$name.dll"; if (Test-Path $p) { return [Reflection.Assembly]::LoadFrom($p) } }
+    return $null
+})
 $ca   = [Reflection.Assembly]::LoadFrom("$ToolsDir/Microsoft.Dynamics.Nav.CodeAnalysis.dll")
 $base = $ca.GetType('Microsoft.Dynamics.Nav.CodeAnalysis.Diagnostics.DiagnosticAnalyzer', $true)
 foreach ($dll in $copDlls) {
     $asm = [Reflection.Assembly]::LoadFrom($dll)
-    try { $types = $asm.GetTypes() } catch [Reflection.ReflectionTypeLoadException] { $types = $_.Exception.Types | Where-Object { $_ } }
+    try { $types = $asm.GetTypes() }
+    catch [Reflection.ReflectionTypeLoadException] {
+        $types = $_.Exception.Types | Where-Object { $_ }
+        Write-Warning "${dll}: $($_.Exception.Types.Count - @($types).Count) types not loaded"   # never seen on the runner
+    }
     foreach ($t in $types | Where-Object { $_.IsClass -and -not $_.IsAbstract -and $base.IsAssignableFrom($_) -and $_.GetConstructor([Type]::EmptyTypes) }) {
         foreach ($d in ([Activator]::CreateInstance($t)).SupportedDiagnostics) {
             # $d.Id, $d.DefaultSeverity, $d.IsEnabledByDefault, $d.Title.ToString(), $d.HelpLinkUri, $d.Category, $d.IsDeprecated
@@ -57,7 +68,7 @@ Final run: [actions/runs/37144520914](https://github.com/ALCops/rulebook-engine/
 
 ### DLL inventory
 
-Stable packages. `TextCopy.dll` matches the `Cop` filter but is a clipboard library, not an analyzer.
+Stable packages. `tools/<tfm>/any/TextCopy.dll` (40,760 bytes, both TFMs) matches the `Cop` filter but is a clipboard library, not an analyzer; it is omitted from the table.
 
 | Package | Version | Path in nupkg | Size | sha256 (short) |
 |---|---|---|---|---|
@@ -93,7 +104,7 @@ Stable packages. `TextCopy.dll` matches the `Cop` filter but is a clipboard libr
 
 Findings on the packages:
 
-- **The `.Linux` package is a subset with byte-identical analyzers.** It is a `Dependency` package ("intended to be referenced from other .NET projects", per its README) with only the five cop DLLs per TFM under `lib/net8.0` and `lib/net10.0`; all 20 DLLs (stable and prerelease, both TFMs) have the same SHA-256 as the neutral package's `tools/<tfm>/any` copies. It does **not** contain `Microsoft.Dynamics.Nav.CodeAnalysis.dll`, so it cannot be used on its own for extraction, and it adds nothing. `.win` and `.osx` variants exist on nuget.org too (prerelease `30.0.42.60748-beta` is the newest of each); they were not downloaded.
+- **The `.Linux` package is a subset with byte-identical analyzers.** Its nuspec declares `<packageType name="Dependency" />` and the description "Development Tools dependency package for Microsoft Dynamics 365 Business Central" (read locally from `https://api.nuget.org/v3-flatcontainer/microsoft.dynamics.businesscentral.development.tools.linux/18.0.43.1464/microsoft.dynamics.businesscentral.development.tools.linux.nuspec` on 2026-10-03, not by the workflow). It has only the five cop DLLs per TFM under `lib/net8.0` and `lib/net10.0`; all 20 DLLs (stable and prerelease, both TFMs) have the same SHA-256 as the neutral package's `tools/<tfm>/any` copies. It does **not** contain `Microsoft.Dynamics.Nav.CodeAnalysis.dll`, so it cannot be used on its own for extraction, and it adds nothing. `.win` and `.osx` variants exist on nuget.org too (prerelease `30.0.42.60748-beta` is the newest of each); they were not downloaded.
 - **Prerelease ships no analyzer missing from stable.** The tools prerelease `30.0.42.60748-beta` adds only `Onigwrap.dll`, `TextMateSharp.dll` and three `runtimes/win-*/native/libonigwrap.dll` per TFM (a TextMate grammar engine, not an analyzer); the cop DLL names and folders are the same. `alcops.analyzers` 1.3.0-beta.1 and 1.3.1 have identical DLL lists.
 - Both TFM folders of the tools package carry their own build of every cop (different hashes, same names); ALCops ships `netstandard2.1`, `net8.0` and `net10.0`.
 
@@ -151,9 +162,19 @@ Findings on the methods:
 
 - **Reflection works on both TFM folders under the runner's pwsh.** pwsh 7.6.6 runs on .NET 10.0.12, so it loads `tools/net10.0/any` natively and `tools/net8.0/any` by forward compatibility; both give the same 618 ids with the same defaults. The reverse does not hold: a process on .NET 8 that loads the `net10.0` folder fails (`FileNotFoundException: Could not load file or assembly 'System.Runtime, Version=10.0.0.0'` in method 2), which is the same mechanism as the AL1003 mismatch in [spike (c)](c-alc-on-ubuntu.md). pwsh 7.4 (.NET 8) was not available on the runner to try.
 - **ALCops `netstandard2.1` loses a rule.** With `lib/netstandard2.1` the LinterCop returns 32 instead of 33 descriptors: LC0091 is defined but not advertised in that build. `lib/net8.0` and `lib/net10.0` agree.
-- **No instantiation failures, no binding failures on the runner** (235 analyzer types per run: 135 Microsoft, 100 ALCops; 0 exceptions). The `AssemblyResolve` handler is needed: ALCops.LinterCop's code-fix types reference `Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll`, which ships in the tools folder; in a local check on Windows without the handler, `GetTypes()` threw `ReflectionTypeLoadException` with 36 of 140 types unloaded.
-- **62 ids are returned by more than one analyzer type** (mostly AppSourceCop, plus AC0032); in every case the duplicates agree on severity and enablement, so deduplication by id is safe. LC0003 appears once; `inventory.json` notes it as a descriptor pair from source.
-- **Stable and prerelease give the same id set.** Method 1 on Development.Tools 30.0.42.60748-beta with ALCops 1.3.0-beta.1 returned the same 618 ids as on 18.0.43.1464 with 1.3.1, with no default or enablement change.
+- **No instantiation failures, no binding failures on the runner** (235 analyzer types per run: 135 Microsoft, 100 ALCops; 0 exceptions). The `AssemblyResolve` handler is needed: ALCops.LinterCop's code-fix types reference `Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces.dll`, which ships in the tools folder; in a local check on Windows (pwsh 7.6.6 on .NET 10.0.12, 2026-10-03, not on the runner) that loaded `ALCops.LinterCop.dll` 1.3.1 without the handler, `GetTypes()` threw `ReflectionTypeLoadException` (`Could not load file or assembly 'Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces, Version=18.0.41.39415'`) and only 104 of 140 types loaded.
+- **62 ids are returned by more than one analyzer type** (60 AS, plus AC0032 and FC0002; up to 9 analyzers for one id); method 1 warns when duplicates disagree on severity or enablement and printed no such warning, so deduplication by id is safe. LC0003 is returned by one analyzer; `inventory.json` notes it as a descriptor pair from source. From `m1-stable-net10.json` of the run (`descriptorCount` is the number of analyzer types returning the id):
+
+  ```
+  duplicates: 62 ids; max 9x; prefixes AC=1 AS=60 FC=1
+  {"id":"AC0032","descriptorCount":2,"helpLinkUri":"https://alcops.dev/docs/analyzers/applicationcop/ac0032/"}
+  {"id":"LC0003","descriptorCount":1,"helpLinkUri":"https://alcops.dev/docs/analyzers/lintercop/lc0003/"}
+  {"id":"AA0137","descriptorCount":1,"helpLinkUri":"https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0137?wt.mc_id=d365bc_inproduct_alextension"}
+  {"id":"AL0200","descriptorCount":1,"helpLinkUri":null}
+  ```
+
+- **Help links.** All 278 Microsoft cop links start with `https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/` and end in `?wt.mc_id=d365bc_inproduct_alextension` (a tracking parameter; the URL without it returned 200 in a local check on 2026-10-03). The AL ids have no link; the inventory's pattern `https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/diagnostics/diagnostic-al<n>` returned 200 locally for AL200 and AL1003, and Learn's `developer/toc.json` lists 917 `diagnostic-al<n>` pages (runner).
+- **Stable and prerelease give the same id set.** Each method 1 run was a separate pwsh process (one per channel and TFM); loading two versions of the same-named `Microsoft.Dynamics.Nav.CodeAnalysis` into one process was not tried and would reuse the first or fail. Method 1 on Development.Tools 30.0.42.60748-beta with ALCops 1.3.0-beta.1 returned the same 618 ids as on 18.0.43.1464 with 1.3.1, with no default or enablement change.
 - **Why the inventory has 10 more ids.** `Extract-Inventory.ps1` reads source, not binaries. AS0141 is a descriptor no AppSourceCop analyzer returns (dead in both versions). The six `XX0000` ids are the ALCops "analyzer exception" descriptors; in 1.3.1 the rule analyzers derive from `DiagnosticAnalyzer` directly instead of the per-cop base class that appends the `XX0000` descriptor, so no analyzer advertises them. AC0033, AC0034 and TA0002 were added on the Analyzers `main` after `v1.3.1` (commits 0764aae and b9ed989) and are in no package yet.
 - **ALCops TestAutomationCop's help link is wrong.** `HelpLinkUri` is `https://alcops.dev/docs/analyzers/testautomationCop/ta0001/` (capital `C`), which returns 404; the lowercase path returns 200. The same URL is in `inventory.json`, which copied it from the source.
 
@@ -239,31 +260,31 @@ The two embedded AA hits are AA0131 and AA0137, found inside longer strings. The
 
 ### Machine-readable title and docs URL
 
-Not needed for the recommended method, which reads `Title` and `HelpLinkUri` from the descriptors. Probed anyway (runner and local, same results):
+Not needed for the recommended method, which reads `Title` and `HelpLinkUri` from the descriptors. Probed anyway. "Runner" values were printed by the workflow's probe step; "local" values come from `curl` and `jq` on Windows on 2026-10-03 and were not repeated by the workflow.
 
-| URL | Status | What it carries |
+| URL | Status (runner) | What it carries |
 |---|---|---|
 | `https://alcops.dev/docs/analyzers/index.json` | 404 | - |
 | `https://alcops.dev/index.json` | 404 | - |
-| `https://alcops.dev/docs/analyzers/index.xml` | 200, RSS, 439 bytes | empty channel, no items |
-| `https://alcops.dev/index.xml` | 200, RSS, 244,676 bytes | 137 items with title and link, 123 of them rule pages; the id is only in the URL path |
-| `https://alcops.dev/sitemap.xml` | 200 | 152 URLs, 123 rule pages, no titles |
-| `https://alcops.dev/offline-search-index.be3d677e694d6411853167da52919974.json` (name found in the `search-index-json-src` attribute of every page) | 200, JSON, 465,918 bytes | 152 entries `{ref, title, description, excerpt, body, categories, tags}`, 123 rule pages; no id field, no severity; the file name changes with every site build |
-| `https://alcops.dev/docs/analyzers/lintercop/lc0001/` | 404 | rule page URLs use the cop folder and lowercase id (`.../applicationcop/ac0001/` is 200) |
-| `https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0137` | 200, HTML | no `application/ld+json`; `<meta name="description">` holds the rule title, `<title>` is "CodeCop Warning AA0137 - Business Central" |
-| `https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/toc.json` (the page's `toc_rel`) | 200, JSON, 358,294 bytes | id-to-path map only (`{"href":"analyzers/codecop-aa0137","toc_title":"AA0137"}`): 93 AA, 17 AW, 143 AS, 26 PTE and 917 AL entries (the AL entries include Error codes); no titles |
+| `https://alcops.dev/docs/analyzers/index.xml` | 200, `application/xml`, 439 bytes | empty channel, no items (local) |
+| `https://alcops.dev/index.xml` | 200, `application/xml`, 244,676 bytes | 137 items (runner) with title and link; 123 of them are rule pages (local); the id is only in the URL path |
+| `https://alcops.dev/sitemap.xml` | 200, `application/xml`, 11,477 bytes | 152 URLs, 123 rule pages, no titles (local) |
+| `https://alcops.dev/offline-search-index.be3d677e694d6411853167da52919974.json` (name found in the `search-index-json-src` attribute of the pages) | 200, JSON | runner: 152 entries with keys `body, categories, description, excerpt, ref, tags, title`, 123 rule pages; local: 465,918 bytes. No id field, no severity; the hashed file name changes with site builds |
+| `https://alcops.dev/docs/analyzers/lintercop/lc0001/` | 404 | rule pages use the cop folder and lowercase id; local: `.../applicationcop/ac0001/` 200, `.../testautomationcop/ta0001/` 200, `.../testautomationCop/ta0001/` 404 |
+| `https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0137` | 200, `text/html`, 46,588 bytes | runner: 0 `application/ld+json` blocks; `<meta name="description">` holds the rule title, `<title>` is "CodeCop Warning AA0137 - Business Central" |
+| `https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/toc.json` (the page's `toc_rel`) | 200, `application/json`, 358,294 bytes | runner: id-to-path map only (`{"href":"analyzers/codecop-aa0137","toc_title":"AA0137"}`), 93 AA, 17 AW, 143 AS, 26 PTE and 917 AL entries (the AL entries include Error codes); no titles |
 
-The 123 alcops.dev rule pages are the 121 ALCops 1.3.1 ids without `LC0089i` (no page of its own) plus AC0033, AC0034 and TA0002, which the site already documents ahead of the package.
+Local comparison: the 123 alcops.dev rule pages are the 121 ALCops 1.3.1 ids without `LC0089i` (no page of its own) plus AC0033, AC0034 and TA0002, which the site already documents ahead of the package.
 
 ## Answer
 
-WP08 implements **method 1, reflection in pwsh**: load `Microsoft.Dynamics.Nav.CodeAnalysis.dll` and the four `Microsoft.Dynamics.Nav.*Cop.dll` from **`tools/<tfm>/any/`** of `Microsoft.Dynamics.BusinessCentral.Development.Tools`, the seven `ALCops.*.dll` from **`lib/<tfm>/`** of `ALCops.Analyzers` (same `<tfm>`, resolving `Microsoft.Dynamics.Nav.CodeAnalysis*` from the tools folder through an `AssemblyResolve` handler), instantiate every `DiagnosticAnalyzer` and read `SupportedDiagnostics`; read the compiler's AL ids from the `ErrorCode` enum in the same assembly. On `ubuntu-latest` today (pwsh 7.6.6 on .NET 10.0.12) `<tfm>` is **`net10.0`**: `tools/net10.0/any/` and `lib/net10.0/`. `net8.0` gave identical output; WP08 should choose the highest TFM folder that is not newer than the pwsh runtime (`[Environment]::Version.Major`) and never `netstandard2.1`. It works for stable and prerelease alike, needs nothing beyond pwsh, takes about a second, and yields everything the catalog needs (id, default severity, enablement, title, help link); it found 618 of the 628 inventory ids with zero default differences, and the 10 others are not advertised by any analyzer or not released yet. The `.Linux` package can be ignored: its analyzers are byte-identical to the neutral package and it lacks `Microsoft.Dynamics.Nav.CodeAnalysis.dll`.
+WP08 implements **method 1, reflection in pwsh**: load `Microsoft.Dynamics.Nav.CodeAnalysis.dll` and the four `Microsoft.Dynamics.Nav.*Cop.dll` from **`tools/<tfm>/any/`** of `Microsoft.Dynamics.BusinessCentral.Development.Tools`, the seven `ALCops.*.dll` from **`lib/<tfm>/`** of `ALCops.Analyzers` (same `<tfm>`, resolving `Microsoft.Dynamics.Nav.CodeAnalysis*` from the tools folder through an `AssemblyResolve` handler), instantiate every `DiagnosticAnalyzer` and read `SupportedDiagnostics`; read the compiler's AL ids from the `ErrorCode` enum in the same assembly. On `ubuntu-latest` today (pwsh 7.6.6 on .NET 10.0.12) `<tfm>` is **`net10.0`**: `tools/net10.0/any/` and `lib/net10.0/`. `net8.0` gave identical output; WP08 should choose the highest TFM folder that is not newer than the pwsh runtime (`[Environment]::Version.Major`) and never `netstandard2.1`. Run one pwsh process per package version and channel, as the spike did, so that two versions of `Microsoft.Dynamics.Nav.CodeAnalysis` never meet in one process. It works for stable and prerelease alike, needs nothing beyond pwsh, takes about a second, and yields everything the catalog needs (id, default severity, enablement, title, help link); it found 618 of the 628 inventory ids with zero default differences, and the 10 others are not advertised by any analyzer or not released yet. The `.Linux` package can be ignored: its analyzers are byte-identical to the neutral package and it lacks `Microsoft.Dynamics.Nav.CodeAnalysis.dll`.
 
 ## Consequences for blocked work packages
 
 | WP | Consequence | Action taken |
 |---|---|---|
-| WP08 ([#10](https://github.com/ALCops/rulebook-engine/issues/10)) | Extractor = pwsh reflection over `tools/<tfm>/any/` and `lib/<tfm>/` (TFM rule above), no .NET project. Download only the neutral tools package and `alcops.analyzers`. `title` and `docsUrl` come from the descriptors (strip `?wt.mc_id=...` from Microsoft links); only AL ids need the docs pattern `.../diagnostics/diagnostic-al<n>`. Add the static-descriptor-field pass to report defined-but-unadvertised ids (AS0141, `XX0000`) separately instead of quarantining them, deduplicate by id (62 ids come from several analyzers), and treat the prerelease channel as current only when it sorts after stable (ALCops prerelease 1.3.0-beta.1 is older than stable 1.3.1). The `Rulebook.Extract.Tests.ps1` fixture can be a stub assembly with one `DiagnosticAnalyzer` subclass. | Comment posted on [#10](https://github.com/ALCops/rulebook-engine/issues/10#issuecomment-5972253764); [ARCHITECTURE.md §7.4](../../ARCHITECTURE.md#74-scan-diagnostics-r9) names the method and links this file |
+| WP08 ([#10](https://github.com/ALCops/rulebook-engine/issues/10)) | Extractor = pwsh reflection over `tools/<tfm>/any/` and `lib/<tfm>/` (TFM rule above), no .NET project; one pwsh process per package version and channel (stable and prerelease never share a process). Download only the neutral tools package and `alcops.analyzers`. `title` and `docsUrl` come from the descriptors (strip the `?wt.mc_id=d365bc_inproduct_alextension` tracking parameter from Microsoft links, see Observed); only AL ids need the docs pattern `.../diagnostics/diagnostic-al<n>` (checked locally for AL200 and AL1003). Add the static-descriptor-field pass to report defined-but-unadvertised ids (AS0141, `XX0000`) separately instead of quarantining them, deduplicate by id (62 ids come from several analyzers), and treat the prerelease channel as current only when it sorts after stable (ALCops prerelease 1.3.0-beta.1 is older than stable 1.3.1). The `Rulebook.Extract.Tests.ps1` fixture can be a stub assembly with one `DiagnosticAnalyzer` subclass. | Comment posted on [#10](https://github.com/ALCops/rulebook-engine/issues/10#issuecomment-5972253764); [ARCHITECTURE.md §7.4](../../ARCHITECTURE.md#74-scan-diagnostics-r9) names the method and links this file |
 | WP10 and the inventory | `inventory.json` lists 3 ids that no package ships yet (AC0033, AC0034, TA0002: Analyzers `main` after `v1.3.1`) and carries the broken TestAutomationCop docs link. A refresh of `Extract-Inventory.ps1` should pin the Analyzers source to the released tag, as it already does for the Microsoft side with `StableTag`. | None in this PR (recorded here) |
 | Analyzers repository (follow-up, not opened from here) | (1) `ALCops.TestAutomationCop` builds its help link with `testautomationCop` (capital C); alcops.dev serves only the lowercase path, so every TA link returns 404. (2) A machine-readable rule list is **not needed** for the rulebook: the DLLs already expose id, severity, enablement, title and link through reflection, and alcops.dev publishes titles and links (RSS and the offline search index) without id or severity. Not worth asking for. (3) The `XX0000` descriptors are not advertised by any shipped analyzer, and `lib/netstandard2.1` does not advertise LC0091; both are for the maintainers to judge. | None (no issue opened in other repositories) |
 | WP01 open questions (#3 section 8) | Prerelease tools packages do not ship analyzers missing from the stable or the neutral package: same cop DLLs, same 618 ids, same defaults, and the `.Linux` variant is a byte-identical subset. A rule list in the Analyzers repository is unnecessary (see above). | Answered here |
@@ -278,4 +299,4 @@ WP08 implements **method 1, reflection in pwsh**: load `Microsoft.Dynamics.Nav.C
 
 - Final run: <https://github.com/ALCops/rulebook-engine/actions/runs/37144520914> (job summary holds every table; the `spike-b-outputs` artifact with the JSON outputs is kept 14 days).
 - Earlier iteration: [37144382694](https://github.com/ALCops/rulebook-engine/actions/runs/37144382694) (method 2's expected crash on the TFM mismatch stopped the job; the later steps did not run).
-- The throwaway workflow `.github/workflows/spike-b.yml` and its scripts under `.github/spike-b/` lived on `wp01/spike-b` and were removed in the last commit before the pull request; the version the final run executed is `755dea0` (`git show 755dea0:.github/workflows/spike-b.yml`). No scratch repository was created. Nothing besides this file and the one-sentence link in ARCHITECTURE.md §7.4 is kept in the repository.
+- The throwaway workflow `.github/workflows/spike-b.yml` and its scripts under `.github/spike-b/` lived on `wp01/spike-b` and were removed in the last commit before the pull request; the version the final run executed is `755dea0` (`git show 755dea0:.github/workflows/spike-b.yml`). No scratch repository was created. Nothing besides this file, the link and method sentence in ARCHITECTURE.md §7.4 and a one-line pointer in ADR 0009 is kept in the repository.
