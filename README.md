@@ -2,7 +2,7 @@
 
 The engine behind [ALCops/rulebook](https://github.com/ALCops/rulebook): the composite GitHub Actions, PowerShell modules, tests and contributor documentation that the workflows in an org rulebook repo call. Users never create a repository from this one; they create it from the template and their workflows reference `ALCops/rulebook-engine/actions/<Name>@v1`.
 
-> **Status:** design phase. The architecture and the decisions are written; no action or module exists yet. The work is broken down into [work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) (WP00 to WP15), ordered and tracked on the **Rulebook v1** project board; the parent issue [Rulebook v1 (#18)](https://github.com/ALCops/rulebook-engine/issues/18) holds the dependency graph and the suggested order.
+> **Status:** design phase. The architecture and the decisions are written; no action or module exists yet. The work is broken down into [work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) (WP00 to WP15), ordered and tracked on the [Rulebook v1 project board](https://github.com/orgs/ALCops/projects/1); the parent issue [Rulebook v1 (#18)](https://github.com/ALCops/rulebook-engine/issues/18) holds the dependency graph and the suggested order.
 
 ---
 
@@ -52,7 +52,7 @@ Invoke-ScriptAnalyzer -Path ./actions, ./modules -Recurse -Settings ./PSScriptAn
 
 ### Work packages and scope
 
-The backlog is GitHub issues: one issue per work package (label `workpackage`, sections 1 to 9 as in the *Work package* issue form), spikes as sub-issues, and the parent issue *Rulebook v1* with the dependency graph and the suggested order. Status, size and order are fields on the **Rulebook v1** project board; nothing else tracks status. Before starting an issue, read it, [ARCHITECTURE.md](docs/ARCHITECTURE.md) and the decision records it lists under Inputs.
+The backlog is GitHub issues: one issue per work package (label `workpackage`, sections 1 to 9 as in the *Work package* issue form), spikes as sub-issues, and the parent issue *Rulebook v1* with the dependency graph and the suggested order. Status, size and order are fields on the [Rulebook v1 project board](https://github.com/orgs/ALCops/projects/1); nothing else tracks status. Before starting an issue, read it, [ARCHITECTURE.md](docs/ARCHITECTURE.md) and the decision records it lists under Inputs.
 
 Work found while doing an issue becomes its own issue (issue form *Task or spin-off*, label `spin-off`) linked from the originating one. It is not added to the current issue's scope. Open design questions are issues labeled `decision` and close by adding a record under [docs/adr/](docs/adr/README.md).
 
@@ -79,7 +79,7 @@ For any other change: documentation updated, Pester green on `ubuntu-latest`, PS
 | [docs/reference/compiler-ruleset-internals.md](docs/reference/compiler-ruleset-internals.md) | How the AL compiler loads and merges rulesets, from the SDK source. Every design constraint comes from here. |
 | [docs/reference/al-go-template-mechanics.md](docs/reference/al-go-template-mechanics.md) | How AL-Go implements templates, system-file updates and the GhTokenWorkflow secret, and what Rulebook reuses. |
 | [docs/rulebook/README.md](docs/rulebook/README.md) | The level content: inventory of every diagnostic id, the matrix placing each id per level and stage, the twin pairs, the placement algorithm, and the generator contract for the level files (a root delta plus one delta per further level), the stage files and the sparse endpoints in `template/base/`, `template/stages/` and `template/rulesets/`. |
-| [Work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) | The 16 work packages WP00 to WP15 as issues; the parent issue [Rulebook v1 (#18)](https://github.com/ALCops/rulebook-engine/issues/18) has the dependency graph and the suggested order, the **Rulebook v1** project board the status. |
+| [Work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) | The 16 work packages WP00 to WP15 as issues; the parent issue [Rulebook v1 (#18)](https://github.com/ALCops/rulebook-engine/issues/18) has the dependency graph and the suggested order, the [Rulebook v1 project board](https://github.com/orgs/ALCops/projects/1) the status. |
 
 ## License
 
