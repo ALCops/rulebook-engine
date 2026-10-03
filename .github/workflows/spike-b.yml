@@ -1,0 +1,233 @@
+name: spike-b
+
+# Throwaway workflow for spike (b), issue #20. Removed before the pull request.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'wp01/spike-b' ]
+
+permissions:
+  contents: read
+
+jobs:
+  spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      W: ${{ github.workspace }}/work
+      SB: ${{ github.workspace }}/.github/spike-b
+      INV: ${{ github.workspace }}/docs/rulebook/inventory/inventory.json
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Environment
+        shell: bash
+        run: |
+          mkdir -p "$W"
+          {
+            echo "ImageOS=$ImageOS ImageVersion=$ImageVersion"
+            grep PRETTY_NAME /etc/os-release
+            echo "--- dotnet --list-sdks"; dotnet --list-sdks
+            echo "--- dotnet --list-runtimes"; dotnet --list-runtimes
+            echo "--- pwsh"; pwsh -NoProfile -c '$PSVersionTable.PSVersion.ToString(); [Runtime.InteropServices.RuntimeInformation]::FrameworkDescription; (Get-Command pwsh).Source; $PSHOME'
+            echo "--- strings"; strings --version | head -1
+          } 2>&1 | tee "$W/env.txt"
+          { echo '### Environment'; echo '```'; cat "$W/env.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve versions and download
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$W"; mkdir -p pkgs x
+          T=microsoft.dynamics.businesscentral.development.tools
+          : > versions.txt
+          for p in $T $T.linux alcops.analyzers; do
+            curl -fsS "https://api.nuget.org/v3-flatcontainer/$p/index.json" -o "$p.index.json"
+            st=$(jq -r '[.versions[] | select(contains("-") | not)] | last' "$p.index.json")
+            pre=$(jq -r '[.versions[] | select(contains("-"))] | last' "$p.index.json")
+            echo "$p versions=$(jq '.versions|length' "$p.index.json") stable=$st prerelease=$pre last=$(jq -r '.versions[-1]' "$p.index.json")" | tee -a versions.txt
+            for v in $st $pre; do
+              f="pkgs/$p.$v.nupkg"
+              s=$(date +%s%N)
+              curl -fsSL -o "$f" "https://api.nuget.org/v3-flatcontainer/$p/$v/$p.$v.nupkg"
+              echo "  downloaded $p $v $(stat -c %s "$f") bytes in $(( ($(date +%s%N) - s) / 1000000 )) ms" | tee -a versions.txt
+              mkdir -p "x/$p.$v"; unzip -oq "$f" -d "x/$p.$v"
+              echo "$p $v" >> pairs.txt
+            done
+          done
+          { echo '### Versions'; echo '```'; cat versions.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: DLL inventory per package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$W"
+          {
+            printf '%s\t%s\t%s\t%s\t%s\n' package version path size sha256
+            while read -r p v; do
+              unzip -l "pkgs/$p.$v.nupkg" | awk 'NR>3 && $4 ~ /\.dll$/ {print $1"\t"$4}' \
+                | grep -E '(Cop|Analyzer)[^/]*\.dll$|Microsoft\.Dynamics\.Nav\.CodeAnalysis\.dll$' | sort -k2 \
+                | while IFS=$'\t' read -r size path; do
+                    printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$v" "$path" "$size" "$(sha256sum "x/$p.$v/$path" | cut -c1-12)"
+                  done
+            done < pairs.txt
+          } | tee dlls.tsv
+          echo "--- all files under tools/ and lib/ (counts per folder)"
+          while read -r p v; do echo "$p $v"; unzip -l "pkgs/$p.$v.nupkg" | awk 'NR>3 {print $4}' | grep -E '^(tools|lib)/' | sed -E 's#/[^/]*$##' | sort | uniq -c; done < pairs.txt | tee folders.txt
+          { echo '### Analyzer DLLs'; echo '```'; column -t -s$'\t' dlls.tsv; echo; cat folders.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Neutral vs Linux, stable vs prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$W"
+          T=microsoft.dynamics.businesscentral.development.tools
+          {
+            for v in $(awk -v t=$T '$1==t {print $2}' pairs.txt); do
+              for tfm in net8.0 net10.0; do
+                echo "== $v $tfm: neutral tools/$tfm/any vs .linux lib/$tfm"
+                for f in x/$T.linux.$v/lib/$tfm/*.dll; do
+                  n=x/$T.$v/tools/$tfm/any/$(basename "$f")
+                  a=$(sha256sum "$f" | cut -c1-16); b=$( [ -f "$n" ] && sha256sum "$n" | cut -c1-16 || echo missing)
+                  echo "$(basename "$f") linux=$a neutral=$b $([ "$a" = "$b" ] && echo same || echo DIFF)"
+                done
+              done
+            done
+            st=$(awk -v t=$T '$1==t {print $2}' pairs.txt | head -1); pre=$(awk -v t=$T '$1==t {print $2}' pairs.txt | tail -1)
+            for p in $T alcops.analyzers; do
+              s=$(awk -v t=$p '$1==t {print $2}' pairs.txt | head -1); r=$(awk -v t=$p '$1==t {print $2}' pairs.txt | tail -1)
+              echo "== DLL list diff $p stable $s vs prerelease $r (all *.dll paths)"
+              diff <(unzip -Z1 "pkgs/$p.$s.nupkg" | grep '\.dll$' | sort) <(unzip -Z1 "pkgs/$p.$r.nupkg" | grep '\.dll$' | sort) && echo "identical DLL lists" || true
+            done
+          } 2>&1 | tee cmp.txt
+          { echo '### Linux and prerelease comparison'; echo '```'; cat cmp.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Method 1 - pwsh reflection
+        shell: bash
+        run: |
+          cd "$W"
+          T=microsoft.dynamics.businesscentral.development.tools
+          run() { # label toolsDir alcopsDir
+            echo "== m1 $1"
+            s=$(date +%s%N)
+            timeout 300 pwsh -NoProfile -File "$SB/m1-reflection.ps1" -ToolsDir "$2" -AlcopsDir "$3" -OutFile "m1-$1.json" < /dev/null 2>&1 | grep -v '^$' | cut -c1-400
+            echo "exit=${PIPESTATUS[0]} wall=$(( ($(date +%s%N) - s) / 1000000 )) ms"
+            [ -f "m1-$1.json" ] && pwsh -NoProfile -File "$SB/compare.ps1" -Inventory "$INV" -Ids "m1-$1.json" -Label "m1-$1" -Defaults < /dev/null
+          }
+          while read -r p v; do
+            [ "$p" = "$T" ] || continue
+            a=$(awk '$1=="alcops.analyzers" {print $2}' pairs.txt | ( [ "$v" = "$(awk -v t=$T '$1==t {print $2}' pairs.txt | head -1)" ] && head -1 || tail -1 ))
+            ch=$( [[ "$v" == *-* ]] && echo pre || echo stable )
+            run "$ch-net8" "x/$T.$v/tools/net8.0/any" "x/alcops.analyzers.$a/lib/net8.0"
+            run "$ch-net10" "x/$T.$v/tools/net10.0/any" "x/alcops.analyzers.$a/lib/net10.0"
+            [ "$ch" = stable ] && run "$ch-ns21-on-net8" "x/$T.$v/tools/net8.0/any" "x/alcops.analyzers.$a/lib/netstandard2.1"
+            [ "$ch" = stable ] && run "$ch-alcopsnet10-on-net8" "x/$T.$v/tools/net8.0/any" "x/alcops.analyzers.$a/lib/net10.0"
+          done < pairs.txt 2>&1 | tee m1.txt
+          { echo '### Method 1 (pwsh reflection)'; echo '```'; cut -c1-300 m1.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Method 2 - console with AssemblyLoadContext
+        shell: bash
+        run: |
+          cd "$W"
+          T=microsoft.dynamics.businesscentral.development.tools
+          {
+            s=$(date +%s%N)
+            dotnet build "$SB/m2" -c Release -nologo -v q -o /dev/null 2>&1 | tail -3 || true
+            dotnet build "$SB/m2" -c Release -nologo -v q 2>&1 | tail -2
+            echo "build wall=$(( ($(date +%s%N) - s) / 1000000 )) ms (two builds, first includes restore)"
+            st=$(awk -v t=$T '$1==t {print $2}' pairs.txt | head -1); pre=$(awk -v t=$T '$1==t {print $2}' pairs.txt | tail -1)
+            as=$(awk '$1=="alcops.analyzers" {print $2}' pairs.txt | head -1); ap=$(awk '$1=="alcops.analyzers" {print $2}' pairs.txt | tail -1)
+            run() { # label consoleTfm toolsDir alcopsDir
+              echo "== m2 $1"; s=$(date +%s%N)
+              timeout 300 dotnet "$SB/m2/bin/Release/$2/m2.dll" "$3" "$4" "m2-$1.json" 2>&1 | grep -v '^\s*at ' | cut -c1-400
+              echo "exit=${PIPESTATUS[0]} wall=$(( ($(date +%s%N) - s) / 1000000 )) ms"
+              [ -f "m2-$1.json" ] && pwsh -NoProfile -File "$SB/compare.ps1" -Inventory "$INV" -Ids "m2-$1.json" -Label "m2-$1" -Defaults
+            }
+            run stable-net8 net8.0 "x/$T.$st/tools/net8.0/any" "x/alcops.analyzers.$as/lib/net8.0"
+            run stable-net10 net10.0 "x/$T.$st/tools/net10.0/any" "x/alcops.analyzers.$as/lib/net10.0"
+            run stable-console8-folder10 net8.0 "x/$T.$st/tools/net10.0/any" "x/alcops.analyzers.$as/lib/net10.0"
+            run pre-net8 net8.0 "x/$T.$pre/tools/net8.0/any" "x/alcops.analyzers.$ap/lib/net8.0"
+            run pre-net10 net10.0 "x/$T.$pre/tools/net10.0/any" "x/alcops.analyzers.$ap/lib/net10.0"
+          } 2>&1 | tee m2.txt
+          { echo '### Method 2 (console + AssemblyLoadContext)'; echo '```'; cut -c1-300 m2.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Method 3 - strings and regex
+        shell: bash
+        run: |
+          cd "$W"
+          T=microsoft.dynamics.businesscentral.development.tools
+          {
+            st=$(awk -v t=$T '$1==t {print $2}' pairs.txt | head -1); pre=$(awk -v t=$T '$1==t {print $2}' pairs.txt | tail -1)
+            as=$(awk '$1=="alcops.analyzers" {print $2}' pairs.txt | head -1); ap=$(awk '$1=="alcops.analyzers" {print $2}' pairs.txt | tail -1)
+            for c in "stable $st $as" "pre $pre $ap"; do
+              set -- $c
+              tdir="x/$T.$2/tools/net10.0/any"; adir="x/alcops.analyzers.$3/lib/net10.0"
+              bash "$SB/m3-scan.sh" "m3-$1" $tdir/Microsoft.Dynamics.Nav.CodeAnalysis.dll $tdir/Microsoft.Dynamics.Nav.*Cop.dll $adir/ALCops.*.dll
+              for k in exact embedded; do pwsh -NoProfile -File "$SB/compare.ps1" -Inventory "$INV" -Ids "m3-$1.$k.txt" -Label "m3-$1-$k"; done
+              if [ -f "m1-$1-net10.json" ]; then
+                jq -r '.[].id' "m1-$1-net10.json" | sort -u > "m1-$1.ids"
+                echo "m3-$1 exact vs m1-$1-net10: only in m3: $(comm -23 m3-$1.exact.txt m1-$1.ids | wc -l), only in m1: $(comm -13 m3-$1.exact.txt m1-$1.ids | wc -l)"
+                echo "  only in m3 (exact): $(comm -23 m3-$1.exact.txt m1-$1.ids | tr '\n' ' ')"
+              fi
+            done
+          } 2>&1 | tee m3.txt
+          { echo '### Method 3 (strings + regex)'; echo '```'; cut -c1-600 m3.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stable vs prerelease ids
+        shell: bash
+        run: |
+          cd "$W"
+          {
+            for t in net10; do
+              [ -f m1-stable-$t.json ] && [ -f m1-pre-$t.json ] || { echo "m1 $t output missing"; continue; }
+              jq -r '.[].id' m1-stable-$t.json | sort -u > s.ids; jq -r '.[].id' m1-pre-$t.json | sort -u > p.ids
+              echo "m1 $t: stable $(wc -l < s.ids), prerelease $(wc -l < p.ids)"
+              echo "  only in prerelease: $(comm -13 s.ids p.ids | tr '\n' ' ')"
+              echo "  only in stable: $(comm -23 s.ids p.ids | tr '\n' ' ')"
+              jq -r '.[] | "\(.id) \(.defaultSeverity) \(.enabledByDefault)"' m1-stable-$t.json | sort > s.def
+              jq -r '.[] | "\(.id) \(.defaultSeverity) \(.enabledByDefault)"' m1-pre-$t.json | sort > p.def
+              echo "  default changes (id sev enabled, stable < > prerelease):"; join -j1 <(sort s.def) <(sort p.def) -o 1.1,1.2,1.3,2.2,2.3 | awk '$2!=$4 || $3!=$5'
+            done
+            for a in m1-stable-net8 m2-stable-net8 m2-stable-net10; do
+              [ -f $a.json ] && echo "m1-stable-net10 vs $a: $(diff <(jq -c '.[] | [.id,.defaultSeverity,.enabledByDefault]' m1-stable-net10.json) <(jq -c '.[] | [.id,.defaultSeverity,.enabledByDefault]' $a.json) | grep -c '^[<>]') differing lines"
+            done
+          } 2>&1 | tee ids.txt
+          { echo '### Stable vs prerelease ids'; echo '```'; cat ids.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Machine-readable title and docsUrl probes
+        shell: bash
+        run: |
+          cd "$W"
+          {
+            for u in https://alcops.dev/docs/analyzers/index.json https://alcops.dev/docs/analyzers/index.xml https://alcops.dev/index.json https://alcops.dev/index.xml https://alcops.dev/sitemap.xml \
+                     https://alcops.dev/docs/analyzers/lintercop/lc0001/ \
+                     https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0137 \
+                     https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/toc.json; do
+              echo "$u -> $(curl -sL -o /dev/null -w '%{http_code} %{content_type} %{size_download}' "$u")"
+            done
+            idx=$(curl -sL https://alcops.dev/docs/analyzers/lintercop/lc0001/ | grep -oE 'search-index-json-src=[^ ">]*' | head -1 | cut -d= -f2)
+            echo "alcops.dev offline search index: $idx"
+            curl -sL "https://alcops.dev$idx" -o search.json
+            echo "  entries=$(jq length search.json) rule pages=$(jq '[.[] | select(.ref|test("/analyzers/[a-z]+/[a-z0-9]+/$"))] | length' search.json) keys=$(jq -c '.[0]|keys' search.json)"
+            jq -c '[.[] | select(.ref|test("/analyzers/[a-z]+/[a-z0-9]+/$"))][0] | {ref,title,categories,tags}' search.json
+            curl -sL https://alcops.dev/index.xml | grep -o '<item>' | wc -l | sed 's/^/  index.xml items: /'
+            curl -sL https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/analyzers/codecop-aa0137 -o learn.html
+            echo "learn aa0137: ld+json blocks=$(grep -c 'application/ld+json' learn.html)"; grep -oE '<meta name="(description|ms.topic|toc_rel)"[^>]*>|<title>[^<]*' learn.html
+            curl -sL https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/toc.json -o toc.json
+            echo "learn developer/toc.json analyzer entries per prefix:"; jq -r '.. | objects | select(.href?) | .href' toc.json | grep -oE '(codecop|uicop|appsourcecop|pertenantextensioncop)-[a-z]+[0-9]{4}$|diagnostic-al[0-9]+$' | sed -E 's/^[a-z]+-//; s/[0-9]+$//' | sort | uniq -c
+            jq -c '.. | objects | select(.href? and (.href|test("aa0137$")))' toc.json
+          } 2>&1 | tee probes.txt
+          { echo '### Title and docsUrl probes'; echo '```'; cat probes.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-b-outputs
+          path: |
+            work/*.txt
+            work/*.tsv
+            work/m*.json
+            work/m3-*.txt
+          retention-days: 14
