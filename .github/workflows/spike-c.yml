@@ -71,17 +71,24 @@ jobs:
       - name: Tool version and layout
         run: |
           "$RUNNER_TEMP/run.sh" "al --version" alver.log al --version
-          "$RUNNER_TEMP/run.sh" "al GetLatestSupportedRuntimeVersion 28.0.0.0" rt.log al GetLatestSupportedRuntimeVersion 28.0.0.0
-          AL_BIN=$(dirname "$(find ~/.dotnet/tools/.store -name alc.dll | head -1)")
+          for p in 28.0.0.0 28.0 27.0.0.0 26.0.0.0; do "$RUNNER_TEMP/run.sh" "al GetLatestSupportedRuntimeVersion $p" rt.log al GetLatestSupportedRuntimeVersion $p; done
+          echo "dotnet --version (SDK used for install): $(dotnet --version)"
+          COREHOST_TRACE=1 COREHOST_TRACE_VERBOSITY=3 al --version > trace.log 2>&1 || true
+          SHIM_DLL=$(grep -oE '/home/runner/\.dotnet/tools/\.store/[^ ]*/tools/net[0-9.]+/any/altool\.dll' trace.log | head -1)
+          echo "shim resolves to: $SHIM_DLL"
+          AL_BIN=$(dirname "$SHIM_DLL")
           echo "AL_BIN=$AL_BIN" >> "$GITHUB_ENV"
           {
             echo "### Tool layout"
             echo '```'
-            echo "AL_BIN=$AL_BIN"
+            echo "dotnet --version: $(dotnet --version)"
+            echo "al shim loads: $SHIM_DLL"
+            grep -m3 -E 'framework reference|Microsoft.NETCore.App/[0-9]' trace.log
             echo "--- find alc.dll"; find ~/.dotnet/tools/.store -name alc.dll
             echo "--- ls \$(dirname \$AL_BIN)"; ls "$(dirname "$AL_BIN")"
             echo "--- cops"; ls "$AL_BIN" | grep -E 'Cop|CodeAnalysis.dll|^alc|^altool'
-            echo "--- runtimeconfig"; cat "$AL_BIN"/alc.runtimeconfig.json 2>/dev/null; cat "$AL_BIN"/altool.runtimeconfig.json 2>/dev/null
+            echo "--- runtimeconfig"; grep -h -E '"tfm"|"version"' "$AL_BIN"/alc.runtimeconfig.json "$AL_BIN"/altool.runtimeconfig.json
+            echo "--- DotnetToolSettings.xml"; find ~/.dotnet/tools/.store -name DotnetToolSettings.xml -exec sh -c 'echo "$1"; cat "$1"' _ {} \;
             echo "--- .app files in tool"; find ~/.dotnet/tools/.store -name '*.app' | head
             echo '```'
           } | tee layout.txt
@@ -145,7 +152,9 @@ jobs:
 
       - name: Compile
         run: |
-          COPS="/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.CodeCop.dll /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.UICop.dll /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.AppSourceCop.dll"
+          COPS="/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.CodeCop.dll /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.UICop.dll /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll"
+          ASCOP="/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.AppSourceCop.dll"
+          OTHER_BIN=$(dirname "$(find ~/.dotnet/tools/.store -name alc.dll | grep -v "$AL_BIN" | head -1)")
           R="$RUNNER_TEMP/run.sh"
           $R "1 no ruleset (al compile)" c1.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out1.app $COPS
           $R "2 local ruleset AA0137=Error (al compile)" c2.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out2.app $COPS /ruleset:aa0137-error.ruleset.json
@@ -153,7 +162,10 @@ jobs:
           $R "4 control: URL without /enableexternalrulesets" c4.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out4.app $COPS /ruleset:$MISSING_URL
           $R "5 control: 404 URL with /enableexternalrulesets" c5.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out5.app $COPS /ruleset:$MISSING_URL /enableexternalrulesets
           $R "6 negative: empty .alpackages" c6.log al compile /project:empty /packagecachepath:empty/.alpackages /out:empty/out6.app $COPS /ruleset:aa0137-error.ruleset.json
+          $R "7 all four cops incl. AppSourceCop, no ruleset" c7.log al compile /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out7.app $COPS $ASCOP
+          $R "8 bare dotnet alc.dll from the other TFM folder, no ruleset" c8.log dotnet "$OTHER_BIN/alc.dll" /project:fixture /packagecachepath:fixture/.alpackages /out:fixture/out8.app $COPS
+          echo "other TFM folder: $OTHER_BIN" | tee -a "$GITHUB_STEP_SUMMARY"
           ls -l fixture/*.app empty/*.app 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
-          { echo "### Diagnostics per compile"; echo '```'; for f in c1 c2 c3 c4 c5 c6; do echo "--- $f"; grep -E 'AL[0-9]{4}|AA0137|AS[0-9]{4}|PTE[0-9]{4}|rror|arning' "$f.log" | head -20; done; echo '```'; } > diag.txt
+          { echo "### Diagnostics per compile"; echo '```'; for f in c1 c2 c3 c4 c5 c6 c7 c8; do echo "--- $f"; grep -E 'AL[0-9]{4}|AA0137|AS[0-9]{4}|PTE[0-9]{4}|rror|arning' "$f.log" | head -20; done; echo '```'; } > diag.txt
           cat diag.txt
           cat diag.txt >> "$GITHUB_STEP_SUMMARY"
