@@ -68,8 +68,8 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 
 | # | Question | Recommendation | Tracked in |
 |---|---|---|---|
-| O3 | How template workflows reference the engine: `@main` in the engine's `template/` source and `@v1` pinned by the deploy step (AL-Go style), or git tags? | Branch `v1` pinned by deploy, tags as convenience. Branches can receive fixes without touching every org repo. | issue labeled `decision` |
-| O4 | Name of the write token secret: reuse `GHTOKENWORKFLOW` so an AL-Go org needs no second secret, or a Rulebook-specific name? | Reuse `GHTOKENWORKFLOW`, same value format (GitHub App JSON or PAT), configurable through a setting. | issue labeled `decision` |
+| O3 | How template workflows reference the engine: `@main` in the engine's `template/` source and `@v1` pinned by the deploy step (AL-Go style), or git tags? | Branch `v1` pinned by deploy, tags as convenience. Branches can receive fixes without touching every org repo. | [#27](https://github.com/ALCops/rulebook-engine/issues/27) |
+| O4 | Name of the write token secret: reuse `GHTOKENWORKFLOW` so an AL-Go org needs no second secret, or a Rulebook-specific name? | Reuse `GHTOKENWORKFLOW`, same value format (GitHub App JSON or PAT), configurable through a setting. | [#28](https://github.com/ALCops/rulebook-engine/issues/28) |
 
 Closed: O1 and O2 by D19 (and D17), O5 moot since D21, O6 by D28 (one skeleton file per stage).
 
