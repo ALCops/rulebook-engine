@@ -1,8 +1,9 @@
 # D12. Testing scope for v1 is Pester unit tests
 
-- **Status:** Accepted
+- **Status:** Partly superseded by D39 (2026-10-03)
 - **Date:** 2026-09-29
 
+- **Partly superseded** by D39 (2026-10-03): the Pester version is 6. The testing scope stands.
 - **Decision:** every module and action has Pester unit tests with fixtures, run on `ubuntu-latest` on every PR. End-to-end compile tests with the real compiler, effective-ruleset snapshot tests and a template smoke test are documented as later options.
 - **Rationale:** unit tests give the fastest feedback for the merge logic, file generation and diffing, which is where the risk is. The other layers need infrastructure that v1 does not have.
 - **Consequences:** the merge module must be testable without network access (fixtures with local include trees).

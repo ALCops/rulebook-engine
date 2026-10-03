@@ -22,10 +22,11 @@ The engine behind [ALCops/rulebook](https://github.com/ALCops/rulebook): the com
 | `actions/<Name>/action.yaml` | Composite actions: `Validate`, `Publish`, `CheckForUpdates`, `ScanDiagnostics`, `ChangeRule`. Each runs a PowerShell 7 script on `ubuntu-latest`. | planned (WP03 to WP09) |
 | `modules/Rulebook.*.psm1` | PowerShell modules shared by the actions: `Rulebook.Generate` (level chain + stage deltas + twins setting + overrides + quarantine to sparse flat endpoints, effective diff), `Rulebook.Validate`, `Rulebook.Template`, `Rulebook.Settings`, `Rulebook.NuGet`, `Rulebook.Git`. | planned |
 | `template/` | Source of the template content that a deploy workflow copies into `ALCops/rulebook`, pinning action references from `@main` to `@v1`. Its `base/`, `stages/` and `rulesets/` are generated from `docs/rulebook/`. | planned (WP04, WP13) |
-| `tests/` | Pester 5 suites, one per module and action, with fixtures under `tests/fixtures/`. | planned (WP12) |
+| `tests/` | Pester 6 suites, one per module and action, with fixtures under `tests/fixtures/`. | smoke test (WP00); suites per module from WP12 |
 | `docs/` | Architecture, decision records (`adr/`), references, and `docs/rulebook/` with the level content (inventory, matrix, composition spec). | written |
 | `tools/rulebook/` | PowerShell scripts that extract the inventory from the analyzer sources, build the matrix (ladders, stage columns, twin pairs, counts) and verify it (`Extract-Inventory.ps1`, `Build-Matrix.ps1`, `Test-Rulebook.ps1`). | written |
-| `.github/workflows/` | CI (Pester, PSScriptAnalyzer) and the deploy workflow. | planned (WP00, WP13) |
+| `.github/workflows/` | `ci.yml` (PSScriptAnalyzer, Pester) and the deploy workflow. | CI written (WP00); deploy planned (WP13) |
+| `CONTRIBUTING.md` | Conventions, running the checks locally, CI, branches, repository settings and pull request rules. | written |
 
 ## 2. Relation to the template
 
@@ -41,13 +42,13 @@ The template is the product users see. The engine is where the logic lives, vers
 
 ## 3. Working on the engine
 
-Requirements: PowerShell 7.4 or later, Pester 5, PSScriptAnalyzer. Everything must run on Linux; no Windows-only dependency is accepted.
+Requirements: PowerShell 7.4 or later, Pester 6, PSScriptAnalyzer. Everything must run on Linux; no Windows-only dependency is accepted. Conventions, CI, branches and pull request rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```powershell
-Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser
+Install-Module Pester -MinimumVersion 6.0 -Scope CurrentUser
 Install-Module PSScriptAnalyzer -Scope CurrentUser
 Invoke-Pester -Path ./tests -Output Detailed
-Invoke-ScriptAnalyzer -Path ./actions, ./modules -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
 ```
 
 ### Work packages and scope
@@ -65,10 +66,10 @@ A work package issue is done when all of the following hold:
 3. The Pester tests listed in its section 7 exist and are green on `ubuntu-latest` in the engine CI.
 4. `Invoke-ScriptAnalyzer` reports no error or warning on the touched `.ps1` and `.psm1` files.
 5. Docs touched by the issue are updated: `docs/ARCHITECTURE.md` when the design changed, a new record under `docs/adr/` when a decision was taken, the user docs in `ALCops/rulebook/docs` when behaviour visible to an organization changed. Design notes in the issue that describe the target design are lifted into `docs/`.
-6. The pull request was reviewed by someone other than the author, merged, and closes the issue (`Closes #n`).
-7. `RELEASENOTES.md` has one line under the upcoming version.
+6. The pull request was reviewed before merge (another maintainer, or an automated code review whose outcome is recorded in the PR body), merged, and closes the issue (`Closes #n`).
+7. The pull request carries one release-note label and a title that reads as a release line (release notes are generated from both, [D38](docs/adr/0038-release-notes-are-generated-from-pull-request-labels.md)).
 
-For any other change: documentation updated, Pester green on `ubuntu-latest`, PSScriptAnalyzer clean, reviewed pull request, a line in `RELEASENOTES.md`.
+For any other change: documentation updated, Pester green on `ubuntu-latest`, PSScriptAnalyzer clean, reviewed pull request, a release-note label and a title that reads as a release line.
 
 ## 4. Documentation
 

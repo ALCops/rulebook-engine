@@ -164,13 +164,13 @@ $annPath = Join-Path $OutDir 'annotations.json'
 $ann = @{}
 if (Test-Path $annPath) { (Get-Content -Raw $annPath | ConvertFrom-Json -AsHashtable).GetEnumerator() | ForEach-Object { $ann[$_.Key] = $_.Value } }
 $prefixOrder = @('AL','AA','AW','PTE','AS','PC','AC','LC','DC','FC','TA','CM')
-function Sort-Key($r) {
+function Get-SortKey($r) {
     $p = [array]::IndexOf($prefixOrder, $r.prefix)
     $n = [int]($r.id -replace '^[A-Z]+', '' -replace 'i$', '')
     $suffix = if ($r.id.EndsWith('i')) { 1 } else { 0 }
     return ('{0:00}{1:0000}{2}' -f $p, $n, $suffix)
 }
-$sorted = @($rows | Sort-Object { Sort-Key $_ })
+$sorted = @($rows | Sort-Object { Get-SortKey $_ })
 foreach ($r in $sorted) {
     $a = $ann[$r.id]
     $r['family'] = if ($a -and $a.family) { $a.family } else { 'general' }
