@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "title": "Rulebook diagnostic catalog",
+  "description": "catalog/diagnostics.json of an organization rulebook repository: every known diagnostic id with its analyzer default (D24). Minimal on purpose: the three fields the generator needs are required, the other known fields are typed, and the scan (WP08) may add more per entry. See docs/reference/naming.md.",
+  "$defs": {
+    "diagnosticId": {
+      "description": "A diagnostic id: two or three capital letters, four digits, an optional lowercase i (PTE0011, AL0432, LC0089i).",
+      "type": "string",
+      "pattern": "^[A-Z]{2,3}[0-9]{4}i?(?![\\s\\S])"
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id", "defaultSeverity", "enabledByDefault"],
+      "properties": {
+        "id": { "$ref": "#/$defs/diagnosticId" },
+        "defaultSeverity": { "enum": ["Error", "Warning", "Info", "Hidden"] },
+        "enabledByDefault": { "type": "boolean" },
+        "analyzer": { "type": "string" },
+        "package": { "type": "string" },
+        "firstSeenVersion": { "type": "string" },
+        "lastSeenVersion": { "type": "string" },
+        "firstSeenChannel": { "enum": ["stable", "prerelease"] }
+      },
+      "additionalProperties": true
+    }
+  },
+  "type": "object",
+  "required": ["version", "diagnostics"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "additionalProperties": false
+}

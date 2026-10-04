@@ -1,0 +1,4 @@
+{
+  "name": "Rulebook Essential / vNext",
+  "includedRuleSets": [ { "action": "Default", "path": "https://contoso.github.io/rulebook/rulesets/essential.vnext.ruleset.json" } ]
+}

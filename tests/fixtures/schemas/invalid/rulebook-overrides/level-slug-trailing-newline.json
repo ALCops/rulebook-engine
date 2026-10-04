@@ -1,0 +1,5 @@
+{
+  "rules": [
+    { "id": "LC0015", "action": "None", "levels": ["strict\n"], "stages": ["ci"] }
+  ]
+}

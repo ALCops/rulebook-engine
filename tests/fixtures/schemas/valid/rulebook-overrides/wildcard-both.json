@@ -1,0 +1,5 @@
+{
+  "rules": [
+    { "id": "AA0072", "action": "Warning", "levels": ["*"], "stages": ["*"] }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json",
+  "version": 1,
+  "diagnostics": [
+    {
+      "id": "LC0099",
+      "analyzer": "ALCops.LinterCop",
+      "package": "ALCops.Analyzers",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "firstSeenVersion": "1.4.0-beta.1",
+      "lastSeenVersion": "1.4.0-beta.2",
+      "firstSeenChannel": "prerelease",
+      "title": "A future scan field the schema does not know yet"
+    }
+  ]
+}

@@ -58,12 +58,15 @@ effective(id, level, stage) =
                              (most specific selector wins; on a tie the last entry in the file wins)
     None                     else if settings.twins == "appsource" and id is the pte side of a twin,
                              or settings.twins == "pte" and id is the appsource side of a twin
-    stage action             else if stage != default, stages/<stage>.json mentions the id,
-                             chain(id, level) is defined and chain(id, level) != None        (S-4)
+    stage action             else if stage != default, stages/<stage>.json mentions the id
+                             and the level result (chain(id, level) if defined,
+                             else default(id)) != None                                       (S-4)
     chain(id, level)         else if chain(id, level) is defined
     None                     else if quarantine.<stage>.json lists the id
     default(id)              else: the compiler applies the analyzer default
 ```
+
+Condition aligned with S-4 and 00-conventions on 2026-10-04 (WP02); the earlier 'chain is defined' reading was an error.
 
 Precedence in one line: override, then twins, then stage delta, then level chain, then quarantine, then the analyzer default.
 
@@ -71,7 +74,7 @@ Precedence in one line: override, then twins, then stage delta, then level chain
 
 An override entry: `{ "id": "AA0001", "action": "Info", "levels": ["recommended", "strict"], "stages": ["ci"], "justification": "..." }`. `levels` and `stages` accept explicit lists of slugs or `["*"]`; `"default"` is a valid stage selector. Specificity is the number of non-wildcard selectors. An override may raise or lower any id, including one the chain sets to `None`, one the twins setting lowers, and one only quarantine mentions. An override whose action equals the default is valid and results in the id being unlisted.
 
-Quarantine entries carry `id` and `justification` only; the action is always `None`. A quarantined id is always written (unless its default is already `None`), because `None` differs from an enabled default. Once a level file on the chain mentions the id, the chain wins and the scan's housekeeping removes the quarantine entry.
+Quarantine entries carry `id` and an optional `justification` only; the action is always `None`. A quarantined id is always written (unless its default is already `None`), because `None` differs from an enabled default. Once a level file on the chain mentions the id, the chain wins and the scan's housekeeping removes the quarantine entry.
 
 **Skeleton:** `skeletons/<level>.<stage>.ruleset.json` includes the endpoint URL with include action `Default` and has an empty `rules` array. Project exceptions added there beat the endpoint because a file's own rules overwrite its includes.
 
@@ -90,7 +93,7 @@ Quarantine entries carry `id` and `justification` only; the action is always `No
 | `catalog/diagnostics.json` | `{ "id": "AL0432", "analyzer": "Compiler", "defaultSeverity": "Warning", "enabledByDefault": true, ... }` |
 
 - `action` is one of `Error`, `Warning`, `Info`, `Hidden`, `None`; never `Default`.
-- The compiler ignores `justification`; level, stage and override files keep it for readers, endpoints drop it.
+- The compiler ignores `justification`; level, stage and override files keep it for readers, endpoints drop it. It is optional in every file that may carry one (D37, D40); the engine always writes one into the shipped level and stage files.
 - File-level fields: `name` is `Rulebook <Level> / <Stage>` with the display names (for example `Rulebook Recommended / CI`); `description` names the level and stage by slug and, for generated endpoints, the template sha the sources came from, the files folded in and the `twins` setting in effect.
 
 ## 5. Examples

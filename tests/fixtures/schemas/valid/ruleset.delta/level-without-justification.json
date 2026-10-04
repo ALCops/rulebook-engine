@@ -1,0 +1,8 @@
+{
+  "name": "Contoso Paranoid",
+  "description": "Level paranoid, based on complete. Organization-owned.",
+  "rules": [
+    { "id": "AA0072", "action": "Error" },
+    { "id": "LC0089i", "action": "Warning" }
+  ]
+}

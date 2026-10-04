@@ -28,7 +28,9 @@ What exists today, and the work package that adds the rest. A folder is created 
 | `.github/dependabot.yml` | Weekly, grouped updates of the GitHub Actions used by the workflows. | WP00 |
 | `.github/ISSUE_TEMPLATE/` | Issue forms: work package, task or spin-off. | written |
 | `PSScriptAnalyzerSettings.psd1` | Analyzer settings: errors and warnings, default rules, justified exclusions only. | WP00 |
-| `tests/` | `Smoke.Tests.ps1` now; later one suite per module and action, with fixtures under `tests/fixtures/`. | WP00; WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) and every module work package |
+| `schemas/` | JSON schemas for every file in an organization rulebook repository, draft 2020-12, no `$id`; names and URLs in [docs/reference/naming.md](docs/reference/naming.md). | WP02 ([#4](https://github.com/ALCops/rulebook-engine/issues/4)) |
+| `tests/` | `Smoke.Tests.ps1` and `Schemas.Tests.ps1` now; later one suite per module and action, with fixtures under `tests/fixtures/`. | WP00, WP02; WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) and every module work package |
+| `tests/fixtures/schemas/` | One file per case: `<valid\|invalid>/<schema-basename>/<reason>.json`, each invalid file a one-change mutation of a valid one. | WP02 |
 | `actions/`, `modules/` | Composite actions and the PowerShell modules they share. | WP03 to WP09 |
 | `template/` | Source of the template content deployed to `ALCops/rulebook`. | WP04, WP13 |
 | `docs/`, `tools/rulebook/` | Architecture, decision records, level content and the scripts that build it. | written |

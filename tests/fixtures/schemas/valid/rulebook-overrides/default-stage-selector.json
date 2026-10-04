@@ -1,0 +1,5 @@
+{
+  "rules": [
+    { "id": "AA0137", "action": "Info", "levels": ["recommended", "strict"], "stages": ["default"], "justification": "Unused variables are advisory in the editor" }
+  ]
+}

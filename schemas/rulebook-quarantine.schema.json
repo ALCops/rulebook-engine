@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "title": "Rulebook quarantine file",
+  "description": "quarantine.<stage>.json of an organization rulebook repository, written by the scan: ids held at None for that stage while no file on the level chain mentions them. An entry has no action; quarantine always means None. See docs/reference/naming.md.",
+  "$defs": {
+    "diagnosticId": {
+      "description": "A diagnostic id: two or three capital letters, four digits, an optional lowercase i (PTE0011, AL0432, LC0089i).",
+      "type": "string",
+      "pattern": "^[A-Z]{2,3}[0-9]{4}i?(?![\\s\\S])"
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/diagnosticId" },
+        "justification": {
+          "description": "Why the id is quarantined (the scan writes the package, version, channel and date). Optional.",
+          "type": "string"
+        },
+        "action": false
+      },
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": ["rules"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "rules": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Rulebook Strict / CI",
+  "description": "Level strict, stage ci, twins both. Generated from base@a1b2c3d plus stages/ci.json, overrides.json and quarantine.ci.json; do not edit. Ids at their analyzer default are not listed.",
+  "generalAction": "Info",
+  "rules": [
+    { "id": "AL0432", "action": "Info" },
+    { "id": "AA0001", "action": "Warning" }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "diagnostics": [
+    { "id": "AL0432", "defaultSeverity": "Warning", "enabledByDefault": true },
+    { "id": "LC0054", "defaultSeverity": "None", "enabledByDefault": false }
+  ]
+}

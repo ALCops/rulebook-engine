@@ -22,7 +22,7 @@ Every decision that shapes Rulebook, one file per decision, with the alternative
 
 ## Index
 
-D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, and D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6.
+D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, and D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files.
 
 | # | Title | Status | Date |
 |---|---|---|---|
@@ -65,6 +65,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D37](0037-justification-is-optional-in-every-change-path.md) | Justification is optional in every change path | Accepted | 2026-10-03 |
 | [D38](0038-release-notes-are-generated-from-pull-request-labels.md) | Release notes are generated from pull request labels | Accepted | 2026-10-03 |
 | [D39](0039-test-framework-is-pester-6.md) | Test framework is Pester 6 | Accepted | 2026-10-03 |
+| [D40](0040-justification-is-optional-in-level-and-stage-files-too.md) | Justification is optional in level and stage files too | Accepted | 2026-10-04 |
 
 ## Open decisions
 
