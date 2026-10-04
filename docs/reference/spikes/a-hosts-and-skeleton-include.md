@@ -10,7 +10,7 @@ Does the compiler's anti-SSRF policy allow `*.github.io` and `raw.githubusercont
 
 A throwaway public repository, `Arthurvdv/rulebook-spike-endpoint` (personal Free account, created 2026-10-04), holds two files under `v1/rulesets/`:
 
-```json
+```jsonc
 // recommended.ci.ruleset.json
 {
   "name": "Spike",
@@ -225,6 +225,6 @@ Both `arthurvdv.github.io` (GitHub Pages) and `raw.githubusercontent.com` serve 
 ## Artifacts
 
 - Final run: <https://github.com/ALCops/rulebook-engine/actions/runs/37179557047> (job summary holds the result table and the headers); first run: <https://github.com/ALCops/rulebook-engine/actions/runs/37179402446>.
-- The throwaway workflow `.github/workflows/spike-a.yml` lived on `wp01/spike-a` and was removed in the last commit before the pull request; the version the final run executed is `eb6d640:.github/workflows/spike-a.yml` (`git show eb6d640:.github/workflows/spike-a.yml`; the run itself ran the pre-rebase commit `daa517b` with the identical file).
+- The throwaway workflow `.github/workflows/spike-a.yml` lived on `wp01/spike-a` and was removed before the pull request; the version the final run executed is `eb6d640:.github/workflows/spike-a.yml` (`git show eb6d640:.github/workflows/spike-a.yml`; the run itself ran the pre-rebase commit `daa517b` with the identical file).
 - Scratch repository `Arthurvdv/rulebook-spike-endpoint` (public), created 2026-10-04, kept for spikes (f) and (e) and deleted after WP01 (#3). Content at the end of this spike: `README.md`, `.nojekyll`, `v1/rulesets/recommended.ci.ruleset.json`, `v1/rulesets/broken.ruleset.json` (commit `532f841`). The path `v1/rulesets/does-not-exist.ruleset.json` is the 404 control and must stay absent.
 - Nothing besides this file and the documentation corrections is kept in the repository.
