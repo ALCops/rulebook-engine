@@ -216,6 +216,8 @@ For a CI/CD pipeline this is the single most important operational risk: an outa
 | `Hidden` vs `None` | `Hidden` still runs the analyzer and hides the output. `None` can prevent an analyzer from running at all when all its rules are `None`. Prefer `None` for rules that are switched off. |
 | Analyzer selection (`al.codeAnalyzers`, `-analyzer`) | Independent of the ruleset. The ruleset only maps ids to severities; it does not enable analyzers. |
 
+Observed by [spike (f)](spikes/f-suppresswarnings-sparse-endpoint.md) on `alc` 18.0.43.1464 and in VS Code (AL 18.0.2819426): `suppressWarnings` removes unlisted analyzer Errors (AS0084, AS0013) and leaves a listed id at its ruleset action (`alc`: Error, Warning and Info observed; VS Code: Warning), while `/nowarn` on `alc` removes a listed id.
+
 ---
 
 ## 9. Consumer flags
