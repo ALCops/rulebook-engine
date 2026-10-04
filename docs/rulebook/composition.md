@@ -174,7 +174,7 @@ The `default` stage skeleton `skeletons/recommended.default.ruleset.json` includ
 | AL-Go | `rulesetFile` in `.AL-Go/settings.json` and `.github/NextMajor.settings.json` | the `ci` and `vnext` skeletons |
 | `alc` | `/ruleset:<path>` with `/enableexternalrulesets` | any endpoint URL or skeleton |
 
-External rulesets must be enabled in every consumer that fetches over HTTP. If the endpoint is unreachable or invalid the compiler discards the ruleset, reports AL1033 and runs every analyzer at its default severity; pipelines treat AL1033 as a failure.
+External rulesets must be enabled in every consumer that fetches over HTTP. If the endpoint is unreachable or invalid the compiler discards the ruleset and reports AL1033: `alc` stops the build with exit code 1, the VS Code language server runs every analyzer at its default severity ([spike a](../reference/spikes/a-hosts-and-skeleton-include.md)).
 
 `suppressWarnings` in `app.json` is merged strictest-wins after the ruleset, so it switches off exactly the ids the endpoint does not list: every id at its analyzer default, which includes the cop-specific blockers a project most often wants gone. It cannot switch off an id the endpoint lists; those go into the skeleton's `rules`. The template's `docs/pte-or-appsource.md` has the ready-made lists for per-tenant and AppSource projects.
 
