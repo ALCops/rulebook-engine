@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "No $id on purpose: a relative $ref to a sibling file resolves only without an absolute $id.",
+  "title": "Rulebook ruleset file, endpoint profile",
+  "description": "Generated endpoints in rulesets/. See docs/reference/naming.md.",
+  "$ref": "ruleset.schema.json#/$defs/endpoint"
+}

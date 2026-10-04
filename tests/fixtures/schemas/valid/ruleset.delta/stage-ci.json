@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook stage CI",
+  "description": "Stage ci. Applied on top of every level's default result. Generated from docs/rulebook; do not edit.",
+  "rules": [
+    { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI; F-05" },
+    { "id": "AL0603", "action": "Info", "justification": "Implicit conversion; advisory in CI; D-01" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Rulebook Recommended",
+  "description": "Level recommended, based on essential. Generated from docs/rulebook; do not edit.",
+  "includedRuleSets": [ { "action": "Default", "path": "essential.ruleset.json" } ],
+  "rules": [
+    { "id": "AL0200", "action": "Warning", "justification": "Compiler warning at author severity from Recommended; D-01" },
+    { "id": "AS0084", "action": "Error", "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended; F-07" }
+  ]
+}

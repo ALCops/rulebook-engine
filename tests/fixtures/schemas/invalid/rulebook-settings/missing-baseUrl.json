@@ -1,0 +1,7 @@
+{
+  "templateUrl": "https://github.com/ALCops/rulebook@main",
+  "publish": { "target": "pages" },
+  "quarantine": { "stages": null, "prereleaseStages": null },
+  "levels": [ { "name": "Essential" } ],
+  "stages": [ { "name": "default" } ]
+}

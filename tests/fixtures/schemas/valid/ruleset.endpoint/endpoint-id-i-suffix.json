@@ -1,0 +1,7 @@
+{
+  "name": "Rulebook Recommended / vNext",
+  "description": "Level recommended, stage vnext, twins both. Generated; do not edit.",
+  "rules": [
+    { "id": "LC0089i", "action": "Warning" }
+  ]
+}

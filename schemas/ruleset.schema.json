@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "No $id on purpose: Test-Json (pwsh 7.6) resolves a relative $ref to a sibling file only when the schema has no absolute $id. The profile files reference the $defs below as ruleset.schema.json#/$defs/<profile>.",
+  "title": "Rulebook ruleset file",
+  "description": "Any ruleset file of an organization rulebook repository: the compiler ruleset schema plus an optional justification per rule. Three profiles: delta (base/, stages/), endpoint (rulesets/) and skeleton (skeletons/). Validate against the profile file of the folder (ruleset.delta.schema.json, ruleset.endpoint.schema.json, ruleset.skeleton.schema.json); this hub accepts a file that matches any profile. See docs/reference/naming.md.",
+  "$defs": {
+    "diagnosticId": {
+      "description": "A diagnostic id: two or three capital letters, four digits, an optional lowercase i (PTE0011, AL0432, LC0089i).",
+      "type": "string",
+      "pattern": "^[A-Z]{2,3}[0-9]{4}i?$"
+    },
+    "ruleAction": {
+      "description": "A rule action. Default is not valid for a rule: the compiler fails to deserialise it.",
+      "enum": ["Error", "Warning", "Info", "Hidden", "None"]
+    },
+    "justification": {
+      "description": "Why the rule has this action. Optional (D37, D40); ignored by the compiler.",
+      "type": "string"
+    },
+    "deltaRule": {
+      "description": "A rule in a level, stage or skeleton file: id, action and an optional justification.",
+      "type": "object",
+      "required": ["id", "action"],
+      "properties": {
+        "id": { "$ref": "#/$defs/diagnosticId" },
+        "action": { "$ref": "#/$defs/ruleAction" },
+        "justification": { "$ref": "#/$defs/justification" }
+      },
+      "additionalProperties": false
+    },
+    "endpointRule": {
+      "description": "A rule in a generated endpoint: id and action only, never a justification.",
+      "type": "object",
+      "required": ["id", "action"],
+      "properties": {
+        "id": { "$ref": "#/$defs/diagnosticId" },
+        "action": { "$ref": "#/$defs/ruleAction" },
+        "justification": false
+      },
+      "additionalProperties": false
+    },
+    "include": {
+      "description": "The one include of a skeleton: action Default and the endpoint URL (with {BASEURL} in the template).",
+      "type": "object",
+      "required": ["action", "path"],
+      "properties": {
+        "action": { "const": "Default" },
+        "path": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "delta": {
+      "description": "Delta profile: a level file in base/ or a stage file in stages/. Lists the ids it changes; no includes, no generalAction.",
+      "type": "object",
+      "required": ["name", "rules"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/deltaRule" } },
+        "includedRuleSets": false,
+        "generalAction": false
+      },
+      "additionalProperties": false
+    },
+    "endpoint": {
+      "description": "Endpoint profile: a generated file in rulesets/. The ids whose effective action differs from the catalog default, without justification, no includes, no generalAction.",
+      "type": "object",
+      "required": ["name", "rules"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/endpointRule" } },
+        "includedRuleSets": false,
+        "generalAction": false
+      },
+      "additionalProperties": false
+    },
+    "skeleton": {
+      "description": "Skeleton profile: a file in skeletons/ or a project's .rulebook/. Exactly one include with action Default; own rules allowed (project exceptions); no generalAction.",
+      "type": "object",
+      "required": ["name", "includedRuleSets"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "includedRuleSets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/include" }
+        },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/deltaRule" } },
+        "generalAction": false
+      },
+      "additionalProperties": false
+    }
+  },
+  "anyOf": [
+    { "$ref": "#/$defs/delta" },
+    { "$ref": "#/$defs/endpoint" },
+    { "$ref": "#/$defs/skeleton" }
+  ]
+}

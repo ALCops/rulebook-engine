@@ -1,0 +1,7 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json",
+  "rules": [
+    { "id": "AA0072", "action": "Warning", "levels": ["*"], "stages": ["*"], "justification": "House style" },
+    { "id": "AL0432", "action": "None", "levels": ["essential", "recommended"], "stages": ["ci"], "justification": "Backlog DEV-1234" }
+  ]
+}

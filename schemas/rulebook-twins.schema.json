@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "title": "Rulebook twin pairs",
+  "description": "base/twins.json of an organization rulebook repository (generated from docs/rulebook/matrix/twins.json in the engine): the PerTenantExtensionCop and AppSourceCop twin pairs the twins setting acts on (D23). That count equals the number of pairs is validation check C14. See docs/reference/naming.md.",
+  "$defs": {
+    "pair": {
+      "type": "object",
+      "required": ["pte", "appsource"],
+      "properties": {
+        "pte": { "type": "string", "pattern": "^PTE[0-9]{4}$" },
+        "appsource": { "type": "string", "pattern": "^AS[0-9]{4}$" },
+        "title": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": ["pairs"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "generatedBy": { "type": "string" },
+    "setting": { "const": "twins" },
+    "values": { "const": ["both", "appsource", "pte"] },
+    "count": { "type": "integer", "minimum": 0 },
+    "pairs": { "type": "array", "items": { "$ref": "#/$defs/pair" } }
+  },
+  "additionalProperties": false
+}

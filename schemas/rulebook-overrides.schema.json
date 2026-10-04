@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "title": "Rulebook overrides",
+  "description": "overrides.json of an organization rulebook repository: rule changes with level and stage selectors. Selectors are non-empty arrays of lowercase slugs or [\"*\"]; whether a slug exists in the settings is validation check C10. See docs/reference/naming.md.",
+  "$defs": {
+    "diagnosticId": {
+      "description": "A diagnostic id: two or three capital letters, four digits, an optional lowercase i (PTE0011, AL0432, LC0089i).",
+      "type": "string",
+      "pattern": "^[A-Z]{2,3}[0-9]{4}i?$"
+    },
+    "ruleAction": {
+      "description": "A rule action. Default is not valid for a rule.",
+      "enum": ["Error", "Warning", "Info", "Hidden", "None"]
+    },
+    "slug": {
+      "description": "A level or stage slug: the lowercased name from the settings.",
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "selector": {
+      "description": "[\"*\"] for every level or stage, or a non-empty list of distinct slugs. Arrays only; \"default\" is a valid stage slug.",
+      "anyOf": [
+        { "const": ["*"] },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slug" }
+        }
+      ]
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id", "action", "levels", "stages"],
+      "properties": {
+        "id": { "$ref": "#/$defs/diagnosticId" },
+        "action": { "$ref": "#/$defs/ruleAction" },
+        "levels": { "$ref": "#/$defs/selector" },
+        "stages": { "$ref": "#/$defs/selector" },
+        "justification": {
+          "description": "Why the organization overrides this rule. Optional (D37).",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": ["rules"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "rules": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,8 @@
+{
+  "templateUrl": "https://github.com/ALCops/rulebook@main",
+  "baseUrl": "https://contoso.github.io/rulebook",
+  "publish": { "target": "pages" },
+  "quarantine": { "stages": ["default", "ci"], "prereleaseStages": ["default", "ci"] },
+  "levels": [ { "name": "Essential" } ],
+  "stages": [ { "name": "default" }, { "name": "CI" } ]
+}

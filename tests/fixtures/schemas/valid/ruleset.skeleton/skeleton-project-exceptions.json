@@ -1,0 +1,9 @@
+{
+  "name": "Rulebook Recommended / default",
+  "description": "Copied into the project as .rulebook/default.ruleset.json, with two project exceptions.",
+  "includedRuleSets": [ { "action": "Default", "path": "https://contoso.github.io/rulebook/rulesets/recommended.ruleset.json" } ],
+  "rules": [
+    { "id": "AS0084", "action": "None", "justification": "Per-tenant extension, no marketplace manifest" },
+    { "id": "AA0137", "action": "None" }
+  ]
+}
