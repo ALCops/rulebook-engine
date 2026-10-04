@@ -177,7 +177,7 @@ Microsoft Learn describes the rewrite as applying to actions "different from Non
 
 - Only `http` and `https` are recognised as remote (`RulesetUtilities.IsRemotePath`).
 - Each fetch creates a fresh `HttpClient`, timeout **15 seconds**, `GetByteArrayAsync`. No caching, no ETag, no retry. Every include in the tree is one fetch.
-- The request goes through Microsoft's anti-SSRF policy (`ExternalOnlyLatest`, plain http allowed). Private or internal addresses are expected to be blocked; GitHub Pages (`*.github.io`) and `raw.githubusercontent.com` pass, with one TCP connection per fetch and no redirect ([spike a](spikes/a-hosts-and-skeleton-include.md)).
+- The request goes through Microsoft's anti-SSRF policy (`ExternalOnlyLatest`, plain http allowed). Private or internal addresses are expected to be blocked; GitHub Pages (`*.github.io`) and `raw.githubusercontent.com` pass, with one TCP connection per fetch and no redirect ([spike a](spikes/a-hosts-and-skeleton-include.md): a project Pages site on a personal account without custom domain, warm CDN, one `ubuntu-latest` runner). A renamed repository or a custom domain may redirect, and a redirect would count as a second connect.
 - If external rulesets are disabled and a URL is encountered anywhere in the tree, a `BlockedExternalRulesetsException` is thrown.
 
 ---
