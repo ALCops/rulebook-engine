@@ -280,8 +280,8 @@ Trigger: daily schedule, `workflow_dispatch`.
 
 ```mermaid
 flowchart LR
-    idx[NuGet flat-container index<br/>both packages, stable + prerelease] --> dl[download latest nupkg<br/>per package per channel]
-    dl --> ex[extract diagnostic ids, default severity, enablement<br/>method from WP01 spike b]
+    idx[NuGet flat-container index<br/>both packages, stable + prerelease] --> dl[download latest nupkg per package per channel<br/>neutral tools package only, prerelease only if newer than stable]
+    dl --> ex[extract diagnostic ids, default severity, enablement<br/>reflection in pwsh, WP01 spike b]
     ex --> diff[diff with catalog/diagnostics.json]
     diff -->|new ids| q[add to quarantine.stage.json<br/>per policy in settings]
     diff -->|changed defaults| dd[update catalog, list in PR]
@@ -289,6 +289,8 @@ flowchart LR
     q & dd & hk --> gen[regenerate rulesets/]
     gen --> pr[PR: catalog + quarantine + endpoints + summary table]
 ```
+
+Extraction loads the analyzer DLLs by reflection in pwsh: `Microsoft.Dynamics.Nav.CodeAnalysis.dll` and the four Microsoft cops from `tools/<tfm>/any/` of the tools package, the ALCops cops from `lib/<tfm>/` of `ALCops.Analyzers`, with `<tfm>` the highest folder not newer than the pwsh runtime (`net10.0` on `ubuntu-latest` today) and never `netstandard2.1`, one pwsh process per package version and channel. Only the platform-neutral tools package is downloaded, and a prerelease counts only when it sorts after the stable version; see [spike (b)](reference/spikes/b-analyzer-dll-extraction.md).
 
 Policy from settings: `quarantine.stages` receives ids first seen in a stable package, `quarantine.prereleaseStages` receives ids first seen in a prerelease package. Both are mandatory (D14). Values are stage slugs from `settings.stages`. A typical choice: stable ids to `default` and `ci`, prerelease ids to `default` and `ci` as well, so `vnext` shows everything at default severity. A stage the org adds gets its own `quarantine.<slug>.json` the first time the scan writes to it. Ids never leave the catalog; the catalog records `firstSeenVersion`, `firstSeenChannel` and `lastSeenVersion`, so a rule that disappears from a package is visible too.
 

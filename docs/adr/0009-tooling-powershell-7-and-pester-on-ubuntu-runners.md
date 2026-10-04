@@ -6,6 +6,6 @@
 - **Partly superseded** by D39 (2026-10-03): tests are Pester 6, not Pester 5. The rest of the decision stands.
 - **Decision:** actions are composite actions running PowerShell 7 scripts; tests are Pester 5; static analysis is PSScriptAnalyzer; every workflow runs on `ubuntu-latest`.
 - **Rationale:** same language as AL-Go and BcContainerHelper, so the Business Central community can contribute and patterns can be reused. `pwsh` is preinstalled on GitHub's Ubuntu images.
-- **Rejected:** TypeScript (faster startup, unfamiliar to the community); .NET tooling everywhere (heavier build); a split with a .NET extractor (possible later if WP01 spike b shows reflection from pwsh is unreliable).
+- **Rejected:** TypeScript (faster startup, unfamiliar to the community); .NET tooling everywhere (heavier build); a split with a .NET extractor (possible later if WP01 spike b shows reflection from pwsh is unreliable). WP01 spike b found reflection from pwsh reliable on `ubuntu-latest`: see [b-analyzer-dll-extraction.md](../reference/spikes/b-analyzer-dll-extraction.md).
 - **Consequences:** no Windows-only dependency is accepted in any action.
 - **Affects:** all WPs.
