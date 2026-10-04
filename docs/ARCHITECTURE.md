@@ -376,7 +376,7 @@ A change set is `{ version, note?, changes[] }` with `set` (write an override en
 
 | Target | How the publish action works | Plan and privacy notes |
 |---|---|---|
-| GitHub Pages (default) | `actions/upload-pages-artifact` and `actions/deploy-pages` with `rulesets/`, `skeletons/`, `index.html`. Custom domain supported. | Public repo: every plan. Private repo with a public site: GitHub Pro or Team; a private site needs Enterprise Cloud. |
+| GitHub Pages (default) | `actions/upload-pages-artifact` and `actions/deploy-pages` with `rulesets/`, `skeletons/`, `index.html`. Custom domain supported. | Public repo: every plan. Private repo with a public site: GitHub Pro, Team or Enterprise Cloud (per GitHub docs, not observed); a private site needs Enterprise Cloud. Spike WP01 (d) [confirmed](reference/spikes/d-pages-private-repo.md) the Free rule and found that the org member privilege "Pages creation" must be on and that the site must be enabled once before the first deploy. |
 | Public dist repo | Push the same folders to a separate public repository; endpoints are `https://raw.githubusercontent.com/<org>/<dist>/main/rulesets/...`. | Any plan. Source repo can be private. |
 | Azure Blob Storage | `az storage blob upload-batch` after OIDC login; container with anonymous read. | Any plan. Fits teams that already host artifacts in Azure. |
 | Gist | Update the gist files through the API; endpoints are the gist raw URLs. | Bound to one personal account, no custom domain. Documented, not recommended. |
