@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "No $id on purpose: Test-Json (pwsh 7.6) resolves a relative $ref to a sibling file only when the schema has no absolute $id. The profile files reference the $defs below as ruleset.schema.json#/$defs/<profile>.",
+  "$comment": "No $id on purpose: Test-Json (pwsh 7.6) resolves a relative $ref to a sibling file only when the schema has no absolute $id. The profile files reference the $defs below as ruleset.schema.json#/$defs/<profile>. Every pattern in the Rulebook schemas ends with (?![\\s\\S]) instead of $: in .NET (Test-Json) $ also matches before a trailing newline, \\z is a literal z in ECMA-262 (editors), and the lookahead means end of string in both.",
   "title": "Rulebook ruleset file",
   "description": "Any ruleset file of an organization rulebook repository: the compiler ruleset schema plus an optional justification per rule. Three profiles: delta (base/, stages/), endpoint (rulesets/) and skeleton (skeletons/). Validate against the profile file of the folder (ruleset.delta.schema.json, ruleset.endpoint.schema.json, ruleset.skeleton.schema.json); this hub accepts a file that matches any profile. See docs/reference/naming.md.",
   "$defs": {
     "diagnosticId": {
       "description": "A diagnostic id: two or three capital letters, four digits, an optional lowercase i (PTE0011, AL0432, LC0089i).",
       "type": "string",
-      "pattern": "^[A-Z]{2,3}[0-9]{4}i?$"
+      "pattern": "^[A-Z]{2,3}[0-9]{4}i?(?![\\s\\S])"
     },
     "ruleAction": {
       "description": "A rule action. Default is not valid for a rule: the compiler fails to deserialise it.",

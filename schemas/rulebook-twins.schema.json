@@ -8,8 +8,8 @@
       "type": "object",
       "required": ["pte", "appsource"],
       "properties": {
-        "pte": { "type": "string", "pattern": "^PTE[0-9]{4}$" },
-        "appsource": { "type": "string", "pattern": "^AS[0-9]{4}$" },
+        "pte": { "type": "string", "pattern": "^PTE[0-9]{4}(?![\\s\\S])" },
+        "appsource": { "type": "string", "pattern": "^AS[0-9]{4}(?![\\s\\S])" },
         "title": { "type": "string" }
       },
       "additionalProperties": false

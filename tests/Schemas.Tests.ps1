@@ -1,6 +1,6 @@
 # Schema suite for WP02 (#4): every schema under schemas/ against its fixtures under tests/fixtures/schemas/.
 # Fixture convention: tests/fixtures/schemas/<valid|invalid>/<schema-basename>/<reason>.json, where
-# schemas/<schema-basename>.schema.json is the schema. See docs/reference/naming.md section 7.
+# schemas/<schema-basename>.schema.json is the schema. See docs/reference/naming.md section 6.
 
 BeforeDiscovery {
     $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -48,6 +48,20 @@ BeforeDiscovery {
             $index++
             @{ Name = "block $index"; Json = $_.Groups[1].Value }
         })
+
+    # Section 7 quotes each example with the path of the fixture it was copied from.
+    $examples = [regex]::Match($namingText, '(?ms)^## 7\. Examples\n(.*?)^## 8\.').Groups[1].Value
+    $script:exampleBlockCount = [regex]::Matches($examples, '(?m)^```json\n').Count
+    $script:exampleCases = @([regex]::Matches($examples, '(?ms)`(tests/fixtures/schemas/[^`]+\.json)`[^\n]*:\n\n```json\n(.*?)^```') | ForEach-Object {
+            $relative = $_.Groups[1].Value
+            $fixture = Join-Path $repoRoot $relative
+            @{
+                Name    = $relative
+                Json    = $_.Groups[2].Value
+                Fixture = $fixture
+                Schema  = Join-Path $schemaDir "$(Split-Path -Leaf (Split-Path -Parent $fixture)).schema.json"
+            }
+        })
 }
 
 BeforeAll {
@@ -84,7 +98,7 @@ Describe 'Shared definitions' {
     It 'diagnosticId is the same pattern in every schema that defines it' {
         $patterns = @($defs | Where-Object { $_.ContainsKey('diagnosticId') } | ForEach-Object { $_['diagnosticId']['pattern'] })
         $patterns.Count | Should-BeGreaterThan 1
-        @($patterns | Sort-Object -Unique) | Should-BeCollection @('^[A-Z]{2,3}[0-9]{4}i?$')
+        @($patterns | Sort-Object -Unique) | Should-BeCollection @('^[A-Z]{2,3}[0-9]{4}i?(?![\s\S])')
     }
 
     It 'ruleAction is the same enum in every schema that defines it' {
@@ -96,7 +110,7 @@ Describe 'Shared definitions' {
     It 'slug is the same pattern in every schema that defines it' {
         $patterns = @($defs | Where-Object { $_.ContainsKey('slug') } | ForEach-Object { $_['slug']['pattern'] })
         $patterns.Count | Should-BeGreaterThan 1
-        @($patterns | Sort-Object -Unique) | Should-BeCollection @('^[a-z0-9-]+$')
+        @($patterns | Sort-Object -Unique) | Should-BeCollection @('^[a-z0-9-]+(?![\s\S])')
     }
 }
 
@@ -126,7 +140,7 @@ Describe 'ruleset.schema.json (hub)' {
         Test-Json -Path $Path -SchemaFile $Hub | Should-BeTrue
     }
 
-    It 'accepts an endpoint rule with a justification, because the delta profile allows it (anyOf)' {
+    It 'does not reject an endpoint rule with a justification (anyOf; the endpoint profile does)' {
         $path = Join-Path $fixtureDir 'invalid' 'ruleset.endpoint' 'with-justification.json'
         Test-Json -Path $path -SchemaFile (Join-Path $schemaDir 'ruleset.schema.json') | Should-BeTrue
     }
@@ -150,5 +164,19 @@ Describe 'docs/reference/naming.md' {
 
     It 'json <Name> parses' -ForEach $namingBlocks {
         Test-Json -Json $Json | Should-BeTrue
+    }
+
+    It 'names the fixture of every example in section 7' -ForEach @(@{ Blocks = $exampleBlockCount; Mapped = $exampleCases.Count }) {
+        $Blocks | Should-BeGreaterThan 0
+        $Mapped | Should-Be $Blocks
+    }
+
+    It 'example <Name> equals its fixture' -ForEach $exampleCases {
+        $fixtureText = (Get-Content -Path $Fixture -Raw) -replace "`r`n", "`n"
+        $Json | Should-Be $fixtureText
+    }
+
+    It 'example <Name> matches its schema' -ForEach $exampleCases {
+        Test-Json -Json $Json -SchemaFile $Schema | Should-BeTrue
     }
 }

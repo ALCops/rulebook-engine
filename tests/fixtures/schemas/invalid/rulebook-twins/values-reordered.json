@@ -1,0 +1,10 @@
+{
+  "generatedBy": "tools/rulebook/Build-Matrix.ps1",
+  "setting": "twins",
+  "values": ["both", "pte", "appsource"],
+  "count": 2,
+  "pairs": [
+    { "pte": "PTE0011", "appsource": "AS0048", "title": "The publisher name is too long" },
+    { "pte": "PTE0003", "appsource": "AS0061", "title": "Procedures must not subscribe to CompanyOpen events" }
+  ]
+}

@@ -7,7 +7,7 @@
     "diagnosticId": {
       "description": "A diagnostic id: two or three capital letters, four digits, an optional lowercase i (PTE0011, AL0432, LC0089i).",
       "type": "string",
-      "pattern": "^[A-Z]{2,3}[0-9]{4}i?$"
+      "pattern": "^[A-Z]{2,3}[0-9]{4}i?(?![\\s\\S])"
     },
     "entry": {
       "type": "object",

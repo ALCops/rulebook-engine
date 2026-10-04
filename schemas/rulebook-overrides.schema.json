@@ -7,7 +7,7 @@
     "diagnosticId": {
       "description": "A diagnostic id: two or three capital letters, four digits, an optional lowercase i (PTE0011, AL0432, LC0089i).",
       "type": "string",
-      "pattern": "^[A-Z]{2,3}[0-9]{4}i?$"
+      "pattern": "^[A-Z]{2,3}[0-9]{4}i?(?![\\s\\S])"
     },
     "ruleAction": {
       "description": "A rule action. Default is not valid for a rule.",
@@ -16,7 +16,7 @@
     "slug": {
       "description": "A level or stage slug: the lowercased name from the settings.",
       "type": "string",
-      "pattern": "^[a-z0-9-]+$"
+      "pattern": "^[a-z0-9-]+(?![\\s\\S])"
     },
     "selector": {
       "description": "[\"*\"] for every level or stage, or a non-empty list of distinct slugs. Arrays only; \"default\" is a valid stage slug.",

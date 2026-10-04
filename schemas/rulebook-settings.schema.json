@@ -7,12 +7,12 @@
     "slug": {
       "description": "A level or stage slug: the lowercased name.",
       "type": "string",
-      "pattern": "^[a-z0-9-]+$"
+      "pattern": "^[a-z0-9-]+(?![\\s\\S])"
     },
     "name": {
       "description": "A level or stage name. Lowercased it is the slug, so only letters, digits and hyphens: no spaces, no dots.",
       "type": "string",
-      "pattern": "^[A-Za-z0-9-]+$"
+      "pattern": "^[A-Za-z0-9-]+(?![\\s\\S])"
     },
     "quarantinePolicy": {
       "description": "null (the template ships null on purpose and the scan refuses to run, D14) or the stage slugs that receive new ids.",
@@ -55,12 +55,12 @@
     "templateSha": {
       "description": "The template commit installed last; empty until the first update.",
       "type": "string",
-      "pattern": "^([0-9a-f]{40})?$"
+      "pattern": "^([0-9a-f]{40})?(?![\\s\\S])"
     },
     "baseUrl": {
       "description": "Where rulesets/ is served from: https, no trailing slash.",
       "type": "string",
-      "pattern": "^https://[^\\s/]+(/[^\\s/]+)*$"
+      "pattern": "^https://[^\\s/]+(/[^\\s/]+)*(?![\\s\\S])"
     },
     "publish": {
       "description": "The publish target and its fields. Fields of another target are not forbidden; they are ignored.",
@@ -68,7 +68,7 @@
       "required": ["target"],
       "properties": {
         "target": { "enum": ["pages", "dist-repo", "azure-blob", "gist"] },
-        "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?![\\s\\S])" },
         "branch": { "type": "string", "minLength": 1 },
         "storageAccount": { "type": "string", "minLength": 1 },
         "container": { "type": "string", "minLength": 1 },
@@ -119,13 +119,13 @@
       "contains": {
         "type": "object",
         "required": ["name"],
-        "properties": { "name": { "pattern": "^[Dd][Ee][Ff][Aa][Uu][Ll][Tt]$" } }
+        "properties": { "name": { "pattern": "^[Dd][Ee][Ff][Aa][Uu][Ll][Tt](?![\\s\\S])" } }
       }
     },
     "ghTokenWorkflowSecretName": {
       "description": "Name of the write token secret (O4).",
       "type": "string",
-      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
       "default": "GHTOKENWORKFLOW"
     },
     "commitOptions": {
