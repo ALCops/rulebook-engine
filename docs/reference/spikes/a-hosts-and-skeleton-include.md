@@ -56,7 +56,7 @@ strace -f -qq -e trace=connect -o strace.log al compile ... > compile.log 2>&1; 
 sleep 2; sudo pkill -INT -x tcpdump; wait
 grep -c 'htons(443)' strace.log                    # TCP connects to :443 by alc
 grep -c 'htons(53)'  strace.log                    # DNS: connects to the resolver stub 127.0.0.53:53
-# -i any captures each SYN twice (eth0 and the accelerated-networking NIC), so count distinct SYNs:
+# -i any records each SYN twice, on eth0 and on a second interface, with the same source port and sequence number; count distinct SYNs:
 sudo tcpdump -nn -r cap.pcap 'dst net 185.199.108.0/22' | awk '{print $5, $7, $11}' | sort -u | wc -l
 ```
 
@@ -105,11 +105,11 @@ Final run: [actions/runs/37179557047](https://github.com/ALCops/rulebook-engine/
 Findings:
 
 - **Both hosts pass the anti-SSRF policy.** The endpoint URL as root path and as the include of a local skeleton loads on Pages and on raw without AL1033, and AA0137 comes out at the endpoint's `Error`.
-- **One fetch per compile.** Every compile that loads one URL, direct or through the skeleton, makes exactly one TCP connect to port 443 (strace) and one SYN to the GitHub CDN (tcpdump), plus one DNS query to the local resolver stub. The connect goes to an IPv4-mapped address on a dual-mode socket (`::ffff:185.199.x.y`), non-blocking (`EINPROGRESS`). The extra `connect` calls with port 0 in `strace.log` (four IPv4, four IPv6 with `ENETUNREACH`) are glibc's address-sorting probes on a UDP socket during `getaddrinfo`; they send no packet. No redirect was observed on either host, so there was never a second connect.
+- **One fetch per compile.** Every compile that loads one URL, direct or through the skeleton, makes exactly one TCP connect to port 443 (strace) and one SYN to the GitHub CDN (tcpdump), plus one DNS query to the local resolver stub. The connect goes to an IPv4-mapped address on a dual-mode socket (`::ffff:185.199.x.y`), non-blocking (`EINPROGRESS`). The extra `connect` calls with port 0 in `strace.log` (four IPv4, four IPv6 with `ENETUNREACH`) send no packet: none of them has a matching SYN in tcpdump, which is consistent with glibc's address-sorting probes on a UDP socket during `getaddrinfo`. No redirect was observed on either host, so there was never a second connect.
 - **The skeleton's own rule beats the include.** With the include alone the result is the endpoint's `Error`; with `{ "id": "AA0137", "action": "None" }` in the skeleton's own `rules` AA0137 is absent, the compile exits 0 and writes the `.app`. Same on both hosts.
 - **A failing include aborts the compile, like a failing root.** A 404 include, an invalid include (`"action": "Default"` on a rule) and an include on a host that does not resolve all produce one `error AL1033` naming the skeleton file, no `Compilation started`, no `.app`, exit 1. alc does not fall back to its defaults. The non-resolving host fails in about 0.6 s (two DNS queries, no TCP connect), well inside the 15 s fetch timeout.
 - **An include URL without `/enableexternalrulesets` is AL1033, not AL0767.** AL0767 appears only when the *root* path is a URL; a local skeleton whose include is a URL fails with AL1033 ("... because external rulesets are not allowed") before any network access. Same abort: exit 1, no `.app`.
-- **The fetch happens during command-line parsing.** The SYN is sent about 0.4 s before alc prints `Compilation started`, which is consistent with the abort: a ruleset error is a command-line error and the compilation is never started.
+- **The fetch happens during command-line parsing.** The SYN is sent about 0.3 s before alc prints `Compilation started`, which is consistent with the abort: a ruleset error is a command-line error and the compilation is never started.
 
 <details>
 <summary>Headers (curl -sI from the runner, final run)</summary>
@@ -168,7 +168,7 @@ Compilation ended at '05:20:54.166'.
 05:20:52.212429 enP60402s1 Out IP 10.1.0.130.33500 > 185.199.109.133.443: Flags [S], seq 1725168263, ...
 ```
 
-The two tcpdump lines are one SYN (same source port and sequence number) seen on two interfaces.
+The two tcpdump lines carry the same source port and sequence number on two interfaces, consistent with one SYN recorded twice (strace shows one connect).
 
 </details>
 

@@ -84,7 +84,7 @@ flowchart LR
     D --> E[RuleSetReducer.GetEffectiveRuleSet<br/>flatten the include tree]
     E --> F[RuleSet<br/>generalAction + per-id actions]
     F --> G[CompilationOptions<br/>GeneralDiagnosticOption<br/>SpecificDiagnosticOptions]
-    B -.->|any exception| H[DefaultRuleSet + AL1033]
+    B -.->|any exception| H["AL1033; alc aborts, language server uses DefaultRuleSet"]
 ```
 
 - `RuleSetResolver.cs` is the entry point. It catches every `IOException` and `InvalidRuleSetException` from the whole tree.
