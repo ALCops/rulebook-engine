@@ -39,7 +39,7 @@ tableextension 50001 "Spike Ext" extends "Spike Base"
 
 The `suppressWarnings` variant of `app.json` adds `"suppressWarnings": ["AS0084", "AS0013"]`; runs 7a and 7b use a longer list (below).
 
-A throwaway workflow (`spike-f.yml`, `workflow_dispatch` plus push on `wp01/spike-f`, read-only token, removed before the pull request; last version at `51191f8:.github/workflows/spike-f.yml`) ran on `ubuntu-latest` with the [spike (c) recipe](c-alc-on-ubuntu.md#recipe) unchanged (pinned stable tool, `AL_BIN` from `tools/net10.0/any` with the guard, `System.app` from MSSymbols with the prerelease-safe `jq` filter, output in `compile.log`, AL1003 check) and **all four** Microsoft cops:
+A throwaway workflow (`spike-f.yml`, `workflow_dispatch` plus push on `wp01/spike-f`, read-only token, removed before the pull request; last version at `1718e03:.github/workflows/spike-f.yml`) ran on `ubuntu-latest` with the [spike (c) recipe](c-alc-on-ubuntu.md#recipe) unchanged (pinned stable tool, `AL_BIN` from `tools/net10.0/any` with the guard, `System.app` from MSSymbols with the prerelease-safe `jq` filter, output in `compile.log`, AL1003 check) and **all four** Microsoft cops:
 
 ```bash
 al compile /project:fixture /packagecachepath:fixture/.alpackages /out:$d/out.app \
@@ -68,7 +68,7 @@ The editor path was run by Arthur in VS Code on Windows with the same fixture (s
 
 ## Observed
 
-Final run: [actions/runs/37180612371](https://github.com/ALCops/rulebook-engine/actions/runs/37180612371) (commit `51191f8`). The first run, [37180549341](https://github.com/ALCops/rulebook-engine/actions/runs/37180549341) (commit `557d304`, runs c0 to 6o only), gave identical results for every run they share.
+Final run: [actions/runs/37180612371](https://github.com/ALCops/rulebook-engine/actions/runs/37180612371) (commit `51191f8`, rebased onto main as `1718e03` with an identical workflow file). The first run, [37180549341](https://github.com/ALCops/rulebook-engine/actions/runs/37180549341) (commit `557d304`, rebased as `1bf6746`; runs c0 to 6o only), gave identical results for every run they share.
 
 **Other AS ids.** Every compile of this fixture without them in `suppressWarnings` also reports, unchanged by any endpoint: AS0051 (Error, 7x: `brief`, `description`, `privacyStatement`, `EULA`, `help`, `logo`, `contextSensitiveHelpUrl`), AS0015 (Error), AS0052 (Error), AS0054 (Error), AS0100 (Error, `application` missing), AS0092 (Warning), AS0103 (Warning), plus PTE0004 (Error, PerTenantExtensionCop: no permission set for the table) and AA0247 (Info). These are abbreviated as *the rest* in the table. Because they are errors, **the exit code of runs c0 to 6o is 1 regardless of AS0084 and AS0013**, and AA0137 at the endpoint's `Error` also fails every endpoint compile; the table is therefore read by the presence and severity of AS0084, AS0013 and AA0137 in `compile.log`. Runs 7a and 7b make the exit code unambiguous.
 
@@ -237,6 +237,6 @@ Claims of the template page [`ALCops/rulebook` `docs/pte-or-appsource.md`](https
 ## Artifacts
 
 - Final run: <https://github.com/ALCops/rulebook-engine/actions/runs/37180612371> (job summary holds the result table); first run: <https://github.com/ALCops/rulebook-engine/actions/runs/37180549341>.
-- The throwaway workflow `.github/workflows/spike-f.yml` lived on `wp01/spike-f` and was removed before the pull request; the version the final run executed is `51191f8:.github/workflows/spike-f.yml` (`git show 51191f8:.github/workflows/spike-f.yml`).
+- The throwaway workflow `.github/workflows/spike-f.yml` lived on `wp01/spike-f` and was removed before the pull request; the version the final run executed is `1718e03:.github/workflows/spike-f.yml` (`git show 1718e03:.github/workflows/spike-f.yml`; the run itself ran the pre-rebase commit `51191f8` with the identical file).
 - Scratch repository `Arthurvdv/rulebook-spike-endpoint` (from [spike (a)](a-hosts-and-skeleton-include.md)): `v2/rulesets/recommended.ci.ruleset.json`, `listed-warning.ruleset.json` and `listed-info.ruleset.json` added in commit `d5503ff` on 2026-10-04; kept for spike (e), deleted after WP01 (#3).
 - Nothing besides this file and the one-sentence link in compiler-ruleset-internals.md is kept in the repository.
