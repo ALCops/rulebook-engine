@@ -41,15 +41,15 @@ const title = await page.getByRole('textbox', { name: /title/i }).first().inputV
 // The page is never submitted: the runner has no click at all.
 ```
 
-The run went in five steps:
+The runs, all in one Edge window on the same scratch profile:
 
-1. **Series:** N = 10, 20, 40, 80 and 160, pretty and minified.
-2. **Bisection:** for each variant, between the last pass and the first fail, down to 256 bytes or less.
-3. **Explicit checks:** 8100, 8209, 8210 and 8300 bytes. These test the boundary that curl had shown.
-4. **Rerun:** a targeted rerun in a fresh order, plus a one-byte bisection between 8100 and 8193 for both variants.
-5. **Repeat:** one rerun of the 83 KB case, to explain the connection resets seen in step 2.
+1. **Run 1:** the series (N = 10, 20, 40, 80 and 160, pretty and minified), then a bisection per variant between the last pass and the first fail down to 256 bytes or less, then explicit checks at 8100, 8209, 8210 and 8300 bytes (the boundary curl had shown).
+2. **Run 2:** a targeted rerun in a fresh order, plus a one-byte bisection between 8100 and 8193 for both variants.
+3. **Run 3:** a repeat of the 83 KB case between smaller URLs, to explain the connection resets of run 1.
 
-A pass means all four of these: status 200, the form is shown, the `changes` value is identical to the generated JSON, and `note` and `title` are filled.
+A pass means all four of these: status 200, the form is shown, the `changes` value is identical to the generated JSON, and `note` and `title` match the strings that were sent. `title` is compared with `===`; `note` is compared with `===` after the same `
+` to `
+` normalisation, which is a no-op because the note has no newline. In the tables, "note filled" and "title filled" mean "filled and equal to the sent string".
 
 **Browser profiles.** The plan was to reuse Arthur's real Edge and Chrome profiles. That did not work, because both browsers refuse automation on their default user-data directory:
 
@@ -59,7 +59,7 @@ A pass means all four of these: status 200, the form is shown, the `changes` val
 
 Edge therefore ran on a fresh persistent profile under the session scratchpad. Arthur signed in to github.com there once while the runner was stopped in `page.pause()`; after that the series ran unattended. The real profiles were never opened by Playwright and never modified, and the scratch profile was deleted after the measurements.
 
-Chrome and Firefox were not tested. Chrome is "not tested: Chrome 136+ blocks automation on the default user-data dir, assumed equivalent to Edge (same engine)". Firefox was out of scope by decision.
+Chrome and Firefox were not tested. Chrome 154 refused its default user-data dir with the message above (Chromium release notes date this restriction to Chrome 136). By Arthur's decision it is assumed equivalent to Edge, because both use the same engine. Firefox was out of scope by decision.
 
 **Server-side control.** curl ran without a session (`curl.exe --http1.1`, padded URLs `...&changes=xxxx`), to see GitHub's limit without a browser in between.
 
@@ -90,9 +90,9 @@ URL sizes from the generator. Pretty-printing roughly doubles the URL, because `
 | 80 | 18457 | 41778 | 11245 | 20142 |
 | 160 | 36878 | 83239 | 22466 | 40003 |
 
-The fixed part of the URL is 237 bytes: base, template, title, note and the empty `changes=`. On top of that, one item costs about 248 bytes minified and about 518 bytes pretty-printed.
+The fixed part of the URL is 237 bytes: base, template, title, note and the empty `changes=`. The encoded minified wrapper `{"version":1,"changes":[]}` adds 48 bytes. On top of that, one item costs about 248 bytes minified and about 518 bytes pretty-printed. Without a justification, one minified item costs about 152 bytes. In a compact line format such as `AL0200=None@strict/ci`, one per line, it would cost about 31 bytes.
 
-### Edge: series and first bisection (run 1)
+### Edge, run 1: series, bisection and explicit checks
 
 | browser + version | N items | pretty/minified | URL bytes | status | final URL kind | changes filled | JSON byte-identical | identical after newline normalisation | note filled | title filled |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -126,11 +126,11 @@ The pretty-printed bisection in run 1 was disturbed by the 83 KB request that ca
 - GitHub closed the HTTP/2 connection on that request (`net::ERR_CONNECTION_CLOSED`).
 - Chromium's error page then reloads itself, and those reloads interrupted the next `page.goto` calls (`Navigation ... is interrupted by another navigation to "chrome-error://chromewebdata/"`, and in the rerun also a 60 s timeout).
 - So run 1 bisected to a wrong 5985/6147 boundary for pretty JSON.
-- Rerun 3 showed the same sequence again: 83239 closed the connection, three 6147-byte navigations right after it failed, and later navigations passed again.
+- Run 3 showed the same sequence again (table below): 83239 closed the connection, three 6147-byte navigations right after it failed, and later navigations passed again.
 
 This is an effect of the test harness reusing one tab. A cart URL of 8 KB or less never gets near it.
 
-### Edge: rerun in a fresh order and one-byte bisection (run 2)
+### Edge, run 2: rerun in a fresh order and one-byte bisection
 
 | browser + version | N items | pretty/minified | URL bytes | status | final URL kind | changes filled | JSON byte-identical | identical after newline normalisation | note filled | title filled |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -154,9 +154,24 @@ This is an effect of the test harness reusing one tab. A cart URL of 8 KB or les
 | Edge 154.0.4258.53 | 15 | pretty | 8191 | 200 | form | yes | yes | yes | yes | yes |
 | Edge 154.0.4258.53 | 15 | pretty | 8192 | 414 | error page (414) | no | no | no | no | no |
 
-The one-byte bisection also passed at 8146, 8169, 8181 and 8187 for both variants; those rows are left out above.
+The one-byte bisection also passed at 8146, 8169, 8181 and 8187 for both variants; those 8 rows are left out above. Run 2 has 27 navigations in all: 22 with status 200 and 5 with 414.
 
-Across all three runs there were 33 responses with status 200. In every one of them the `changes` value was byte-identical to the generated JSON with no normalisation needed, `note` was identical, and `title` was `Rulebook change spike`. There were 18 responses with status 414. The largest URL that passed was 8191 bytes; the smallest that got 414 was 8192 bytes.
+### Edge, run 3: the 83 KB repeat
+
+| browser + version | N items | pretty/minified | URL bytes | status | final URL kind | changes filled | JSON byte-identical | identical after newline normalisation | note filled | title filled |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Edge 154.0.4258.53 | 9 | pretty | 5000 | 200 | form | yes | yes | yes | yes | yes |
+| Edge 154.0.4258.53 | 160 | pretty | 83239 | none (`ERR_CONNECTION_CLOSED`) | browser error page | no | no | no | no | no |
+| Edge 154.0.4258.53 | 11 | pretty | 6147 | none (follow-on of the reset) | browser error page | no | no | no | no | no |
+| Edge 154.0.4258.53 | 11 | pretty | 6147 | none (follow-on of the reset) | browser error page | no | no | no | no | no |
+| Edge 154.0.4258.53 | 11 | pretty | 6147 | none (60 s timeout) | browser error page | no | no | no | no | no |
+| Edge 154.0.4258.53 | 19 | minified | 5000 | 200 | form | yes | yes | yes | yes | yes |
+| Edge 154.0.4258.53 | 80 | pretty | 41778 | 414 | error page (414) | no | no | no | no | no |
+| Edge 154.0.4258.53 | 19 | minified | 5000 | 200 | form | yes | yes | yes | yes | yes |
+
+### Totals
+
+Across the three runs there were 59 navigations. Run 1 had 8 with status 200, 12 with 414 and 4 without a response. Run 2 had 22 with 200 and 5 with 414. Run 3 had 3 with 200, 1 with 414 and 4 without a response. Together that makes 33 responses with status 200. In every one of them the `changes` value was byte-identical to the generated JSON with no normalisation needed, `note` was identical, and `title` was `Rulebook change spike`. There were 18 responses with status 414. The largest URL that passed was 8191 bytes; the smallest that got 414 was 8192 bytes.
 
 | Per browser | Edge 154.0.4258.53 |
 |---|---|
@@ -178,7 +193,7 @@ URL bytes   status
 8210        414
 ```
 
-Over HTTP/1.1 the 414 starts when the request target (path and query) reaches 8192 bytes: 8210 − 18 for `https://github.com`. Edge over HTTP/2 hits 414 when the **full URL** reaches 8192 bytes, which is 18 bytes earlier. The browser number is the one the cart has to use.
+Over HTTP/1.1 the 414 starts when the request target (path and query) reaches 8192 bytes: 8210 − 18 for `https://github.com`. Edge, whose navigations used `h2`, hits 414 when the **full URL** reaches 8192 bytes, which is 18 bytes earlier. This difference was observed; its cause (protocol, session or something else) was not established. The browser number is the one the cart has to use.
 
 </details>
 
@@ -195,9 +210,9 @@ The cart should measure the whole URL it opens, including owner, repository and 
 
 A `render: json` textarea is prefilled **byte-identical**: quotes, brackets, braces, newlines and `+` (sent as `%2B`) all survive without any normalisation. `title` and `note` survive next to a `changes` value that fills the URL up to the limit.
 
-Measured in Edge only. Chrome was not tested: Chrome 136+ blocks automation on its default user-data dir; it is assumed equivalent to Edge (same engine). Firefox was not tested.
+Measured in Edge only. Chrome was not tested: Chrome 154 refused automation on its default user-data dir ("DevTools remote debugging requires a non-default data directory"); it is assumed equivalent to Edge (same engine). Firefox was not tested.
 
-**dashboard.md Q1** asks whether a compact encoding is worth a second parser. It is not. At the 7372-byte budget, minified JSON holds about 28 changes with a 40-character justification each, or 46 without one. That is enough for one review sitting, and the split and copy routes cover larger carts. A compact form such as `LC0015=None@strict/ci` would hold about 228. But it drops justifications, the user cannot read it as the schema, and WP15 would need a second parser for it.
+**dashboard.md Q1** asks whether a compact encoding is worth a second parser. It is not. At the 7372-byte budget, minified JSON holds about 28 changes with a 39-character justification each (285 + 28 × 248 ≈ 7230), or 46 without one (285 + 46 × 152 ≈ 7280). That is enough for one review sitting, and the split and copy routes cover larger carts. A compact form such as `LC0015=None@strict/ci` would hold about 228 (about 31 bytes each). But it drops justifications, the user cannot read it as the schema, and WP15 would need a second parser for it.
 
 The cart should send **minified** JSON. Pretty-printing costs twice the bytes (about 13 items with a justification fit).
 
