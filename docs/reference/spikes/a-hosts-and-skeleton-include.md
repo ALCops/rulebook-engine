@@ -215,7 +215,7 @@ Both `arthurvdv.github.io` (GitHub Pages) and `raw.githubusercontent.com` serve 
 
 ## Not covered
 
-- The VS Code language server path: whether the editor also refuses the ruleset or falls back to defaults on AL1033 (the code reading in compiler-ruleset-internals.md §7 says fallback). Spike (e) runs VS Code against this repository and can note it.
+- The VS Code language server path: whether the editor also refuses the ruleset or falls back to defaults on AL1033 (the code reading in compiler-ruleset-internals.md §7 says fallback). Answered by [spike (e)](e-vscode-refetch.md): the editor falls back to defaults and shows AL1033 on `app.json`.
 - AL-Go for GitHub and BcContainerHelper run the same compiler but were not run here; the abort is expected there too, not observed.
 - A host that accepts the connection but never answers (the 15 s timeout path). A non-resolving host fails in 0.6 s; a black-holed public address was not tried.
 - Private, loopback and link-local targets (anti-SSRF denials): not needed for the hosts in scope.
