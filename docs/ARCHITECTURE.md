@@ -2,7 +2,7 @@
 
 Target architecture of Rulebook: the repositories, the generation model of the ruleset files, the endpoints, the workflows that keep an org rulebook repo valid, published and current, the settings, the hosting targets and the failure model. The constraints come from how the AL compiler loads rulesets ([reference/compiler-ruleset-internals.md](reference/compiler-ruleset-internals.md)) and from how AL-Go updates system files ([reference/al-go-template-mechanics.md](reference/al-go-template-mechanics.md)).
 
-> **Status:** target design after the requirements interviews of 2026-09-29, revised on 2026-10-01 when the target dimension was removed and endpoints became sparse (D21 to D24), and again on 2026-10-01 when the everything-off level was dropped, levels and stages became configuration and the source files became deltas (D25 to D30), and on 2026-10-03 when the dashboard and its issue-form write path were added (D31 to D37, design in [dashboard.md](dashboard.md)). Decisions are recorded in [adr/README.md](adr/README.md), the implementation is broken down into [work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage). The level content itself is specified in [rulebook/README.md](rulebook/README.md). Names of files and settings keys are the proposal that WP02 finalises.
+> **Status:** target design after the requirements interviews of 2026-09-29, revised on 2026-10-01 when the target dimension was removed and endpoints became sparse (D21 to D24), and again on 2026-10-01 when the everything-off level was dropped, levels and stages became configuration and the source files became deltas (D25 to D30), and on 2026-10-03 when the dashboard and its issue-form write path were added (D31 to D37, design in [dashboard.md](dashboard.md)). Decisions are recorded in [adr/README.md](adr/README.md), the implementation is broken down into [work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage). The level content itself is specified in [rulebook/README.md](rulebook/README.md). Names of files and settings keys are finalised by WP02 ([#4](https://github.com/ALCops/rulebook-engine/issues/4)); the authoritative list is [reference/naming.md](reference/naming.md).
 
 ---
 
@@ -100,20 +100,23 @@ Everything an org repo contains after "Use this template". The **class** column 
 | `.github/workflows/ChangeRule.yaml` | Manual form: one override entry, regenerate, open a PR. | system |
 | `.github/workflows/ApplyRulebookChange.yaml` | On an issue with the `rulebook-change` label: gate on collaborator association, apply the change set, regenerate, open a PR or commit (section 7.6). | system |
 | `.github/ISSUE_TEMPLATE/rulebook-change.yml`, `config.yml` | The issue form the dashboard prefills; blank issues stay enabled. | system |
-| `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, the ordered `levels` (name, `basedOn`, description) and `stages` (name, description). | settings (kept, `$schema` refreshed) |
+| `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, the ordered `levels` (name, `basedOn`, description) and `stages` (name, description). Carries the settings schema URL in `$schema`. | settings (kept, `$schema` refreshed) |
 | `.github/RELEASENOTES.copy.md` | Release notes of the installed template version; source of the update PR body. | system |
-| `base/<level>.ruleset.json` (4 shipped files) | The level content as generated from the matrix in the engine. Each file is a delta: `essential` lists the ids that differ from the analyzer defaults, every other file lists the ids that differ from its `basedOn` level, with action and justification. Files for org-added levels live here too and are org-owned because the template does not ship them. | system |
-| `stages/<stage>.json` (2 shipped files) | One delta per non-default stage, applied on top of every level's default result: `ci.json`, `vnext.json`. The `default` stage has no file. Org-added stages are org-owned. | system |
+| `base/<level>.ruleset.json` (4 shipped files) | The level content as generated from the matrix in the engine. Each file is a delta: `essential` lists the ids that differ from the analyzer defaults, every other file lists the ids that differ from its `basedOn` level, with action and justification. The shipped files carry the delta profile URL in `$schema`. Files for org-added levels live here too and are org-owned because the template does not ship them. | system |
+| `stages/<stage>.json` (2 shipped files) | One delta per non-default stage, applied on top of every level's default result: `ci.json`, `vnext.json`. The `default` stage has no file. The shipped files carry the delta profile URL in `$schema`. Org-added stages are org-owned. | system |
 | `base/twins.json` | The PerTenantExtensionCop/AppSourceCop twin pairs the `twins` setting acts on (D23). | system |
 | `overrides.json` | The org's rule changes with scope selectors (D19). | org-owned |
 | `quarantine.<stage>.json` (one per stage, `quarantine.default.json` included) | Ids held back per stage, written by the scan. | org-owned |
 | `catalog/diagnostics.json` | Every known diagnostic id with analyzer, package, default severity, enablement, first-seen version and channel (D24). | org-owned |
+| `catalog/scan-state.json` | Reserved for the scan's state; name and schema come with WP08. | org-owned |
 | `rulesets/<level>.ruleset.json` (default stage), `rulesets/<level>.<stage>.ruleset.json` (12 files in the shipped set) | The endpoints: generated from the level chain + stage delta + twins setting + overrides + quarantine, listing the ids whose effective action differs from the analyzer default, no includes. Committed. | generated (regenerated by Validate, Publish, Scan, ChangeRule and Update) |
 | `skeletons/<level>.<stage>.ruleset.json` (12 files, the stage suffix always written, `strict.default` included) | Copy-paste files for AL projects with `{BASEURL}`; one include of the endpoint. | system (regenerated from settings) |
 | `docs/`, `README.md` | The org's own notes; the template ships a README that explains the layout. | never touched after creation |
 | `site/**` | The Hugo dashboard: configuration, content adapter, layouts, scripts (section 6.4). `site/data/` is gitignored and written at publish time. | customizable (D35): overwritten only when unchanged locally |
 
 The `rulesets/` folder is flat and every endpoint is self-contained, so the whole set is relocatable to any host without editing a file.
+
+Every JSON file in this table except `catalog/scan-state.json` (WP08) and the files under `site/` has a schema in the engine under `schemas/`, served from the release branch as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (section 5.4). The ruleset profile follows the folder: `base/` and `stages/` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. The generator never writes `$schema` into an endpoint or a skeleton; the compiler fetches them and they stay minimal. File names, slugs and the schema list are in [reference/naming.md](reference/naming.md).
 
 ## 5. Generation model
 
@@ -136,7 +139,7 @@ flowchart LR
 |---|---|---|
 | `overrides.json` | ChangeRule, or the org by hand | 1: an entry whose selectors match the endpoint wins. Most specific selector set first, last entry in the file on ties. |
 | `twins` setting with `base/twins.json` | The org in the settings; the pair list by the engine | 2: with `appsource` the PerTenantExtensionCop side of every pair is `None`, with `pte` the AppSourceCop side; `both` (default) changes nothing. |
-| `stages/<stage>.json` | The engine, from the matrix stage columns; org-added stages by the org | 3: for a non-default stage, replaces the level's action for every id the file mentions, provided the level result is defined and not `None` (a stage never activates a rule, S-4). |
+| `stages/<stage>.json` | The engine, from the matrix stage columns; org-added stages by the org | 3: for a non-default stage, replaces the level's action for every id the file mentions, provided the level result (the chain, else the analyzer default) is not `None` (a stage never activates a rule, S-4). |
 | `base/<level>.ruleset.json` resolved through `basedOn` | The engine, from the matrix; org-added levels by the org | 4: the level chain. Walk from the root to the level; the last file that mentions the id wins. Undefined when no file on the chain mentions the id. |
 | `quarantine.<stage>.json` | The daily scan | 5: `None` for ids no file on the chain mentions. Once a level file mentions the id, the chain wins and housekeeping removes the entry. |
 | analyzer default | `catalog/diagnostics.json`; the scan, seeded by the template | 6: what an id gets when nothing above decides it. The catalog also decides whether an effective action is written at all (D22). |
@@ -169,22 +172,44 @@ The checks are numbered `C1` to `C14` so that WP02 and WP03 can reference them; 
 
 | # | Rule | Severity | Why |
 |---|---|---|---|
-| C1 | Every file in `base/`, `stages/`, `rulesets/` and `skeletons/` parses and matches its schema profile: delta (level and stage files, `justification` required), endpoint, skeleton. | error | Invalid JSON discards the whole ruleset at compile time. |
+| C1 | Every file in `base/`, `stages/`, `rulesets/` and `skeletons/` parses and matches its schema profile: delta (level and stage files, `justification` optional, D40), endpoint, skeleton (section 5.4). | error | Invalid JSON discards the whole ruleset at compile time. |
 | C2 | No id twice in one file. | error | Compiler error `ERR_RuleSetHasDuplicateRules`. |
-| C3 | No `includedRuleSets` and no `generalAction` in delta or endpoint files; a skeleton has exactly one include with action `Default`. | error | An include would reintroduce a fetch. |
+| C3 | No `includedRuleSets` and no `generalAction` in delta or endpoint files; a skeleton has exactly one include with action `Default` and no `generalAction` either. | error | An include would reintroduce a fetch. |
 | C4 | Rule `action` is one of Error, Warning, Info, Hidden, None. Never `Default`. | error | `Default` fails deserialisation. |
 | C5 | Settings: `levels` and `stages` are non-empty ordered arrays; every name lowercases to `^[a-z0-9-]+$`; slugs are unique per array; `stages` contains `default`; every `basedOn` resolves to an existing `base/<slug>.ruleset.json` without a cycle; `twins` is `both`, `appsource` or `pte`; `quarantine.*` is `null` or a list of stage slugs; `baseUrl` has no trailing slash. | error | Every file name and URL is derived from these values. |
 | C6 | Every published level has `base/<slug>.ruleset.json`; every non-default stage has `stages/<slug>.json`; `stages/default.json` does not exist. | error | The default stage is the level result; a file for it would be a second truth. |
 | C7 | Every id in level files, stage files, `base/twins.json`, `overrides.json` and the quarantine files exists in `catalog/diagnostics.json`. | warning until the first scan, then error | Typos never reach an endpoint. |
 | C8 | A stage entry whose id no published level enables. | warning | Dead entry; a stage never activates a rule. |
 | C9 | A delta entry equal to what the chain already gives; a file in `base/` or `stages/` that no settings entry references and that is not in `unusedRulebookFiles`. | warning | Dead weight, or a level the org forgot to publish or exclude. |
-| C10 | `overrides.json` selectors are lowercase level and stage slugs from the settings or `["*"]`; every entry has an action and a justification. | error | Silent no-ops are the failure mode of a selector typo. |
+| C10 | `overrides.json` selectors are lowercase level and stage slugs from the settings or `["*"]`; every entry has an action; a justification is optional (D37, D40). | error | Silent no-ops are the failure mode of a selector typo. |
 | C11 | No endpoint entry equals the catalog default of its id; exactly the `levels x stages` endpoints and skeletons exist, no others. | error | A listed default is dead weight; the index page and the AL projects rely on the names. |
 | C12 | Regeneration check: `rulesets/` equals the generator's output for the current inputs. | error | The committed endpoint is the published endpoint. |
 | C13 | A quarantine id that a level file now mentions. | warning | Housekeeping. |
 | C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id. | error | The sparse rule and the twins step depend on them. |
 
 The effective diff per endpoint against the previous commit is printed as a report on every PR, so reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
+
+### 5.4 File schemas
+
+The schemas are in the engine under `schemas/` (draft 2020-12), one per file kind; the list with URLs and examples is [reference/naming.md](reference/naming.md) section 6. C1 validates each file against the schema of its folder.
+
+**Ruleset files.** The compiler's ruleset schema (`name`, `description`, `generalAction`, `includedRuleSets[]`, `rules[]`, [reference/compiler-ruleset-internals.md](reference/compiler-ruleset-internals.md) section 2) extended with an optional `justification` string on each rule, which the compiler ignores. `schemas/ruleset.schema.json` holds three profiles; `ruleset.delta.schema.json`, `ruleset.endpoint.schema.json` and `ruleset.skeleton.schema.json` each select one of them:
+
+| Profile | Folders | Required | Forbidden | `justification` on a rule |
+|---|---|---|---|---|
+| delta | `base/` (level files), `stages/` (stage files) | `name`, `rules` (may be empty) | `includedRuleSets`, `generalAction` | optional (D40) |
+| endpoint | `rulesets/` | `name`, `rules` (may be empty) | `includedRuleSets`, `generalAction`, `justification` | forbidden |
+| skeleton | `skeletons/`, a project's `.rulebook/` | `name`, exactly one include with action `Default` and a `path` | `generalAction` | optional |
+
+A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`, `Hidden`, `None`; never `Default`) and, where the profile allows it, `justification`; any other property is an error. The sparse property of an endpoint (no entry at its catalog default, C11) and unique ids (C2) are validation checks, not schema rules.
+
+**Justification.** Optional in every file that may carry one: level and stage files (D40), skeleton exceptions, overrides and change sets (D37). The shipped level and stage files always carry one because Build-Matrix copies the matrix justification into them. An endpoint carries `id` and `action` only.
+
+**Overrides.** `levels` and `stages` are arrays only: `["*"]`, or a non-empty list of distinct lowercase slugs; a plain string, an empty list and `["*", "ci"]` are errors, and `"default"` is a valid stage slug. Whether a slug exists in the settings is C10. Precedence when several entries match one endpoint and id: the entry with more non-wildcard selectors wins; on a tie the later entry wins. An override beats the twins setting, the stage delta, the level chain and the quarantine (D19, D23, D27); an override whose action equals the catalog default is valid, and the id is then not listed.
+
+**Quarantine.** An entry is `id` and an optional `justification`, with no `action`: quarantine always means `None`, and only for ids no file on the level chain mentions.
+
+**Twins, catalog, settings.** `base/twins.json` is `pairs` of one `PTE` and one `AS` id with an optional `title`, plus the generator's `generatedBy`, `setting`, `values` and `count`. The catalog is `version` 1 and `diagnostics[]`; an entry requires `id`, `defaultSeverity` and `enabledByDefault` and may carry more fields. The settings schema is closed (section 8).
 
 ## 6. Endpoints and skeletons
 
@@ -331,7 +356,7 @@ A change set is `{ version, note?, changes[] }` with `set` (write an override en
 
 ## 8. Settings
 
-`.github/Rulebook-Settings.json`, draft for WP02:
+`.github/Rulebook-Settings.json`, schema `schemas/rulebook-settings.schema.json`:
 
 ```json
 {
@@ -355,13 +380,16 @@ A change set is `{ version, note?, changes[] }` with `set` (write an override en
   ],
   "ghTokenWorkflowSecretName": "GHTOKENWORKFLOW",
   "commitOptions": { "createPullRequest": true, "pullRequestLabels": ["rulebook"] },
-  "site": { "enabled": true, "includeJustifications": false, "updateMode": "skip" }
+  "site": { "enabled": true, "includeJustifications": false, "updateMode": "skip" },
+  "unusedRulebookFiles": []
 }
 ```
 
 `publish.target` selects one of `pages`, `dist-repo` (with `repository`, `branch`), `azure-blob` (with `storageAccount`, `container`, OIDC login) or `gist` (with `gistId`). `quarantine` ships **without** values in the template; the scan fails until the org sets them. `twins` is `both` (default; the only valid choice when projects run just one of the two Microsoft cops), `appsource` or `pte` (D23).
 
 `site` (D31, D35, D36): `enabled` builds and publishes the dashboard (default true; ignored with a warning for `dist-repo` and `gist`); `includeJustifications` publishes the organization's override and quarantine justification text (default false); `updateMode` is `skip` (keep locally changed site files on update) or `overwrite`.
+
+The schema is closed: an unknown key at the top level or in `publish`, `quarantine`, `commitOptions` or `site` is an error, and a work package that needs a new key adds it to the schema in its own pull request. Required are `templateUrl`, `baseUrl` (`https://`, no trailing slash), `publish`, `quarantine` with both keys, `levels` and `stages`. `publish.target` requires its own fields: `dist-repo` needs `repository` (`owner/name`) and `branch`, `azure-blob` needs `storageAccount` and `container`, `gist` needs `gistId`; fields of another target are allowed and ignored. `templateSha` is empty or a 40-character commit sha. A level or stage entry has a `name` matching `^[A-Za-z0-9-]+$` and an optional `description`; a level may have `basedOn` with the same pattern. Beyond the schema, C5 checks that slugs are unique per array after lowercasing, that every `basedOn` resolves to an existing `base/<slug>.ruleset.json` without a cycle, and that quarantine values are stage slugs from the settings.
 
 `levels` and `stages` (D26, D28, D29):
 
@@ -407,6 +435,7 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 
 ## 12. References
 
+- [reference/naming.md](reference/naming.md): file names, slug rule, `default` suffix rule, URL scheme and hosts, the shipped endpoint and skeleton names, the schema files and what they cannot check.
 - [reference/compiler-ruleset-internals.md](reference/compiler-ruleset-internals.md): schema, load pipeline, merge algorithm, paths and URLs, failure model, consumer flags.
 - [reference/al-go-template-mechanics.md](reference/al-go-template-mechanics.md): template repositories, CheckForUpdates, customization preservation, GhTokenWorkflow.
 - [rulebook/README.md](rulebook/README.md): the level content, matrix, placement algorithm and generator contract.
@@ -433,7 +462,11 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | Quarantine | `quarantine.<stage>.json` | `quarantine.ci.json`, `quarantine.default.json` |
 | Skeleton | `skeletons/<level>.<stage>.ruleset.json`, suffix always written | `skeletons/strict.ci.ruleset.json`, `skeletons/strict.default.ruleset.json` |
 | AL project root | `.rulebook/<stage>.ruleset.json` | `.rulebook/ci.ruleset.json`, `.rulebook/default.ruleset.json` |
+| Catalog | `catalog/diagnostics.json`; `catalog/scan-state.json` reserved for WP08 | |
 | Slug | lowercased `name`, `^[a-z0-9-]+$` | `vNext` becomes `vnext` |
+| Schema file | `schemas/<name>.schema.json` in the engine, served as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` | `schemas/rulebook-settings.schema.json` |
+| Ruleset schema profile | by folder: `base/`, `stages/` delta; `rulesets/` endpoint; `skeletons/` skeleton | `schemas/ruleset.delta.schema.json` |
+| Change set schema | `schemas/rulebook-changeset.schema.json`, name reserved for WP15 | |
 | Update branch | `update-rulebook-system-files/<branch>/<yyMMddHHmmss>` | |
 | Update PR title | `[<branch>@<sha7>] Update Rulebook System Files from ALCops/rulebook - <templateSha7>` | |
 | Change branch | `rulebook-change/<issue>/<yyMMddHHmmss>` | |
