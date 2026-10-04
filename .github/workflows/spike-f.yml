@@ -1,0 +1,202 @@
+name: spike-f
+
+# Throwaway workflow for spike (f), issue #24. Deleted before the pull request.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'wp01/spike-f' ]
+
+permissions:
+  contents: read
+
+env:
+  TOOLS_VERSION: 18.0.43.1464
+  FEED: https://pkgs.dev.azure.com/dynamicssmb2/DynamicsBCPublicFeeds/_packaging/MSSymbols/nuget/v3/flat2
+  PAGES: https://arthurvdv.github.io/rulebook-spike-endpoint/v2/rulesets
+  RAW: https://raw.githubusercontent.com/Arthurvdv/rulebook-spike-endpoint/main/v2/rulesets
+
+jobs:
+  spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Environment
+        run: |
+          {
+            echo "### Environment"
+            echo '```'
+            echo "ImageOS=$ImageOS ImageVersion=$ImageVersion"
+            grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release
+            echo "dotnet --version: $(dotnet --version)"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Endpoints reachable
+        run: |
+          {
+            echo "### Endpoints"
+            echo '```'
+            for f in recommended.ci listed-warning listed-info; do
+              for base in "$PAGES" "$RAW"; do
+                u="$base/$f.ruleset.json"
+                for i in $(seq 1 30); do
+                  code=$(curl -s -o /dev/null -w '%{http_code}' "$u")
+                  [ "$code" = 200 ] && break
+                  sleep 10
+                done
+                echo "$code after $i attempt(s): $u"
+              done
+              echo "--- $f (Pages body)"
+              curl -fsS "$PAGES/$f.ruleset.json"
+            done
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Install tool
+        run: |
+          dotnet tool install --global Microsoft.Dynamics.BusinessCentral.Development.Tools --version "$TOOLS_VERSION"
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+          AL_BIN=$(dirname "$(find ~/.dotnet/tools/.store/microsoft.dynamics.businesscentral.development.tools -path '*/tools/net10.0/any/alc.dll' | head -1)")
+          if [ ! -f "$AL_BIN/alc.dll" ]; then echo "::error::alc.dll not found in '$AL_BIN'"; exit 1; fi
+          echo "AL_BIN=$AL_BIN" >> "$GITHUB_ENV"
+          echo "AL_BIN=$AL_BIN" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Symbols and fixture
+        run: |
+          V=$(curl -fsS "$FEED/microsoft.platform.symbols/index.json" \
+            | jq -r '[.versions[] | select(startswith("28.") and (contains("-") | not))]
+                     | sort_by(split(".") | map(tonumber)) | last // empty')
+          if [ -z "$V" ]; then echo "::error::no stable 28.x platform symbols on the feed"; exit 1; fi
+          curl -fsSL -o platform.nupkg "$FEED/microsoft.platform.symbols/$V/microsoft.platform.symbols.$V.nupkg"
+          mkdir -p fixture/.alpackages fixture/src fixture/.rulebook
+          unzip -o -j platform.nupkg '*.app' -d fixture/.alpackages
+          echo "al $(al --version), platform symbols $V" | tee -a "$GITHUB_STEP_SUMMARY"
+          cat > "$RUNNER_TEMP/app.nosw.json" <<'J'
+          {
+            "id": "6f1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+            "name": "Spike",
+            "publisher": "Rulebook Spike",
+            "version": "1.0.0.0",
+            "platform": "28.0.0.0",
+            "runtime": "17.0",
+            "idRanges": [ { "from": 50000, "to": 50099 } ],
+            "target": "Cloud"
+          }
+          J
+          jq '. + {suppressWarnings: ["AS0084", "AS0013"]}' "$RUNNER_TEMP/app.nosw.json" > "$RUNNER_TEMP/app.sw.json"
+          cat > fixture/src/Spike.Codeunit.al <<'A'
+          codeunit 50000 "Spike"
+          {
+              procedure Probe()
+              var
+                  Unused: Integer;
+              begin
+              end;
+          }
+          A
+          cat > fixture/src/SpikeBase.Table.al <<'A'
+          table 50000 "Spike Base"
+          {
+              DataClassification = CustomerContent;
+
+              fields
+              {
+                  field(1; "No."; Code[20])
+                  {
+                      DataClassification = CustomerContent;
+                  }
+              }
+
+              keys
+              {
+                  key(PK; "No.")
+                  {
+                      Clustered = true;
+                  }
+              }
+          }
+          A
+          cat > fixture/src/SpikeExt.TableExt.al <<'A'
+          tableextension 50001 "Spike Ext" extends "Spike Base"
+          {
+              fields
+              {
+                  field(60000; "Spike Extra"; Integer)
+                  {
+                      DataClassification = CustomerContent;
+                  }
+              }
+          }
+          A
+          { echo '### app.json with suppressWarnings'; echo '```json'; cat "$RUNNER_TEMP/app.sw.json"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Helpers
+        run: |
+          # skel.sh <include-url> <own-rules-json>: writes the ARCHITECTURE 6.3 skeleton
+          cat > "$RUNNER_TEMP/skel.sh" <<'SH'
+          printf '{\n  "name": "Rulebook Spike / CI",\n  "description": "Includes the org endpoint. Add project exceptions to rules; they override the endpoint.",\n  "includedRuleSets": [\n    { "action": "Default", "path": "%s" }\n  ],\n  "rules": %s\n}\n' "$1" "$2" > "$GITHUB_WORKSPACE/fixture/.rulebook/ci.ruleset.json"
+          SH
+          # run.sh <id> <label> <sw yes|no> <ruleset-or-empty> [extra switches...]
+          cat > "$RUNNER_TEMP/run.sh" <<'SH'
+          id="$1"; label="$2"; sw="$3"; rs="$4"; shift 4
+          d="$RUNNER_TEMP/out/$id"; mkdir -p "$d"; app="$d/out.app"; rm -f "$app"
+          if [ "$sw" = yes ]; then cp "$RUNNER_TEMP/app.sw.json" fixture/app.json; else cp "$RUNNER_TEMP/app.nosw.json" fixture/app.json; fi
+          args=(compile /project:fixture /packagecachepath:fixture/.alpackages "/out:$app"
+                "/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.CodeCop.dll"
+                "/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.UICop.dll"
+                "/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll"
+                "/analyzer:$AL_BIN/Microsoft.Dynamics.Nav.AppSourceCop.dll")
+          [ -n "$rs" ] && args+=("/ruleset:$rs" /enableexternalrulesets)
+          args+=("$@")
+          echo "::group::$id $label"
+          [ -f "$rs" ] && { echo "--- skeleton $rs"; cat "$rs"; }
+          echo "+ al ${args[*]}"
+          start=$(date +%s.%N)
+          al "${args[@]}" > "$d/compile.log" 2>&1
+          rc=$?
+          end=$(date +%s.%N)
+          wall=$(awk "BEGIN{printf \"%.1f\", $end-$start}")
+          cat "$d/compile.log"
+          echo "::endgroup::"
+          if grep -q 'AL1003' "$d/compile.log"; then echo "::error::AL1003 in $id"; fi
+          if grep -q 'AL1033\|AL0767' "$d/compile.log"; then echo "::error::ruleset load failure in $id (setup error)"; fi
+          sev() { grep -oE "(error|warning|info|hidden) $1:" "$d/compile.log" | awk '{print $1}' | sort | uniq -c | awk '{printf "%s%s", sep, ($1>1? $2" x"$1 : $2); sep=","}'; }
+          s84=$(sev AS0084); s13=$(sev AS0013); s137=$(sev AA0137)
+          other=$(grep -oE "(error|warning|info|hidden) AS[0-9]{4}:" "$d/compile.log" | grep -vE 'AS0084|AS0013' | sed 's/:$//' | sort | uniq -c | awk '{printf "%s%s %s%s", sep, $3, $2, ($1>1? " x"$1 : ""); sep=", "}')
+          oth=$(grep -oE "(error|warning) (AL|PTE|AW|AA)[0-9]{4}:" "$d/compile.log" | grep -v AA0137 | sed 's/:$//' | sort -u | tr '\n' ' ')
+          [ -f "$app" ] && appw=yes || appw=no
+          echo "| $id | $label | ${s84:-absent} | ${s13:-absent} | ${s137:-absent} | ${other:-none} | ${oth:-none} | $rc | $appw | $wall s |" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 0
+          SH
+          chmod +x "$RUNNER_TEMP"/*.sh
+          {
+            echo "### Results"
+            echo "| run | scenario | AS0084 | AS0013 | AA0137 | other AS ids | other errors/warnings | exit | .app | wall |"
+            echo "|---|---|---|---|---|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Compiles
+        run: |
+          set +e
+          R="$RUNNER_TEMP/run.sh"; K="$RUNNER_TEMP/skel.sh"; SK="$GITHUB_WORKSPACE/fixture/.rulebook/ci.ruleset.json"
+          $R c0  "control: no ruleset, no suppressWarnings" no ""
+          $R c0s "control: no ruleset, suppressWarnings" yes ""
+          $R 1p  "Pages sparse, no suppressWarnings" no "$PAGES/recommended.ci.ruleset.json"
+          $R 1r  "raw sparse, no suppressWarnings" no "$RAW/recommended.ci.ruleset.json"
+          $R 2p  "Pages sparse, suppressWarnings" yes "$PAGES/recommended.ci.ruleset.json"
+          $R 2r  "raw sparse, suppressWarnings" yes "$RAW/recommended.ci.ruleset.json"
+          $R 3p  "Pages listed-warning, suppressWarnings" yes "$PAGES/listed-warning.ruleset.json"
+          $R 3n  "Pages listed-warning, no suppressWarnings" no "$PAGES/listed-warning.ruleset.json"
+          $R 4p  "Pages listed-info, suppressWarnings" yes "$PAGES/listed-info.ruleset.json"
+          $R 5p  "Pages listed-warning, no suppressWarnings, /nowarn:AS0013" no "$PAGES/listed-warning.ruleset.json" /nowarn:AS0013
+          bash $K "$PAGES/recommended.ci.ruleset.json" '[]'
+          $R 6p  "skeleton incl. Pages sparse, suppressWarnings" yes "$SK"
+          bash $K "$PAGES/listed-warning.ruleset.json" '[]'
+          $R 6w  "skeleton incl. Pages listed-warning, suppressWarnings" yes "$SK"
+          bash $K "$PAGES/recommended.ci.ruleset.json" '[ { "id": "AS0013", "action": "Warning" } ]'
+          $R 6o  "skeleton incl. Pages sparse, own AS0013 Warning, suppressWarnings" yes "$SK"
+          exit 0
