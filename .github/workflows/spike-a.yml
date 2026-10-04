@@ -158,14 +158,16 @@ jobs:
           c443=$(grep -c 'htons(443)' "$d/strace.log")
           c53=$(grep -c 'htons(53)' "$d/strace.log")
           dst443=$(grep 'htons(443)' "$d/strace.log" | grep -oE 'inet_(addr|pton)\([^)]*\)' | tr '\n' ' ')
-          syn_all=$(sudo tcpdump -nn -r "$d/cap.pcap" 2>/dev/null | wc -l)
-          syn_gh=$(sudo tcpdump -nn -r "$d/cap.pcap" 'dst net 185.199.108.0/22' 2>/dev/null | wc -l)
+          # -i any sees each SYN on eth0 and ens1; count distinct SYNs by source port, destination and sequence number
+          syn_raw=$(sudo tcpdump -nn -r "$d/cap.pcap" 2>/dev/null | wc -l)
+          syn_all=$(sudo tcpdump -nn -r "$d/cap.pcap" 2>/dev/null | awk '{print $5, $7, $11}' | sort -u | wc -l)
+          syn_gh=$(sudo tcpdump -nn -r "$d/cap.pcap" 'dst net 185.199.108.0/22' 2>/dev/null | awk '{print $5, $7, $11}' | sort -u | wc -l)
           echo "--- strace connects to ports 443 and 53"; grep -E 'htons\((443|53)\)' "$d/strace.log" || echo "(none)"
           echo "--- other strace connects with an inet address"; grep -E 'AF_INET' "$d/strace.log" | grep -vE 'htons\((443|53)\)' || echo "(none)"
           echo "--- tcpdump SYNs to :443"; sudo tcpdump -nn -r "$d/cap.pcap" 2>/dev/null || true
           echo "::endgroup::"
           [ "$al1003" != 0 ] && echo "::error::AL1003 in $host/$scen (analyzers failed to load)"
-          row="| $host | $scen | $rc | $al1033 | $al0767 | $sev | $appw | $c443 | $syn_gh ($syn_all) | $c53 | ${wall}s |"
+          row="| $host | $scen | $rc | $al1033 | $al0767 | $sev | $appw | $c443 | $syn_gh ($syn_all, $syn_raw captured) | $c53 | ${wall}s |"
           echo "RESULT $row dst443=[$dst443]"
           echo "$row" >> "$GITHUB_STEP_SUMMARY"
           exit 0
@@ -174,7 +176,7 @@ jobs:
           {
             echo "### Results"
             echo
-            echo "| host | scenario | exit code | AL1033 | AL0767 | AA0137 | .app written | connects :443 (strace) | SYNs to 185.199.108.0/22 (all :443) | connects :53 (strace) | wall time |"
+            echo "| host | scenario | exit code | AL1033 | AL0767 | AA0137 | .app written | connects :443 (strace) | distinct SYNs to 185.199.108.0/22 (all :443, packets captured) | connects :53 (strace) | wall time |"
             echo "|---|---|---|---|---|---|---|---|---|---|---|"
           } >> "$GITHUB_STEP_SUMMARY"
 
