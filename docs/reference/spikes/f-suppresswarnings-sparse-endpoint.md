@@ -48,6 +48,7 @@ al compile /project:fixture /packagecachepath:fixture/.alpackages /out:$d/out.ap
   /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll \
   /analyzer:$AL_BIN/Microsoft.Dynamics.Nav.AppSourceCop.dll \
   /ruleset:<endpoint URL or skeleton> /enableexternalrulesets [/nowarn:AS0013] > $d/compile.log 2>&1
+  # /ruleset and /enableexternalrulesets omitted in the no-ruleset runs c0, c0s, 7a (and 8a to 8c)
 rc=$?   # under set +e; the .app path is deleted before each compile and checked after it
 ```
 
@@ -87,22 +88,22 @@ Final run: [actions/runs/37180612371](https://github.com/ALCops/rulebook-engine/
 | 6p | alc, skeleton including Pages sparse | no | AS0084, AS0013 | **absent** | **absent** | Error | the rest | 1 | no |
 | 6w | alc, skeleton including Pages listed-warning | Warning (include) | AS0084, AS0013 | absent | **Warning** | Error | the rest | 1 | no |
 | 6o | alc, skeleton including Pages sparse, own `rules` AS0013 Warning | Warning (skeleton's own rule) | AS0084, AS0013 | absent | **Warning** | Error | the rest | 1 | no |
-| 7a | alc, no ruleset | (no ruleset) | all ids seen in c0, AA0137 included | absent | absent | absent | none | **0** | **yes** |
-| 7b | alc, Pages sparse (lists AA0137) | no | all ids seen in c0, AA0137 included | absent | absent | **Error** | none | **1** | no |
+| 7a | alc, no ruleset | (no ruleset) | every warning and error id seen in c0, AA0137 included | absent | absent | absent | none | **0** | **yes** |
+| 7b | alc, Pages sparse (lists AA0137) | no | every warning and error id seen in c0, AA0137 included | absent | absent | **Error** | none | **1** | no |
 | 8a | alc, no ruleset, field **50050** | (no ruleset) | none | Error | **absent** | Warning | the rest | 1 | no |
 | 8b | alc, no ruleset, field **99000** | (no ruleset) | none | Error | **Error** | Warning | the rest | 1 | no |
 | 8c | alc, no ruleset, field **1000000** | (no ruleset) | none | Error | **Error** | Warning | the rest, plus PTE0002 Error | 1 | no |
 | V1 | VS Code, Pages listed-warning | Warning | none | Error | **Warning** | Error | none shown (see below) | n/a | n/a |
 | V2 | VS Code, Pages listed-warning (after Reload Window) | Warning | AS0084, AS0013 | **absent** | **Warning** | Error | not reported | n/a | n/a |
-| V3 | VS Code, Pages sparse | no | AS0084, AS0013 | **absent** | **absent** | Error | not reported | n/a | n/a |
-| V4 | VS Code, Pages sparse | no | none | **Error** | **Error** | Error | not reported | n/a | n/a |
+| V3 | VS Code, Pages sparse (after Reload Window, prescribed) | no | AS0084, AS0013 | **absent** | **absent** | Error | not reported | n/a | n/a |
+| V4 | VS Code, Pages sparse (no reload prescribed) | no | none | **Error** | **Error** | Error | not reported | n/a | n/a |
 
-Runs 7a and 7b use `"suppressWarnings": ["AS0084", "AS0013", "AS0015", "AS0051", "AS0052", "AS0054", "AS0100", "AS0092", "AS0103", "PTE0004", "AA0137"]`. Runs 8a to 8c change only the field id of the table extension. Every alc compile took 1.2 to 1.7 s (wall time, including the fetch).
+Runs 7a and 7b use `"suppressWarnings": ["AS0084", "AS0013", "AS0015", "AS0051", "AS0052", "AS0054", "AS0100", "AS0092", "AS0103", "PTE0004", "AA0137"]`: every warning and error id seen in c0; AA0247 (Info, 3x in c0) was not listed and still appears in both. Runs 8a to 8c change only the field id of the table extension. Every alc compile took 1.2 to 1.7 s (wall time, including the fetch).
 
 Findings:
 
-- **`suppressWarnings` removes analyzer errors the endpoint does not list.** AS0084 and AS0013 are Errors without a ruleset and with the sparse endpoint (c0, 1p, 1r) and disappear with `suppressWarnings` on both hosts (2p, 2r) and through the skeleton include (6p), while AA0137 stays at the endpoint's `Error`, so the endpoint was loaded. 7a shows the same mechanism clears the whole build: with every reported id in `suppressWarnings` and no ruleset, exit 0 and an `.app`.
-- **It stops working once the ruleset lists the id, whatever the action.** AS0013 listed at `Warning` stays a Warning (3p), listed at `Info` stays Info (4p), and AA0137 listed at `Error` stays an Error (7b: the only diagnostic left, exit 1, no `.app`). The same holds when the listing comes from the include of a skeleton (6w) or from the skeleton's own `rules` (6o). Meanwhile AS0084, which no endpoint lists, is suppressed in every one of these runs.
+- **`suppressWarnings` removes analyzer errors the endpoint does not list.** AS0084 and AS0013 are Errors without a ruleset and with the sparse endpoint (c0, 1p, 1r) and disappear with `suppressWarnings` on both hosts (2p, 2r) and through the skeleton include (6p), while AA0137 stays at the endpoint's `Error`, so the endpoint was loaded. 7a shows the same mechanism clears the whole build: with every warning and error id in `suppressWarnings` and no ruleset, exit 0 and an `.app` (only the three AA0247 Info lines remain).
+- **It stops working once the ruleset lists the id, whatever the action.** AS0013 listed at `Warning` stays a Warning (3p), listed at `Info` stays Info (4p), and AA0137 listed at `Error` stays an Error (7b: the only warning or error left, exit 1, no `.app`). The same holds when the listing comes from the include of a skeleton (6w) or from the skeleton's own `rules` (6o). Meanwhile AS0084, which no endpoint lists, is suppressed in every one of these runs.
 - **`/nowarn` on the command line beats the ruleset.** With the listed-warning endpoint and no `suppressWarnings`, `/nowarn:AS0013` removes AS0013 (5p versus 3n), as [compiler-ruleset-internals.md §8](../compiler-ruleset-internals.md#8-how-the-ruleset-combines-with-other-inputs) states.
 - **AS0013 fires on table extension fields outside the app's `idRanges`; the 50000..99999 range plays no part.** Field 50050 (inside `idRanges [50000..50099]` and inside 50000..99999) gives no AS0013 (8a); 99000 (outside `idRanges`, inside 50000..99999) and 1000000 (outside both) give AS0013 (8b, 8c). The diagnostic text reads "must be within the range '[50000..50099]' ... and outside the range '[50000..99999]', which is allocated to per-tenant customizations", but the second half is only a message argument: the decompiled `RuleIdRangeMustBeRespected` checks the field id against `idRanges` (and, when the extended table is in the same app or has the same publisher, also accepts 1..49999). Fields of a plain `table` get AS0099 (Info) instead, from the code (not exercised: field 1 of the fixture table is valid). AS0084 is the rule that looks at 50000..99999: it fires when an `idRanges` entry intersects 50000..99999 or is not inside the AppSource range 1000000..75999999.
 
@@ -192,14 +193,14 @@ For V3 and V4 `al.ruleSetPath` pointed at `.../v2/rulesets/recommended.ci.rulese
 
   No AL1033 or ruleset message. The export shows only these three; the other AS ids `alc` reports for the same fixture (AS0051, AS0015, AS0052, AS0054, AS0100, AS0092, AS0103) and PTE0004 did not appear in it, with the three files open.
 - **V2** (listed-warning, `suppressWarnings` copied into `app.json`): Arthur: "I've needed to do reload window". The Problems pane did not update on its own after the `app.json` change; Developer: Reload Window was required. After the reload the pane showed the expected state: AS0084 absent, AS0013 Warning, AA0137 Error.
-- **V3** (sparse, `suppressWarnings`, after Reload Window): matched the expected result: AS0084 and AS0013 absent, AA0137 Error.
-- **V4** (sparse, no `suppressWarnings`): matched the expected result: AS0084 Error, AS0013 Error, AA0137 Error.
+- **V3** (sparse, `suppressWarnings`, after Reload Window; the reload was prescribed by the protocol together with the settings change, not observed as required): matched the expected result: AS0084 and AS0013 absent, AA0137 Error.
+- **V4** (sparse, no `suppressWarnings`; no reload prescribed): Arthur reported the expected result: AS0084 Error, AS0013 Error, AA0137 Error.
 
 V1 shows the endpoint loaded in the editor (AA0137 at `Error`, AS0013 at the listed `Warning`); V2 shows the listed AS0013 keeping its `Warning` despite `suppressWarnings` while the unlisted AS0084 disappears; V3 versus V4 shows the editor applies `suppressWarnings` to the unlisted ids the same way `alc` does.
 
 ## Answer
 
-Yes: against a sparse endpoint that does not list them, `"suppressWarnings": ["AS0084", "AS0013"]` in `app.json` removes both AppSourceCop Errors, on Pages and raw and through the one-include skeleton, while the endpoint's own rules still apply. It stops working as soon as the effective ruleset lists the id, at any action: a listed AS0013 stays a Warning or an Info, a listed AA0137 stays an Error, whether the listing comes from the endpoint, from the skeleton's include or from the skeleton's own `rules`; only `/nowarn` on the `alc` command line overrides a listed id. AS0013's real trigger is a field added by a `tableextension` whose id lies outside the app's `idRanges` (1..49999 also accepted when the extended table is the app's own or its publisher's); the range 50000..99999 is not checked by AS0013 despite its message text, it is AS0084's subject. VS Code with AL 18.0.2819426 behaves the same for the unlisted case (AS0084 and AS0013 present without and absent with `suppressWarnings` against the sparse endpoint) and keeps the listed AS0013 at `Warning` despite `suppressWarnings`. In the editor a change to `suppressWarnings` in `app.json` took effect only after Developer: Reload Window.
+Yes: against a sparse endpoint that does not list them, `"suppressWarnings": ["AS0084", "AS0013"]` in `app.json` removes both AppSourceCop Errors, on Pages and raw and through the one-include skeleton, while the endpoint's own rules still apply. It stops working as soon as the effective ruleset lists the id, at any action: a listed AS0013 stays a Warning or an Info, a listed AA0137 stays an Error, whether the listing comes from the endpoint, from the skeleton's include or from the skeleton's own `rules`; only `/nowarn` on the `alc` command line overrides a listed id. With this fixture (extension of a table in the same app, three field ids tried), AS0013's real trigger is a field added by a `tableextension` whose id lies outside the app's `idRanges` (1..49999 also accepted when the extended table is the app's own or its publisher's: from the code, not observed); the range 50000..99999 is not checked by AS0013 despite its message text, it is AS0084's subject. VS Code with AL 18.0.2819426 behaves the same for the unlisted case (AS0084 and AS0013 present without and absent with `suppressWarnings` against the sparse endpoint) and keeps the listed AS0013 at `Warning` despite `suppressWarnings`. In the editor a change to `suppressWarnings` in `app.json` took effect only after Developer: Reload Window.
 
 ## Consequences for blocked work packages
 
@@ -209,9 +210,9 @@ Claims of the template page [`ALCops/rulebook` `docs/pte-or-appsource.md`](https
 |---|---|---|
 | 38 | An endpoint lists only rules whose severity differs from the analyzer default; the contradicting blockers are not in the file. | Design (D22), not tested here; the sparse endpoint of this spike is built that way. |
 | 39 | `suppressWarnings` is merged strictest-wins after the ruleset, switches off exactly the unlisted rules, has no effect on listed ones. | **Confirmed** on `alc` (2p, 2r, 6p versus 3p, 4p, 6w, 7b) and in VS Code (V2, V3). |
-| 61 | AS0013 "Requires field ids inside `idRanges` and outside 50000..99999." | **Corrected**: AS0013 checks only `idRanges` (8a: field 50050 passes). Proposed text: "Requires every field a table extension adds to lie inside `idRanges`. The message also names 50000..99999, but only AS0084 checks that range." |
+| 61 | AS0013 "Requires field ids inside `idRanges` and outside 50000..99999." | **Corrected**: AS0013 does not check 50000..99999 (8a: field 50050, inside `idRanges` and inside 50000..99999, passes; 8b and 8c, outside `idRanges`, fire). Proposed text: "A table extension field outside `idRanges` fires AS0013. The message also names 50000..99999, but only AS0084 checks that range. (Per the code, 1..49999 is also accepted when the extended table is in the same app or has the same publisher; not observed.)" |
 | 62 | AS0084 requires `idRanges` inside the AppSource range and outside 50000..99999. | **Confirmed** (c0 message and code). |
-| 97 | `suppressWarnings` suppresses diagnostics of any severity, Error included; only compiler errors cannot be suppressed. | **Confirmed** for analyzer Errors (AS0084, AS0013, AS0051, AS0015, AS0052, AS0054, AS0100, PTE0004 and AA0137 removed, 7a exit 0). The compiler-error half was not tested. |
+| 97 | `suppressWarnings` suppresses diagnostics of any severity, Error included; only compiler errors cannot be suppressed. | **Confirmed** for analyzer Errors (AS0084, AS0013, AS0051, AS0015, AS0052, AS0054, AS0100 and PTE0004 removed as Errors, 7a exit 0; AA0137, AS0092 and AS0103 removed as Warnings). No Error-level AA0137 was suppressed: where it is an Error (7b) the endpoint lists it, so it stays. The compiler-error half was not tested. |
 | 130 | Route B works only when the id is not listed; a listed id keeps the endpoint's action. | **Confirmed** (3p: Warning kept; 4p: Info kept; 7b: Error kept). |
 | 132 | If the endpoint lists the id, `suppressWarnings` silently does nothing. | **Confirmed** (3p, 4p, 6w, V2; no diagnostic tells the user). |
 | 133 | If the project ruleset's own `rules` list the id, the same. | **Confirmed** (6o). |
@@ -237,6 +238,6 @@ Claims of the template page [`ALCops/rulebook` `docs/pte-or-appsource.md`](https
 ## Artifacts
 
 - Final run: <https://github.com/ALCops/rulebook-engine/actions/runs/37180612371> (job summary holds the result table); first run: <https://github.com/ALCops/rulebook-engine/actions/runs/37180549341>.
-- The throwaway workflow `.github/workflows/spike-f.yml` lived on `wp01/spike-f` and was removed before the pull request; the version the final run executed is `1718e03:.github/workflows/spike-f.yml` (`git show 1718e03:.github/workflows/spike-f.yml`; the run itself ran the pre-rebase commit `51191f8` with the identical file).
+- The throwaway workflow `.github/workflows/spike-f.yml` lived on `wp01/spike-f` and was removed before the pull request; the version the final run executed is `1718e03:.github/workflows/spike-f.yml` (`git show 1718e03:.github/workflows/spike-f.yml`; the run itself ran the pre-rebase commit `51191f8` with the identical file). Both SHAs may become unreachable once the squash merge deletes the branch; the excerpts in this file are the durable record.
 - Scratch repository `Arthurvdv/rulebook-spike-endpoint` (from [spike (a)](a-hosts-and-skeleton-include.md)): `v2/rulesets/recommended.ci.ruleset.json`, `listed-warning.ruleset.json` and `listed-info.ruleset.json` added in commit `d5503ff` on 2026-10-04; kept for spike (e), deleted after WP01 (#3).
 - Nothing besides this file and the one-sentence link in compiler-ruleset-internals.md is kept in the repository.
