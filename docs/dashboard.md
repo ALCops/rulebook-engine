@@ -231,7 +231,7 @@ https://github.com/<owner>/<repo>/issues/new?template=rulebook-change.yml&change
 
 GitHub prefills issue form fields from query parameters named after the field `id`. The user sees the filled form, can read the JSON, and clicks "Submit new issue" with their own GitHub session. `repository` and `issueTemplate` come from the data file, so an organization that renames the template or the repository changes one setting.
 
-**URL limit.** The length GitHub accepts for a prefilled issue URL is not documented; sources put it between about 2 KB and 8 KB. Spike WP01 (g) measures it. The cart shows its encoded size against the measured limit, and when a cart exceeds it the dashboard offers two routes: split the cart into several submissions, or copy the change set to the clipboard and paste it into the empty form. Whether a compact encoding (`LC0015=None@strict/ci`) is worth a second parser is decided after the spike.
+**URL limit.** GitHub answers `414 URI Too Long` once the full prefilled URL reaches 8192 bytes; 8191 bytes still opens the form with every field filled byte-identical, `render: json` included ([spike (g)](reference/spikes/g-prefilled-issue-url-limit.md), Edge 154; Chrome assumed equivalent, Firefox not tested). The cart serializes the change set minified, measures the full URL it opens and shows it against 7372 bytes (90 % of the threshold), which holds about 28 changes with a justification or 46 without. When a cart exceeds it the dashboard offers two routes: split the cart into several submissions, or copy the change set to the clipboard and paste it into the empty form. No compact encoding (`LC0015=None@strict/ci`): it would fit about 228 changes but drops justifications and needs a second parser.
 
 `.github/ISSUE_TEMPLATE/config.yml` keeps `blank_issues_enabled: true`: organizations use issues for other things.
 
@@ -329,7 +329,7 @@ An organization that wants none of it sets `site.enabled: false` and keeps the W
 
 | # | Question | Proposal | Closed by |
 |---|---|---|---|
-| Q1 | Measured URL limit for a prefilled issue, and whether a compact encoding is needed | Measure first; implement split and copy fallback regardless | WP01 (g), WP14 |
+| Q1 | Measured URL limit for a prefilled issue, and whether a compact encoding is needed | 414 from 8192 bytes of full URL; the cart enforces 7372 bytes (90 %), minified JSON, split and copy fallback; no compact encoding ([spike (g)](reference/spikes/g-prefilled-issue-url-limit.md)) | WP01 (g), WP14 |
 | Q2 | Should `release` also accept an `action`, so releasing and setting an override is one change? | No: two changes in one cart do the same and keep the schema flat | WP15 |
 | Q3 | Should the apply workflow run Validate on the branch before opening the PR? | Yes, same as the WP07 proposal; cheap with WP03 | WP15 |
 | Q4 | Which Hugo version to pin, and whether to vendor the binary in the engine or download it | Pin Hugo 0.167.0 extended (latest stable on 2026-10-03; floor 0.156.0 for `hugo.Data`, per release note), download the `.deb` with checksum, no vendoring: install about 3 s, build under 1 s at 628 rules ([spike (h)](reference/spikes/h-hugo-content-adapter.md)); re-pin to the latest stable at WP14 time | WP01 (h), WP14 |
