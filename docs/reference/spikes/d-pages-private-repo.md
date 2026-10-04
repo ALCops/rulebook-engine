@@ -316,7 +316,7 @@ When a public repository is later made private on Free:
 
 ## Artifacts
 
-The scratch repositories `ALCops/rulebook-spike-pages-private` and `ALCops/rulebook-spike-pages-public` were created 2026-10-03. They are pending deletion: Arthur is asked before they are deleted, and the deletion date is recorded here. The run URLs below disappear with them, so the key lines are quoted above.
+The scratch repositories `ALCops/rulebook-spike-pages-private` and `ALCops/rulebook-spike-pages-public` were created 2026-10-03. The maintainer removes them by hand after the spike (the executor does not delete them). The run URLs below disappear with them, so the key lines are quoted above.
 
 - Private, first round: <https://github.com/ALCops/rulebook-spike-pages-private/actions/runs/37146279238> (failure in `configure-pages`)
 - Public, first round: <https://github.com/ALCops/rulebook-spike-pages-public/actions/runs/37146281888> (failure in `configure-pages`)
