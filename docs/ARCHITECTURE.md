@@ -116,7 +116,7 @@ Everything an org repo contains after "Use this template". The **class** column 
 
 The `rulesets/` folder is flat and every endpoint is self-contained, so the whole set is relocatable to any host without editing a file.
 
-Every JSON file in this table except `catalog/scan-state.json` (WP08) and the files under `site/` has a schema in the engine under `schemas/`, served from the release branch as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (section 5.4). The ruleset profile follows the folder: `base/` and `stages/` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. The generator never writes `$schema` into an endpoint or a skeleton; the compiler fetches them and they stay minimal. File names, slugs and the schema list are in [reference/naming.md](reference/naming.md).
+Every JSON file in this table except `catalog/scan-state.json` (WP08) and the files under `site/` has a schema in the engine under `schemas/`, served from the release branch as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (section 5.4). The `v1` URLs go live with WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)); until then they return 404 and the tests use the local files. The ruleset profile follows the folder: `base/` and `stages/` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. The generator never writes `$schema` into an endpoint or a skeleton; the compiler fetches them and they stay minimal. File names, slugs and the schema list are in [reference/naming.md](reference/naming.md).
 
 ## 5. Generation model
 
@@ -185,7 +185,7 @@ The checks are numbered `C1` to `C14` so that WP02 and WP03 can reference them; 
 | C11 | No endpoint entry equals the catalog default of its id; exactly the `levels x stages` endpoints and skeletons exist, no others. | error | A listed default is dead weight; the index page and the AL projects rely on the names. |
 | C12 | Regeneration check: `rulesets/` equals the generator's output for the current inputs. | error | The committed endpoint is the published endpoint. |
 | C13 | A quarantine id that a level file now mentions. | warning | Housekeeping. |
-| C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id. | error | The sparse rule and the twins step depend on them. |
+| C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id, and `count` equals the number of pairs. | error | The sparse rule and the twins step depend on them. |
 
 The effective diff per endpoint against the previous commit is printed as a report on every PR, so reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
 
@@ -356,7 +356,7 @@ A change set is `{ version, note?, changes[] }` with `set` (write an override en
 
 ## 8. Settings
 
-`.github/Rulebook-Settings.json`, schema `schemas/rulebook-settings.schema.json`:
+`.github/Rulebook-Settings.json`, schema `schemas/rulebook-settings.schema.json` (the `$schema` URL below goes live with WP13, [#15](https://github.com/ALCops/rulebook-engine/issues/15); until then it returns 404):
 
 ```json
 {
@@ -464,7 +464,7 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | AL project root | `.rulebook/<stage>.ruleset.json` | `.rulebook/ci.ruleset.json`, `.rulebook/default.ruleset.json` |
 | Catalog | `catalog/diagnostics.json`; `catalog/scan-state.json` reserved for WP08 | |
 | Slug | lowercased `name`, `^[a-z0-9-]+$` | `vNext` becomes `vnext` |
-| Schema file | `schemas/<name>.schema.json` in the engine, served as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` | `schemas/rulebook-settings.schema.json` |
+| Schema file | `schemas/<name>.schema.json` in the engine, served as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (live with WP13, #15; 404 until then) | `schemas/rulebook-settings.schema.json` |
 | Ruleset schema profile | by folder: `base/`, `stages/` delta; `rulesets/` endpoint; `skeletons/` skeleton | `schemas/ruleset.delta.schema.json` |
 | Change set schema | `schemas/rulebook-changeset.schema.json`, name reserved for WP15 | |
 | Update branch | `update-rulebook-system-files/<branch>/<yyMMddHHmmss>` | |

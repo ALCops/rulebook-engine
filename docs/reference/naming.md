@@ -99,7 +99,7 @@ An organization that adds or removes levels or stages gets exactly `levels x sta
 
 ## 6. Schemas
 
-The schemas live in the engine under `schemas/` and are served from the `v1` release branch (created by WP13) over raw URLs. Draft 2020-12.
+The schemas live in the engine under `schemas/` and are served from the `v1` release branch over raw URLs. Draft 2020-12. The `v1` URLs go live with WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)); until then they return 404, and the tests validate against the local files.
 
 | File | URL | Validates |
 |---|---|---|
@@ -112,6 +112,8 @@ The schemas live in the engine under `schemas/` and are served from the `v1` rel
 | `rulebook-twins.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json` | `base/twins.json` and the engine's `docs/rulebook/matrix/twins.json` |
 | `rulebook-catalog.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json` | `catalog/diagnostics.json` |
 | `rulebook-settings.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-settings.schema.json` | `.github/Rulebook-Settings.json` |
+
+A tool that validates files in an organization repository uses the profile file for the folder; the hub accepts a file that matches any profile (an endpoint rule with a `justification` passes it through the delta profile), so it is for editors only and is never the `$schema` of a generated file.
 
 The ruleset profiles:
 
@@ -129,7 +131,7 @@ Every rule is `{ id, action }` plus the optional `justification` where allowed, 
 - The shipped `base/*.ruleset.json` and `stages/*.json` carry the delta profile URL, so an editor validates a hand-edited level or stage file.
 - Every schema allows an optional `$schema` string, the endpoint and skeleton profiles included, but the generator never writes one into an endpoint or a skeleton: the compiler fetches those files and they stay minimal.
 
-No schema file has an `$id`. `Test-Json -SchemaFile` (pwsh 7.6) resolves a relative `$ref` to a sibling file, such as the profile files' `"$ref": "ruleset.schema.json#/$defs/delta"`, only when the schema has no absolute `$id`; with an `https://` `$id` it fails to parse the schema. Each schema says so in its `$comment`. The input schemas are self-contained and repeat the shared definitions (`diagnosticId`, `ruleAction`, `slug`); the test suite checks they stay identical.
+No schema file has an `$id`. `Test-Json -SchemaFile` (pwsh 7.6) resolves a relative `$ref` to a sibling file, such as the profile files' `"$ref": "ruleset.schema.json#/$defs/delta"`, only when the schema has no absolute `$id`; with an `https://` `$id` it fails to parse the schema. Each schema says so in its `$comment`. Every pattern ends with `(?![\s\S])` instead of `$`, because in .NET (`Test-Json`) `$` also matches before a trailing newline, while `\z` would be a literal `z` in the ECMA-262 regexes editors use; the lookahead means end of string in both. The input schemas are self-contained and repeat the shared definitions (`diagnosticId`, `ruleAction`, `slug`); the test suite checks they stay identical.
 
 What the schemas cannot check, and the validation check that does (ARCHITECTURE.md section 5.3):
 

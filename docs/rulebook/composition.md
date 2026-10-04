@@ -66,6 +66,8 @@ effective(id, level, stage) =
     default(id)              else: the compiler applies the analyzer default
 ```
 
+Condition aligned with S-4 and 00-conventions on 2026-10-04 (WP02); the earlier 'chain is defined' reading was an error.
+
 Precedence in one line: override, then twins, then stage delta, then level chain, then quarantine, then the analyzer default.
 
 **Endpoint:** `rulesets/<level>.ruleset.json` (stage `default`) or `rulesets/<level>.<stage>.ruleset.json` has one entry per id in the union of the level chain, the stage file, overrides, twins and quarantine **where `effective(id) != default(id)`**, in inventory order (unknown ids after the known ones, sorted by id). An id whose effective action equals its default is not written; the compiler applies the default on its own.
