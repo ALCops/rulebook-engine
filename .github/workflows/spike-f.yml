@@ -200,3 +200,22 @@ jobs:
           bash $K "$PAGES/recommended.ci.ruleset.json" '[ { "id": "AS0013", "action": "Warning" } ]'
           $R 6o  "skeleton incl. Pages sparse, own AS0013 Warning, suppressWarnings" yes "$SK"
           exit 0
+
+      - name: Exit code and AS0013 trigger compiles
+        run: |
+          set +e
+          R="$RUNNER_TEMP/run.sh"
+          # every error/warning id seen in c0, plus AA0137, in suppressWarnings
+          jq '. + {suppressWarnings: ["AS0084", "AS0013", "AS0015", "AS0051", "AS0052", "AS0054", "AS0100", "AS0092", "AS0103", "PTE0004", "AA0137"]}' "$RUNNER_TEMP/app.nosw.json" > "$RUNNER_TEMP/app.sw.json"
+          { echo '### app.json for 7a/7b'; echo '```json'; cat "$RUNNER_TEMP/app.sw.json"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          $R 7a  "no ruleset, suppressWarnings = all seen ids incl. AA0137" yes ""
+          $R 7b  "Pages sparse (lists AA0137), suppressWarnings = all seen ids incl. AA0137" yes "$PAGES/recommended.ci.ruleset.json"
+          # AS0013 trigger: field 50050 is inside idRanges and inside 50000..99999
+          sed -i 's/field(60000;/field(50050;/' fixture/src/SpikeExt.TableExt.al
+          grep -n 'field(' fixture/src/SpikeExt.TableExt.al
+          $R 8a  "field 50050 (in idRanges, in 50000..99999), no ruleset, no suppressWarnings" no ""
+          sed -i 's/field(50050;/field(99000;/' fixture/src/SpikeExt.TableExt.al
+          $R 8b  "field 99000 (outside idRanges, in 50000..99999), no ruleset, no suppressWarnings" no ""
+          sed -i 's/field(99000;/field(1000000;/' fixture/src/SpikeExt.TableExt.al
+          $R 8c  "field 1000000 (outside idRanges, outside 50000..99999), no ruleset, no suppressWarnings" no ""
+          exit 0
