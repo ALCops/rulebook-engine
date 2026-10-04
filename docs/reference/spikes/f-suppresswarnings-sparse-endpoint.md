@@ -8,7 +8,7 @@ Does `suppressWarnings` in `app.json` remove an analyzer Error rule (AS0084, AS0
 
 ## Method
 
-Three endpoint files were added under `v2/rulesets/` of the scratch repository `Arthurvdv/rulebook-spike-endpoint` from spike (a) (commit `d5503ff`; the `v1/` files were not touched), served from GitHub Pages and from raw:
+Three endpoint files were added under `v2/rulesets/` of the scratch repository `Arthurvdv/rulebook-spike-endpoint` from [spike (a)](a-hosts-and-skeleton-include.md) (commit `d5503ff`; the `v1/` files were not touched), served from GitHub Pages and from raw:
 
 ```jsonc
 // recommended.ci.ruleset.json: sparse, AS0084 and AS0013 unlisted
@@ -51,7 +51,7 @@ al compile /project:fixture /packagecachepath:fixture/.alpackages /out:$d/out.ap
 rc=$?   # under set +e; the .app path is deleted before each compile and checked after it
 ```
 
-The workflow polled each endpoint URL for `200` before compiling (all six answered on the first attempt) and flagged any AL1003, AL1033 or AL0767 in a compile log as a setup error (spike (a): a ruleset that does not load aborts `alc`); none appeared. Runs 6p, 6w and 6o used the [ARCHITECTURE.md §6.3](../../ARCHITECTURE.md#63-skeletons-r3) skeleton as a local file (`fixture/.rulebook/ci.ruleset.json`, one `includedRuleSets` entry with `"action": "Default"`, own `rules`), exactly as in spike (a).
+The workflow polled each endpoint URL for `200` before compiling (all six answered on the first attempt) and flagged any AL1003, AL1033 or AL0767 in a compile log as a setup error ([spike (a)](a-hosts-and-skeleton-include.md#answer): a ruleset that does not load aborts `alc`); none appeared. Runs 6p, 6w and 6o used the [ARCHITECTURE.md §6.3](../../ARCHITECTURE.md#63-skeletons-r3) skeleton as a local file (`fixture/.rulebook/ci.ruleset.json`, one `includedRuleSets` entry with `"action": "Default"`, own `rules`), exactly as in [spike (a)](a-hosts-and-skeleton-include.md#method).
 
 The editor path was run by Arthur in VS Code on Windows with the same fixture (see [VS Code](#vs-code)); rows V1 to V4 of the table.
 
@@ -238,5 +238,5 @@ Claims of the template page [`ALCops/rulebook` `docs/pte-or-appsource.md`](https
 
 - Final run: <https://github.com/ALCops/rulebook-engine/actions/runs/37180612371> (job summary holds the result table); first run: <https://github.com/ALCops/rulebook-engine/actions/runs/37180549341>.
 - The throwaway workflow `.github/workflows/spike-f.yml` lived on `wp01/spike-f` and was removed before the pull request; the version the final run executed is `51191f8:.github/workflows/spike-f.yml` (`git show 51191f8:.github/workflows/spike-f.yml`).
-- Scratch repository `Arthurvdv/rulebook-spike-endpoint` (from spike (a)): `v2/rulesets/recommended.ci.ruleset.json`, `listed-warning.ruleset.json` and `listed-info.ruleset.json` added in commit `d5503ff` on 2026-10-04; kept for spike (e), deleted after WP01 (#3).
+- Scratch repository `Arthurvdv/rulebook-spike-endpoint` (from [spike (a)](a-hosts-and-skeleton-include.md)): `v2/rulesets/recommended.ci.ruleset.json`, `listed-warning.ruleset.json` and `listed-info.ruleset.json` added in commit `d5503ff` on 2026-10-04; kept for spike (e), deleted after WP01 (#3).
 - Nothing besides this file and the one-sentence link in compiler-ruleset-internals.md is kept in the repository.
