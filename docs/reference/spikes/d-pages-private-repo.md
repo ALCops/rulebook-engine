@@ -99,7 +99,7 @@ The Actions path shows neither message: `configure-pages` reports the same `Reso
 | private, org "Pages creation: Public" on | `422` "Your current plan does not support GitHub Pages for this repository." (legacy and workflow) | "Upgrade or make this repository public to enable Pages" | fails in `configure-pages`: same message | no site | n/a | n/a |
 | public, org "Pages creation: Public" on | `201 Created` (workflow); a second POST (legacy) `409` "GitHub Pages is already enabled." | before the site existed: "GitHub Pages is currently disabled. Select a source below to enable GitHub Pages for this repository." | **success** once the site existed; `deploy-pages` "Reported success!" | `404` before the deploy, `200` on the first poll after it | `application/json; charset=utf-8` | first `200` 7 s after `deploy-pages` reported success (first poll, so an upper bound); 43 s after the site was created; 27 s after the dispatch |
 | public, org on, **no site yet**, Actions only | (not called) | (as above) | fails in `configure-pages`: "Create Pages site failed. Error: Resource not accessible by integration" | no site | n/a | n/a |
-| public → **private** (site live) | Pages API `404` from +17 s | (not read) | (not run) | `200` until +555 s, `404` from +572 s, with and without cache-busting query | `text/html` on the 404 | site unpublished about 9.5 min after the change |
+| public → **private** (site live) | Pages API `404` from +17 s | (not read) | (not run) | `200` until +555 s, `404` from +572 s, with and without cache-busting query | `text/html` on the 404 | site unpublished about 9.5 minutes after the change (CDN max-age is 600 s) |
 | private → public again | Pages API still `404`, `has_pages: false` for the 2 min polled | (not read) | (not run) | `404` | n/a | the site does not come back by itself; it must be enabled again |
 
 `gh api repos/ALCops/rulebook-spike-pages-public/pages` once the site was deployed:
@@ -220,6 +220,14 @@ X-Cache: HIT
 ... (404 until the end of the poll at +653s)
 ```
 
+`curl -sI` of the endpoint after the poll, before the switch back to public (05:01:40Z to 05:02:05Z):
+
+```text
+HTTP/1.1 404 Not Found
+Content-Type: text/html; charset=utf-8
+X-Cache: HIT
+```
+
 Back to public at 05:02:05Z: `visibility: public`, `has_pages: false`; endpoint `404` and Pages API `404` on every poll up to +136 s.
 
 </details>
@@ -253,7 +261,7 @@ Upgrade or make this repository public to enable Pages
 Learn more about GitHub Pages
 Visibility
 GitHub Enterprise
-With a GitHub Enterprise account, you can restrict access to your GitHub Pages site by publishing it privately. [same Enterprise paragraph as above]
+With a GitHub Enterprise account, you can restrict access to your GitHub Pages site by publishing it privately. You can use privately published sites to share your internal documentation or knowledge base with members of your enterprise. You can try GitHub Enterprise risk-free for 30 days. Learn more about the visibility of your GitHub Pages site.
 ```
 
 After the org change, public repository:
@@ -269,7 +277,7 @@ GitHub Pages is currently disabled. Select a source below to enable GitHub Pages
 
 Visibility
 GitHub Enterprise
-[same Enterprise paragraph as above]
+With a GitHub Enterprise account, you can restrict access to your GitHub Pages site by publishing it privately. You can use privately published sites to share your internal documentation or knowledge base with members of your enterprise. You can try GitHub Enterprise risk-free for 30 days. Learn more about the visibility of your GitHub Pages site.
 ```
 
 </details>
@@ -288,14 +296,14 @@ Neither gate is visible from the Actions path. `actions/configure-pages@v5` with
 
 When a public repository is later made private on Free:
 - the Pages API answers `404` within about 17 s;
-- the site keeps serving for about 9.5 min, then answers `404`;
+- the site keeps serving for about 9.5 minutes, then answers `404`;
 - making the repository public again does not restore it.
 
 ## Consequences for blocked work packages
 
 | WP | Consequence | Action taken |
 |---|---|---|
-| WP05 ([#7](https://github.com/ALCops/rulebook-engine/issues/7)) | `pages` target: the docs state that the repository must be public on Free (private on Pro, Team, Enterprise Cloud), that an org admin must enable the member privilege "Pages creation > Public", and that the site is created once, by an admin, before the first Publish run (`configure-pages` with `GITHUB_TOKEN` cannot create it). The Publish action's preflight calls `GET /repos/{o}/{r}/pages`; on `404` it may try `POST ... build_type=workflow` with the user's token. It maps the messages "Your current plan does not support GitHub Pages for this repository." (make the repo public, upgrade, or use `dist-repo`/`azure-blob`), "GitHub organization administrators disabled Pages creation." (ask an org admin to enable Pages creation) and "Resource not accessible by integration" (enable Pages once in Settings > Pages, Source "GitHub Actions"). The `baseUrl` example is `https://<owner>.github.io/<repo>`. The post-publish reachability check can expect `application/json` and should allow for the 600 s CDN cache. The docs add that making the repository private later unpublishes the endpoints after about 10 minutes (every consumer then gets AL1033) and that the site must be enabled again after it becomes public. | Comment posted on [#7](https://github.com/ALCops/rulebook-engine/issues/7#issuecomment-5976802064); [ARCHITECTURE.md §9](../../ARCHITECTURE.md#9-hosting-targets) and [ADR 0007](../../adr/0007-hosting-is-pluggable-github-pages-is-the-default.md) link this file |
+| WP05 ([#7](https://github.com/ALCops/rulebook-engine/issues/7)) | `pages` target: the docs state that the repository must be public on Free (private on Pro, Team, Enterprise Cloud), that an org admin must enable the member privilege "Pages creation > Public", and that the site is created once, by an admin, before the first Publish run (`configure-pages` with `GITHUB_TOKEN` cannot create it). The Publish action's preflight calls `GET /repos/{o}/{r}/pages`; on `404` it may try `POST ... build_type=workflow` with the user's token. It maps the messages "Your current plan does not support GitHub Pages for this repository." (make the repo public, upgrade, or use `dist-repo`/`azure-blob`), "GitHub organization administrators disabled Pages creation." (ask an org admin to enable Pages creation) and "Resource not accessible by integration" (enable Pages once in Settings > Pages, Source "GitHub Actions"). The `baseUrl` example is `https://<owner>.github.io/<repo>`. The post-publish reachability check can expect `application/json` and should allow for the 600 s CDN cache. The docs add that making the repository private later unpublishes the endpoints after about 9.5 minutes (every consumer then gets AL1033) and that the site must be enabled again after it becomes public. | Comment posted on [#7](https://github.com/ALCops/rulebook-engine/issues/7#issuecomment-5976802064); [ARCHITECTURE.md §9](../../ARCHITECTURE.md#9-hosting-targets) and [ADR 0007](../../adr/0007-hosting-is-pluggable-github-pages-is-the-default.md) link this file |
 
 ## Not covered
 
@@ -319,6 +327,6 @@ Nothing besides this file and the one-sentence links in ARCHITECTURE.md §9 and 
 
 ## References
 
-- GitHub Docs, [Creating a GitHub Pages site](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site): "If the account that owns the repository uses GitHub Free or GitHub Free for organizations, the repository must be public." Arthur's reading of the availability note: "GitHub Pages is available in public repositories with GitHub Free and GitHub Free for organizations, and in public and private repositories with GitHub Pro, GitHub Team, GitHub Enterprise Cloud, and GitHub Enterprise Server." This matches what was observed on Free.
+- GitHub Docs, [Creating a GitHub Pages site](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site): "If the account that owns the repository uses GitHub Free or GitHub Free for organizations, the repository must be public." GitHub Docs availability note: "GitHub Pages is available in public repositories with GitHub Free and GitHub Free for organizations, and in public and private repositories with GitHub Pro, GitHub Team, GitHub Enterprise Cloud, and GitHub Enterprise Server." This matches what was observed on Free.
 - GitHub Docs, [GitHub's plans](https://docs.github.com/en/get-started/learning-about-github/githubs-plans): GitHub Pages is listed for private repositories under GitHub Team, with "To publish a GitHub Pages site privately, you need to have an organization account. Additionally, your organization must use GitHub Enterprise Cloud."
 - GitHub Docs, [Managing the publication of GitHub Pages sites for your organization](https://docs.github.com/en/organizations/managing-organization-settings/managing-the-publication-of-github-pages-sites-for-your-organization): Settings > Member privileges > "Pages creation" > "Public". The page speaks of members only; this spike observed that it blocks owners too.
