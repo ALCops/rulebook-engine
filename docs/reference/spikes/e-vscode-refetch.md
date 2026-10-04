@@ -67,18 +67,20 @@ The code does not show which configuration changes the extension forwards as `di
 
 ### Triggers
 
-| Trigger | Remote flip before it (pushed, etag changed, CDN delay) | Re-fetched (diagnostics changed) | Latency | Side effects |
+| Trigger | Remote flip before it (committed, etag changed, CDN delay) | Re-fetched (diagnostics changed) | Latency | Side effects |
 |---|---|---|---|---|
 | Baseline (folder opened) | create at `Error` (09:45:27, 09:46:22, 52 s after a 404) | yes: AA0137 Error | on load | none reported |
 | (a) Edit and save the `.al` file | `Error` → `None` (09:56:00, 09:57:36, 94 s) | **no**: AA0137 stayed Error | n/a | none |
 | (b) Edit `app.json` (`version` 1.0.0.0 → 1.0.0.1) and save | none (editor still stale after (a)) | **yes**: AA0137 gone (`None`) | instant on save | none reported |
 | (c) Add `"editor.fontSize": 15` to `.vscode/settings.json` and save | `None` → `Error` (10:04:51, 10:08:31, 217 s) | **no**: AA0137 stayed gone | n/a | none |
 | (d) `"al.enableCodeAnalysis": false`, save, then `true`, save | none (editor still stale after (c)) | **yes**: AA0137 back at Error after the **on**-save | on save | the off-save shows nothing either way, because AA0137 cannot appear while analysis is off |
-| (e1) `al.ruleSetPath` → `.../e/does-not-exist.json` (404), save | none (editor in sync at Error after (d)) | **yes**: AA0137 at **Warning** (its default) plus **AL1033** | within 30 s | AL1033 shown on `app.json` (message text not captured); editing without saving does nothing |
+| (e1) `al.ruleSetPath` → `.../e/does-not-exist.json` (404), save | none (editor in sync at Error after (d)) | **yes**: AA0137 at **Warning** (its default) plus **AL1033** | not captured (reported within the 30 s window) | AL1033 shown on `app.json` (message text not captured); editing without saving does nothing |
 | (e2) `al.ruleSetPath` back to `.../e/ruleset.json`, save | none | **yes**: AL1033 gone, AA0137 back at Error | under 1 s on save | none |
 | (f) `AL: Download symbols` | `Error` → `None` (10:18:23, 10:22:45, 258 s) | **no**: AA0137 stayed Error | n/a | command outcome not captured |
 | (g) `Developer: Reload Window` | none (editor still stale after (f)) | **yes**: AA0137 gone | after the reload completed | none reported |
 | (h) File > Close Folder, reopen from Open Recent | `None` → `Error` (10:28:52, 10:33:04, 248 s) | **yes**: AA0137 back at Error | as soon as the AL extension finished loading | none |
+
+In the flip column the first timestamp is the commit time; the delay is measured from the end of the push, so it is 2 to 4 s shorter than the difference of the two timestamps.
 
 No status-bar hint or notification asking for a reload appeared at any step, and the "AL Language" output channel showed no ruleset lines that Arthur reported.
 
@@ -127,7 +129,7 @@ X-Cache-Hits: 1
 |---|---|
 | `.al` save does not re-read | confirmed (a) |
 | `app.json` save re-reads (`ReloadProject`) | confirmed (b), and the `suppressWarnings` merge is reapplied too (X2) |
-| `didChangeConfiguration` re-reads | confirmed for `al.*` settings (d), (e1), (e2); an unrelated setting (`editor.fontSize`) sends nothing that re-reads (c), so the extension forwards only the `al` section |
+| `didChangeConfiguration` re-reads | confirmed for `al.enableCodeAnalysis` (d) and `al.ruleSetPath` (e1), (e2); the one non-AL setting tried, `editor.fontSize`, triggered nothing (c) |
 | Project load re-reads | confirmed (g), (h) |
 | `AL: Download symbols` | does not re-read (f) |
 | Fallback to `DefaultRuleSet` on a failing URL (language server only) | **observed** (e1): AL1033 on `app.json`, AA0137 at its default Warning |
@@ -135,27 +137,29 @@ X-Cache-Hits: 1
 ## Answer
 
 The AL extension (18.0.2819426) never re-fetches a remote ruleset by itself, and it shows no hint that the remote changed. It re-reads the ruleset, fetching the URL again, when one of these happens:
-- `app.json` is saved from the editor;
-- a change to an `al.*` setting is saved;
+- a change to `app.json` is saved from the editor;
+- a change to `al.enableCodeAnalysis` or `al.ruleSetPath` is saved (other `al.*` settings not tested);
 - the window is reloaded;
 - the folder is reopened.
 
-It does not re-read on an `.al` save, on a non-AL setting change, or on `AL: Download symbols`. When the URL fails, the editor does not stop: it shows AL1033 on `app.json` and falls back to the analyzers' default severities. The one-line instruction for the WP11 walkthrough:
+It does not re-read on an `.al` save, on a change to `editor.fontSize` (the one non-AL setting tried), or on `AL: Download symbols`. When the URL fails, the editor does not stop: it shows AL1033 on `app.json` and falls back to the analyzers' default severities. The one-line instruction for the WP11 walkthrough:
 
-> After the organization ruleset changes, run **Developer: Reload Window** (or save `app.json`) to pick up the new rules; allow up to 10 minutes after a publish for the endpoint's CDN cache (5 on raw).
+> After the organization ruleset changes, run **Developer: Reload Window** (or save a change to `app.json`) to pick up the new rules; allow up to 10 minutes after a publish for the endpoint's CDN cache (5 on raw).
+
+The 10 minutes for Pages come from its `max-age=600` and were not measured; only raw was used.
 
 ## Consequences for blocked work packages
 
 | WP | Consequence | Action taken |
 |---|---|---|
 | WP11 ([#13](https://github.com/ALCops/rulebook-engine/issues/13)) | The walkthrough gets the one-line instruction above. The troubleshooting rows: AL1033 on `app.json` with default severities means the endpoint failed (the editor falls back, `alc` aborts); a rule change not visible yet means CDN cache plus no reload. Spike (f)'s advice "reload the window after editing `suppressWarnings`" can become "save `app.json` in the editor"; Reload Window remains the safe fallback. | Comment posted on [#13](https://github.com/ALCops/rulebook-engine/issues/13#issuecomment-5978243689) |
-| Docs | [compiler-ruleset-internals.md](../compiler-ruleset-internals.md) §7 said the language-server fallback came from the code, not observed; §9 said only reload or toggling the path setting pick up a change. [ARCHITECTURE.md](../../ARCHITECTURE.md) §2 and §10 said the same. | Updated in this pull request with links to this file |
+| Docs | [compiler-ruleset-internals.md](../compiler-ruleset-internals.md) §7 said the language-server fallback came from the code, not observed; §9 said only reload or toggling the path setting pick up a change. [ARCHITECTURE.md](../../ARCHITECTURE.md) §2 and §10, [rulebook/composition.md](../../rulebook/composition.md) and the Not covered list of [spike (a)](a-hosts-and-skeleton-include.md) said the same. | Updated in this pull request with links to this file |
 
 ## Not covered
 
 - Pages as the host (`max-age=600`): only raw was used, as planned. The editor has no cache of its own, so only the CDN delay should differ.
 - The full AL1033 message text in the editor and the AL Language output lines were not captured.
-- Saving an unmodified `app.json` (Ctrl+S without a change), whether VS Code then sends `didSave`: not tried. The instruction therefore says "save `app.json`" in the sense of saving a change, and names Reload Window first.
+- Saving an unmodified `app.json` (Ctrl+S without a change), whether VS Code then sends `didSave`: not tried. The instruction therefore says "save a change to `app.json`" and names Reload Window first.
 - Replacing `app.json` on disk outside the editor, to confirm the explanation of the spike (f) difference: not reproduced.
 - Other `al.*` settings, multi-root workspaces, `al/setActiveWorkspace` switching between folders, debug start, and the 15 s fetch timeout in the editor: not tested.
 - The skeleton model (local `.rulebook/*.ruleset.json` including the URL): only the URL as `al.ruleSetPath` was tested. The code reads the skeleton and its includes through the same call, so the triggers are expected to be the same.

@@ -395,7 +395,7 @@ Every target ends with the same reachability check: `GET` each endpoint, compare
 | Override selector typo | Silent no-op. | Selector validation; the ChangeRule PR body shows before and after per endpoint. |
 | Update PR overwrites an org edit in a system file | Edit lost. | File classes; org decisions live only in `overrides.json`; docs say which files are system files. |
 | Scan adds an id the org wanted to see | Rule hidden until adopted. | Policy is explicit per org; the PR lists every new id with its default severity and docs link. |
-| VS Code does not re-fetch a changed remote file | Developers see stale rules until reload. | Documented in WP11: Developer: Reload Window (or saving `app.json`) re-reads the ruleset, after the CDN cache has expired; see [spike e](reference/spikes/e-vscode-refetch.md) for every trigger. |
+| VS Code does not re-fetch a changed remote file | Developers see stale rules until reload. | Documented in WP11: Developer: Reload Window (or saving a change to `app.json`) re-reads the ruleset once the CDN cache has expired (raw 5 minutes, measured; Pages 10 minutes from its `max-age`, not measured); see [spike e](reference/spikes/e-vscode-refetch.md) for every trigger. |
 | Token missing or expired | Update, scan and change-rule PRs fail. | Same message pattern as AL-Go; GitHub App recommended. |
 | A stranger opens a `rulebook-change` issue on a public repository | None at compile time; a workflow run. | Collaborator gate before parsing (D34); the issue is closed with a comment. |
 | A cart exceeds the URL length GitHub accepts | The issue form opens empty or the request fails. | The cart shows its size against the measured limit and offers split and copy (spike WP01 (g)). |
