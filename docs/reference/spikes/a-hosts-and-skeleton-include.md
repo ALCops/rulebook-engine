@@ -28,7 +28,7 @@ GitHub Pages was enabled from `main` `/` with `gh api -X POST repos/Arthurvdv/ru
 - Pages: `https://arthurvdv.github.io/rulebook-spike-endpoint/v1/rulesets/recommended.ci.ruleset.json`
 - raw: `https://raw.githubusercontent.com/Arthurvdv/rulebook-spike-endpoint/main/v1/rulesets/recommended.ci.ruleset.json`
 
-A throwaway workflow (`spike-a.yml`, `workflow_dispatch` plus push on `wp01/spike-a`, read-only token, removed before the pull request; last version at `daa517b:.github/workflows/spike-a.yml`) ran on `ubuntu-latest` with the [spike (c) recipe](c-alc-on-ubuntu.md#recipe) unchanged: stable tool 18.0.43.1464, `AL_BIN` from `tools/net10.0/any` with the guard, `System.app` from MSSymbols with the prerelease-safe `jq` filter, the one-codeunit fixture (`runtime 17.0`, `platform 28.0.0.0`, unused local variable for AA0137, CodeCop Warning by default), CodeCop, UICop and PerTenantExtensionCop, compile output in `compile.log` with the AL1003 check.
+A throwaway workflow (`spike-a.yml`, `workflow_dispatch` plus push on `wp01/spike-a`, read-only token, removed before the pull request; last version at `eb6d640:.github/workflows/spike-a.yml`) ran on `ubuntu-latest` with the [spike (c) recipe](c-alc-on-ubuntu.md#recipe) unchanged: stable tool 18.0.43.1464, `AL_BIN` from `tools/net10.0/any` with the guard, `System.app` from MSSymbols with the prerelease-safe `jq` filter, the one-codeunit fixture (`runtime 17.0`, `platform 28.0.0.0`, unused local variable for AA0137, CodeCop Warning by default), CodeCop, UICop and PerTenantExtensionCop, compile output in `compile.log` with the AL1003 check.
 
 Per host it ran, in order: the controls of the common protocol (URL without `/enableexternalrulesets`, a 404 URL with the flag; the no-ruleset control once), the endpoint URL as `/ruleset:` with the flag, then the skeleton `$GITHUB_WORKSPACE/fixture/.rulebook/ci.ruleset.json` written exactly as [ARCHITECTURE.md §6.3](../../ARCHITECTURE.md#63-skeletons-r3):
 
@@ -76,7 +76,7 @@ sudo tcpdump -nn -r cap.pcap 'dst net 185.199.108.0/22' | awk '{print $5, $7, $1
 
 ## Observed
 
-Final run: [actions/runs/37179557047](https://github.com/ALCops/rulebook-engine/actions/runs/37179557047) (commit `daa517b`). The first run, [37179402446](https://github.com/ALCops/rulebook-engine/actions/runs/37179402446) (commit `3e809dd`), gave the same exit codes, diagnostics and connect counts; it only counted every SYN twice (see the note on `-i any` above).
+Final run: [actions/runs/37179557047](https://github.com/ALCops/rulebook-engine/actions/runs/37179557047) (commit `daa517b`, rebased onto main as `eb6d640` with an identical workflow file). The first run, [37179402446](https://github.com/ALCops/rulebook-engine/actions/runs/37179402446) (commit `3e809dd`, rebased as `af1527c`), gave the same exit codes, diagnostics and connect counts; it only counted every SYN twice (see the note on `-i any` above).
 
 | host | scenario | exit code | AL1033 | AL0767 | AA0137 severity | .app written | connects :443 (strace) | SYNs (tcpdump, distinct) | DNS :53 (strace) | wall time |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -225,6 +225,6 @@ Both `arthurvdv.github.io` (GitHub Pages) and `raw.githubusercontent.com` serve 
 ## Artifacts
 
 - Final run: <https://github.com/ALCops/rulebook-engine/actions/runs/37179557047> (job summary holds the result table and the headers); first run: <https://github.com/ALCops/rulebook-engine/actions/runs/37179402446>.
-- The throwaway workflow `.github/workflows/spike-a.yml` lived on `wp01/spike-a` and was removed in the last commit before the pull request; the version the final run executed is `daa517b:.github/workflows/spike-a.yml`.
+- The throwaway workflow `.github/workflows/spike-a.yml` lived on `wp01/spike-a` and was removed in the last commit before the pull request; the version the final run executed is `eb6d640:.github/workflows/spike-a.yml` (`git show eb6d640:.github/workflows/spike-a.yml`; the run itself ran the pre-rebase commit `daa517b` with the identical file).
 - Scratch repository `Arthurvdv/rulebook-spike-endpoint` (public), created 2026-10-04, kept for spikes (f) and (e) and deleted after WP01 (#3). Content at the end of this spike: `README.md`, `.nojekyll`, `v1/rulesets/recommended.ci.ruleset.json`, `v1/rulesets/broken.ruleset.json` (commit `532f841`). The path `v1/rulesets/does-not-exist.ruleset.json` is the 404 control and must stay absent.
 - Nothing besides this file and the documentation corrections is kept in the repository.
