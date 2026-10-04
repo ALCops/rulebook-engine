@@ -54,7 +54,7 @@ The requirements as gathered on 2026-09-29:
 4. **Central and managed, with exceptions at the edge.** The org repo decides, through one overrides file. An AL project may register exceptions in its local skeleton, never redefine the standard.
 5. **Adopt new rules at your own pace.** A new diagnostic id is quarantined per the org's policy until a level file adopts it; `vNext` can show it before that.
 6. **One flat, sparse file per endpoint.** Every endpoint is generated from the level chain, the stage delta and the org's inputs and lists the diagnostic ids whose action differs from the analyzer default. The compiler fetches one small file; there is no include chain and no merge semantics to reason about (D18, D22). The organization's catalog records the defaults the endpoint relies on, and the daily scan reports when an analyzer changes one (D24).
-7. **Fail loudly.** An unreachable or broken endpoint makes the compiler fall back to its defaults with one diagnostic (AL1033). Validation before publish and a reachability check after publish are therefore part of the product, not an option.
+7. **Fail loudly.** An unreachable or broken endpoint makes `alc` stop with one diagnostic (AL1033) and exit code 1; the VS Code language server falls back to compiler defaults instead (from the code, not yet observed). Validation before publish and a reachability check after publish are therefore part of the product, not an option.
 
 ## 3. Repository topology
 
@@ -155,7 +155,7 @@ Removing an entry from `settings.levels` or `settings.stages` stops publishing i
 
 From the compiler's load and merge behaviour ([reference/compiler-ruleset-internals.md](reference/compiler-ruleset-internals.md)):
 
-1. Every included file is a separate HTTP fetch with a 15 second timeout, no cache and no retry; any failure discards the whole ruleset (AL1033).
+1. Every included file is a separate HTTP fetch with a 15 second timeout, no cache and no retry; any failure discards the whole ruleset (AL1033), and `alc` aborts the compile.
 2. Between sibling includes the strictest action wins and `None` never wins; a file's own rules beat its includes. A layer that must lower a rule has to be an ancestor.
 3. An id the ruleset does not mention runs at the analyzer's default severity.
 
@@ -383,14 +383,14 @@ A change set is `{ version, note?, changes[] }` with `set` (write an override en
 
 With `site.enabled` the staging root also holds the Hugo output (section 6.4), so the dashboard is as public as the endpoints: on `pages` that is a public site on every plan for a public repository and on Pro or Team for a private one; a private site needs Enterprise Cloud. `azure-blob` needs static website hosting on the storage account. `dist-repo` and `gist` cannot serve the site and fall back to the plain index.
 
-Every target ends with the same reachability check: `GET` each endpoint, compare with the source, fail the run on any difference. The compiler goes through Microsoft's anti-SSRF policy when fetching; public hosts are expected to pass, which WP01 spike a confirms for `github.io` and `raw.githubusercontent.com`.
+Every target ends with the same reachability check: `GET` each endpoint, compare with the source, fail the run on any difference. The compiler goes through Microsoft's anti-SSRF policy when fetching; `github.io` and `raw.githubusercontent.com` pass, with one request per compile and no redirect ([spike a](reference/spikes/a-hosts-and-skeleton-include.md)).
 
 ## 10. Failure model and operational risks
 
 | Situation | Effect at compile time | Mitigation |
 |---|---|---|
-| Endpoint unreachable, invalid JSON, invalid enum, timeout | Whole ruleset discarded, compiler defaults in effect, one diagnostic AL1033. Because the matrix follows the analyzer defaults for most rules (D21) and the endpoint only lists deviations (D22), the fallback is close to the intended ruleset; what is lost is every `None` the level set, every downgrade, and the org's overrides, so a build can go red on rules the level had switched off. | Validate before publish, reachability check after publish, treat AL1033 as a hard failure in pipelines (documented in WP11). One fetch per compile keeps the exposure to one request. |
-| External rulesets disabled in the consumer | AL0767, compiler defaults. | Walkthroughs set `enableExternalRulesets` in every consumer. `alc` defaults to disabled. |
+| Endpoint unreachable, invalid JSON, invalid enum, timeout | Whole ruleset discarded, one diagnostic AL1033. `alc` aborts the compile (exit 1, no `.app`; timeout: not observed), whether the endpoint is the root path or the skeleton's include ([spike c](reference/spikes/c-alc-on-ubuntu.md), [spike a](reference/spikes/a-hosts-and-skeleton-include.md)), so on raw `alc` the build fails by itself (AL-Go and BcContainerHelper run the same compiler but were not observed). The VS Code language server continues with compiler defaults (from the code, not yet observed), so the editor shows default severities: because the matrix follows the analyzer defaults for most rules (D21) and the endpoint only lists deviations (D22), that is close to the intended ruleset; what is lost is every `None` the level set, every downgrade, and the org's overrides. | Validate before publish, reachability check after publish, and as a backstop treat AL1033 as a failure in pipelines (documented in WP11). One fetch per compile keeps the exposure to one request. |
+| External rulesets disabled in the consumer | AL0767 when the root path is a URL, AL1033 when a local skeleton includes the URL; `alc` aborts with exit 1 in both cases. | Walkthroughs set `enableExternalRulesets` in every consumer. `alc` defaults to disabled. |
 | Endpoint committed but stale (inputs changed, not regenerated) | Consumers get yesterday's decision. | Regeneration check in Validate; every writing workflow regenerates. |
 | Override selector typo | Silent no-op. | Selector validation; the ChangeRule PR body shows before and after per endpoint. |
 | Update PR overwrites an org edit in a system file | Edit lost. | File classes; org decisions live only in `overrides.json`; docs say which files are system files. |
@@ -400,8 +400,6 @@ Every target ends with the same reachability check: `GET` each endpoint, compare
 | A stranger opens a `rulebook-change` issue on a public repository | None at compile time; a workflow run. | Collaborator gate before parsing (D34); the issue is closed with a comment. |
 | A cart exceeds the URL length GitHub accepts | The issue form opens empty or the request fails. | The cart shows its size against the measured limit and offers split and copy (spike WP01 (g)). |
 | An organization adapted `site/` and the template changed the same file | Dashboard fix not applied. | Customizable class skips and lists the file in the update PR (D35); `site.updateMode: "overwrite"` forces it. |
-
-> **Contested.** Observed 2026-10-03 in spike (c): on the `alc` command line a failing root ruleset URL aborts the compile with exit 1 (AL0767, AL1033) instead of falling back to defaults; spike (a) checks the include case. See [spikes/c-alc-on-ubuntu.md](reference/spikes/c-alc-on-ubuntu.md).
 
 ## 11. Open decisions
 

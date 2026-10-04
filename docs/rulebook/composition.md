@@ -16,7 +16,7 @@ Contract for the generator that turns the matrix into ruleset files. The sources
 
 - **One fetch per compile.** The compiler fetches every included file separately, with a 15 second timeout, no cache and no retry; any failure discards the whole ruleset (AL1033). A flat endpoint is one request.
 - **No merge semantics.** Siblings merge strictest-wins and `None` never wins; own rules beat includes. None of that applies to a file without includes. What the file says is what the compiler does.
-- **Sparse by design.** An id the file does not mention runs at the analyzer default. The matrix decides every id, but it writes only the ids where its decision differs from that default (D22). Three things follow: the fetched file is small (Recommended lists nine ids); `suppressWarnings` in `app.json` keeps working for everything at default, which is how a project opts out of the other cop's blockers; and when the endpoint is unreachable the compiler's fallback to defaults is close to what Rulebook intended.
+- **Sparse by design.** An id the file does not mention runs at the analyzer default. The matrix decides every id, but it writes only the ids where its decision differs from that default (D22). Three things follow: the fetched file is small (Recommended lists nine ids); `suppressWarnings` in `app.json` keeps working for everything at default, which is how a project opts out of the other cop's blockers; and where a client falls back to defaults (the VS Code language server, per the code; alc aborts with AL1033) the result is close to what Rulebook intended.
 - **Defaults are tracked, not assumed.** The organization's catalog records every id's default severity and enablement; the daily scan reports changes and regenerates (D24).
 - **Sources are deltas too.** Nothing is repeated across levels or stages (D27). A custom level is one file plus one settings entry; so is a custom stage.
 
@@ -174,7 +174,7 @@ The `default` stage skeleton `skeletons/recommended.default.ruleset.json` includ
 | AL-Go | `rulesetFile` in `.AL-Go/settings.json` and `.github/NextMajor.settings.json` | the `ci` and `vnext` skeletons |
 | `alc` | `/ruleset:<path>` with `/enableexternalrulesets` | any endpoint URL or skeleton |
 
-External rulesets must be enabled in every consumer that fetches over HTTP. If the endpoint is unreachable or invalid the compiler discards the ruleset, reports AL1033 and runs every analyzer at its default severity; pipelines treat AL1033 as a failure.
+External rulesets must be enabled in every consumer that fetches over HTTP. If the endpoint is unreachable or invalid the compiler discards the ruleset and reports AL1033: `alc` stops the build with exit code 1 ([spike a](../reference/spikes/a-hosts-and-skeleton-include.md)), the VS Code language server runs every analyzer at its default severity (from the code, not observed).
 
 `suppressWarnings` in `app.json` is merged strictest-wins after the ruleset, so it switches off exactly the ids the endpoint does not list: every id at its analyzer default, which includes the cop-specific blockers a project most often wants gone. It cannot switch off an id the endpoint lists; those go into the skeleton's `rules`. The template's `docs/pte-or-appsource.md` has the ready-made lists for per-tenant and AppSource projects.
 

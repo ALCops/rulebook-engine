@@ -84,7 +84,7 @@ flowchart LR
     D --> E[RuleSetReducer.GetEffectiveRuleSet<br/>flatten the include tree]
     E --> F[RuleSet<br/>generalAction + per-id actions]
     F --> G[CompilationOptions<br/>GeneralDiagnosticOption<br/>SpecificDiagnosticOptions]
-    B -.->|any exception| H[DefaultRuleSet + AL1033]
+    B -.->|any exception| H["AL1033; alc aborts, language server uses DefaultRuleSet"]
 ```
 
 - `RuleSetResolver.cs` is the entry point. It catches every `IOException` and `InvalidRuleSetException` from the whole tree.
@@ -177,7 +177,7 @@ Microsoft Learn describes the rewrite as applying to actions "different from Non
 
 - Only `http` and `https` are recognised as remote (`RulesetUtilities.IsRemotePath`).
 - Each fetch creates a fresh `HttpClient`, timeout **15 seconds**, `GetByteArrayAsync`. No caching, no ETag, no retry. Every include in the tree is one fetch.
-- The request goes through Microsoft's anti-SSRF policy (`ExternalOnlyLatest`, plain http allowed). Private or internal addresses are expected to be blocked; a public endpoint such as GitHub Pages, raw.githubusercontent.com or a public blob is fine.
+- The request goes through Microsoft's anti-SSRF policy (`ExternalOnlyLatest`, plain http allowed). Private or internal addresses are expected to be blocked; GitHub Pages (`*.github.io`) and `raw.githubusercontent.com` pass, with one TCP connection per fetch and no redirect ([spike a](spikes/a-hosts-and-skeleton-include.md): a project Pages site on a personal account without custom domain, warm CDN, one `ubuntu-latest` runner). A renamed repository or a custom domain may redirect, and a redirect would count as a second connect.
 - If external rulesets are disabled and a URL is encountered anywhere in the tree, a `BlockedExternalRulesetsException` is thrown.
 
 ---
@@ -193,15 +193,14 @@ Microsoft Learn describes the rewrite as applying to actions "different from Non
 | Same file included twice in the tree (diamond) | Loaded once, at the first occurrence in depth-first order, with that occurrence's include action. Later occurrences are silently dropped. |
 | Cyclic include | Silently cut by the shared visited set. |
 | Unreachable URL, timeout, HTTP error, invalid JSON, invalid enum value, missing file, local path under remote parent | Exception bubbles up to the root. |
-| **Any exception anywhere in the tree** | The **whole** ruleset is discarded. The compiler continues with `DefaultRuleSet` (general `Default`, no specific rules), which means every analyzer runs at its built-in severities. One diagnostic **AL1033** (`ERR_InvalidRuleSetInclude`, "An error occurred while loading the included rule set file ...") is reported. |
-| Root path is a URL but external rulesets are disabled | **AL0767** (`ERR_ExternalRulesetPathNotAllowed`), default ruleset is used. |
-| Language server (VS Code) | Same fallback to the default ruleset when any diagnostic was produced while reading the ruleset. |
-
-> **Contested.** Observed 2026-10-03 in spike (c): on the `alc` command line a failing root ruleset URL aborts the compile with exit 1 (AL0767, AL1033) instead of falling back to defaults; spike (a) checks the include case. See [spikes/c-alc-on-ubuntu.md](spikes/c-alc-on-ubuntu.md).
+| **Any exception anywhere in the tree** | The **whole** ruleset is discarded and one diagnostic **AL1033** (`ERR_InvalidRuleSetInclude`, "An error occurred while loading the included rule set file ...") is reported. The resolver substitutes `DefaultRuleSet` (general `Default`, no specific rules), but on the `alc` command line AL1033 is an error that **aborts the compile**: no compilation starts, no `.app` is written, exit code 1. Observed for a failing root URL ([spike c](spikes/c-alc-on-ubuntu.md)) and for a failing include in a local skeleton: 404, invalid file, host that does not resolve ([spike a](spikes/a-hosts-and-skeleton-include.md)). |
+| Root path is a URL but external rulesets are disabled | **AL0767** (`ERR_ExternalRulesetPathNotAllowed`). On `alc` the compile aborts with exit 1, as for AL1033 ([spike c](spikes/c-alc-on-ubuntu.md)). |
+| Local root, URL include, external rulesets disabled | **AL1033** ("... because external rulesets are not allowed"), not AL0767, raised before any network access. On `alc` the compile aborts with exit 1 ([spike a](spikes/a-hosts-and-skeleton-include.md)). |
+| Language server (VS Code) | Same fallback to the default ruleset when any diagnostic was produced while reading the ruleset (from the code; not yet observed). |
 
 There is no depth limit and no maximum number of includes.
 
-For a CI/CD pipeline with warnings-as-errors this is the single most important operational risk: an outage of the hosting endpoint or a typo in one published file does not produce a slightly different result, it produces a build with **all** analyzers at full built-in severity. Since Rulebook follows the built-in severities for most rules (D21) the fallback is less far from the intended ruleset than it used to be, but every rule the level switched off, every documented downgrade and every organization override is lost, so a build can still go red. The AL1033 diagnostic is the only signal.
+For a CI/CD pipeline this is the single most important operational risk: an outage of the hosting endpoint or a typo in one published file does not produce a slightly different result. On `alc` it stops the build with AL1033 and exit code 1 before compiling, so a pipeline fails loudly and no `.app` is produced. Where the fallback to defaults applies (the language server, per the code), the build runs with **all** analyzers at full built-in severity: since Rulebook follows the built-in severities for most rules (D21) that is close to the intended ruleset, but every rule the level switched off, every documented downgrade and every organization override is lost, and the AL1033 diagnostic is the only signal.
 
 ---
 
@@ -257,7 +256,7 @@ Rulebook publishes one flat, self-contained, sparse ruleset file per endpoint (D
 Two operational facts follow from section 6 and section 7:
 
 - **One HTTP fetch per compile, 15 seconds, no cache.** The skeleton fetches the endpoint and nothing else, so the exposure is one request.
-- **A broken or unreachable endpoint discards the whole ruleset** and the build continues with compiler defaults plus AL1033. The Publish action must therefore verify every endpoint after publishing, and pipelines should treat AL1033 as a failure.
+- **A broken or unreachable endpoint discards the whole ruleset** with AL1033. On `alc` that aborts the build (exit 1, no `.app`), whether the endpoint is the root path or the skeleton's include ([spike a](spikes/a-hosts-and-skeleton-include.md)); the language server falls back to compiler defaults. The Publish action must therefore verify every endpoint after publishing.
 
 ---
 
@@ -339,7 +338,5 @@ Error > Warning > Info > Hidden > Default > None
 
 | Diagnostic | Meaning |
 |---|---|
-| AL1033 | An included ruleset could not be loaded or is invalid. The **whole** ruleset was discarded and compiler defaults are in effect. |
-| AL0767 | The root ruleset path is a URL but external rulesets are disabled. Compiler defaults are in effect. |
-
-> **Contested.** Observed 2026-10-03 in spike (c): on the `alc` command line a failing root ruleset URL aborts the compile with exit 1 (AL0767, AL1033) instead of falling back to defaults; spike (a) checks the include case. See [spikes/c-alc-on-ubuntu.md](spikes/c-alc-on-ubuntu.md).
+| AL1033 | A ruleset in the tree could not be loaded or is invalid, or a URL include was found while external rulesets are disabled. The **whole** ruleset was discarded. `alc` aborts (exit 1, no `.app`); the language server continues with compiler defaults. |
+| AL0767 | The root ruleset path is a URL but external rulesets are disabled. `alc` aborts (exit 1, no `.app`). |
