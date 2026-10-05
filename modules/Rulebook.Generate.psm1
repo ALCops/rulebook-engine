@@ -362,7 +362,8 @@ function Test-OverrideMatch {
 }
 
 function ConvertTo-EffectiveResult {
-    param([string]$Id, [AllowNull()][string]$Action, [string]$Source, $Detail, [AllowNull()][string]$Default)
+    # Action and Default stay untyped: a [string] parameter would turn $null (unknown default) into ''.
+    param([string]$Id, $Action, [string]$Source, $Detail, $Default)
     if ([string]::IsNullOrEmpty($Action)) { $Action = $null }
     if ([string]::IsNullOrEmpty($Default)) { $Default = $null }
     # An unknown default ($null) never equals anything, so an id absent from the catalog is always written.
@@ -476,7 +477,7 @@ function Get-SortedById {
 }
 
 function Format-DiffSide {
-    param([AllowNull()][string]$Action, [AllowNull()][string]$Source, $Detail)
+    param($Action, $Source, $Detail)
     if ($null -eq $Source) { return '(absent)' }
     $actionText = if ($null -ne $Action) { $Action } else { 'unknown' }
     $inner = if ([string]::IsNullOrEmpty($Detail)) { $Source } else { '{0}, "{1}"' -f $Source, $Detail }
