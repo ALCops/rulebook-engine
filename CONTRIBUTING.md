@@ -22,27 +22,28 @@ What exists today, and the work package that adds the rest. A folder is created 
 
 | Path | Content | Added by |
 |---|---|---|
-| `.github/workflows/ci.yml` | PSScriptAnalyzer and Pester on every pull request and every push to `main` and to a release branch (`v*`). | WP00 |
+| `.github/workflows/ci.yml` | PSScriptAnalyzer and Pester on every pull request and every push to `main` and to a release branch (`v*`); the Validate action on two fixtures. | WP00, WP03 |
 | `.github/workflows/` (deploy) | Copies `template/` into `ALCops/rulebook` and pins action references to `@v1`. | WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)) |
 | `.github/release.yml` | Maps pull request labels to release-note sections ([D38](docs/adr/0038-release-notes-are-generated-from-pull-request-labels.md)). | WP00 |
 | `.github/dependabot.yml` | Weekly, grouped updates of the GitHub Actions used by the workflows. | WP00 |
 | `.github/ISSUE_TEMPLATE/` | Issue forms: work package, task or spin-off. | written |
 | `PSScriptAnalyzerSettings.psd1` | Analyzer settings: errors and warnings, default rules, justified exclusions only. | WP00 |
 | `schemas/` | JSON schemas for every file in an organization rulebook repository, draft 2020-12, no `$id`; names and URLs in [docs/reference/naming.md](docs/reference/naming.md). | WP02 ([#4](https://github.com/ALCops/rulebook-engine/issues/4)) |
-| `tests/` | `Smoke.Tests.ps1`, `Schemas.Tests.ps1` and `Rulebook.Generate.Tests.ps1` now; later one suite per module and action, with fixtures under `tests/fixtures/`. | WP00, WP02, WP03; WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) and every module work package |
+| `tests/` | `Smoke.Tests.ps1`, `Schemas.Tests.ps1`, `Rulebook.Generate.Tests.ps1`, `Rulebook.Validate.Tests.ps1` and `Validate.Action.Tests.ps1` now; later one suite per module and action, with fixtures under `tests/fixtures/`. | WP00, WP02, WP03; WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) and every module work package |
 | `tests/fixtures/schemas/` | One file per case: `<valid\|invalid>/<schema-basename>/<reason>.json`, each invalid file a one-change mutation of a valid one. | WP02 |
 | `tests/fixtures/repos/` | Organization rulebook repositories for the module suites. `valid-minimal` (30-id catalog, four levels, three stages) and `stale-endpoints` are complete on disk, their `rulesets/` written by `Update-RulebookEndpoints`; every other folder is an overlay holding only the files it changes, copied over `valid-minimal` by `New-FixtureRepo`. | WP03 |
 | `tests/Helpers/` | Helpers the suites dot-source in `BeforeAll`: `RepoFixture.ps1` copies a fixture into `TestDrive`, edits its JSON, creates git repositories and the synthetic performance rulebook. | WP03 |
-| `modules/` | PowerShell modules shared by the actions, each a `.psm1` with a `.psd1` manifest: `Rulebook.Generate` (written). | WP03 to WP09 |
-| `actions/` | Composite actions. | WP03 to WP09 |
-| `template/` | Source of the template content deployed to `ALCops/rulebook`. | WP04, WP13 |
+| `modules/` | PowerShell modules shared by the actions, each a `.psm1` with a `.psd1` manifest: `Rulebook.Generate` and `Rulebook.Validate` (written). | WP03 to WP09 |
+| `actions/` | Composite actions, one folder each with `action.yaml` and its entry script. | WP03 to WP09 |
+| `actions/Validate/` | `action.yaml` and `Validate.ps1`: checks C1 to C15, annotations, the job summary with the effective diff ([ARCHITECTURE.md](docs/ARCHITECTURE.md) section 5.5). | WP03 |
+| `template/` | Source of the template content deployed to `ALCops/rulebook`: `.github/workflows/Validate.yaml` now; the content with WP04. | WP03, WP04, WP13 |
 | `docs/`, `tools/rulebook/` | Architecture, decision records, level content and the scripts that build it. | written |
 
 ## 2. Conventions
 
 - **Line endings and encoding:** UTF-8, LF, a final newline, no trailing whitespace (except in Markdown). `.gitattributes` enforces LF in the index; `.editorconfig` tells the editor.
 - **Indentation:** 4 spaces; 2 spaces in `.yml`, `.yaml` and `.json`.
-- **Workflow files:** lowercase kebab-case with the `.yml` extension (`ci.yml`), as in the other ALCops repositories.
+- **Workflow files:** lowercase kebab-case with the `.yml` extension (`ci.yml`), as in the other ALCops repositories. Files under `template/` follow AL-Go naming instead, because an organization repository sits next to AL-Go: PascalCase with the `.yaml` extension (`template/.github/workflows/Validate.yaml`).
 - **Check names:** a job has an id and no `name:`, so the check run is named after the id (`test`). The ruleset requires checks by that name; renaming a job id means updating the ruleset in the same pull request.
 - **PowerShell:** PowerShell 7.4 or later, runs on Linux, no Windows-only dependency ([D9](docs/adr/0009-tooling-powershell-7-and-pester-on-ubuntu-runners.md)). Tests are Pester 6 with `Should-*` assertions ([D39](docs/adr/0039-test-framework-is-pester-6.md)).
 - **Analyzer exclusions:** a rule is excluded in `PSScriptAnalyzerSettings.psd1` only with its reason on the same line, and a non-trivial finding left unfixed gets a spin-off issue.
@@ -58,13 +59,15 @@ Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
 Invoke-Pester -Path ./tests -Output Detailed
 ```
 
-The analyzer must print nothing. Outside GitHub Actions the Linux smoke case is skipped (it runs only when `$env:GITHUB_ACTIONS` is set). The effective-diff tests of the Generate suite need `git` on the path and are skipped without it.
+The analyzer must print nothing. Outside GitHub Actions the Linux smoke case is skipped (it runs only when `$env:GITHUB_ACTIONS` is set). The effective-diff tests of the Generate suite and the diff tests of the Validate action suite need `git` on the path and are skipped without it.
 
 When a change touches `tools/rulebook/` or `docs/rulebook/`, also run `pwsh ./tools/rulebook/Test-Rulebook.ps1`. Regenerating the level content with `Extract-Inventory.ps1` needs the sibling clones `../Analyzers` and `../nav-sdk-source`.
 
 ## 4. CI
 
-`.github/workflows/ci.yml` has one job, `test`, on `ubuntu-latest` with a 15-minute timeout. It runs on every pull request and on every push to `main` or a release branch (`v*`). It installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push to a pull request cancels its running job; pushes to `main` and release branches always finish.
+`.github/workflows/ci.yml` has two jobs on `ubuntu-latest` with a 15-minute timeout each, `test` and `validate-action`. Both run on every pull request and on every push to `main` or a release branch (`v*`). `test` installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push to a pull request cancels its running job; pushes to `main` and release branches always finish.
+
+`validate-action` runs the composite action from the checkout (`uses: ./actions/Validate`) the way an organization workflow does: it must pass on `tests/fixtures/repos/valid-minimal` and fail on `tests/fixtures/repos/stale-endpoints`, and the job fails otherwise. Its step on `stale-endpoints` prints one expected C12 error annotation. The ruleset requires `test`; requiring `validate-action` too is a ruleset change (section 6).
 
 The module versions are pinned in `ci.yml` (PSScriptAnalyzer 1.25.0, Pester 6.2.0) and bumped by hand, because Dependabot does not cover the PowerShell Gallery; it only updates the action tags.
 
