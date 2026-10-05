@@ -139,12 +139,12 @@ flowchart LR
 |---|---|---|
 | `overrides.json` | ChangeRule, or the org by hand | 1: an entry whose selectors match the endpoint wins. Most specific selector set first, last entry in the file on ties. |
 | `twins` setting with `base/twins.json` | The org in the settings; the pair list by the engine | 2: with `appsource` the PerTenantExtensionCop side of every pair is `None`, with `pte` the AppSourceCop side; `both` (default) changes nothing. |
-| `stages/<stage>.json` | The engine, from the matrix stage columns; org-added stages by the org | 3: for a non-default stage, replaces the level's action for every id the file mentions, provided the level result (the chain, else the analyzer default) is not `None` (a stage never activates a rule, S-4). |
+| `stages/<stage>.json` | The engine, from the matrix stage columns; org-added stages by the org | 3: for a non-default stage, replaces the level's action for every id the file mentions, provided the level result (the chain, else quarantine `None`, else the analyzer default) is not `None` (a stage never activates a rule, S-4; a quarantined id no level file mentions stays `None`, D41). |
 | `base/<level>.ruleset.json` resolved through `basedOn` | The engine, from the matrix; org-added levels by the org | 4: the level chain. Walk from the root to the level; the last file that mentions the id wins. Undefined when no file on the chain mentions the id. |
-| `quarantine.<stage>.json` | The daily scan | 5: `None` for ids no file on the chain mentions. Once a level file mentions the id, the chain wins and housekeeping removes the entry. |
+| `quarantine.<stage>.json` | The daily scan | 5: `None` for ids no file on the chain mentions. Part of the level result, so it also beats a stage entry for such an id (D41). Once a level file mentions the id, the chain wins and housekeeping removes the entry. |
 | analyzer default | `catalog/diagnostics.json`; the scan, seeded by the template | 6: what an id gets when nothing above decides it. The catalog also decides whether an effective action is written at all (D22). |
 
-Output per endpoint: every id from the union of the inputs whose effective action differs from its analyzer default, with that action, in inventory order, without justification (D22). The generator contract with entry formats and examples is [rulebook/composition.md](rulebook/composition.md).
+Output per endpoint: every id from the union of the inputs whose effective action differs from its analyzer default, with that action, in id order (prefix in the inventory order, then number, then the `i` suffix), without justification (D22). The generator contract with entry formats and examples is [rulebook/composition.md](rulebook/composition.md).
 
 Levels and stages are configuration (D26). The template ships four levels, Essential, Recommended, Strict and Complete, each `basedOn` the one before it, and three stages, `default`, `CI` and `vNext`. Every published level is one entry in `settings.levels` with a file `base/<slug>.ruleset.json`; every stage other than `default` is one entry in `settings.stages` with a file `stages/<slug>.json`. The slug is the lowercased name and is the only spelling used in file names, URLs, selectors and keys (D28). `basedOn` may name any level file, published or not (D29), and is only the starting point: the level's own file may set any id to any action, higher or lower than the level it is based on. Three recipes cover what the former fixed five-level set used to do:
 
@@ -168,7 +168,7 @@ Consequences: with one flat file per endpoint there is one fetch (1) and no laye
 
 Enforced by the `Validate` action on every PR and before every publish:
 
-The checks are numbered `C1` to `C14` so that WP02 and WP03 can reference them; the engine's own matrix checks keep their `V` numbers.
+The checks are numbered `C1` to `C15` so that WP02 and WP03 can reference them; the engine's own matrix checks keep their `V` numbers.
 
 | # | Rule | Severity | Why |
 |---|---|---|---|
@@ -178,7 +178,7 @@ The checks are numbered `C1` to `C14` so that WP02 and WP03 can reference them; 
 | C4 | Rule `action` is one of Error, Warning, Info, Hidden, None. Never `Default`. | error | `Default` fails deserialisation. |
 | C5 | Settings: `levels` and `stages` are non-empty ordered arrays; every name lowercases to `^[a-z0-9-]+$`; slugs are unique per array; `stages` contains `default`; every `basedOn` resolves to an existing `base/<slug>.ruleset.json` without a cycle; `twins` is `both`, `appsource` or `pte`; `quarantine.*` is `null` or a list of stage slugs; `baseUrl` has no trailing slash. | error | Every file name and URL is derived from these values. |
 | C6 | Every published level has `base/<slug>.ruleset.json`; every non-default stage has `stages/<slug>.json`; `stages/default.json` does not exist. | error | The default stage is the level result; a file for it would be a second truth. |
-| C7 | Every id in level files, stage files, `base/twins.json`, `overrides.json` and the quarantine files exists in `catalog/diagnostics.json`. | warning until the first scan, then error | Typos never reach an endpoint. |
+| C7 | Every id in level files, stage files, `base/twins.json`, `overrides.json` and the quarantine files exists in `catalog/diagnostics.json`. | warning while `catalog/scan-state.json` is absent, error once it exists (the first scan writes it, WP08) | Typos never reach an endpoint. |
 | C8 | A stage entry whose id no published level enables. | warning | Dead entry; a stage never activates a rule. |
 | C9 | A delta entry equal to what the chain already gives; a file in `base/` or `stages/` that no settings entry references and that is not in `unusedRulebookFiles`. | warning | Dead weight, or a level the org forgot to publish or exclude. |
 | C10 | `overrides.json` selectors are lowercase level and stage slugs from the settings or `["*"]`; every entry has an action; a justification is optional (D37, D40). | error | Silent no-ops are the failure mode of a selector typo. |
@@ -186,8 +186,9 @@ The checks are numbered `C1` to `C14` so that WP02 and WP03 can reference them; 
 | C12 | Regeneration check: `rulesets/` equals the generator's output for the current inputs. | error | The committed endpoint is the published endpoint. |
 | C13 | A quarantine id that a level file now mentions. | warning | Housekeeping. |
 | C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id, and `count` equals the number of pairs. | error | The sparse rule and the twins step depend on them. |
+| C15 | A stage entry on an id the same stage's quarantine file lists and no file on the chain of any published level mentions. | warning | Dead while quarantined: quarantine wins over the stage entry until a level file adopts the id (D41). The stage file is a system file, so this is not an error. |
 
-The effective diff per endpoint against the previous commit is printed as a report on every PR, so reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
+The effective diff per endpoint against the pull request's base branch (`HEAD~1` on a push) is printed as a report on every PR, so reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
 
 ### 5.4 File schemas
 
@@ -269,7 +270,7 @@ All six workflows run on `ubuntu-latest` and call composite actions from `ALCops
 
 ### 7.1 Validate
 
-Trigger: `pull_request`, and called by Publish. Runs the rules of section 5.3, prints the effective diff per endpoint as a job summary, and runs the update check in check mode (warning "updates available", never writes).
+Trigger: `pull_request`, and called by Publish. Runs the rules of section 5.3, prints the effective diff per endpoint against the pull request's base branch (`HEAD~1` on a push) as a job summary, and runs the update check in check mode (warning "updates available", never writes).
 
 ### 7.2 Publish
 
