@@ -21,7 +21,7 @@ How `Rulebook.Generate` decides the action of one id in one endpoint, how it nam
 
 An endpoint is sparse: it lists only the ids whose effective action differs from the analyzer default (D22). A change to one input (an override, a level file, the catalog) can change many endpoints, and a changed catalog default can change what the compiler does without changing a single line in `rulesets/`. A JSON diff of `rulesets/` shows neither well. The effective diff compares, per endpoint and id, the effective action before and after, with the input that decided it on each side.
 
-`Compare-RulebookEndpoints -RepositoryRoot <path> -Ref <git ref>` computes it between a git ref (before) and the working tree (after). The module takes the ref it is given and throws when the ref does not resolve. Choosing the ref is the Validate action's contract (WP03 PR2): the pull request's base branch on a pull request, `HEAD~1` on a push, and "no diff" in the job summary, never a failure, when the ref does not resolve ([ARCHITECTURE.md](../ARCHITECTURE.md) sections 5.3 and 7.1). Later workflows that open pull requests (scan, ChangeRule, update) can reuse it for their bodies.
+`Compare-RulebookEndpoints -RepositoryRoot <path> -Ref <git ref>` computes it between a git ref (before) and the working tree (after). The module takes the ref it is given and throws when the ref does not resolve. Choosing the ref is the Validate action's contract: the pull request's base branch on a pull request, `HEAD~1` on a push, and "no diff" in the job summary, never a failure, when the ref does not resolve ([ARCHITECTURE.md](../ARCHITECTURE.md) sections 5.3, 5.5 and 7.1). Later workflows that open pull requests (scan, ChangeRule, update) can reuse it for their bodies.
 
 ## 2. Provenance tokens
 
