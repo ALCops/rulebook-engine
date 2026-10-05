@@ -182,13 +182,13 @@ The checks are numbered `C1` to `C15` so that WP02 and WP03 can reference them; 
 | C8 | A stage entry whose id no published level enables. | warning | Dead entry; a stage never activates a rule. |
 | C9 | A delta entry equal to what the chain already gives; a file in `base/` or `stages/` that no settings entry references and that is not in `unusedRulebookFiles`. | warning | Dead weight, or a level the org forgot to publish or exclude. |
 | C10 | `overrides.json` selectors are lowercase level and stage slugs from the settings or `["*"]`; every entry has an action; a justification is optional (D37, D40). | error | Silent no-ops are the failure mode of a selector typo. |
-| C11 | No endpoint entry equals the catalog default of its id; exactly the `levels x stages` endpoints and skeletons exist, no others (a missing or extra endpoint is reported by C12 while C12 runs, section 5.5). | error | A listed default is dead weight; the index page and the AL projects rely on the names. |
+| C11 | No endpoint entry equals the catalog default of its id; exactly the `levels x stages` endpoints and skeletons exist, no others. Any file in `rulesets/` or `skeletons/` whose name is not an expected endpoint or skeleton name is C11; while C12 runs, a missing or stray `*.ruleset.json` in `rulesets/` is left to C12 ("would be created", "would be deleted"). The skeleton half applies only when `skeletons/` exists, until WP06 generates the skeletons. | error | A listed default is dead weight; the index page and the AL projects rely on the names. |
 | C12 | Regeneration check: `rulesets/` equals the generator's output for the current inputs. Skipped with one warning while an input the generator needs has an error (section 5.5). | error | The committed endpoint is the published endpoint. |
 | C13 | A quarantine id that a level file now mentions. | warning | Housekeeping. |
 | C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id, and `count` equals the number of pairs. | error | The sparse rule and the twins step depend on them. |
 | C15 | A stage entry on an id the same stage's quarantine file lists and no file on the chain of any published level mentions. | warning | Dead while quarantined: quarantine wins over the stage entry until a level file adopts the id (D41). The stage file is a system file, so this is not an error. |
 
-The effective diff per endpoint is printed as a report on every PR. The Validate action picks the ref (the pull request's base branch, `HEAD~1` on a push) and prints "no diff" when it does not resolve; `Compare-RulebookEndpoints` itself takes `-Ref` and throws on a ref that does not resolve. Reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
+The effective diff per endpoint is printed as a report on every PR. The Validate action picks the ref (the pull request's base branch on a pull request (fetched when absent); on a push, the commit before the push from the event payload, else the last commit (`HEAD~1`)) and prints "no diff" when it does not resolve; `Compare-RulebookEndpoints` itself takes `-Ref` and throws on a ref that does not resolve. Reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
 
 ### 5.4 File schemas
 
@@ -233,9 +233,9 @@ A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`,
 
 `Test-Rulebook -RepositoryRoot [-Json <path>]` returns findings `{ Rule, Severity, File, Id, Message }` ordered by rule, file and id. `Severity` is `error` or `warning`; `File` is repository-relative with `/`, `$null` for a finding about the repository; `Id` is `$null` when the finding is not about one id. `-Json` also writes the list as a JSON array. Schema checks use the profile files under `schemas/` (never the hub). Bad repository content is a finding, never an exception.
 
-- **One finding per cause.** Every condition `Read-RulebookInputs` throws on is one C5, C6 or C14 finding (C1, C2, C4 or C10 for a broken input file). The settings schema is reported only when the explicit C5 checks found nothing. A published level whose file is missing is C6, not also an unresolved `basedOn`. A missing or extra file in `rulesets/` is C12 ("would be created" or "would be deleted") while C12 runs, and C11 only when C12 is skipped; `skeletons/` is C11's alone.
+- **One finding per cause.** A rules file (level, stage, endpoint, skeleton, quarantine) that is not JSON is one C1 finding and is left out of every later check; one that parses gets its C1 schema finding plus C2 to C4, which name the cause precisely. `overrides.json` is C10 when it is not JSON or fails its schema, and only then; with a valid schema, C4 never fires on it and C10 reports unknown selectors. A chain failure (unresolved `basedOn`, cycle) is one C5 finding; a base file on the chain that is not JSON is C1 only, and a published level without its file is C6 only. The settings schema is reported only when the explicit C5 checks found nothing. For the C11 and C12 split, see C11 in section 5.3.
 - **C12 prerequisites.** An error in C1 to C4 on an input file (level, stage, quarantine), in C5, C6, C14, or a schema or JSON failure of `overrides.json` (C10) means the generator cannot run. C12 is then skipped with one warning naming those rules; otherwise it is `Update-RulebookEndpoints -WhatIf`, one error per file that would change.
-- **Order.** C5 runs first; a missing or unparseable settings file is the only finding. Checks that need the settings (C6, C8, C9, C10 selectors, C11, C13, C15) run only when C5 is clean; C7, C8, C9 and the default part of C11 need the catalog.
+- **Order.** A missing or unparseable settings file stops everything: it is the only finding. C1 to C4, C14, the C10 schema check, C7 and the default part of C11 run whatever C5 says (C7 and C11 need the catalog). C6, the C10 selector check and the C11 file set need settings without C5 findings; C8, C9, C13 and C15 need the resolved chains. C12 needs no blocking error.
 
 **Validate action**
 
@@ -243,8 +243,8 @@ A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`,
 
 `Validate.ps1` (`-RepositoryRoot`, `-FailOnWarning`, `-CheckForUpdates`, `-DiffRef`, `-SummaryPath`, `-JsonPath`, `-WorkspaceRoot`) never calls `exit` and returns `{ ExitCode, Findings, Diff, Summary, Annotations, DiffRef }`:
 
-1. `Test-Rulebook`; one workflow command per finding, `::error file=<path>,title=<Rule>::<Id>: <Message>` (or `::warning`), the path relative to the workspace.
-2. The effective diff against `-DiffRef`. The default is `origin/<base branch>` on a pull request (fetched with depth 1 when absent) and `HEAD~1` on a push (deepened when shallow); `-DiffRef ''` disables it. A ref that does not resolve, or a failing comparison, is a note in the summary, never a failure.
+1. `Test-Rulebook`; one workflow command per finding, `::error file=<path>,title=<Rule>::<Id>: <Message>` (or `::warning`), the path relative to the workspace. The runner shows at most 10 error and 10 warning annotations per step; the job summary has the full list.
+2. The effective diff against `-DiffRef`. The default is the pull request's base branch on a pull request (fetched when absent); on a push, the commit before the push from the event payload, else the last commit (`HEAD~1`); other events get no diff. `-DiffRef ''` disables it. A ref that does not resolve, or a failing comparison, is a note in the summary, never a failure.
 3. The job summary: `## Rulebook validation` with the counts and a `| Rule | Severity | File | Id | Message |` table (or "No findings."), then `## Effective diff against <ref>` with one `| Id | Before | After | Decided by |` table per changed endpoint (or "No effective change.").
 4. `errors=` and `warnings=` to `GITHUB_OUTPUT`. `ExitCode` is 1 on any error, or on any warning with `failOnWarning`.
 
@@ -306,7 +306,7 @@ All six workflows run on `ubuntu-latest` and call composite actions from `ALCops
 
 ### 7.1 Validate
 
-Trigger: `pull_request`, and called by Publish. Runs the rules of section 5.3, prints the effective diff per endpoint against the pull request's base branch (`HEAD~1` on a push; the action's choice, "no diff" when the ref does not resolve) as a job summary, and runs the update check in check mode (warning "updates available", never writes).
+Trigger: `pull_request`, and called by Publish. Runs the rules of section 5.3, prints the effective diff per endpoint as a job summary (against the pull request's base branch on a pull request (fetched when absent); on a push, the commit before the push from the event payload, else the last commit (`HEAD~1`); "no diff" when the ref does not resolve), and runs the update check in check mode (warning "updates available", never writes).
 
 ### 7.2 Publish
 
