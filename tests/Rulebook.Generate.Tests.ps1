@@ -236,6 +236,28 @@ Describe 'Read-RulesetFile and Read-StageFile' {
         { Read-RulesetFile -Path $path } | Should-Throw -ExceptionMessage "*has '$Key'*"
     }
 
+    It 'keeps ids that differ only in case apart (ordinal keys)' {
+        $path = Join-Path $TestDrive 'case.ruleset.json'
+        Write-FixtureText -Path $path -Text '{ "name": "x", "rules": [ { "id": "AL0001", "action": "Info" }, { "id": "al0001", "action": "None" } ] }'
+        $file = Read-RulesetFile -Path $path
+        $file.Rules.Count | Should-Be 2
+        $file.Rules['AL0001'].Action | Should-Be 'Info'
+        $file.Rules['al0001'].Action | Should-Be 'None'
+    }
+
+    It 'reads a justification that looks like a date as text (<Json>)' -ForEach @(
+        @{ Json = '2026-10-03'; Expected = '2026-10-03' }
+        @{ Json = '2026-10-03T10:00:00'; Expected = '2026-10-03T10:00:00' }
+        @{ Json = '2026-10-03T10:00:00Z'; Expected = '2026-10-03T10:00:00Z' }
+        @{ Json = '2026-10-03T12:00:00+02:00'; Expected = '2026-10-03T10:00:00Z' }
+    ) {
+        $path = Join-Path $TestDrive 'date.ruleset.json'
+        Write-FixtureText -Path $path -Text ('{ "name": "x", "rules": [ { "id": "AL0001", "action": "Info", "justification": "' + $Json + '" } ] }')
+        $justification = (Read-RulesetFile -Path $path).Rules['AL0001'].Justification
+        $justification | Should-HaveType ([string])
+        $justification | Should-Be $Expected
+    }
+
     It 'throws on an id listed twice' {
         $root = Copy-Fixture 'duplicate-id'
         { Read-RulesetFile -Path (Join-Path $root 'base' 'strict.ruleset.json') } | Should-Throw -ExceptionMessage '*lists AA0137 twice*'
@@ -340,6 +362,12 @@ Describe 'Read-Overrides' {
         $entries[0].Specificity | Should-Be 1
     }
 
+    It 'throws on a selector that mixes * with slugs' {
+        $path = Join-Path $TestDrive 'overrides-mixed.json'
+        Write-FixtureText -Path $path -Text '{ "rules": [ { "id": "AL0200", "action": "Info", "levels": ["*", "strict"], "stages": ["*"] } ] }'
+        { Read-Overrides -Path $path } | Should-Throw -ExceptionMessage "*mixes '*' with other values in levels*"
+    }
+
     It 'reports an unknown slug, and throws on it with -Strict' {
         $root = Copy-Fixture 'bad-selector'
         $path = Join-Path $root 'overrides.json'
@@ -355,6 +383,50 @@ Describe 'Read-Overrides' {
         foreach ($key in $shippedKeys) {
             (Get-EffectiveAction -Inputs $bad -Id 'LC0001' -Level $key.Level -Stage $key.Stage).Source | Should-Be 'default'
         }
+    }
+}
+
+Describe 'Read-RulebookInputs checks' {
+    It 'throws when stages/default.json exists' {
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root 'stages' 'default.json') -Text '{ "name": "x", "rules": [] }'
+        { Read-RulebookInputs -RepositoryRoot $root } | Should-Throw -ExceptionMessage 'stages/default.json must not exist*'
+    }
+
+    It 'throws on a twins value outside both, appsource and pte' {
+        { Read-RulebookInputs -RepositoryRoot (Copy-Fixture 'bad-twins-value') } | Should-Throw -ExceptionMessage "*twins is 'all'*"
+    }
+
+    It 'reads a missing twins setting as both' {
+        $root = Copy-Fixture
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.Remove('twins') }
+        (Read-RulebookInputs -RepositoryRoot $root).TwinsSetting | Should-Be 'both'
+    }
+
+    It 'throws on a <Kind> name that is not a slug' -ForEach @(@{ Kind = 'levels'; Name = 'Very.Strict' }, @{ Kind = 'stages'; Name = '../ci' }) {
+        $root = Copy-Fixture
+        $kind = $Kind; $name = $Name
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_[$kind] += @{ name = $name } }
+        { Read-RulebookInputs -RepositoryRoot $root } | Should-Throw -ExceptionMessage "*$Kind entry '$Name' does not lowercase to a slug*"
+    }
+
+    It 'throws on a slug used twice' {
+        $root = Copy-Fixture
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.levels += @{ name = 'STRICT'; basedOn = 'Recommended' } }
+        { Read-RulebookInputs -RepositoryRoot $root } | Should-Throw -ExceptionMessage "*levels slug 'strict' is used twice*"
+    }
+
+    It 'Read-Twins throws on a side in two pairs' {
+        $path = Join-Path $TestDrive 'twins-duplicate.json'
+        Write-FixtureText -Path $path -Text '{ "pairs": [ { "pte": "PTE0003", "appsource": "AS0061" }, { "pte": "PTE0003", "appsource": "AS0048" } ] }'
+        { Read-Twins -Path $path } | Should-Throw -ExceptionMessage '*lists PTE0003 in two pairs*'
+    }
+
+    It 'Get-EffectiveAction -Inputs throws on an unknown <What> slug' -ForEach @(
+        @{ What = 'level'; Level = 'paranoid'; Stage = 'ci' }
+        @{ What = 'stage'; Level = 'strict'; Stage = 'nightly' }
+    ) {
+        { Get-EffectiveAction -Inputs $inputs -Id 'AL0200' -Level $Level -Stage $Stage } | Should-Throw -ExceptionMessage "Unknown $What slug*"
     }
 }
 
@@ -492,8 +564,17 @@ Describe 'Entry order' {
     }
 
     It 'puts LC0089 before LC0089i' {
-        Get-DiagnosticSortKey -Id 'LC0089' | Should-Be '0700890'
-        Get-DiagnosticSortKey -Id 'LC0089i' | Should-Be '0700891'
+        Get-DiagnosticSortKey -Id 'LC0089' | Should-Be '070000890'
+        Get-DiagnosticSortKey -Id 'LC0089i' | Should-Be '070000891'
+    }
+
+    It 'sorts AL10000 after AL9999 and never throws on a long or malformed id' {
+        [string]::CompareOrdinal((Get-DiagnosticSortKey -Id 'AL9999'), (Get-DiagnosticSortKey -Id 'AL10000')) | Should-BeLessThan 0
+        $long = 'AL' + ('9' * 20)
+        $key = Get-DiagnosticSortKey -Id $long
+        $key | Should-Be ('99~' + $long)
+        [string]::CompareOrdinal((Get-DiagnosticSortKey -Id 'ZZ0001'), $key) | Should-BeLessThan 0
+        Get-DiagnosticSortKey -Id 'not an id' | Should-Be '99~not an id'
     }
 
     It 'sorts override-only and quarantine-only ids in place' {
@@ -823,9 +904,33 @@ Describe 'Compare-RulebookEndpoints' -Skip:$gitMissing {
         (Read-RulebookInputs -RepositoryRoot $root -Ref 'HEAD').Source | Should-Be 'ref:HEAD'
     }
 
-    It 'throws on an unknown ref' {
+    It 'throws on an unknown ref and on a ref that looks like an option (<Ref>)' -ForEach @(@{ Ref = 'no-such-ref' }, @{ Ref = '--all' }, @{ Ref = '-p' }) {
         $root = Initialize-DiffRepo
-        { Compare-RulebookEndpoints -RepositoryRoot $root -Ref 'no-such-ref' } | Should-Throw -ExceptionMessage "Unknown git ref 'no-such-ref'*"
+        { Compare-RulebookEndpoints -RepositoryRoot $root -Ref $Ref } | Should-Throw -ExceptionMessage "Unknown git ref '$Ref'*"
+    }
+
+    It 'shows a justification that looks like a date as that date' {
+        $root = Initialize-DiffRepo
+        Edit-FixtureJson -Path (Join-Path $root 'overrides.json') -Script {
+            ($_.rules | Where-Object { $_.id -eq 'LC0029' }).justification = '2026-10-03T00:00:00'
+        }
+        $null = New-FixtureGitRepo -Root $root -Message 'dated'
+        Edit-FixtureJson -Path (Join-Path $root 'overrides.json') -Script { $_.rules = @($_.rules | Where-Object { $_.id -ne 'LC0029' }) }
+        $rows = @(Compare-RulebookEndpoints -RepositoryRoot $root -Ref 'HEAD')
+        $rows.Count | Should-Be 1
+        $rows[0].Text | Should-Be 'LC0029: None (override, "2026-10-03") -> Warning (level:recommended)'
+        $rows[0].BeforeDetail | Should-HaveType ([string])
+    }
+
+    It 'reads a committed file with a byte order mark like the working tree does' {
+        $root = Copy-Fixture
+        $path = Join-Path $root 'overrides.json'
+        $bytes = [byte[]](@(0xEF, 0xBB, 0xBF) + [System.IO.File]::ReadAllBytes($path))
+        [System.IO.File]::WriteAllBytes($path, $bytes)
+        $null = New-FixtureGitRepo -Root $root -Message 'bom'
+        $atRef = Read-RulebookInputs -RepositoryRoot $root -Ref 'HEAD'
+        $atRef.Overrides.Count | Should-Be 2
+        @(Compare-RulebookEndpoints -RepositoryRoot $root -Ref 'HEAD').Count | Should-Be 0
     }
 }
 

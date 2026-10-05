@@ -28,6 +28,31 @@ function Get-OrdinalSet {
     return , [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 }
 
+function Get-OrdinalMap {
+    # An insertion-ordered map with ordinal keys. [ordered]@{} compares keys case-insensitively, so AL0001 and
+    # al0001 would collide; the catalog map is ordinal too.
+    return , [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
+}
+
+function ConvertTo-TextValue {
+    # ConvertFrom-Json -AsHashtable turns an ISO date-time string such as "2026-10-03T10:00:00" into a [DateTime]
+    # (pwsh 7.4 has no -DateKind). Justifications and titles are text, so such a value is formatted back,
+    # culture-free and independent of the machine's time zone: a value with an offset or Z (Local or Utc kind)
+    # as the UTC instant with Z, a value without one as written, a midnight value as the date alone.
+    param($Value)
+    if ($Value -is [System.DateTimeOffset]) { $Value = $Value.UtcDateTime }
+    if ($Value -is [System.DateTime]) {
+        $invariant = [System.Globalization.CultureInfo]::InvariantCulture
+        if ($Value.Kind -ne [System.DateTimeKind]::Unspecified) {
+            return $Value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", $invariant)
+        }
+        if ($Value.TimeOfDay -eq [System.TimeSpan]::Zero) { return $Value.ToString('yyyy-MM-dd', $invariant) }
+        return $Value.ToString('s', $invariant)
+    }
+    if ($null -eq $Value) { return $null }
+    return [string]$Value
+}
+
 function Get-MemberValue {
     # Reads a property of a pscustomobject or a key of a dictionary; $null when absent (StrictMode safe).
     param($Object, [string]$Name)
@@ -77,7 +102,7 @@ function ConvertFrom-RulesetText {
     if (-not $json.Contains('rules') -or $json['rules'] -isnot [System.Collections.IList]) {
         throw "$Path has no rules array"
     }
-    $rules = [ordered]@{}
+    $rules = Get-OrdinalMap
     foreach ($rule in $json['rules']) {
         if ($rule -isnot [System.Collections.IDictionary]) { throw "$Path has a rule that is not an object" }
         $id = [string]$rule['id']
@@ -85,7 +110,7 @@ function ConvertFrom-RulesetText {
         $action = [string]$rule['action']
         Assert-RuleAction -Action $action -Id $id -Path $Path
         if ($rules.Contains($id)) { throw "$Path lists $id twice (C2)" }
-        $rules[$id] = [pscustomobject]@{ Action = $action; Justification = $rule['justification'] }
+        $rules[$id] = [pscustomobject]@{ Action = $action; Justification = ConvertTo-TextValue $rule['justification'] }
     }
     return [pscustomobject]@{
         PSTypeName  = 'Rulebook.RulesetFile'
@@ -127,6 +152,11 @@ function ConvertFrom-OverridesText {
         $stages = @($rule['stages'] | Where-Object { $null -ne $_ } | ForEach-Object { [string]$_ })
         if ($levels.Count -eq 0) { throw "$Path entry $index ($id) has no levels selector" }
         if ($stages.Count -eq 0) { throw "$Path entry $index ($id) has no stages selector" }
+        foreach ($selector in @(@{ Name = 'levels'; Values = $levels }, @{ Name = 'stages'; Values = $stages })) {
+            if ($selector.Values.Count -gt 1 -and $selector.Values -contains '*') {
+                throw "$Path entry $index ($id) mixes '*' with other values in $($selector.Name); use ['*'] alone or a list of slugs"
+            }
+        }
         $levelWildcard = $levels.Count -eq 1 -and $levels[0] -eq '*'
         $stageWildcard = $stages.Count -eq 1 -and $stages[0] -eq '*'
         $specificity = 0
@@ -150,7 +180,7 @@ function ConvertFrom-OverridesText {
                 Action           = $action
                 Levels           = $levels
                 Stages           = $stages
-                Justification    = $rule['justification']
+                Justification    = ConvertTo-TextValue $rule['justification']
                 Specificity      = $specificity
                 Index            = $index
                 UnknownSelectors = $unknown.ToArray()
@@ -166,13 +196,13 @@ function ConvertFrom-QuarantineText {
     if (-not $json.Contains('rules') -or $json['rules'] -isnot [System.Collections.IList]) {
         throw "$Path has no rules array"
     }
-    $ids = [ordered]@{}
+    $ids = Get-OrdinalMap
     foreach ($rule in $json['rules']) {
         if ($rule -isnot [System.Collections.IDictionary]) { throw "$Path has an entry that is not an object" }
         $id = [string]$rule['id']
         if ([string]::IsNullOrEmpty($id)) { throw "$Path has an entry without an id" }
         if ($ids.Contains($id)) { throw "$Path lists $id twice (C2)" }
-        $ids[$id] = $rule['justification']
+        $ids[$id] = ConvertTo-TextValue $rule['justification']
     }
     return $ids
 }
@@ -183,7 +213,7 @@ function Get-EmptyTwinSet {
         Pairs          = @()
         PteSides       = Get-OrdinalSet
         AppSourceSides = Get-OrdinalSet
-        BySide         = @{}
+        BySide         = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::Ordinal)
         Count          = 0
         Path           = $null
     }
@@ -197,9 +227,12 @@ function ConvertFrom-TwinsText {
     $pairs = [System.Collections.Generic.List[object]]::new()
     foreach ($pair in @($json['pairs'] | Where-Object { $null -ne $_ })) {
         if ($pair -isnot [System.Collections.IDictionary]) { throw "$Path has a pair that is not an object" }
-        $item = [pscustomobject]@{ Pte = [string]$pair['pte']; AppSource = [string]$pair['appsource']; Title = $pair['title'] }
+        $item = [pscustomobject]@{ Pte = [string]$pair['pte']; AppSource = [string]$pair['appsource']; Title = ConvertTo-TextValue $pair['title'] }
         if ([string]::IsNullOrEmpty($item.Pte) -or [string]::IsNullOrEmpty($item.AppSource)) {
             throw "$Path has a pair without a pte or an appsource id"
+        }
+        foreach ($side in $item.Pte, $item.AppSource) {
+            if ($twins.BySide.ContainsKey($side)) { throw "$Path lists $side in two pairs (C2)" }
         }
         $pairs.Add($item)
         [void]$twins.PteSides.Add($item.Pte)
@@ -283,14 +316,17 @@ function Get-FileSource {
     if (-not (Test-Path -LiteralPath $Root -PathType Container)) { throw "Repository root not found: $Root" }
     $full = (Resolve-Path -LiteralPath $Root).ProviderPath
     if ([string]::IsNullOrEmpty($Ref)) {
-        return [pscustomobject]@{ Root = $full; Ref = $null; Prefix = ''; Paths = $null; Source = 'worktree' }
+        return [pscustomobject]@{ Root = $full; Ref = $null; Sha = $null; Prefix = ''; Paths = $null; Source = 'worktree' }
     }
     $prefixResult = Invoke-Git -Root $full -Arguments @('rev-parse', '--show-prefix')
     if ($prefixResult.ExitCode -ne 0) { throw "Not a git repository: $full ($($prefixResult.Error.Trim()))" }
     $prefix = $prefixResult.Output.Trim()
+    # A ref that starts with '-' would reach git as an option; resolve the ref once and use the sha from then on.
+    if ($Ref.StartsWith('-')) { throw "Unknown git ref '$Ref' in $full" }
     $verify = Invoke-Git -Root $full -Arguments @('rev-parse', '--verify', '--quiet', "$Ref^{commit}")
-    if ($verify.ExitCode -ne 0) { throw "Unknown git ref '$Ref' in $full" }
-    $tree = Invoke-Git -Root $full -Arguments @('ls-tree', '-r', '-z', '--name-only', '--full-tree', $Ref)
+    $sha = $verify.Output.Trim()
+    if ($verify.ExitCode -ne 0 -or $sha -notmatch '^[0-9a-f]{40,64}$') { throw "Unknown git ref '$Ref' in $full" }
+    $tree = Invoke-Git -Root $full -Arguments @('ls-tree', '-r', '-z', '--name-only', '--full-tree', $sha, '--')
     if ($tree.ExitCode -ne 0) { throw "git ls-tree $Ref failed: $($tree.Error.Trim())" }
     $paths = Get-OrdinalSet
     foreach ($line in $tree.Output.Split([char]0)) {
@@ -298,7 +334,7 @@ function Get-FileSource {
             [void]$paths.Add($line.Substring($prefix.Length))
         }
     }
-    return [pscustomobject]@{ Root = $full; Ref = $Ref; Prefix = $prefix; Paths = $paths; Source = "ref:$Ref" }
+    return [pscustomobject]@{ Root = $full; Ref = $Ref; Sha = $sha; Prefix = $prefix; Paths = $paths; Source = "ref:$Ref" }
 }
 
 function Read-SourceText {
@@ -309,9 +345,10 @@ function Read-SourceText {
         return Get-Content -LiteralPath $full -Raw
     }
     if (-not $Source.Paths.Contains($Path)) { return $null }
-    $show = Invoke-Git -Root $Source.Root -Arguments @('show', "$($Source.Ref):$($Source.Prefix)$Path")
+    $show = Invoke-Git -Root $Source.Root -Arguments @('show', "$($Source.Sha):$($Source.Prefix)$Path", '--')
     if ($show.ExitCode -ne 0) { throw "git show $($Source.Ref):$Path failed: $($show.Error.Trim())" }
-    return $show.Output
+    # Get-Content drops a byte order mark on the worktree side; do the same here so both sides parse alike.
+    return $show.Output.TrimStart([char]0xFEFF)
 }
 
 function Get-SourcePath {
@@ -552,7 +589,7 @@ function Resolve-LevelChain {
         [Parameter(Mandatory, ParameterSetName = 'Directory')][string]$BaseDir
     )
     if ($PSCmdlet.ParameterSetName -eq 'Directory') {
-        $LevelFiles = [ordered]@{}
+        $LevelFiles = Get-OrdinalMap
         if (Test-Path -LiteralPath $BaseDir -PathType Container) {
             foreach ($file in Get-ChildItem -LiteralPath $BaseDir -File -Filter '*.ruleset.json') {
                 $LevelFiles[$file.Name -replace '\.ruleset\.json$', ''] = Read-RulesetFile -Path $file.FullName
@@ -567,8 +604,8 @@ function Resolve-LevelChain {
         $names[$entry.Slug] = $entry.Name
     }
 
-    $chains = [ordered]@{}
-    $chainFiles = [ordered]@{}
+    $chains = Get-OrdinalMap
+    $chainFiles = Get-OrdinalMap
     foreach ($entry in $entries) {
         if (-not $LevelFiles.Contains($entry.Slug)) {
             throw "Missing level file base/$($entry.Slug).ruleset.json for level '$($entry.Name)'"
@@ -588,7 +625,7 @@ function Resolve-LevelChain {
             $current = $next
         }
         $path.Reverse()
-        $chain = [ordered]@{}
+        $chain = Get-OrdinalMap
         foreach ($slug in $path) {
             foreach ($rule in $LevelFiles[$slug].Rules.GetEnumerator()) {
                 $chain[$rule.Key] = [pscustomobject]@{ Action = $rule.Value.Action; Slug = $slug; Justification = $rule.Value.Justification }
@@ -690,13 +727,13 @@ function Read-RulebookInputs {
         Stages          = @()
         TwinsSetting    = 'both'
         Twins           = Get-EmptyTwinSet
-        LevelFiles      = [ordered]@{}
-        Chains          = [ordered]@{}
-        ChainFiles      = [ordered]@{}
-        StageDeltas     = [ordered]@{}
+        LevelFiles      = Get-OrdinalMap
+        Chains          = Get-OrdinalMap
+        ChainFiles      = Get-OrdinalMap
+        StageDeltas     = Get-OrdinalMap
         Overrides       = @()
         OverridesById   = @{}
-        Quarantine      = [ordered]@{}
+        Quarantine      = Get-OrdinalMap
         Catalog         = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::Ordinal)
     }
 
@@ -713,7 +750,23 @@ function Read-RulebookInputs {
     $inputs.Stages = @($settings['stages'] | Where-Object { $null -ne $_ } | ForEach-Object {
             [pscustomobject]@{ Name = [string]$_['name']; Slug = Get-Slug $_['name']; Description = $_['description'] }
         })
-    if ($settings.Contains('twins') -and -not [string]::IsNullOrEmpty($settings['twins'])) { $inputs.TwinsSetting = [string]$settings['twins'] }
+    foreach ($kind in @(@{ Name = 'levels'; Items = $inputs.Levels }, @{ Name = 'stages'; Items = $inputs.Stages })) {
+        # The slug becomes a file name and a URL segment: no dots, no slashes, unique per array (C5).
+        $seen = Get-OrdinalSet
+        foreach ($item in $kind.Items) {
+            if ($null -eq $item.Slug -or $item.Slug -cnotmatch '^[a-z0-9-]+$') {
+                throw "$($script:SettingsPath)`: $($kind.Name) entry '$($item.Name)' does not lowercase to a slug matching ^[a-z0-9-]+$ (C5)"
+            }
+            if (-not $seen.Add($item.Slug)) { throw "$($script:SettingsPath)`: $($kind.Name) slug '$($item.Slug)' is used twice (C5)" }
+        }
+    }
+    if ($settings.Contains('twins') -and $null -ne $settings['twins']) {
+        $twinsSetting = [string]$settings['twins']
+        if ($twinsSetting -cnotin 'both', 'appsource', 'pte') {
+            throw "$($script:SettingsPath)`: twins is '$twinsSetting'; allowed are both, appsource and pte (C5)"
+        }
+        $inputs.TwinsSetting = $twinsSetting
+    }
 
     $twinsText = Read-SourceText -Source $source -Path $script:TwinsPath
     if ($null -ne $twinsText) { $inputs.Twins = ConvertFrom-TwinsText -Text $twinsText -Path $script:TwinsPath }
@@ -726,12 +779,14 @@ function Read-RulebookInputs {
     $inputs.Chains = $resolved.Chains
     $inputs.ChainFiles = $resolved.ChainFiles
 
+    if (@(Get-SourcePath -Source $source -Directory 'stages' -Filter 'default.json').Count -gt 0) {
+        throw 'stages/default.json must not exist; the default stage is the level result (C6)'
+    }
     foreach ($stage in $inputs.Stages) {
         if ($stage.Slug -eq 'default') { continue }
         $path = "stages/$($stage.Slug).json"
         $text = Read-SourceText -Source $source -Path $path
         if ($null -eq $text) { throw "Missing stage file $path for stage '$($stage.Name)'" }
-        Assert-NotDefaultStageFile -Path $path
         $inputs.StageDeltas[$stage.Slug] = (ConvertFrom-RulesetText -Text $text -Path $path).Rules
     }
 
@@ -750,7 +805,7 @@ function Read-RulebookInputs {
     foreach ($stage in $inputs.Stages) {
         $path = "quarantine.$($stage.Slug).json"
         $text = Read-SourceText -Source $source -Path $path
-        $inputs.Quarantine[$stage.Slug] = if ($null -ne $text) { ConvertFrom-QuarantineText -Text $text -Path $path } else { [ordered]@{} }
+        $inputs.Quarantine[$stage.Slug] = if ($null -ne $text) { ConvertFrom-QuarantineText -Text $text -Path $path } else { Get-OrdinalMap }
     }
 
     $catalogText = Read-SourceText -Source $source -Path $script:CatalogPath
@@ -789,6 +844,8 @@ function Get-EffectiveAction {
         [Parameter(Mandatory, ParameterSetName = 'Explicit')][AllowNull()]$Catalog
     )
     if ($PSCmdlet.ParameterSetName -eq 'Inputs') {
+        if ($null -eq (Get-InputsLevel -Inputs $Inputs -Level $Level)) { throw "Unknown level slug '$Level'" }
+        if ($null -eq (Get-InputsStage -Inputs $Inputs -Stage $Stage)) { throw "Unknown stage slug '$Stage'" }
         return Resolve-EffectiveFromInput -Inputs $Inputs -Id $Id -Level $Level -Stage $Stage
     }
     return Resolve-Effective -Id $Id -Level $Level -Stage $Stage -Chain $Chain -StageDelta $StageDelta -Twins $Twins `
@@ -832,7 +889,7 @@ function Get-RulebookEndpoint {
     )
     foreach ($id in $sources) { if ($null -ne $id -and $seen.Add([string]$id)) { $candidates.Add([string]$id) } }
 
-    $table = [ordered]@{}
+    $table = Get-OrdinalMap
     $listed = [System.Collections.Generic.List[object]]::new()
     foreach ($id in $candidates) {
         $overrides = if ($Inputs.OverridesById.ContainsKey($id)) { $Inputs.OverridesById[$id].ToArray() } else { @() }
@@ -890,7 +947,7 @@ function Update-RulebookEndpoints {
             $change = $null
             if (-not $existing.ContainsKey($leaf)) {
                 $change = 'created'
-            } elseif ([System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($existing[$leaf])) -cne [System.Convert]::ToBase64String($bytes)) {
+            } elseif (-not [System.Linq.Enumerable]::SequenceEqual([byte[]][System.IO.File]::ReadAllBytes($existing[$leaf]), [byte[]]$bytes)) {
                 $change = 'modified'
             }
             if ($null -ne $change) {
@@ -904,21 +961,29 @@ function Update-RulebookEndpoints {
     $changes = [System.Collections.Generic.List[object]]::new()
     # Deletions first: on a case-insensitive file system an orphan 'Strict.ruleset.json' is the same file as the
     # 'strict.ruleset.json' written below.
+    # A change is reported when it was made, or under -WhatIf (that list is the C12 contract); a change declined at
+    # a -Confirm prompt is not reported.
+    $deleted = [System.Collections.Generic.List[string]]::new()
     foreach ($leaf in $orphans) {
         $file = "rulesets/$leaf"
         if ($PSCmdlet.ShouldProcess($file, 'Delete endpoint no levels x stages entry produces')) {
             [System.IO.File]::Delete($existing[$leaf])
+            $deleted.Add($file)
+        } elseif ($WhatIfPreference) {
+            $deleted.Add($file)
         }
     }
     foreach ($item in $planned) {
         if ($PSCmdlet.ShouldProcess($item.File, "Write endpoint ($($item.Change))")) {
             if (-not (Test-Path -LiteralPath $directory -PathType Container)) { [void][System.IO.Directory]::CreateDirectory($directory) }
             [System.IO.File]::WriteAllBytes($item.Path, $item.Bytes)
+        } elseif (-not $WhatIfPreference) {
+            continue
         }
         $changes.Add([pscustomobject]@{ PSTypeName = 'Rulebook.EndpointChange'; File = $item.File; Change = $item.Change })
     }
-    foreach ($leaf in $orphans) {
-        $changes.Add([pscustomobject]@{ PSTypeName = 'Rulebook.EndpointChange'; File = "rulesets/$leaf"; Change = 'deleted' })
+    foreach ($file in $deleted) {
+        $changes.Add([pscustomobject]@{ PSTypeName = 'Rulebook.EndpointChange'; File = $file; Change = 'deleted' })
     }
     return $changes.ToArray()
 }
@@ -1077,12 +1142,14 @@ function Get-DiagnosticSortKey {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)][string]$Id)
+    # Never throws: an id that does not match the pattern, or whose number has more than six digits, sorts after
+    # every other id ('~' is above every letter and digit in ASCII).
     $match = [regex]::Match($Id, '^([A-Z]+)([0-9]+)(i?)$')
-    if (-not $match.Success) { return '99~' + $Id }
+    if (-not $match.Success -or $match.Groups[2].Value.Length -gt 6) { return '99~' + $Id }
     $index = [System.Array]::IndexOf($script:PrefixOrder, $match.Groups[1].Value)
     $head = if ($index -ge 0) { '{0:00}' -f $index } else { '99' + $match.Groups[1].Value }
     $suffix = if ($match.Groups[3].Value -ceq 'i') { '1' } else { '0' }
-    return $head + ('{0:0000}' -f [int]$match.Groups[2].Value) + $suffix
+    return $head + ('{0:000000}' -f [long]$match.Groups[2].Value) + $suffix
 }
 
 #endregion
