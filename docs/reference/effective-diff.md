@@ -21,7 +21,7 @@ How `Rulebook.Generate` decides the action of one id in one endpoint, how it nam
 
 An endpoint is sparse: it lists only the ids whose effective action differs from the analyzer default (D22). A change to one input (an override, a level file, the catalog) can change many endpoints, and a changed catalog default can change what the compiler does without changing a single line in `rulesets/`. A JSON diff of `rulesets/` shows neither well. The effective diff compares, per endpoint and id, the effective action before and after, with the input that decided it on each side.
 
-`Compare-RulebookEndpoints -RepositoryRoot <path> -Ref <git ref>` computes it between a git ref (before) and the working tree (after). The `Validate` workflow prints it as a job summary on every pull request, against the pull request's base branch (`HEAD~1` on a push; [ARCHITECTURE.md](../ARCHITECTURE.md) sections 5.3 and 7.1). Later workflows that open pull requests (scan, ChangeRule, update) can reuse it for their bodies.
+`Compare-RulebookEndpoints -RepositoryRoot <path> -Ref <git ref>` computes it between a git ref (before) and the working tree (after). The module takes the ref it is given and throws when the ref does not resolve. Choosing the ref is the Validate action's contract (WP03 PR2): the pull request's base branch on a pull request, `HEAD~1` on a push, and "no diff" in the job summary, never a failure, when the ref does not resolve ([ARCHITECTURE.md](../ARCHITECTURE.md) sections 5.3 and 7.1). Later workflows that open pull requests (scan, ChangeRule, update) can reuse it for their bodies.
 
 ## 2. Provenance tokens
 
@@ -111,6 +111,8 @@ Essential sets AL0432 to `None`. `stages/ci.json` says `Info`, but a stage never
 
 The fixture `quarantined-stage-entry` adds `{ "id": "LC0099", "action": "Info" }` to `stages/ci.json`. LC0099 is in `quarantine.ci.json` and no level file mentions it. Its level result is `None` (`quarantine`), so the stage entry does not apply and LC0099 stays `None` in every `*.ci` endpoint; the endpoints are byte-identical to `valid-minimal`. Validation reports the stage entry as C15, a warning: it is dead until a level file adopts LC0099, after which the chain wins over quarantine and the stage entry applies to the chain's action.
 
+The generator decides quarantine per endpoint, from that level's chain. So the same stage entry can be dead in one level (no file on its chain mentions the id) and live in another (a file on its chain does). C15 fires only when the entry is dead in every published level.
+
 ### 4.4 Specificity and ties
 
 For one id and endpoint, every matching override entry is a candidate. The one with more non-wildcard selectors wins (`["recommended"]`/`["*"]` beats `["*"]`/`["*"]`, `["recommended"]`/`["ci"]` beats both), whatever the order in the file. Between equally specific entries the later one wins. An override whose action equals the analyzer default is valid and unlists the id: AA0072 `Warning` for `["essential"]` gives `Warning` (`override`), equal to the default, so `essential.*` stop listing it.
@@ -140,7 +142,7 @@ Each example commits `valid-minimal`, changes one input in the working tree and 
 
 The changed default is why the diff compares effective actions: LC0001 changes what the compiler does in every endpoint while `rulesets/` stays byte-identical, and AW0006 leaves the effective action unchanged while nine endpoint files lose a line. Every catalog id whose default differs between the two sides is compared, mentioned by an input or not.
 
-A ref without `.github/Rulebook-Settings.json` (a commit before the rulebook existed, or the first pull request of a fixture) is an empty rulebook: every endpoint is `endpoint-added`. An unknown ref throws; the action reports that as "no diff" and does not fail.
+A ref without `.github/Rulebook-Settings.json` (a commit before the rulebook existed, or the first pull request of a fixture) is an empty rulebook: every endpoint is `endpoint-added`. An unknown ref, or one that starts with `-`, throws; the action reports that as "no diff" and does not fail.
 
 ## 6. Reading the output
 

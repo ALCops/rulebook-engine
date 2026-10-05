@@ -188,7 +188,7 @@ The checks are numbered `C1` to `C15` so that WP02 and WP03 can reference them; 
 | C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id, and `count` equals the number of pairs. | error | The sparse rule and the twins step depend on them. |
 | C15 | A stage entry on an id the same stage's quarantine file lists and no file on the chain of any published level mentions. | warning | Dead while quarantined: quarantine wins over the stage entry until a level file adopts the id (D41). The stage file is a system file, so this is not an error. |
 
-The effective diff per endpoint against the pull request's base branch (`HEAD~1` on a push) is printed as a report on every PR, so reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
+The effective diff per endpoint is printed as a report on every PR. The Validate action picks the ref (the pull request's base branch, `HEAD~1` on a push) and prints "no diff" when it does not resolve; `Compare-RulebookEndpoints` itself takes `-Ref` and throws on a ref that does not resolve. Reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
 
 ### 5.4 File schemas
 
@@ -270,7 +270,7 @@ All six workflows run on `ubuntu-latest` and call composite actions from `ALCops
 
 ### 7.1 Validate
 
-Trigger: `pull_request`, and called by Publish. Runs the rules of section 5.3, prints the effective diff per endpoint against the pull request's base branch (`HEAD~1` on a push) as a job summary, and runs the update check in check mode (warning "updates available", never writes).
+Trigger: `pull_request`, and called by Publish. Runs the rules of section 5.3, prints the effective diff per endpoint against the pull request's base branch (`HEAD~1` on a push; the action's choice, "no diff" when the ref does not resolve) as a job summary, and runs the update check in check mode (warning "updates available", never writes).
 
 ### 7.2 Publish
 
