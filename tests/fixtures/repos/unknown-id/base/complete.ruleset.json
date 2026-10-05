@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook Complete",
+  "description": "Level complete, basedOn strict. Lists the ids whose action differs from strict. Test fixture.",
+  "rules": [
+    { "id": "PC0001", "action": "Error" },
+    { "id": "LC0054", "action": "Info" },
+    { "id": "CM0001", "action": "Warning" },
+    { "id": "LC0999", "action": "Info", "justification": "Fixture: an id the catalog does not know" }
+  ]
+}

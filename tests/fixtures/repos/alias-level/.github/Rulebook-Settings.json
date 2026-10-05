@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-settings.schema.json",
+  "templateUrl": "https://github.com/ALCops/rulebook@main",
+  "templateSha": "",
+  "baseUrl": "https://contoso.github.io/rulebook",
+  "publish": { "target": "pages" },
+  "twins": "both",
+  "quarantine": { "stages": null, "prereleaseStages": null },
+  "levels": [
+    { "name": "Essential", "description": "Cannot ship without: runtime failures, the deployment blockers of both Microsoft cops, compiler future errors, PlatformCop." },
+    { "name": "Recommended", "basedOn": "Essential", "description": "Every default-on rule at its author severity; marketplace checks join here." },
+    { "name": "Baseline", "basedOn": "Recommended", "description": "An alias of Recommended under another name." },
+    { "name": "Strict", "basedOn": "Recommended", "description": "Recommended with advisory rules promoted to Warning." },
+    { "name": "Complete", "basedOn": "Strict", "description": "Strict plus every opt-in rule." }
+  ],
+  "stages": [
+    { "name": "default", "description": "Editor and any consumer without its own stage. The level result as is." },
+    { "name": "CI", "description": "Pull request and release builds. Postponable diagnostics relaxed to Info." },
+    { "name": "vNext", "description": "Builds against the next platform. Future errors at Error, obsolete-pending at Warning." }
+  ],
+  "ghTokenWorkflowSecretName": "GHTOKENWORKFLOW",
+  "commitOptions": { "createPullRequest": true, "pullRequestLabels": ["rulebook"] },
+  "site": { "enabled": true, "includeJustifications": false, "updateMode": "skip" },
+  "unusedRulebookFiles": []
+}

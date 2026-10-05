@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook stage CI",
+  "description": "Stage ci. Applied on top of every level where the level result is not None. Test fixture.",
+  "rules": [
+    { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI; S-2" },
+    { "id": "AL0603", "action": "Info", "justification": "Implicit conversion is advisory in CI; S-2" },
+    { "id": "AL1026", "action": "Info" }
+  ]
+}
