@@ -8,9 +8,10 @@ appends a Markdown summary to -SummaryPath, writes the errors and warnings outpu
 { ExitCode, Findings, Diff, Summary, Annotations, DiffRef }. ExitCode is 1 when there are errors, or warnings with
 -FailOnWarning. The script never calls exit, so tests run it in-process; action.yaml exits with ExitCode.
 
-The effective diff compares against -DiffRef. Without -DiffRef it is origin/<GITHUB_BASE_REF> on a pull request
-(fetched when absent) and HEAD~1 on a push (deepened when shallow); -DiffRef '' disables it. A ref that does not
-resolve, or a diff that fails, is a note in the summary, never a failure.
+The effective diff compares against -DiffRef. Without -DiffRef it is origin/<GITHUB_BASE_REF> on a pull_request or
+pull_request_target event (fetched when absent); on a push, the commit before the push from the event payload
+(GITHUB_EVENT_PATH, 'before'), else HEAD~1 (fetched or deepened when absent). -DiffRef '' disables it. Any other
+event, a ref that does not resolve, or a diff that fails is a note in the summary, never a failure.
 #>
 [CmdletBinding()]
 param(
@@ -50,6 +51,10 @@ function Test-GitRef {
     return $LASTEXITCODE -eq 0
 }
 
+# [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
+$resolvePath = { param($Path) if ([string]::IsNullOrEmpty($Path)) { $Path } else { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) } }
+$SummaryPath = & $resolvePath $SummaryPath
+$JsonPath = & $resolvePath $JsonPath
 $root = (Resolve-Path -LiteralPath $RepositoryRoot).ProviderPath
 $workspace = if ([string]::IsNullOrEmpty($WorkspaceRoot)) { $root } else { (Resolve-Path -LiteralPath $WorkspaceRoot).ProviderPath }
 $separator = [System.IO.Path]::DirectorySeparatorChar
@@ -80,11 +85,24 @@ Write-Host ('Rulebook validation: {0} error(s), {1} warning(s) in {2}' -f $error
 
 # 3. Effective diff
 $eventName = $env:GITHUB_EVENT_NAME
+$isPullRequest = $eventName -cin 'pull_request', 'pull_request_target'
 $derived = -not $PSBoundParameters.ContainsKey('DiffRef')
 if ($derived) {
     $DiffRef = ''
-    if ($eventName -like 'pull_request*' -and $env:GITHUB_BASE_REF) { $DiffRef = "origin/$($env:GITHUB_BASE_REF)" }
-    elseif ($eventName -eq 'push') { $DiffRef = 'HEAD~1' }
+    if ($isPullRequest -and $env:GITHUB_BASE_REF) {
+        $DiffRef = "origin/$($env:GITHUB_BASE_REF)"
+    } elseif ($eventName -ceq 'push') {
+        $DiffRef = 'HEAD~1'
+        # The commit before the push covers a push of several commits; all zeros means a new branch.
+        if ($env:GITHUB_EVENT_PATH -and (Test-Path -LiteralPath $env:GITHUB_EVENT_PATH -PathType Leaf)) {
+            try {
+                $before = [string](Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json -AsHashtable)['before']
+                if ($before -match '^[0-9a-f]{40,64}$' -and $before -notmatch '^0+$') { $DiffRef = $before }
+            } catch {
+                Write-Verbose "Event payload not readable: $($_.Exception.Message)"
+            }
+        }
+    }
 }
 $diff = @()
 $diffNote = $null
@@ -94,10 +112,12 @@ if ([string]::IsNullOrEmpty($DiffRef)) {
     $diffNote = "No diff: git is not available to read $DiffRef."
 } else {
     if (-not (Test-GitRef $root $DiffRef) -and $derived) {
-        if ($eventName -like 'pull_request*' -and $env:GITHUB_BASE_REF) {
+        if ($isPullRequest -and $env:GITHUB_BASE_REF) {
             $base = $env:GITHUB_BASE_REF
             $null = & git -C $root fetch --no-tags --depth=1 origin "+refs/heads/$($base):refs/remotes/origin/$($base)" 2>&1
-        } elseif ($eventName -eq 'push') {
+        } elseif ($eventName -ceq 'push' -and $DiffRef -ne 'HEAD~1') {
+            $null = & git -C $root fetch --no-tags --depth=1 origin $DiffRef 2>&1
+        } elseif ($eventName -ceq 'push') {
             $null = & git -C $root fetch --no-tags --deepen=1 2>&1
         }
     }
@@ -119,6 +139,7 @@ $summary = [System.Text.StringBuilder]::new()
 if ($findings.Count -eq 0) {
     [void]$summary.AppendLine('No findings.').AppendLine()
 } else {
+    [void]$summary.AppendLine('The runner shows at most 10 error and 10 warning annotations per step; this table is the full list.').AppendLine()
     [void]$summary.AppendLine('| Rule | Severity | File | Id | Message |').AppendLine('|---|---|---|---|---|')
     foreach ($finding in $findings) {
         $file = if ($finding.File) { '`' + $finding.File + '`' } else { '' }
@@ -150,6 +171,13 @@ if ($null -ne $diffNote) {
     }
 }
 $summaryText = $summary.ToString().Replace("`r`n", "`n")
+# The runner caps a step summary at 1 MiB; stay well below it.
+$summaryLimit = 900KB
+if ([System.Text.Encoding]::UTF8.GetByteCount($summaryText) -gt $summaryLimit) {
+    $cut = [math]::Min($summaryText.Length, $summaryLimit)
+    while ([System.Text.Encoding]::UTF8.GetByteCount($summaryText.Substring(0, $cut)) -gt $summaryLimit) { $cut = [int]($cut * 0.9) }
+    $summaryText = $summaryText.Substring(0, $cut) + "`n`n_The summary was truncated at 900 KiB; the -JsonPath file and the annotations above have the findings._`n"
+}
 if ($SummaryPath) { [System.IO.File]::AppendAllText($SummaryPath, $summaryText, [System.Text.UTF8Encoding]::new($false)) }
 
 # 5. Update check (WP07)

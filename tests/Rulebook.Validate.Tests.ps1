@@ -58,6 +58,30 @@ Describe 'Test-Rulebook on valid-minimal' {
         (Get-Content -LiteralPath $path -Raw).Trim() | Should-Be '[]'
     }
 
+    It 'resolves a relative -Json path against the current location' {
+        $root = Copy-Fixture 'stale-endpoints'
+        $dir = Join-Path $TestDrive 'relative-json'
+        $null = New-Item -ItemType Directory -Path $dir
+        Push-Location -LiteralPath $dir
+        try {
+            $null = Test-Rulebook -RepositoryRoot $root -Json 'out.json'
+        } finally {
+            Pop-Location
+        }
+        Test-Path -LiteralPath (Join-Path $dir 'out.json') -PathType Leaf | Should-BeTrue
+    }
+
+    It 'sorts files ordinally, a path before its longer variants' {
+        $findings = @(
+            [pscustomobject]@{ Rule = 'C9'; Severity = 'warning'; File = 'stages/ci.json.bak'; Id = $null; Message = 'b' }
+            [pscustomobject]@{ Rule = 'C9'; Severity = 'warning'; File = 'stages/ci.json'; Id = 'LC0001'; Message = 'a' }
+            [pscustomobject]@{ Rule = 'C10'; Severity = 'error'; File = 'overrides.json'; Id = $null; Message = 'c' }
+            [pscustomobject]@{ Rule = 'C9'; Severity = 'warning'; File = $null; Id = $null; Message = 'd' }
+        )
+        $sorted = & (Get-Module Rulebook.Validate) { param($items) @(Get-SortedFinding -Findings $items) } $findings
+        (@($sorted | ForEach-Object Message) -join '') | Should-Be 'dabc'
+    }
+
     It 'orders findings by rule, file and id' {
         $root = Copy-Fixture 'unknown-id'
         Edit-FixtureJson -Path (Join-Path $root 'stages' 'ci.json') -Script { $_.rules += @{ id = 'AA0999'; action = 'Info' } }
@@ -83,6 +107,13 @@ Describe 'C1 parse and schema profile' {
         $c1 = $findings | Where-Object Rule -EQ 'C1'
         $c1.File | Should-Be 'rulesets/strict.ruleset.json'
         $c1.Message | Should-BeLikeString '*ruleset.endpoint.schema.json*includedRuleSets*'
+    }
+
+    It 'reports an unparsable basedOn target as C1 only, not as an unresolved basedOn' {
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root 'base' 'legacy.ruleset.json') -Text '{ "name": "Rulebook Legacy", "rules": [ '
+        Edit-SettingsFile -Root $root -Script { $_.levels[2].basedOn = 'Legacy' }
+        (Get-FindingText (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @('C1 error base/legacy.ruleset.json -', 'C12 warning - -')
     }
 
     It 'reports a quarantine entry with an action' {
@@ -124,6 +155,12 @@ Describe 'C3 includes and generalAction' {
         $c3[0].File | Should-Be 'base/strict.ruleset.json'
     }
 
+    It 'accepts a skeleton with one include' {
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root 'skeletons' 'strict.ci.ruleset.json') -Text '{ "name": "Rulebook Strict / CI", "includedRuleSets": [ { "action": "Default", "path": "{BASEURL}/rulesets/strict.ci.ruleset.json" } ], "rules": [] }'
+        @(Test-Rulebook -RepositoryRoot $root | Where-Object Rule -In 'C1', 'C3').Count | Should-Be 0
+    }
+
     It 'reports a skeleton with two includes' {
         $root = Copy-Fixture
         Write-FixtureText -Path (Join-Path $root 'skeletons' 'strict.ci.ruleset.json') -Text @'
@@ -150,11 +187,6 @@ Describe 'C4 rule actions' {
         ($findings | Where-Object Rule -EQ 'C12').Message | Should-BeLikeString $skipMessage
     }
 
-    It 'checks overrides.json too' {
-        $root = Copy-Fixture
-        Edit-FixtureJson -Path (Join-Path $root 'overrides.json') -Script { $_.rules[0].action = 'Default' }
-        (Get-FindingText (Test-Rulebook -RepositoryRoot $root | Where-Object Rule -EQ 'C4')) | Should-BeCollection @('C4 error overrides.json AA0072')
-    }
 }
 
 Describe 'C5 settings' {
@@ -176,12 +208,17 @@ Describe 'C5 settings' {
         @{ Case = 'a baseUrl with a trailing slash'; Message = 'baseUrl ends with a slash'; Edit = { $_.baseUrl = 'https://contoso.github.io/rulebook/' } }
         @{ Case = 'an unresolved basedOn'; Message = "Unresolved basedOn 'paranoid' of level 'Complete'"; Edit = { $_.levels[3].basedOn = 'Paranoid' } }
         @{ Case = 'a schema failure the explicit checks do not cover'; Message = '*rulebook-settings.schema.json*'; Edit = { $_.unknownKey = 1 } }
+        @{ Case = 'a name with a trailing newline'; Message = "levels entry 'Strict*' does not lowercase to a slug*"; Edit = { $_.levels[2].name = "Strict`n" } }
     ) {
         $root = Copy-Fixture
         Edit-SettingsFile -Root $root -Script $Edit
         $c5 = @(Test-Rulebook -RepositoryRoot $root | Where-Object Rule -EQ 'C5')
         $c5.Count | Should-Be 1
         $c5[0].Message | Should-BeLikeString $Message
+    }
+
+    It 'adds no C9 warning after a chain failure (basedon-cycle)' {
+        @(Test-Rulebook -RepositoryRoot (Copy-Fixture 'basedon-cycle') | Where-Object Rule -EQ 'C9').Count | Should-Be 0
     }
 
     It 'stops after a missing settings file' {
@@ -271,6 +308,12 @@ Describe 'C10 override selectors' {
         $findings[0].Message | Should-BeLikeString "*unknown level 'paranoid'*"
     }
 
+    It 'reports an override with action Default as one C10 finding' {
+        $root = Copy-Fixture
+        Edit-FixtureJson -Path (Join-Path $root 'overrides.json') -Script { $_.rules[0].action = 'Default' }
+        (Get-FindingText (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @('C10 error overrides.json -', 'C12 warning - -')
+    }
+
     It 'reports a schema failure' {
         $root = Copy-Fixture
         Edit-FixtureJson -Path (Join-Path $root 'overrides.json') -Script { $_.rules[0].levels = @('*', 'strict') }
@@ -300,6 +343,13 @@ Describe 'C11 sparse and complete endpoints' {
         Write-FixtureText -Path (Join-Path $root 'rulesets' 'extra.ruleset.json') -Text '{ "name": "x", "rules": [] }'
         (Get-FindingText (Test-Rulebook -RepositoryRoot $root | Where-Object Rule -EQ 'C11')) |
             Should-BeCollection @('C11 error rulesets/extra.ruleset.json -', 'C11 error rulesets/strict.ci.ruleset.json -')
+    }
+
+    It 'always reports a file in rulesets/ that is not an endpoint name, also while C12 runs' {
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root 'rulesets' 'README.md') -Text 'notes'
+        Write-FixtureText -Path (Join-Path $root 'rulesets' 'extra.json') -Text '{ "name": "x", "rules": [] }'
+        (Get-FindingText (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @('C11 error rulesets/README.md -', 'C11 error rulesets/extra.json -')
     }
 
     It 'checks skeletons/ when it exists' {
@@ -353,6 +403,13 @@ Describe 'C14 catalog and twins' {
         $findings = @(Test-Rulebook -RepositoryRoot $root)
         (Get-FindingText ($findings | Where-Object Rule -EQ 'C14')) | Should-BeCollection @("C14 error $File -")
         ($findings | Where-Object Rule -EQ 'C12').Message | Should-BeLikeString $skipMessage
+    }
+
+    It 'accepts a twins file with exactly one pair' {
+        $root = Copy-Fixture
+        Edit-FixtureJson -Path (Join-Path $root 'base' 'twins.json') -Script { $_.pairs = @($_.pairs[0]); $_.count = 1 }
+        $null = Update-RulebookEndpoints -RepositoryRoot $root
+        @(Test-Rulebook -RepositoryRoot $root).Count | Should-Be 0
     }
 
     It 'accepts a missing twins file with twins both' {

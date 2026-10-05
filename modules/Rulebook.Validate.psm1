@@ -56,9 +56,12 @@ function Test-RepoFile {
 
 function Read-JsonOrNull {
     # The parsed file as a hashtable, or $null when it is not a JSON object (no finding; the caller decides).
+    # The text is kept in the context, so Test-SchemaFile validates it without reading the file again.
     param([Parameter(Mandatory)]$Context, [Parameter(Mandatory)][string]$Path)
+    $text = Get-Content -LiteralPath (Get-FullPath $Context $Path) -Raw
+    $Context.Texts[$Path] = $text
     try {
-        $json = Get-Content -LiteralPath (Get-FullPath $Context $Path) -Raw | ConvertFrom-Json -AsHashtable -Depth 20 -ErrorAction Stop
+        $json = $text | ConvertFrom-Json -AsHashtable -Depth 20 -ErrorAction Stop
     } catch {
         return $null
     }
@@ -77,7 +80,12 @@ function Test-SchemaFile {
         [switch]$Blocking
     )
     $schemaErrors = $null
-    $valid = Test-Json -Path (Get-FullPath $Context $Path) -SchemaFile (Join-Path $script:SchemaDir $Schema) -ErrorAction SilentlyContinue -ErrorVariable schemaErrors
+    $schemaFile = Join-Path $script:SchemaDir $Schema
+    $valid = if ($Context.Texts.ContainsKey($Path)) {
+        Test-Json -Json $Context.Texts[$Path] -SchemaFile $schemaFile -ErrorAction SilentlyContinue -ErrorVariable schemaErrors
+    } else {
+        Test-Json -Path (Get-FullPath $Context $Path) -SchemaFile $schemaFile -ErrorAction SilentlyContinue -ErrorVariable schemaErrors
+    }
     if ($valid) { return $true }
     $first = if ($schemaErrors -and $schemaErrors.Count -gt 0) { $schemaErrors[0].Exception.Message } else { 'unknown schema error' }
     Add-Finding -Context $Context -Rule $Rule -Severity error -File $Path -Message "$Path does not match $Schema`: $first" -Blocking:$Blocking
@@ -147,7 +155,9 @@ function Get-SortedFinding {
     for ($i = 0; $i -lt $Findings.Count; $i++) {
         $finding = $Findings[$i]
         $number = [int]($finding.Rule -replace '[^0-9]', '')
-        $key = '{0:000}|{1}|{2}|{3:000000}' -f $number, [string]$finding.File, [string]$finding.Id, $i
+        # [char]0 sorts below every character, so 'stages/ci.json' comes before 'stages/ci.json.bak'.
+        $separator = [char]0
+        $key = '{0:000}{4}{1}{4}{2}{4}{3:000000}' -f $number, [string]$finding.File, [string]$finding.Id, $i, $separator
         $sorted[$key] = $finding
     }
     return $sorted.Values
@@ -191,7 +201,7 @@ function Test-SettingsFile {
     foreach ($kind in @(@{ Name = 'levels'; Items = $levels }, @{ Name = 'stages'; Items = $stages })) {
         $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
         foreach ($item in $kind.Items) {
-            if ($item.Slug -cnotmatch '^[a-z0-9-]+$') {
+            if ($item.Slug -cnotmatch '^[a-z0-9-]+\z') {
                 Add-Finding -Context $Context -Rule C5 -Severity error -File $path -Message "$($kind.Name) entry '$($item.Name)' does not lowercase to a slug matching ^[a-z0-9-]+$" -Blocking
             } elseif (-not $seen.Add($item.Slug)) {
                 Add-Finding -Context $Context -Rule C5 -Severity error -File $path -Message "$($kind.Name) slug '$($item.Slug)' is used twice" -Blocking
@@ -227,7 +237,7 @@ function Test-SettingsFile {
     if ($Context.Findings.Count -eq $before) {
         $null = Test-SchemaFile -Context $Context -Path $path -Schema 'rulebook-settings.schema.json' -Rule C5 -Blocking
     }
-    $unused = if ($raw['unusedRulebookFiles'] -is [System.Collections.IList]) { [string[]]@($raw['unusedRulebookFiles'] | ForEach-Object { [string]$_ }) } else { [string[]]@() }
+    $unused = [string[]]@(if ($raw['unusedRulebookFiles'] -is [System.Collections.IList]) { $raw['unusedRulebookFiles'] | ForEach-Object { [string]$_ } })
     return [pscustomobject]@{
         Levels       = $levels
         Stages       = $stages
@@ -276,7 +286,8 @@ function Test-TwinsFile {
         return [string[]]@()
     }
     $null = Test-SchemaFile -Context $Context -Path $path -Schema 'rulebook-twins.schema.json' -Rule C14 -Blocking
-    $pairs = if ($json['pairs'] -is [System.Collections.IList]) { @($json['pairs'] | Where-Object { $_ -is [System.Collections.IDictionary] }) } else { @() }
+    # @(if ...) and not if { @(...) }: an if statement unrolls a one-element array into its element.
+    $pairs = @(if ($json['pairs'] -is [System.Collections.IList]) { $json['pairs'] | Where-Object { $_ -is [System.Collections.IDictionary] } })
     if ($json.Contains('count') -and $json['count'] -ne $pairs.Count) {
         Add-Finding -Context $Context -Rule C14 -Severity error -File $path -Message "count is $($json['count']) but there are $($pairs.Count) pairs" -Blocking
     }
@@ -306,7 +317,7 @@ function Test-RulesFileStructure {
         return $null
     }
     $null = Test-SchemaFile -Context $Context -Path $File.Path -Schema $script:ProfileSchemas[$File.Profile] -Rule C1 -Blocking:$blocking
-    $rules = if ($json['rules'] -is [System.Collections.IList]) { @($json['rules'] | Where-Object { $_ -is [System.Collections.IDictionary] }) } else { @() }
+    $rules = @(if ($json['rules'] -is [System.Collections.IList]) { $json['rules'] | Where-Object { $_ -is [System.Collections.IDictionary] } })
 
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $reported = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -322,7 +333,7 @@ function Test-RulesFileStructure {
         if ($json.Contains('generalAction')) {
             Add-Finding -Context $Context -Rule C3 -Severity error -File $File.Path -Message 'a skeleton has no generalAction'
         }
-        $includes = if ($json['includedRuleSets'] -is [System.Collections.IList]) { @($json['includedRuleSets']) } else { @() }
+        $includes = @(if ($json['includedRuleSets'] -is [System.Collections.IList]) { $json['includedRuleSets'] })
         if ($includes.Count -ne 1) {
             Add-Finding -Context $Context -Rule C3 -Severity error -File $File.Path -Message "a skeleton has exactly one include; this one has $($includes.Count)"
         }
@@ -382,7 +393,9 @@ function Test-OverridesFile {
         return $null
     }
     $schemaValid = Test-SchemaFile -Context $Context -Path $path -Schema 'rulebook-overrides.schema.json' -Rule C10 -Blocking
-    if ($json['rules'] -is [System.Collections.IList]) {
+    # The overrides schema already rejects an action outside the five; C4 adds a finding only when it passed,
+    # so an override with action Default is one C10 finding.
+    if ($schemaValid -and $json['rules'] -is [System.Collections.IList]) {
         foreach ($rule in @($json['rules'] | Where-Object { $_ -is [System.Collections.IDictionary] })) {
             $action = [string]$rule['action']
             if ($action -cnotin $script:Actions) {
@@ -421,12 +434,15 @@ function Test-Rulebook {
         Root     = (Resolve-Path -LiteralPath $RepositoryRoot).ProviderPath
         Findings = [System.Collections.Generic.List[object]]::new()
         Blocking = [System.Collections.Generic.List[string]]::new()
+        Texts    = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::Ordinal)
     }
     $settings = Test-SettingsFile -Context $context
     if ($null -ne $settings) { Invoke-RulebookChecks -Context $context -Settings $settings }
 
     $findings = @(Get-SortedFinding -Findings $context.Findings.ToArray())
     if ($Json) {
+        # [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
+        $Json = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Json)
         $text = (ConvertTo-Json -InputObject $findings -Depth 3) -replace "`r`n", "`n"
         $parent = Split-Path -Parent $Json
         if ($parent -and -not (Test-Path -LiteralPath $parent)) { [void][System.IO.Directory]::CreateDirectory($parent) }
@@ -475,11 +491,17 @@ function Invoke-RulebookChecks {
         }
     }
 
-    # Lenient level files for the analysis checks; a published level whose file is missing or not JSON gets an
-    # empty placeholder, so C5 reports only basedOn problems and C6 or C1 the file itself (one finding per cause).
+    # Lenient level files for the analysis checks. Every base file that exists but is not JSON, and every published
+    # level whose file is missing, gets an empty placeholder: C5 reports only real basedOn problems, and C1 or C6
+    # the file itself (one finding per cause).
     $levelFiles = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
     foreach ($path in @($parsed.Keys | Where-Object { $_ -like 'base/*.ruleset.json' })) {
         $levelFiles[($path.Substring(5) -replace '\.ruleset\.json$', '')] = [pscustomobject]@{ Rules = ConvertTo-LenientRuleMap $parsed[$path] }
+    }
+    foreach ($name in Get-FolderFileName -Root $root -Folder 'base') {
+        if ($name -notlike '*.ruleset.json') { continue }
+        $slug = $name -replace '\.ruleset\.json$', ''
+        if (-not $levelFiles.Contains($slug)) { $levelFiles[$slug] = [pscustomobject]@{ Rules = ConvertTo-LenientRuleMap $null } }
     }
     foreach ($level in $Settings.Levels) {
         if (-not $levelFiles.Contains($level.Slug)) { $levelFiles[$level.Slug] = [pscustomobject]@{ Rules = ConvertTo-LenientRuleMap $null } }
@@ -561,11 +583,12 @@ function Invoke-RulebookChecks {
         }
     }
 
-    # C9 (b): files no settings entry references, no published chain reaches and unusedRulebookFiles does not list
-    if ($Settings.Valid) {
+    # C9 (b): files no settings entry references, no published chain reaches and unusedRulebookFiles does not list.
+    # Needs the resolved chains; after a C5 chain failure every file would look unreferenced.
+    if ($Settings.Valid -and $null -ne $chainFiles) {
         $reached = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
         foreach ($slug in $Settings.LevelSlugs) { [void]$reached.Add($slug) }
-        if ($null -ne $chainFiles) { foreach ($files in $chainFiles.Values) { foreach ($slug in $files) { [void]$reached.Add($slug) } } }
+        foreach ($files in $chainFiles.Values) { foreach ($slug in $files) { [void]$reached.Add($slug) } }
         foreach ($name in Get-FolderFileName -Root $root -Folder 'base') {
             if ($name -notlike '*.ruleset.json') { continue }
             $path = "base/$name"
@@ -593,13 +616,15 @@ function Invoke-RulebookChecks {
             }
         }
     }
-    # A missing or extra file in rulesets/ is also what C12 reports as 'would be created' or 'would be deleted';
-    # to keep one finding per cause, C11 reports it only when C12 is skipped. skeletons/ is C11's alone.
+    # The C11 file set: any file in rulesets/ or skeletons/ whose name is not an expected endpoint or skeleton name,
+    # and any expected name that is missing. While C12 runs, a missing or stray *.ruleset.json in rulesets/ is left
+    # to C12 ('would be created' or 'would be deleted'): one finding per cause. skeletons/ is checked only when it
+    # exists, until WP06 generates the skeletons (assumption 9).
     if ($Settings.Valid) {
-        $folders = @(@{ Name = 'rulesets'; Always = ($Context.Blocking.Count -gt 0); Skeleton = $false }, @{ Name = 'skeletons'; Always = $false; Skeleton = $true })
-        foreach ($folder in $folders) {
-            if (-not $folder.Skeleton -and -not $folder.Always) { continue }
+        $c12Runs = $Context.Blocking.Count -eq 0
+        foreach ($folder in @(@{ Name = 'rulesets'; Skeleton = $false }, @{ Name = 'skeletons'; Skeleton = $true })) {
             if ($folder.Skeleton -and -not (Test-Path -LiteralPath (Join-Path $root $folder.Name) -PathType Container)) { continue }
+            $leftToC12 = (-not $folder.Skeleton) -and $c12Runs
             $expected = [System.Collections.Generic.List[string]]::new()
             foreach ($level in $Settings.Levels) {
                 foreach ($stage in $Settings.Stages) {
@@ -608,10 +633,13 @@ function Invoke-RulebookChecks {
             }
             $actual = Get-FolderFileName -Root $root -Folder $folder.Name
             foreach ($name in $expected) {
-                if ($name -cnotin $actual) { Add-Finding -Context $Context -Rule C11 -Severity error -File "$($folder.Name)/$name" -Message "$($folder.Name)/$name is missing; every levels x stages entry has one" }
+                if ($name -cnotin $actual -and -not $leftToC12) {
+                    Add-Finding -Context $Context -Rule C11 -Severity error -File "$($folder.Name)/$name" -Message "$($folder.Name)/$name is missing; every levels x stages entry has one"
+                }
             }
             foreach ($name in $actual) {
-                if ($name -cnotin $expected) { Add-Finding -Context $Context -Rule C11 -Severity error -File "$($folder.Name)/$name" -Message "$($folder.Name)/$name matches no levels x stages entry" }
+                if ($name -cin $expected -or ($leftToC12 -and $name -like '*.ruleset.json')) { continue }
+                Add-Finding -Context $Context -Rule C11 -Severity error -File "$($folder.Name)/$name" -Message "$($folder.Name)/$name matches no levels x stages entry"
             }
         }
     }

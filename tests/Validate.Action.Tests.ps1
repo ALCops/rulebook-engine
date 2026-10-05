@@ -13,6 +13,7 @@ BeforeAll {
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
 
     # On GitHub Actions these point at the real job; the tests must not write into them.
+    $script:savedEvent = @{ Name = $env:GITHUB_EVENT_NAME; Path = $env:GITHUB_EVENT_PATH; Base = $env:GITHUB_BASE_REF }
     $script:savedOutput = $env:GITHUB_OUTPUT
     $script:savedSummary = $env:GITHUB_STEP_SUMMARY
     $env:GITHUB_OUTPUT = $null
@@ -22,7 +23,8 @@ BeforeAll {
         # Runs Validate.ps1 in-process; returns the result object and the console lines (information stream).
         param([hashtable]$Parameters)
         if (-not $Parameters.ContainsKey('SummaryPath')) { $Parameters.SummaryPath = Join-Path $TestDrive ('summary-{0}.md' -f [guid]::NewGuid().ToString('n')) }
-        if (-not $Parameters.ContainsKey('DiffRef')) { $Parameters.DiffRef = '' }
+        # Derive = $true leaves -DiffRef unbound, so Validate.ps1 derives it from the event.
+        if ($Parameters.ContainsKey('Derive')) { $Parameters.Remove('Derive') } elseif (-not $Parameters.ContainsKey('DiffRef')) { $Parameters.DiffRef = '' }
         $output = @(& $script:entry @Parameters 6>&1)
         return [pscustomobject]@{
             Result = $output | Where-Object { $_ -isnot [System.Management.Automation.InformationRecord] } | Select-Object -Last 1
@@ -33,6 +35,9 @@ BeforeAll {
 }
 
 AfterAll {
+    $env:GITHUB_EVENT_NAME = $script:savedEvent.Name
+    $env:GITHUB_EVENT_PATH = $script:savedEvent.Path
+    $env:GITHUB_BASE_REF = $script:savedEvent.Base
     $env:GITHUB_OUTPUT = $script:savedOutput
     $env:GITHUB_STEP_SUMMARY = $script:savedSummary
     Remove-Module Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
@@ -137,6 +142,24 @@ Describe 'Validate.ps1' {
         (Get-Content -LiteralPath $outputFile -Raw) | Should-Be "errors=1`nwarnings=0`n"
     }
 
+    It 'resolves relative -SummaryPath and -JsonPath against the current location' {
+        $dir = Join-Path $TestDrive 'relative'
+        $null = New-Item -ItemType Directory -Path $dir
+        Push-Location -LiteralPath $dir
+        try {
+            $null = & $script:entry -RepositoryRoot (Join-Path $fixtures 'stale-endpoints') -DiffRef '' -SummaryPath 'summary.md' -JsonPath 'findings.json' 6>$null
+        } finally {
+            Pop-Location
+        }
+        Test-Path -LiteralPath (Join-Path $dir 'summary.md') -PathType Leaf | Should-BeTrue
+        Test-Path -LiteralPath (Join-Path $dir 'findings.json') -PathType Leaf | Should-BeTrue
+    }
+
+    It 'says the table is the full list when there are findings' {
+        $run = Invoke-Entry @{ RepositoryRoot = (Join-Path $fixtures 'stale-endpoints') }
+        $run.Summary | Should-MatchString 'at most 10 error and 10 warning annotations per step; this table is the full list'
+    }
+
     It 'notes that the diff is disabled with -DiffRef empty' {
         $run = Invoke-Entry @{ RepositoryRoot = (Join-Path $fixtures 'valid-minimal'); DiffRef = '' }
         $run.Result.DiffRef | Should-Be ''
@@ -162,6 +185,53 @@ Describe 'Validate.ps1' {
         $run.Summary | Should-MatchString '(?m)^## Effective diff against HEAD~1$'
         $run.Summary | Should-MatchString '(?m)^### `recommended\.ci` \(`rulesets/recommended\.ci\.ruleset\.json`\)$'
         $run.Summary | Should-MatchString '(?m)^\| LC0029 \| None \| Warning \| level:recommended \|$'
+    }
+
+    Context 'diff reference from the event' -Skip:$gitMissing {
+        BeforeAll {
+            $script:eventRoot = New-FixtureRepo -Name 'valid-minimal' -Destination (Join-Path $TestDrive 'event')
+            $script:firstSha = New-FixtureGitRepo -Root $script:eventRoot -Message 'first'
+            Edit-FixtureJson -Path (Join-Path $script:eventRoot 'overrides.json') -Script { $_.rules = @($_.rules | Where-Object { $_.id -ne 'LC0029' }) }
+            Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
+            $null = Update-RulebookEndpoints -RepositoryRoot $script:eventRoot
+            $null = New-FixtureGitRepo -Root $script:eventRoot -Message 'second'
+            $null = New-FixtureGitRepo -Root $script:eventRoot -Message 'third (empty)'
+        }
+
+        AfterEach {
+            $env:GITHUB_EVENT_NAME = $null
+            $env:GITHUB_EVENT_PATH = $null
+            $env:GITHUB_BASE_REF = $null
+        }
+
+        It 'uses the before commit of a push event' {
+            $eventFile = Join-Path $TestDrive 'push-event.json'
+            Write-FixtureText -Path $eventFile -Text ('{ "before": "' + $script:firstSha + '" }')
+            $env:GITHUB_EVENT_NAME = 'push'
+            $env:GITHUB_EVENT_PATH = $eventFile
+            $run = Invoke-Entry @{ RepositoryRoot = $script:eventRoot; Derive = $true }
+            $run.Result.DiffRef | Should-Be $script:firstSha
+            @($run.Result.Diff).Count | Should-Be 1
+        }
+
+        It 'falls back to HEAD~1 when before is all zeros' {
+            $eventFile = Join-Path $TestDrive 'push-new-branch.json'
+            Write-FixtureText -Path $eventFile -Text ('{ "before": "' + ('0' * 40) + '" }')
+            $env:GITHUB_EVENT_NAME = 'push'
+            $env:GITHUB_EVENT_PATH = $eventFile
+            $run = Invoke-Entry @{ RepositoryRoot = $script:eventRoot; Derive = $true }
+            $run.Result.DiffRef | Should-Be 'HEAD~1'
+            @($run.Result.Diff).Count | Should-Be 0
+            $run.Summary | Should-MatchString 'No effective change\.'
+        }
+
+        It 'gives no diff for an event other than pull_request, pull_request_target and push' {
+            $env:GITHUB_EVENT_NAME = 'pull_request_review'
+            $env:GITHUB_BASE_REF = 'main'
+            $run = Invoke-Entry @{ RepositoryRoot = $script:eventRoot; Derive = $true }
+            $run.Result.DiffRef | Should-Be ''
+            $run.Summary | Should-MatchString 'No diff: no reference to compare against'
+        }
     }
 
     It 'notes a ref that does not resolve instead of failing' -Skip:$gitMissing {
