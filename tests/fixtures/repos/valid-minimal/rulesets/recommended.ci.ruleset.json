@@ -1,0 +1,14 @@
+{
+  "name": "Rulebook Recommended / CI",
+  "description": "Level recommended, stage ci, twins both. Generated from base/essential.ruleset.json, base/recommended.ruleset.json plus stages/ci.json, overrides.json and quarantine.ci.json; do not edit. Ids at their analyzer default are not listed.",
+  "rules": [
+    { "id": "AL0432", "action": "Info" },
+    { "id": "AL0603", "action": "Info" },
+    { "id": "AL1026", "action": "Info" },
+    { "id": "AA0072", "action": "Info" },
+    { "id": "AW0006", "action": "Error" },
+    { "id": "AC0001", "action": "Warning" },
+    { "id": "LC0029", "action": "None" },
+    { "id": "LC0099", "action": "None" }
+  ]
+}

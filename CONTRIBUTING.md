@@ -29,9 +29,12 @@ What exists today, and the work package that adds the rest. A folder is created 
 | `.github/ISSUE_TEMPLATE/` | Issue forms: work package, task or spin-off. | written |
 | `PSScriptAnalyzerSettings.psd1` | Analyzer settings: errors and warnings, default rules, justified exclusions only. | WP00 |
 | `schemas/` | JSON schemas for every file in an organization rulebook repository, draft 2020-12, no `$id`; names and URLs in [docs/reference/naming.md](docs/reference/naming.md). | WP02 ([#4](https://github.com/ALCops/rulebook-engine/issues/4)) |
-| `tests/` | `Smoke.Tests.ps1` and `Schemas.Tests.ps1` now; later one suite per module and action, with fixtures under `tests/fixtures/`. | WP00, WP02; WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) and every module work package |
+| `tests/` | `Smoke.Tests.ps1`, `Schemas.Tests.ps1` and `Rulebook.Generate.Tests.ps1` now; later one suite per module and action, with fixtures under `tests/fixtures/`. | WP00, WP02, WP03; WP12 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) and every module work package |
 | `tests/fixtures/schemas/` | One file per case: `<valid\|invalid>/<schema-basename>/<reason>.json`, each invalid file a one-change mutation of a valid one. | WP02 |
-| `actions/`, `modules/` | Composite actions and the PowerShell modules they share. | WP03 to WP09 |
+| `tests/fixtures/repos/` | Organization rulebook repositories for the module suites. `valid-minimal` (30-id catalog, four levels, three stages) and `stale-endpoints` are complete on disk, their `rulesets/` written by `Update-RulebookEndpoints`; every other folder is an overlay holding only the files it changes, copied over `valid-minimal` by `New-FixtureRepo`. | WP03 |
+| `tests/Helpers/` | Helpers the suites dot-source in `BeforeAll`: `RepoFixture.ps1` copies a fixture into `TestDrive`, edits its JSON, creates git repositories and the synthetic performance rulebook. | WP03 |
+| `modules/` | PowerShell modules shared by the actions, each a `.psm1` with a `.psd1` manifest: `Rulebook.Generate` (written). | WP03 to WP09 |
+| `actions/` | Composite actions. | WP03 to WP09 |
 | `template/` | Source of the template content deployed to `ALCops/rulebook`. | WP04, WP13 |
 | `docs/`, `tools/rulebook/` | Architecture, decision records, level content and the scripts that build it. | written |
 
@@ -55,7 +58,7 @@ Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
 Invoke-Pester -Path ./tests -Output Detailed
 ```
 
-The analyzer must print nothing. Outside GitHub Actions the Linux smoke case is skipped (it runs only when `$env:GITHUB_ACTIONS` is set).
+The analyzer must print nothing. Outside GitHub Actions the Linux smoke case is skipped (it runs only when `$env:GITHUB_ACTIONS` is set). The effective-diff tests of the Generate suite need `git` on the path and are skipped without it.
 
 When a change touches `tools/rulebook/` or `docs/rulebook/`, also run `pwsh ./tools/rulebook/Test-Rulebook.ps1`. Regenerating the level content with `Extract-Inventory.ps1` needs the sibling clones `../Analyzers` and `../nav-sdk-source`.
 

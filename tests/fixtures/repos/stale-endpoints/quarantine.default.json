@@ -1,0 +1,6 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-quarantine.schema.json",
+  "rules": [
+    { "id": "LC0099", "justification": "New in alcops.analyzers 1.4.0-beta.1 (prerelease), quarantined 2026-10-01. Review and adopt." }
+  ]
+}

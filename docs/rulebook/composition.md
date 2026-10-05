@@ -1,6 +1,6 @@
 # Composition: the generated ruleset files
 
-Contract for the generator that turns the matrix into ruleset files. The sources are **deltas**: a level file lists only the ids it changes relative to the level it is `basedOn` (a root relative to the analyzer defaults), a stage file lists only the ids it changes on top of every level. Every endpoint is **one flat, self-contained, sparse file**: a `rules` array that lists every diagnostic id whose effective action differs from the analyzer default, no `includedRuleSets`, no `generalAction`. Decisions D18, D21, D22, D23, D25, D27 and D28 in `docs/adr/`.
+Contract for the generator that turns the matrix into ruleset files. The sources are **deltas**: a level file lists only the ids it changes relative to the level it is `basedOn` (a root relative to the analyzer defaults), a stage file lists only the ids it changes on top of every level. Every endpoint is **one flat, self-contained, sparse file**: a `rules` array that lists every diagnostic id whose effective action differs from the analyzer default, no `includedRuleSets`, no `generalAction`. Decisions D18, D21, D22, D23, D25, D27, D28 and D41 in `docs/adr/`.
 
 ## Contents
 
@@ -50,35 +50,37 @@ Let `cell(id, level, stage)` be the resolved action from `matrix/resolved.json` 
 
 **Level chain** for an id and a level: walk `basedOn` from the root to the level; the last file on the path that mentions the id gives `chain(id, level)`. If no file mentions it, the chain is undefined. `basedOn` may name any level file in `base/`, listed in the settings or not; cycles are a validation error. A level file may set any id higher or lower than its `basedOn` level; nothing compares the two.
 
-**Effective action** for an id in endpoint (level, stage):
+**Effective action** for an id in endpoint (level, stage), in two steps. The level result folds quarantine in; the stage condition (S-4) looks at that result:
 
 ```
+levelResult(id, level, stage) =
+    chain(id, level)         if a file on the chain of level mentions the id
+    None                     else if quarantine.<stage>.json lists the id
+    default(id)              else: the analyzer default
+
 effective(id, level, stage) =
     overrides entry action   if an entry matches id, level and stage
                              (most specific selector wins; on a tie the last entry in the file wins)
     None                     else if settings.twins == "appsource" and id is the pte side of a twin,
                              or settings.twins == "pte" and id is the appsource side of a twin
     stage action             else if stage != default, stages/<stage>.json mentions the id
-                             and the level result (chain(id, level) if defined,
-                             else default(id)) != None                                       (S-4)
-    chain(id, level)         else if chain(id, level) is defined
-    None                     else if quarantine.<stage>.json lists the id
-    default(id)              else: the compiler applies the analyzer default
+                             and levelResult(id, level, stage) != None                  (S-4, D41)
+    levelResult(id, level, stage)   else
 ```
 
-Condition aligned with S-4 and 00-conventions on 2026-10-04 (WP02); the earlier 'chain is defined' reading was an error.
+Condition aligned with S-4 and 00-conventions on 2026-10-04 (WP02); the earlier 'chain is defined' reading was an error. On 2026-10-05 (WP03, D41, [#42](https://github.com/ALCops/rulebook-engine/issues/42)) quarantine became part of the level result: for an id no chain file mentions, a quarantine entry wins over a stage entry, so a shipped stage file never activates an id the organization has not adopted yet.
 
-Precedence in one line: override, then twins, then stage delta, then level chain, then quarantine, then the analyzer default.
+Precedence in one line: override, then twins, then stage delta, then level chain, then quarantine, then the analyzer default; the stage delta applies only where the level result, quarantine included, is not `None` (D41).
 
-**Endpoint:** `rulesets/<level>.ruleset.json` (stage `default`) or `rulesets/<level>.<stage>.ruleset.json` has one entry per id in the union of the level chain, the stage file, overrides, twins and quarantine **where `effective(id) != default(id)`**, in inventory order (unknown ids after the known ones, sorted by id). An id whose effective action equals its default is not written; the compiler applies the default on its own.
+**Endpoint:** `rulesets/<level>.ruleset.json` (stage `default`) or `rulesets/<level>.<stage>.ruleset.json` has one entry per id in the union of the level chain, the stage file, overrides, twins and quarantine **where `effective(id) != default(id)`**, sorted by id whatever input produced it: prefix in the order `AL, AA, AW, PTE, AS, PC, AC, LC, DC, FC, TA, CM`, then number, then the `i` suffix (the inventory order); an unknown prefix sorts after the known ones, by prefix; an id that does not match the id pattern (or has more than six digits) sorts after every other id; all keys compare ordinally (`Get-DiagnosticSortKey` in `Rulebook.Generate`). An id whose effective action equals its default is not written; the compiler applies the default on its own.
 
 An override entry: `{ "id": "AA0001", "action": "Info", "levels": ["recommended", "strict"], "stages": ["ci"], "justification": "..." }`. `levels` and `stages` accept explicit lists of slugs or `["*"]`; `"default"` is a valid stage selector. Specificity is the number of non-wildcard selectors. An override may raise or lower any id, including one the chain sets to `None`, one the twins setting lowers, and one only quarantine mentions. An override whose action equals the default is valid and results in the id being unlisted.
 
-Quarantine entries carry `id` and an optional `justification` only; the action is always `None`. A quarantined id is always written (unless its default is already `None`), because `None` differs from an enabled default. Once a level file on the chain mentions the id, the chain wins and the scan's housekeeping removes the quarantine entry.
+Quarantine entries carry `id` and an optional `justification` only; the action is always `None`. A quarantined id is written for that stage when no override and no chain file decides it and its default is not already `None`, because `None` then differs from the default. Until then a stage entry for the id does not apply (D41). Once a level file on the chain mentions the id, the chain wins and the scan's housekeeping removes the quarantine entry.
 
 **Skeleton:** `skeletons/<level>.<stage>.ruleset.json` includes the endpoint URL with include action `Default` and has an empty `rules` array. Project exceptions added there beat the endpoint because a file's own rules overwrite its includes.
 
-**Invariants the generator must keep:** every `basedOn` resolves and the chain has no cycle; `stages/default.json` does not exist; no endpoint entry equals the catalog default; endpoint plus defaults reproduces the effective action of every id; no endpoint, level or stage file has `includedRuleSets` or `generalAction`; exactly `levels x stages` endpoints and skeletons exist; the committed endpoint equals the regenerated endpoint (validation check). A level entry equal to what the chain already gives, or a stage entry no listed level enables, is a warning, not an error.
+**Invariants the generator must keep:** every `basedOn` resolves and the chain has no cycle; `stages/default.json` does not exist; for ids the catalog knows, no endpoint entry equals the catalog default and endpoint plus defaults reproduces the effective action of every id (an id absent from the catalog is always written, and C7 reports it); no endpoint, level or stage file has `includedRuleSets` or `generalAction`; exactly `levels x stages` endpoints and skeletons exist; the committed endpoint equals the regenerated endpoint (validation check). A level entry equal to what the chain already gives, a stage entry no listed level enables, or a stage entry on an id that the stage's quarantine file lists and that no file on the chain of any published level mentions (C15, D41), is a warning, not an error.
 
 ## 4. Entry formats
 
@@ -94,7 +96,7 @@ Quarantine entries carry `id` and an optional `justification` only; the action i
 
 - `action` is one of `Error`, `Warning`, `Info`, `Hidden`, `None`; never `Default`.
 - The compiler ignores `justification`; level, stage and override files keep it for readers, endpoints drop it. It is optional in every file that may carry one (D37, D40); the engine always writes one into the shipped level and stage files.
-- File-level fields: `name` is `Rulebook <Level> / <Stage>` with the display names (for example `Rulebook Recommended / CI`); `description` names the level and stage by slug and, for generated endpoints, the template sha the sources came from, the files folded in and the `twins` setting in effect.
+- File-level fields: `name` is `Rulebook <Level> / <Stage>` with the display names (for example `Rulebook Recommended / CI`); `description` names the level and stage by slug and, for generated endpoints, the `twins` setting in effect and the files folded in: the chain files root first, the stage file (none for `default`), `overrides.json` and the stage's quarantine file. The input files are named by role whether or not they exist in the repository (a missing overrides or quarantine file counts as empty). The text depends on the inputs only, so regenerating unchanged inputs gives the same bytes.
 
 ## 5. Examples
 
@@ -144,7 +146,7 @@ AS0001 and PTE0001 are absent from this file because Recommended does not change
 ```json
 {
   "name": "Rulebook Recommended / CI",
-  "description": "Level recommended, stage ci, twins both. Generated from base@a1b2c3d (essential, recommended) plus stages/ci.json, overrides.json and quarantine.ci.json; do not edit. Ids at their analyzer default are not listed.",
+  "description": "Level recommended, stage ci, twins both. Generated from base/essential.ruleset.json, base/recommended.ruleset.json plus stages/ci.json, overrides.json and quarantine.ci.json; do not edit. Ids at their analyzer default are not listed.",
   "rules": [
     { "id": "AL0432", "action": "None" },
     { "id": "AL0603", "action": "Info" },
@@ -183,4 +185,4 @@ External rulesets must be enabled in every consumer that fetches over HTTP. If t
 
 ## 7. Relation to the Rulebook architecture
 
-This contract implements D18, D19, D21, D22, D23, D25, D27 and D28 of `docs/adr/`: flat endpoints, sparse by analyzer default, level chain plus stage deltas plus twins setting plus overrides plus quarantine as inputs, committed outputs, slug-named files. "Each level includes the level below" is back as a relation between source files (`basedOn`, D27) and remains invariant I2 of the matrix for the shipped set (check V11); it is not an include the compiler follows, and an organization repository does not enforce it (D26). "Target" is no longer a dimension at all, and the everything-off starting level is gone (D25). `docs/ARCHITECTURE.md` section 5 describes where these files live in an organization repository and which workflow regenerates them.
+This contract implements D18, D19, D21, D22, D23, D25, D27, D28 and D41 of `docs/adr/`: flat endpoints, sparse by analyzer default, level chain plus stage deltas plus twins setting plus overrides plus quarantine as inputs, quarantine winning over a stage entry for an id no level file mentions, committed outputs, slug-named files. "Each level includes the level below" is back as a relation between source files (`basedOn`, D27) and remains invariant I2 of the matrix for the shipped set (check V11); it is not an include the compiler follows, and an organization repository does not enforce it (D26). "Target" is no longer a dimension at all, and the everything-off starting level is gone (D25). `docs/ARCHITECTURE.md` section 5 describes where these files live in an organization repository and which workflow regenerates them.

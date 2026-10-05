@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook Strict",
+  "description": "Level strict, basedOn recommended. Lists the ids whose action differs from recommended. Test fixture.",
+  "rules": [
+    { "id": "AL0603", "action": "Info", "justification": "Fixture: a level lowers an id that is enabled by default" },
+    { "id": "AA0137", "action": "Error" },
+    { "id": "AA0137", "action": "Warning" },
+    { "id": "LC0015", "action": "Warning" },
+    { "id": "FC0001", "action": "Info" },
+    { "id": "CM0001", "action": "Info" }
+  ]
+}

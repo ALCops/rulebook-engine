@@ -42,7 +42,7 @@ Paths in an organization rulebook repository. Class is what the update workflow 
 | `quarantine.<stage>.json` | Ids held at `None` for that stage, written by the scan. One per stage, `quarantine.default.json` included. | org-owned | `rulebook-quarantine.schema.json` |
 | `catalog/diagnostics.json` | Every known id with its analyzer default (D24). | org-owned | `rulebook-catalog.schema.json` |
 | `catalog/scan-state.json` | Scan state. Reserved for WP08 (section 8). | org-owned | none yet |
-| `rulesets/<level>.ruleset.json`, `rulesets/<level>.<stage>.ruleset.json` | The generated endpoints. `levels x stages` files. | generated | `ruleset.endpoint.schema.json` |
+| `rulesets/<level>.ruleset.json`, `rulesets/<level>.<stage>.ruleset.json` | The generated endpoints, written by `Update-RulebookEndpoints` (WP03) in id order. `levels x stages` files. | generated | `ruleset.endpoint.schema.json` |
 | `skeletons/<level>.<stage>.ruleset.json` | One include of the endpoint with `{BASEURL}`; project exceptions go into `rules`. `levels x stages` files. | system (regenerated from the settings) | `ruleset.skeleton.schema.json` |
 | `.rulebook/<stage>.ruleset.json` in an AL project | A copied skeleton with `{BASEURL}` resolved. Not part of the rulebook repository. | not managed | `ruleset.skeleton.schema.json` |
 
@@ -185,7 +185,7 @@ Endpoint, `tests/fixtures/schemas/valid/ruleset.endpoint/endpoint-strict-ci.json
 ```json
 {
   "name": "Rulebook Strict / CI",
-  "description": "Level strict, stage ci, twins both. Generated from base@a1b2c3d plus stages/ci.json, overrides.json and quarantine.ci.json; do not edit. Ids at their analyzer default are not listed.",
+  "description": "Level strict, stage ci, twins both. Generated from base/essential.ruleset.json, base/recommended.ruleset.json, base/strict.ruleset.json plus stages/ci.json, overrides.json and quarantine.ci.json; do not edit. Ids at their analyzer default are not listed.",
   "rules": [
     { "id": "AL0432", "action": "Info" },
     { "id": "AA0001", "action": "Warning" }

@@ -22,7 +22,7 @@ Every decision that shapes Rulebook, one file per decision, with the alternative
 
 ## Index
 
-D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, and D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files.
+D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, and D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions.
 
 | # | Title | Status | Date |
 |---|---|---|---|
@@ -66,6 +66,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D38](0038-release-notes-are-generated-from-pull-request-labels.md) | Release notes are generated from pull request labels | Accepted | 2026-10-03 |
 | [D39](0039-test-framework-is-pester-6.md) | Test framework is Pester 6 | Accepted | 2026-10-03 |
 | [D40](0040-justification-is-optional-in-level-and-stage-files-too.md) | Justification is optional in level and stage files too | Accepted | 2026-10-04 |
+| [D41](0041-quarantine-wins-over-a-stage-entry-for-an-unmentioned-id.md) | Quarantine wins over a stage entry for an id no level file mentions | Accepted | 2026-10-05 |
 
 ## Open decisions
 
@@ -83,6 +84,7 @@ Closed: O1 and O2 by D19 (and D17), O5 moot since D21, O6 by D28 (one skeleton f
 - Second interview of 2026-10-01 (no `L0`, configurable levels and stages, delta sources, slugs, rewritten dropdowns): D25 to D30.
 - Interview of 2026-10-03 (dashboard on the published site, issue-form write path, change sets, collaborator gate, customizable site files, exposure, optional justification): D31 to D37. Design in [dashboard.md](../dashboard.md).
 - Bootstrap interview of 2026-10-03 for WP00 ([#2](https://github.com/ALCops/rulebook-engine/issues/2)): generated release notes and Pester 6, D38 and D39.
+- WP03 planning interview of 2026-10-05 ([#5](https://github.com/ALCops/rulebook-engine/issues/5), [#42](https://github.com/ALCops/rulebook-engine/issues/42)): D41.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
 - [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism behind D2, D3 and O3, O4.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).

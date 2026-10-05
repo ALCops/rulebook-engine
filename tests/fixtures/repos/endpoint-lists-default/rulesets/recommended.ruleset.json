@@ -1,0 +1,11 @@
+{
+  "name": "Rulebook Recommended / default",
+  "description": "Level recommended, stage default, twins both. Generated from base/essential.ruleset.json, base/recommended.ruleset.json plus overrides.json and quarantine.default.json; do not edit. Ids at their analyzer default are not listed.",
+  "rules": [
+    { "id": "AL0200", "action": "Warning" },
+    { "id": "AA0072", "action": "Info" },
+    { "id": "AW0006", "action": "Error" },
+    { "id": "AC0001", "action": "Warning" },
+    { "id": "LC0099", "action": "None" }
+  ]
+}

@@ -2,7 +2,7 @@
 
 The engine behind [ALCops/rulebook](https://github.com/ALCops/rulebook): the composite GitHub Actions, PowerShell modules, tests and contributor documentation that the workflows in an org rulebook repo call. Users never create a repository from this one; they create it from the template and their workflows reference `ALCops/rulebook-engine/actions/<Name>@v1`.
 
-> **Status:** design phase. The architecture and the decisions are written; no action or module exists yet. The work is broken down into [work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) (WP00 to WP15), ordered and tracked on the [Rulebook v1 project board](https://github.com/orgs/ALCops/projects/1); the parent issue [Rulebook v1 (#18)](https://github.com/ALCops/rulebook-engine/issues/18) holds the dependency graph and the suggested order.
+> **Status:** in development. The architecture and the decisions are written, the schemas exist (WP02) and so does the `Rulebook.Generate` module (WP03); no action exists yet. The work is broken down into [work package issues](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage) (WP00 to WP15), ordered and tracked on the [Rulebook v1 project board](https://github.com/orgs/ALCops/projects/1); the parent issue [Rulebook v1 (#18)](https://github.com/ALCops/rulebook-engine/issues/18) holds the dependency graph and the suggested order.
 
 ---
 
@@ -20,10 +20,10 @@ The engine behind [ALCops/rulebook](https://github.com/ALCops/rulebook): the com
 | Path | Content | Status |
 |---|---|---|
 | `actions/<Name>/action.yaml` | Composite actions: `Validate`, `Publish`, `CheckForUpdates`, `ScanDiagnostics`, `ChangeRule`. Each runs a PowerShell 7 script on `ubuntu-latest`. | planned (WP03 to WP09) |
-| `modules/Rulebook.*.psm1` | PowerShell modules shared by the actions: `Rulebook.Generate` (level chain + stage deltas + twins setting + overrides + quarantine to sparse flat endpoints, effective diff), `Rulebook.Validate`, `Rulebook.Template`, `Rulebook.Settings`, `Rulebook.NuGet`, `Rulebook.Git`. | planned |
+| `modules/Rulebook.*.psm1` | PowerShell modules shared by the actions, each with a `.psd1` manifest: `Rulebook.Generate` (level chain + stage deltas + twins setting + overrides + quarantine to sparse flat endpoints, effective diff), `Rulebook.Validate`, `Rulebook.Template`, `Rulebook.Settings`, `Rulebook.NuGet`, `Rulebook.Git`. | `Rulebook.Generate` written (WP03); the others planned |
 | `template/` | Source of the template content that a deploy workflow copies into `ALCops/rulebook`, pinning action references from `@main` to `@v1`. Its `base/`, `stages/` and `rulesets/` are generated from `docs/rulebook/`. | planned (WP04, WP13) |
 | `schemas/` | JSON schemas for every file in an organization rulebook repository (ruleset profiles, overrides, quarantine, twins, catalog, settings), served from the `v1` branch over raw URLs, which go live with WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)) and return 404 until then; the tests use the local files. See [docs/reference/naming.md](docs/reference/naming.md). | written (WP02) |
-| `tests/` | Pester 6 suites, one per module and action, with fixtures under `tests/fixtures/`; the schema suite and its fixtures under `tests/fixtures/schemas/`. | smoke test (WP00), schema suite (WP02); suites per module from WP12 |
+| `tests/` | Pester 6 suites, one per module and action, with fixtures under `tests/fixtures/`: the schema suite and its fixtures under `tests/fixtures/schemas/`; the Generate suite with organization rulebook fixtures under `tests/fixtures/repos/` and helpers in `tests/Helpers/`. | smoke test (WP00), schema suite (WP02), Generate suite (WP03); further suites per module |
 | `docs/` | Architecture, decision records (`adr/`), references, and `docs/rulebook/` with the level content (inventory, matrix, composition spec). | written |
 | `tools/rulebook/` | PowerShell scripts that extract the inventory from the analyzer sources, build the matrix (ladders, stage columns, twin pairs, counts) and verify it (`Extract-Inventory.ps1`, `Build-Matrix.ps1`, `Test-Rulebook.ps1`). | written |
 | `.github/workflows/` | `ci.yml` (PSScriptAnalyzer, Pester) and the deploy workflow. | CI written (WP00); deploy planned (WP13) |
@@ -79,6 +79,7 @@ For any other change: documentation updated, Pester green on `ubuntu-latest`, PS
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The target architecture: topology, generation model, endpoints, workflows, settings, hosting, failure model. |
 | [docs/adr/README.md](docs/adr/README.md) | Decision records (one file per decision, numbered D1 onward) with rationale and rejected alternatives; open decisions are issues labeled `decision`. |
 | [docs/reference/compiler-ruleset-internals.md](docs/reference/compiler-ruleset-internals.md) | How the AL compiler loads and merges rulesets, from the SDK source. Every design constraint comes from here. |
+| [docs/reference/effective-diff.md](docs/reference/effective-diff.md) | How the generator decides each id's action, the provenance tokens, and the effective diff, worked through on the test fixture. |
 | [docs/reference/naming.md](docs/reference/naming.md) | File names, slugs, URL scheme and JSON schemas of an organization rulebook repository, with the 12 shipped endpoint and skeleton names. |
 | [docs/reference/al-go-template-mechanics.md](docs/reference/al-go-template-mechanics.md) | How AL-Go implements templates, system-file updates and the GhTokenWorkflow secret, and what Rulebook reuses. |
 | [docs/reference/spikes/README.md](docs/reference/spikes/README.md) | Results of the WP01 spikes: question, method, versions, observations and answer per experiment. |

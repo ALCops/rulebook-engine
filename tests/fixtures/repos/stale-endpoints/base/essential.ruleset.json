@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook Essential",
+  "description": "Level essential, the root. Lists the ids whose action differs from the analyzer default. Test fixture.",
+  "rules": [
+    { "id": "AL0200", "action": "None" },
+    { "id": "AL0432", "action": "None" },
+    { "id": "AA0001", "action": "None" },
+    { "id": "AA0072", "action": "None" },
+    { "id": "AS0084", "action": "None", "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential" },
+    { "id": "LC0015", "action": "None" },
+    { "id": "LC0029", "action": "None" },
+    { "id": "LC0089i", "action": "None" },
+    { "id": "DC0001", "action": "None" }
+  ]
+}

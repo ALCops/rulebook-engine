@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook stage vNext",
+  "description": "Stage vnext. Applied on top of every level where the level result is not None. Test fixture.",
+  "rules": [
+    { "id": "AL0604", "action": "Error", "justification": "Future error on the next platform; S-1" },
+    { "id": "LC0029", "action": "Error" }
+  ]
+}
