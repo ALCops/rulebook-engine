@@ -185,7 +185,7 @@ Endpoint, `tests/fixtures/schemas/valid/ruleset.endpoint/endpoint-strict-ci.json
 ```json
 {
   "name": "Rulebook Strict / CI",
-  "description": "Level strict, stage ci, twins both. Generated from base@a1b2c3d plus stages/ci.json, overrides.json and quarantine.ci.json; do not edit. Ids at their analyzer default are not listed.",
+  "description": "Level strict, stage ci, twins both. Generated from base/essential.ruleset.json, base/recommended.ruleset.json, base/strict.ruleset.json plus stages/ci.json, overrides.json and quarantine.ci.json; do not edit. Ids at their analyzer default are not listed.",
   "rules": [
     { "id": "AL0432", "action": "Info" },
     { "id": "AA0001", "action": "Warning" }
