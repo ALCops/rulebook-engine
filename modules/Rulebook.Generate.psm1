@@ -7,7 +7,8 @@
 Set-StrictMode -Version 3.0
 
 $script:Actions = @('Error', 'Warning', 'Info', 'Hidden', 'None')
-# Same prefix order as Get-SortKey in tools/rulebook/Extract-Inventory.ps1 (the inventory order).
+# Prefix order of Get-DiagnosticSortKey, the inventory order. The tools under tools/rulebook/ import this module
+# for the key instead of keeping their own copy of this list.
 $script:PrefixOrder = @('AL', 'AA', 'AW', 'PTE', 'AS', 'PC', 'AC', 'LC', 'DC', 'FC', 'TA', 'CM')
 $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:CatalogPath = 'catalog/diagnostics.json'
@@ -1137,7 +1138,8 @@ function Get-DiagnosticSortKey {
     number, then the i suffix. Unknown prefixes sort last, by prefix.
     .DESCRIPTION
     The key is fixed-width ASCII and is compared ordinally: culture-aware sorting would depend on the runner's
-    locale. Same rule as Get-SortKey in tools/rulebook/Extract-Inventory.ps1.
+    locale. The tools under tools/rulebook/ import this module for the key: Extract-Inventory sorts the inventory
+    with it and Test-Rulebook (V1) checks that the inventory is in ascending key order.
     #>
     [CmdletBinding()]
     [OutputType([string])]

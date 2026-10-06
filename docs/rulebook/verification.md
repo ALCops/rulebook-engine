@@ -4,7 +4,7 @@ Checks that hold for the inventory, the matrix and the docs. `tools/rulebook/Tes
 
 | # | Check | Query |
 |---|---|---|
-| V1 | Inventory files are complete and consistent. | For each `inventory/<PREFIX>.md`: data rows = `Count:` line = rows of that prefix in `inventory.json`. Ids unique across files and match `^(AL|AA|AW|PTE|AS|PC|AC|LC|DC|FC|TA|CM)[0-9]{4}i?$`. Per-prefix totals: AL 219, AA 93, AW 17, PTE 26, AS 143, PC 38, AC 35, LC 34, DC 11, FC 8, TA 3, CM 1; total 628. |
+| V1 | Inventory files are complete and consistent. | For each `inventory/<PREFIX>.md`: data rows = `Count:` line = rows of that prefix in `inventory.json`. Ids unique across files and match `^(AL|AA|AW|PTE|AS|PC|AC|LC|DC|FC|TA|CM)[0-9]{4}i?$`. Per-prefix totals: AL 219, AA 93, AW 17, PTE 26, AS 143, PC 38, AC 35, LC 34, DC 11, FC 8, TA 3, CM 1; total 628. `inventory.json` is in strictly ascending `Get-DiagnosticSortKey` order (`modules/Rulebook.Generate`, compared ordinally), the order every generated file follows. |
 | V2 | Matrix rows mirror inventory rows. | Same ids in the same order; every `matrix/<PREFIX>.md` has the ten columns of `00-conventions.md` and every cell equals `matrix.json`; every id has 12 cells in `resolved.json`, keyed `<level>.<stage>` (`essential.default` to `complete.vnext`). |
 | V3 | Ladders are monotonic. | strictness(E) ≤ strictness(R) ≤ strictness(S) ≤ strictness(C). |
 | V4 | Error is confined. | `Error` in a ladder only when `Family = runtime` or the id is a PerTenantExtensionCop or AppSourceCop rule with an Error default; in `vNext` only for `Family = future-error`. `Default` is always `=`. |

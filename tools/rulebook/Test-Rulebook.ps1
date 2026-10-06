@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 7.4
 <#
 .SYNOPSIS
   Runs the checks V1 to V14 from docs/rulebook/verification.md against the inventory, the matrix and the docs.
@@ -6,11 +6,11 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$RulebookDir = (Join-Path $PSScriptRoot '..\..\docs\rulebook')
+    [string]$RulebookDir = (Join-Path $PSScriptRoot '..' '..' 'docs' 'rulebook')
 )
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot '..' '..' 'modules' 'Rulebook.Generate.psd1') -Function Get-DiagnosticSortKey -Force
 $RulebookDir = (Resolve-Path $RulebookDir).Path
-$prefixOrder = @('AL','AA','AW','PTE','AS','PC','AC','LC','DC','FC','TA','CM')
 $strict = @{ None = 0; Hidden = 1; Info = 2; Warning = 3; Error = 4 }
 $levelNames = @('Essential','Recommended','Strict','Complete')
 $stages = @('default','ci','vnext'); $levelIds = @('essential','recommended','strict','complete')   # slugs; resolved.json keys are <level>.<stage>
@@ -43,12 +43,12 @@ function Get-NativeLadder($r) {
     }
 }
 
-$inv = Get-Content -Raw (Join-Path $RulebookDir 'inventory\inventory.json') | ConvertFrom-Json
-$matrix = Get-Content -Raw (Join-Path $RulebookDir 'matrix\matrix.json') | ConvertFrom-Json
-$resolved = Get-Content -Raw (Join-Path $RulebookDir 'matrix\resolved.json') | ConvertFrom-Json -AsHashtable
-$twins = Get-Content -Raw (Join-Path $RulebookDir 'matrix\twins.json') | ConvertFrom-Json
-$levelsJson = Get-Content -Raw (Join-Path $RulebookDir 'matrix\levels.json') | ConvertFrom-Json
-$stagesJson = Get-Content -Raw (Join-Path $RulebookDir 'matrix\stages.json') | ConvertFrom-Json
+$inv = Get-Content -Raw (Join-Path $RulebookDir 'inventory' 'inventory.json') | ConvertFrom-Json
+$matrix = Get-Content -Raw (Join-Path $RulebookDir 'matrix' 'matrix.json') | ConvertFrom-Json
+$resolved = Get-Content -Raw (Join-Path $RulebookDir 'matrix' 'resolved.json') | ConvertFrom-Json -AsHashtable
+$twins = Get-Content -Raw (Join-Path $RulebookDir 'matrix' 'twins.json') | ConvertFrom-Json
+$levelsJson = Get-Content -Raw (Join-Path $RulebookDir 'matrix' 'levels.json') | ConvertFrom-Json
+$stagesJson = Get-Content -Raw (Join-Path $RulebookDir 'matrix' 'stages.json') | ConvertFrom-Json
 $byId = @{}; foreach ($r in $inv) { $byId[$r.id] = $r }
 $mById = @{}; foreach ($m in $matrix) { $mById[$m.id] = $m }
 $algorithmDoc = Get-Content -Raw (Join-Path $RulebookDir '02-placement-algorithm.md')
@@ -57,24 +57,27 @@ $overlapsDoc = Get-Content -Raw (Join-Path $RulebookDir 'overlaps.md')
 $readmeDoc = Get-Content -Raw (Join-Path $RulebookDir 'README.md')
 $matrixColumns = @('ID','Essential','Recommended','Strict','Complete','Default','CI','vNext','Basis','Justification')
 
-# ---- V1 inventory files vs json ----
+# ---- V1 inventory files vs json, inventory order ----
+# Expected ids per prefix: a check input. Its keys are the prefixes in inventory order and name the per-prefix files.
+$expected = [ordered]@{ AL = 219; AA = 93; AW = 17; PTE = 26; AS = 143; PC = 38; AC = 35; LC = 34; DC = 11; FC = 8; TA = 3; CM = 1 }
 $seen = @{}
-foreach ($p in $prefixOrder) {
-    $t = Read-Table (Join-Path $RulebookDir "inventory\$p.md")
+foreach ($p in $expected.Keys) {
+    $t = Read-Table (Join-Path $RulebookDir 'inventory' "$p.md")
     $jsonRows = @($inv | Where-Object prefix -eq $p)
     if ($t.rows.Count -ne $jsonRows.Count) { Fail 'V1' "$p.md has $($t.rows.Count) rows, inventory.json has $($jsonRows.Count)" }
     if ($t.count -ne $t.rows.Count) { Fail 'V1' "$p.md Count line $($t.count) != rows $($t.rows.Count)" }
     foreach ($r in $t.rows) { if ($seen.ContainsKey($r.ID)) { Fail 'V1' "duplicate id $($r.ID)" }; $seen[$r.ID] = $true; if ($r.ID -notmatch '^(AL|AA|AW|PTE|AS|PC|AC|LC|DC|FC|TA|CM)[0-9]{4}i?$') { Fail 'V1' "bad id format $($r.ID)" } }
 }
 if ($inv.Count -ne 628) { Fail 'V1' "total inventory is $($inv.Count), expected 628" }
-$expected = @{ AL = 219; AA = 93; AW = 17; PTE = 26; AS = 143; PC = 38; AC = 35; LC = 34; DC = 11; FC = 8; TA = 3; CM = 1 }
-foreach ($p in $prefixOrder) { $n = @($inv | Where-Object prefix -eq $p).Count; if ($n -ne $expected[$p]) { Fail 'V1' "$p has $n ids, expected $($expected[$p])" } }
+# the shared sort key (Rulebook.Generate) reproduces the inventory order: strictly ascending, compared ordinally
+for ($i = 1; $i -lt $inv.Count; $i++) { if ([string]::CompareOrdinal((Get-DiagnosticSortKey -Id $inv[$i - 1].id), (Get-DiagnosticSortKey -Id $inv[$i].id)) -ge 0) { Fail 'V1' "inventory.json is not in ascending Get-DiagnosticSortKey order at $($inv[$i - 1].id), $($inv[$i].id)" } }
+foreach ($p in $expected.Keys) { $n = @($inv | Where-Object prefix -eq $p).Count; if ($n -ne $expected[$p]) { Fail 'V1' "$p has $n ids, expected $($expected[$p])" } }
 
 # ---- V2 matrix rows == inventory rows, same order, md == json; levels.json and stages.json describe the shipped set ----
 if ($matrix.Count -ne $inv.Count) { Fail 'V2' "matrix has $($matrix.Count) rows, inventory $($inv.Count)" }
 for ($i = 0; $i -lt [Math]::Min($matrix.Count, $inv.Count); $i++) { if ($matrix[$i].id -ne $inv[$i].id) { Fail 'V2' "row $i is $($matrix[$i].id) in matrix, $($inv[$i].id) in inventory"; break } }
-foreach ($p in $prefixOrder) {
-    $t = Read-Table (Join-Path $RulebookDir "matrix\$p.md")
+foreach ($p in $expected.Keys) {
+    $t = Read-Table (Join-Path $RulebookDir 'matrix' "$p.md")
     if (($t.header -join ',') -ne ($matrixColumns -join ',')) { Fail 'V2' "$p.md has unexpected columns" }
     foreach ($r in $t.rows) {
         $m = $mById[$r.ID]
@@ -264,10 +267,10 @@ $fileSizes = (@($levelFiles.Keys | ForEach-Object { "base/$_.ruleset.json=$($lev
 $sizes = ($endpoints.Keys | ForEach-Object { "$_=$($endpoints[$_].Count)" }) -join ' '
 
 # ---- V14 README counts ----
-$countsLines = Get-Content -LiteralPath (Join-Path $RulebookDir 'matrix\counts.md') | Where-Object { $_ -match '^\| (Essential|Recommended|Strict|Complete) \|' }
+$countsLines = Get-Content -LiteralPath (Join-Path $RulebookDir 'matrix' 'counts.md') | Where-Object { $_ -match '^\| (Essential|Recommended|Strict|Complete) \|' }
 if ($countsLines.Count -ne 12) { Fail 'V14' "counts.md has $($countsLines.Count) count rows, expected 12" }
 foreach ($line in $countsLines) { if ($readmeDoc -notmatch [regex]::Escape($line)) { Fail 'V14' "README.md is missing count row: $line" } }
-$fileLines = Get-Content -LiteralPath (Join-Path $RulebookDir 'matrix\counts.md') | Where-Object { $_ -match '^\| `(base|stages)/' }
+$fileLines = Get-Content -LiteralPath (Join-Path $RulebookDir 'matrix' 'counts.md') | Where-Object { $_ -match '^\| `(base|stages)/' }
 if ($fileLines.Count -ne 6) { Fail 'V14' "counts.md has $($fileLines.Count) file rows, expected 6" }
 foreach ($line in $fileLines) { if ($readmeDoc -notmatch [regex]::Escape($line)) { Fail 'V14' "README.md is missing file row: $line" } }
 

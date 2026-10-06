@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 7.4
 <#
 .SYNOPSIS
   Extracts every diagnostic id of the AL compiler, the four Microsoft cops and the seven ALCops cops
@@ -9,16 +9,17 @@
     ../Analyzers        ALCops analyzers
   This script is the refresh procedure described in docs/rulebook/versions.md. It only reads the sources.
   Hand-maintained columns (Family, Config, extra Flags) are merged from docs/rulebook/inventory/annotations.json
-  so a refresh never loses a judgment.
+  so a refresh never loses a judgment. The id order (Get-DiagnosticSortKey) comes from modules/Rulebook.Generate.
 #>
 [CmdletBinding()]
 param(
-    [string]$SdkRoot = (Join-Path $PSScriptRoot '..\..\..\nav-sdk-source'),
-    [string]$AnalyzersRoot = (Join-Path $PSScriptRoot '..\..\..\Analyzers'),
-    [string]$OutDir = (Join-Path $PSScriptRoot '..\..\docs\rulebook\inventory'),
+    [string]$SdkRoot = (Join-Path $PSScriptRoot '..' '..' '..' 'nav-sdk-source'),
+    [string]$AnalyzersRoot = (Join-Path $PSScriptRoot '..' '..' '..' 'Analyzers'),
+    [string]$OutDir = (Join-Path $PSScriptRoot '..' '..' 'docs' 'rulebook' 'inventory'),
     [string]$StableTag = 'v18.0.41.62505'
 )
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot '..' '..' 'modules' 'Rulebook.Generate.psd1') -Function Get-DiagnosticSortKey -Force
 $SdkRoot = (Resolve-Path $SdkRoot).Path
 $AnalyzersRoot = (Resolve-Path $AnalyzersRoot).Path
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
@@ -43,9 +44,9 @@ function Get-GitFile([string]$repo, [string]$ref, [string]$relPath) {
 $rows = [System.Collections.Generic.List[object]]::new()
 
 # ---------- 1. AL compiler ----------
-$caDir = Join-Path $SdkRoot 'Microsoft.Dynamics.Nav.CodeAnalysis\net10.0'
-$errorCodeCs = Get-Content -Raw (Join-Path $caDir 'Microsoft.Dynamics.Nav.CodeAnalysis\ErrorCode.cs')
-$errorFactsCs = Get-Content -Raw (Join-Path $caDir 'Microsoft.Dynamics.Nav.CodeAnalysis\ErrorFacts.cs')
+$caDir = Join-Path $SdkRoot 'Microsoft.Dynamics.Nav.CodeAnalysis' 'net10.0'
+$errorCodeCs = Get-Content -Raw (Join-Path $caDir 'Microsoft.Dynamics.Nav.CodeAnalysis' 'ErrorCode.cs')
+$errorFactsCs = Get-Content -Raw (Join-Path $caDir 'Microsoft.Dynamics.Nav.CodeAnalysis' 'ErrorFacts.cs')
 $compilerResx = Read-Resx (Join-Path $caDir 'Microsoft.Dynamics.Nav.CodeAnalysis.CompilerDiagnosticsResources.resx')
 
 $futureErrorBlock = [regex]::Match($errorFactsCs, 'IsWarningFutureError\(ErrorCode code\)\s*\{\s*switch \(code\)\s*\{(.*?)\}\s*\}', 'Singleline').Groups[1].Value
@@ -122,7 +123,7 @@ $alcops = @(
     @{ prefix = 'CM'; analyzer = 'Common';            proj = 'ALCops.Common';            resx = 'ALCops.CommonAnalyzers.resx' }
 )
 foreach ($cop in $alcops) {
-    $projDir = Join-Path $AnalyzersRoot "src\$($cop.proj)"
+    $projDir = Join-Path $AnalyzersRoot 'src' $cop.proj
     $idsCs = Get-Content -Raw (Join-Path $projDir 'DiagnosticIds.cs')
     $descCs = Get-Content -Raw (Join-Path $projDir 'DiagnosticDescriptors.cs')
     $resx = Read-Resx (Join-Path $projDir $cop.resx)
@@ -163,14 +164,15 @@ foreach ($cop in $alcops) {
 $annPath = Join-Path $OutDir 'annotations.json'
 $ann = @{}
 if (Test-Path $annPath) { (Get-Content -Raw $annPath | ConvertFrom-Json -AsHashtable).GetEnumerator() | ForEach-Object { $ann[$_.Key] = $_.Value } }
-$prefixOrder = @('AL','AA','AW','PTE','AS','PC','AC','LC','DC','FC','TA','CM')
-function Get-SortKey($r) {
-    $p = [array]::IndexOf($prefixOrder, $r.prefix)
-    $n = [int]($r.id -replace '^[A-Z]+', '' -replace 'i$', '')
-    $suffix = if ($r.id.EndsWith('i')) { 1 } else { 0 }
-    return ('{0:00}{1:0000}{2}' -f $p, $n, $suffix)
+# Inventory order: Get-DiagnosticSortKey of Rulebook.Generate, compared ordinally (the key is fixed-width ASCII).
+$byKey = [System.Collections.Generic.SortedDictionary[string, object]]::new([System.StringComparer]::Ordinal)
+foreach ($r in $rows) {
+    $key = Get-DiagnosticSortKey -Id $r.id
+    if ($byKey.ContainsKey($key)) { throw "Duplicate id $($r.id)" }
+    $byKey[$key] = $r
 }
-$sorted = @($rows | Sort-Object { Get-SortKey $_ })
+$sorted = @($byKey.Values)
+$prefixes = @($sorted | ForEach-Object { $_.prefix } | Select-Object -Unique)
 foreach ($r in $sorted) {
     $a = $ann[$r.id]
     $r['family'] = if ($a -and $a.family) { $a.family } else { 'general' }
@@ -180,6 +182,8 @@ foreach ($r in $sorted) {
 }
 $sorted | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $OutDir 'inventory.json') -Encoding utf8NoBOM
 
+# Prose for the header of the generated inventory/<PREFIX>.md (source locations as written in the analyzer
+# repositories, not paths this script opens); kept as is so the inventory reproduces unchanged.
 $sourceNote = @{
     AL = "``Microsoft.Dynamics.Nav.CodeAnalysis\net10.0\Microsoft.Dynamics.Nav.CodeAnalysis\ErrorCode.cs`` (enum; prefix ``WRN_``/``INF_``/``HDN_`` means Warning/Info/Hidden, everything else Error), ``ErrorFacts.cs`` (``IsWarningFutureError``), ``Microsoft.Dynamics.Nav.CodeAnalysis.CompilerDiagnosticsResources.resx`` (message format keyed by enum member; the compiler has no titles, so the Title column holds the message format). The $alErrorCount Error codes are ``NotConfigurable`` and are not listed."
 }
@@ -187,7 +191,7 @@ foreach ($cop in $msCops) { $sourceNote[$cop.prefix] = "``$($cop.dir)\net10.0\$(
 foreach ($cop in $alcops) { $sourceNote[$cop.prefix] = "``src\$($cop.proj)\DiagnosticIds.cs``, ``src\$($cop.proj)\DiagnosticDescriptors.cs`` (category, severity, enabled) and ``src\$($cop.proj)\$($cop.resx)`` (title)." }
 $repoOf = @{ AL = 'nav-sdk-source'; AA = 'nav-sdk-source'; AW = 'nav-sdk-source'; PTE = 'nav-sdk-source'; AS = 'nav-sdk-source'; PC = 'Analyzers'; AC = 'Analyzers'; LC = 'Analyzers'; DC = 'Analyzers'; FC = 'Analyzers'; TA = 'Analyzers'; CM = 'Analyzers' }
 
-foreach ($p in $prefixOrder) {
+foreach ($p in $prefixes) {
     $set = @($sorted | Where-Object prefix -eq $p)
     $analyzer = $set[0].analyzer
     $sb = [System.Text.StringBuilder]::new()
@@ -208,5 +212,5 @@ foreach ($p in $prefixOrder) {
     Set-Content -LiteralPath (Join-Path $OutDir "$p.md") -Value $sb.ToString() -Encoding utf8NoBOM -NoNewline
 }
 $summary = $sorted | Group-Object { $_.prefix } | ForEach-Object { [pscustomobject]@{ Prefix = $_.Name; Count = $_.Count; Error = @($_.Group | Where-Object default -eq 'Error').Count; Warning = @($_.Group | Where-Object default -eq 'Warning').Count; Info = @($_.Group | Where-Object default -eq 'Info').Count; Hidden = @($_.Group | Where-Object default -eq 'Hidden').Count; Disabled = @($_.Group | Where-Object enabled -eq $false).Count; Prerelease = @($_.Group | Where-Object since -eq 'prerelease').Count } }
-$summary | Sort-Object { [array]::IndexOf($prefixOrder, $_.Prefix) } | Format-Table -AutoSize | Out-String | Write-Host
+$summary | Sort-Object { [array]::IndexOf($prefixes, $_.Prefix) } | Format-Table -AutoSize | Out-String | Write-Host
 Write-Host "Total: $($sorted.Count)  (compiler Error codes not listed: $alErrorCount)"
