@@ -75,7 +75,7 @@ After any change to `docs/rulebook/`, `modules/Rulebook.Template.psm1` or `templ
 
 `publish-action` runs `uses: ./actions/Publish` on `template/` with `baseUrl: https://example.github.io/rulebook` and `deploy: 'false'` (staging only: no Pages preflight, no deploy, no reachability check), asserts 12 endpoints, 12 skeletons and `index.html` with the rendered URL in `skeletons/strict.ci.ruleset.json`, uploads the staging folder as the `publish-staging` artifact, and requires the action to fail on `template/` without the `baseUrl` input with its `failure` output `baseUrl-empty`, so a crash or another error does not pass (the step prints one expected error annotation with the proposed URL). A real deploy needs a Pages site and runs in an organization repository; the live run is in [docs/reference/publish-targets.md](docs/reference/publish-targets.md) section 6.
 
-The ruleset requires the checks `test` and `validate-action`; `publish-action` is added once the WP05 pull request has reported it (section 6).
+The ruleset requires all three checks (section 6).
 
 The module versions are pinned in `ci.yml` (PSScriptAnalyzer 1.25.0, Pester 6.2.0) and bumped by hand, because Dependabot does not cover the PowerShell Gallery; it only updates the action tags.
 
@@ -91,7 +91,7 @@ Applied on 2026-10-03 by the WP00 pull request ([#2](https://github.com/ALCops/r
 
 | Setting | Value | Command |
 |---|---|---|
-| Ruleset `protect-main` on the default branch | Pull request required, 0 approvals, deletion and force-push blocked, checks `test` and `validate-action` from GitHub Actions required, no bypass actors. `validate-action` was added on 2026-10-06 with the WP03 pull request ([#46](https://github.com/ALCops/rulebook-engine/pull/46)) through a PUT of the same JSON. `publish-action` (WP05) is added the same way after the WP05 pull request's first CI run has reported the check, so no pull request waits on a check its branch cannot produce; the JSON below shows the ruleset after that PUT. | `gh api --method POST ... rulesets --input ruleset-engine.json`, later `gh api --method PUT ... rulesets/24420852 --input ruleset-engine.json` |
+| Ruleset `protect-main` on the default branch | Pull request required, 0 approvals, deletion and force-push blocked, checks `test`, `validate-action` and `publish-action` from GitHub Actions required, no bypass actors. `validate-action` was added on 2026-10-06 with the WP03 pull request ([#46](https://github.com/ALCops/rulebook-engine/pull/46)) through a PUT of the same JSON. `publish-action` was added the same way on 2026-10-06, after the first CI run of the WP05 pull request ([#59](https://github.com/ALCops/rulebook-engine/pull/59)) had reported the check; the PUT kept the other rules as the GET returned them. | `gh api --method POST ... rulesets --input ruleset-engine.json`, later `gh api --method PUT ... rulesets/24420852 --input ruleset-engine.json` |
 | Workflow permissions | Read-only `GITHUB_TOKEN` (applied). "Actions may create and approve pull requests" is not applied yet: the repository-level PUT is refused (409) while the organization policy "Allow GitHub Actions to create and approve pull requests" is off. An org admin enables it under Org Settings > Actions > General; then the PUT below applies. | `gh api --method PUT ... actions/permissions/workflow` |
 | Labels | `dependencies` and `skip-changelog`, next to the defaults (`enhancement`, `bug`, `documentation`). | `gh label create` |
 
