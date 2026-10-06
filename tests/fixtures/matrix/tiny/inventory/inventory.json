@@ -1,0 +1,8 @@
+[
+  { "id": "AL0200", "prefix": "AL", "analyzer": "Compiler", "title": "Property is obsolete", "default": "Warning", "enabled": true, "flags": [], "docs": "https://example.invalid/al0200" },
+  { "id": "AL0432", "prefix": "AL", "analyzer": "Compiler", "title": "Field is marked for removal", "default": "Warning", "enabled": true, "flags": [], "docs": "https://example.invalid/al0432" },
+  { "id": "AL0603", "prefix": "AL", "analyzer": "Compiler", "title": "Implicit conversion", "default": "Info", "enabled": false, "flags": [], "docs": "" },
+  { "id": "PTE0003", "prefix": "PTE", "analyzer": "PerTenantExtensionCop", "title": "Procedures must not subscribe to CompanyOpen events", "default": "Error", "enabled": true, "flags": ["twin:AS0061"], "docs": "https://example.invalid/pte0003" },
+  { "id": "AS0061", "prefix": "AS", "analyzer": "AppSourceCop", "title": "Procedures must not subscribe to CompanyOpen events", "default": "Error", "enabled": true, "flags": ["twin:PTE0003"], "docs": "https://example.invalid/as0061" },
+  { "id": "AS0084", "prefix": "AS", "analyzer": "AppSourceCop", "title": "Set the \"idRanges\" in app.json", "default": "Error", "enabled": true, "flags": [], "docs": "https://example.invalid/as0084" }
+]

@@ -41,6 +41,30 @@ BeforeDiscovery {
         'invalid/ruleset.skeleton/rule-action-default.json'
     ) | ForEach-Object { @{ Name = $_; Path = Join-Path $fixtureDir $_; Hub = $hub } }
 
+    # Every JSON file under template/ with the schema of its folder (naming.md section 2); $null when none applies.
+    $templateDir = Join-Path $repoRoot 'template'
+    $script:templateCases = @(Get-ChildItem -Path $templateDir -Recurse -File -Force -Filter '*.json' | ForEach-Object {
+            $relative = [System.IO.Path]::GetRelativePath($templateDir, $_.FullName) -replace '\\', '/'
+            $base = switch -Regex ($relative) {
+                '^base/twins\.json$' { 'rulebook-twins'; break }
+                '^base/[^/]+\.ruleset\.json$' { 'ruleset.delta'; break }
+                '^stages/[^/]+\.json$' { 'ruleset.delta'; break }
+                '^rulesets/[^/]+\.ruleset\.json$' { 'ruleset.endpoint'; break }
+                '^skeletons/[^/]+\.ruleset\.json$' { 'ruleset.skeleton'; break }
+                '^overrides\.json$' { 'rulebook-overrides'; break }
+                '^quarantine\.[^/]+\.json$' { 'rulebook-quarantine'; break }
+                '^catalog/diagnostics\.json$' { 'rulebook-catalog'; break }
+                '^\.github/Rulebook-Settings\.json$' { 'rulebook-settings'; break }
+                default { $null }
+            }
+            @{ Name = "template/$relative"; Path = $_.FullName; Schema = if ($base) { Join-Path $schemaDir "$base.schema.json" } else { $null } }
+        } | Sort-Object { $_.Name })
+    # Expected: levels and stages of the template settings, plus twins.json, the catalog, the settings and overrides.
+    $templateSettings = Get-Content -Path (Join-Path $templateDir '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json
+    $levelCount = @($templateSettings.levels).Count
+    $stageCount = @($templateSettings.stages).Count
+    $script:templateJsonCount = $levelCount + 1 + ($stageCount - 1) + 1 + 2 * $levelCount * $stageCount + 1 + 1 + $stageCount
+
     $namingPath = Join-Path $repoRoot 'docs' 'reference' 'naming.md'
     $namingText = (Get-Content -Path $namingPath -Raw) -replace "`r`n", "`n"
     $index = 0
@@ -154,6 +178,15 @@ Describe 'Live files' {
     It 'docs/rulebook/matrix/twins.json matches rulebook-twins.schema.json' {
         $path = Join-Path $repoRoot 'docs' 'rulebook' 'matrix' 'twins.json'
         Test-Json -Path $path -SchemaFile (Join-Path $schemaDir 'rulebook-twins.schema.json') | Should-BeTrue
+    }
+
+    It 'template/ holds the JSON files of the shipped content (<Expected>)' -ForEach @(@{ Count = $templateCases.Count; Expected = $templateJsonCount }) {
+        $Count | Should-Be $Expected
+    }
+
+    It '<Name> matches the schema of its folder' -ForEach $templateCases {
+        $Schema | Should-NotBeNull -Because "$Name sits in no folder with a schema"
+        Test-Json -Path $Path -SchemaFile $Schema | Should-BeTrue
     }
 }
 

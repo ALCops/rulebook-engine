@@ -140,7 +140,7 @@ The matrix is rendered by Hugo as static HTML; JavaScript hides rows, switches t
       "docsUrl": "https://learn.microsoft.com/...",
       "default": "Warning",
       "enabledByDefault": true,
-      "justifications": { "recommended": "Compiler warning at author severity; D-01", "stage:ci": "Advisory in CI; S-2" },
+      "justifications": { "recommended": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05", "stage:ci": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
       "cells": {
         "essential.default": { "action": "None", "source": "level:essential" },
         "recommended.ci":    { "action": "Info", "source": "stage:ci" },

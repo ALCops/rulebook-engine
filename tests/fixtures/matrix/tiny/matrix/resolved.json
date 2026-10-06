@@ -1,0 +1,8 @@
+{
+  "AL0200": { "core.default": "None", "core.ci": "None", "extended.default": "Warning", "extended.ci": "Warning" },
+  "AL0432": { "core.default": "Warning", "core.ci": "Info", "extended.default": "Warning", "extended.ci": "Info" },
+  "AL0603": { "core.default": "None", "core.ci": "None", "extended.default": "Info", "extended.ci": "Info" },
+  "PTE0003": { "core.default": "Error", "core.ci": "Error", "extended.default": "Error", "extended.ci": "Error" },
+  "AS0061": { "core.default": "None", "core.ci": "None", "extended.default": "Error", "extended.ci": "Error" },
+  "AS0084": { "core.default": "Error", "core.ci": "Error", "extended.default": "Warning", "extended.ci": "Warning" }
+}

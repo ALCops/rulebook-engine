@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook stage CI",
+  "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",
+  "rules": [
+    { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
+    { "id": "AL0472", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" },
+    { "id": "AL0473", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" },
+    { "id": "AL0479", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" },
+    { "id": "AL0603", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" },
+    { "id": "AL0801", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
+    { "id": "AL1026", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" },
+    { "id": "AL1029", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" },
+    { "id": "AL1030", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" },
+    { "id": "AL1412", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" }
+  ]
+}

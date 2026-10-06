@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook Complete",
+  "description": "Level complete, basedOn strict. Lists the ids whose action differs from strict. Generated from docs/rulebook; do not edit.",
+  "rules": [
+    { "id": "AL0605", "action": "Info", "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete; D-03" },
+    { "id": "AL0607", "action": "Info", "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete; D-03" },
+    { "id": "AL0792", "action": "Info", "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete; D-03" },
+    { "id": "AA0072", "action": "Info", "justification": "Opt-in rule; Complete enables it at Info; D-09" },
+    { "id": "AA0219", "action": "Info", "justification": "Opt-in rule; Complete enables it at Info; D-09" },
+    { "id": "AA0234", "action": "Info", "justification": "Opt-in rule; Complete enables it at Info; D-09" },
+    { "id": "AA0471", "action": "Info", "justification": "Opt-in rule; Complete enables it at Info; D-09" },
+    { "id": "AA0472", "action": "Info", "justification": "Opt-in rule; Complete enables it at Info; D-09" },
+    { "id": "AA0473", "action": "Info", "justification": "Opt-in rule; Complete enables it at Info; D-09" },
+    { "id": "AA0474", "action": "Info", "justification": "Opt-in rule; Complete enables it at Info; D-09" },
+    { "id": "PTE0022", "action": "Info", "justification": "Opt-in rule; Complete enables it at Info; D-09" },
+    { "id": "PC0005", "action": "Warning", "justification": "Opt-in rule; Complete enables it at its author severity; D-14" },
+    { "id": "PC0006", "action": "Warning", "justification": "Opt-in rule; Complete enables it at its author severity; D-14" },
+    { "id": "AC0008", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity; D-14" },
+    { "id": "AC0013", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity; D-14" },
+    { "id": "AC0021", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity; D-14" },
+    { "id": "LC0007", "action": "Info", "justification": "Reports a number, not a defect; Complete shows it as Info; F-06" },
+    { "id": "LC0009", "action": "Info", "justification": "Reports a number, not a defect; Complete shows it as Info; F-06" },
+    { "id": "LC0089", "action": "Info", "justification": "Reports a number, not a defect; Complete shows it as Info; F-06" },
+    { "id": "LC0097", "action": "Info", "justification": "Evaluated for contradictions, none found; opt-in style stays Info in Complete; OV-07" },
+    { "id": "DC0006", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity; D-14" },
+    { "id": "DC0008", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity; D-14" },
+    { "id": "DC0010", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity; D-14" },
+    { "id": "FC0007", "action": "Info", "justification": "Evaluated for contradictions, none found; opt-in style stays Info in Complete; OV-07" }
+  ]
+}

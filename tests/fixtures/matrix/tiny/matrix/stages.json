@@ -1,0 +1,9 @@
+{
+  "generatedBy": "tools/rulebook/Build-Matrix.ps1",
+  "setting": "stages",
+  "count": 2,
+  "stages": [
+    { "name": "default", "slug": "default" },
+    { "name": "CI", "slug": "ci", "file": "stages/ci.json" }
+  ]
+}

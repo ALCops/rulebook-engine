@@ -1,0 +1,105 @@
+# Template content
+
+What `template/` holds, where each file comes from, and how to regenerate it after a change to the level content in `docs/rulebook/`. WP13 deploys `template/` to `ALCops/rulebook`, and an organization creates its rulebook repository from that template.
+
+> **Status:** written by WP04 ([#6](https://github.com/ALCops/rulebook-engine/issues/6)). The generator contract is [rulebook/composition.md](../rulebook/composition.md) section 3; file names and schemas are in [naming.md](naming.md); the module is described in [ARCHITECTURE.md](../ARCHITECTURE.md) section 5.6.
+
+---
+
+## Contents
+
+1. [Files](#1-files)
+2. [Derivations](#2-derivations)
+3. [Build-Template.ps1](#3-build-templateps1)
+4. [Keeping template/ current](#4-keeping-template-current)
+5. [The seed catalog](#5-the-seed-catalog)
+6. [The base URL and {BASEURL}](#6-the-base-url-and-baseurl)
+
+---
+
+## 1. Files
+
+39 files: 7 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
+
+| Path | Class | Origin |
+|---|---|---|
+| `.github/Rulebook-Settings.json` | settings | Hand-written: the `template-default.json` settings fixture with `"baseUrl": ""` |
+| `.github/workflows/Validate.yaml` | system | Hand-written (WP03); the later workflows come with their work packages |
+| `README.md` | never touched after creation | Hand-written, organization-facing |
+| `overrides.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
+| `quarantine.default.json`, `quarantine.ci.json`, `quarantine.vnext.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
+| `base/essential.ruleset.json`, `recommended`, `strict`, `complete` | system | `Build-RulebookBase` |
+| `base/twins.json` | system | `Build-RulebookBase` |
+| `stages/ci.json`, `stages/vnext.json` | system | `Build-RulebookStages` |
+| `catalog/diagnostics.json` | org-owned | `Build-RulebookCatalog` (the seed, section 5) |
+| `skeletons/<level>.<stage>.ruleset.json` (12) | system | `New-RulebookSkeleton`, from the settings |
+| `rulesets/<level>[.<stage>].ruleset.json` (12) | generated | `Update-RulebookEndpoints` (Rulebook.Generate, WP03) |
+
+There is no placeholder for files that later work packages own: no other workflows, no `.github/RELEASENOTES.copy.md` (the deploy step writes it, D38), no `docs/` (WP11), no `site/` (WP14). The deploy workflow (WP13) must keep `docs/` in its keep list until WP11 decides where the organization documentation lives.
+
+Every generated file is UTF-8 without BOM, LF, with a trailing LF, and its text depends on the inputs only (no date, commit or machine path), so regenerating unchanged inputs gives the same bytes.
+
+## 2. Derivations
+
+Let `cell(id, level, stage)` be the value in `docs/rulebook/matrix/resolved.json`, and `default(id)` the inventory `Default` when `Enabled` is true, else `None` (composition.md section 3; the seed catalog gives the same value).
+
+| File | Entries | Source |
+|---|---|---|
+| Root level (`essential`, no `basedOn`) | every id where `cell(id, level, default) != default(id)` | `resolved.json` key `<slug>.default` |
+| Every other level | every id where `cell(id, level, default) != cell(id, basedOn, default)` | the same file |
+| Stage file (`ci`, `vnext`) | every id whose `matrix.json` column named after the stage (`CI`, `vNext`) is not `=`, with that action | `matrix.json` |
+| `base/twins.json` | the pairs of `matrix/twins.json`, sorted by `Get-DiagnosticSortKey` of the PTE side | `matrix/twins.json` |
+
+- Entries follow the inventory order, which is ascending `Get-DiagnosticSortKey` (check V1). The generators never re-sort; the Template suite asserts the order of every file.
+- Every level and stage entry carries the `Justification` of its matrix row, verbatim; a stage entry has the same text as the level entry of that id.
+- Levels come from `matrix/levels.json` and stages from `matrix/stages.json`, in that order. `basedOn` holds the display name and is matched case-insensitively; the slug is the lowercased name.
+- Why two sources for the stages: `resolved.json` cannot tell "the stage pins the id at the level action" from "no stage entry", while the stage column can. The level cells come from `resolved.json` because the V13 test compares the composed files against the same file.
+- File-level text: a level file is named `Rulebook <Name>`, a stage file `Rulebook stage <Name>`, with the descriptions of composition.md section 5; both carry the delta profile URL in `$schema`. `base/twins.json` carries the twins schema URL and `"generatedBy": "tools/rulebook/Build-Template.ps1"`.
+
+`Build-RulebookBase` checks its input and throws, as an engine tool, when the matrix rows do not mirror the inventory row by row, an id has no resolved cells, a level name is not a slug or disagrees with its `slug`, a `basedOn` names no level or forms a cycle, `stages.json` has no `default`, a stage names no matrix column, or a cell or stage column holds something other than an action (`=` allowed in a stage column).
+
+## 3. Build-Template.ps1
+
+```powershell
+pwsh ./tools/rulebook/Build-Template.ps1            # writes the changed files, prints "template: <file> (<change>)" or "template: current"
+pwsh ./tools/rulebook/Build-Template.ps1 -WhatIf    # writes nothing; an empty list means template/ is current
+```
+
+The wrapper runs, in this order:
+
+1. `Build-RulebookBase -RulebookDir docs/rulebook -OutputPath template/base`
+2. `Build-RulebookStages -RulebookDir docs/rulebook -OutputPath template/stages`
+3. `Build-RulebookCatalog -RulebookDir docs/rulebook -OutputPath template/catalog/diagnostics.json`
+4. `New-RulebookSkeleton -SettingsPath template/.github/Rulebook-Settings.json -OutputPath template/skeletons`
+5. `Update-RulebookEndpoints -RepositoryRoot template`
+
+The endpoints come last because they are generated from the files the first steps write. Each function builds and checks all its texts before it writes the first file, but the steps run one after the other: a step that throws leaves the files of the earlier steps written, so fix the input and run the wrapper again. `-RulebookDir` and `-TemplateDir` default to `docs/rulebook` and `template` next to the script. Each function writes only files whose bytes differ, deletes the files of its folder that it no longer produces (`*.ruleset.json` in `base/`, `skeletons/` and `rulesets/`, `*.json` in `stages/`), and returns one change object per file (`File`, `Change`: `created`, `modified`, `deleted`). The hand-written files are never touched.
+
+Step 5 reads the settings as an organization repository would, so a settings file the generator cannot handle (a `basedOn` that names no level file, a `twins` value outside `both`, `appsource` and `pte`) stops the wrapper with the Rulebook.Generate error.
+
+## 4. Keeping template/ current
+
+`template/` is derived from `docs/rulebook/`, `modules/Rulebook.Template.psm1` and the template settings. `Build-Template.ps1 -WhatIf` reports the drift of `base/`, `stages/`, the catalog and `skeletons/` against the inputs on disk; `rulesets/` it compares with the level and stage files currently on disk, so after a matrix change the endpoint drift is caught by C12 (once `base/` and `stages/` are regenerated) and by the Pester drift test, which regenerates everything from scratch. After a change to any of the inputs:
+
+```powershell
+pwsh ./tools/rulebook/Build-Matrix.ps1      # when the placement rules or the inventory changed
+pwsh ./tools/rulebook/Test-Rulebook.ps1     # V1 to V14
+pwsh ./tools/rulebook/Build-Template.ps1    # regenerate template/
+Invoke-Pester -Path ./tests -Output Detailed
+```
+
+Commit `docs/rulebook/` and `template/` together. The checks that catch a forgotten regeneration:
+
+- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and expects no change. It also copies the 7 hand-written files into a scratch folder, runs the wrapper there, and compares every file byte for byte with the committed one.
+- The same suite composes every cell of `resolved.json` from the committed files with `Get-EffectiveAction` (V13 on disk), checks the entry counts against `matrix/counts.md` and the Listed column, and runs `Test-Rulebook` on `template/`.
+- CI runs the Validate action on `template/` with `failOnWarning`, which includes the regeneration check C12 for `rulesets/`.
+
+## 5. The seed catalog
+
+`catalog/diagnostics.json` ships every inventory id so that C7 and the sparse rule work before the first scan (D24). An entry is `id`, `analyzer` (the inventory name, for example `Compiler`, `CodeCop`, `LinterCop`), `defaultSeverity`, `enabledByDefault`, `title` and `docs`, in that order, one entry per line; `title` and `docs` are left out when empty. It has no `package`, no versions and no channel: the catalog schema does not accept `null`, and the first scan (WP08) adds those fields. Titles are written as UTF-8 as they are, including the two non-ASCII titles of LC0009 and LC0089.
+
+The catalog is org-owned: an update from the template never overwrites it, so the seed matters for new repositories only. The engine regenerates it on every run of `Build-Template.ps1`.
+
+## 6. The base URL and {BASEURL}
+
+The template ships `"baseUrl": ""`. The settings schema accepts the empty string (an organization fills it in), C5 still rejects a trailing slash, and the Publish action (WP05) stops with a proposal until it is set. The skeletons in `skeletons/` keep the placeholder `{BASEURL}` in the repository; Publish renders the organization's URL into the published copy, so an update from the template never fights with the organization's URL.
