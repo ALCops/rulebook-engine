@@ -267,12 +267,14 @@ Describe 'Resolve-RulebookBaseUrl' {
         @{ Value = 'https://contoso.github.io/rulebook/..'; Message = '*must be an https URL*segments*' }
         @{ Value = 'https://contoso.github.io/rule"book'; Message = '*must be an https URL*quotes*' }
         @{ Value = 'https://contoso.github.io/rule\book'; Message = '*must be an https URL*backslashes*' }
-        @{ Value = "https://contoso.github.io/rule$([char]0x7)book"; Message = '*must be an https URL*' }
+        # {BEL} stands for the control character U+0007 in the test name, which the NUnit XML report cannot hold.
+        @{ Value = 'https://contoso.github.io/rule{BEL}book'; Message = '*must be an https URL*' }
         @{ Value = 'https://..'; Message = '*must be an https URL with a host name*' }
         @{ Value = 'https://user:secret@contoso.github.io/rulebook'; Message = '*must be an https URL with a host name*' }
         @{ Value = 'https://contoso.github.io:abc/rulebook'; Message = '*must be an https URL with a host name*' }
         @{ Value = 'https://-contoso.github.io'; Message = '*must be an https URL with a host name*' }
     ) {
+        $Value = $Value.Replace('{BEL}', [string][char]0x7)
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $Value } -Repository 'Contoso/Rulebook' } | Should-Throw -ExceptionMessage $Message
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -Override $Value } | Should-Throw -ExceptionMessage $Message
     }
