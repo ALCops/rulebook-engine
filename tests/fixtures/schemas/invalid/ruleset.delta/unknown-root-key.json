@@ -1,6 +1,6 @@
 {
   "name": "Rulebook Recommended",
-  "description": "Level recommended, based on essential. Generated from docs/rulebook; do not edit.",
+  "description": "Level recommended, basedOn essential. Lists the ids whose action differs from essential. Generated from docs/rulebook; do not edit.",
   "basedOn": "essential",
   "rules": [
     { "id": "AL0200", "action": "Warning", "justification": "Compiler warning at author severity from Recommended; D-01" },

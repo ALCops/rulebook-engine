@@ -159,7 +159,7 @@ Level file, `tests/fixtures/schemas/valid/ruleset.delta/level-recommended.json`:
 ```json
 {
   "name": "Rulebook Recommended",
-  "description": "Level recommended, based on essential. Generated from docs/rulebook; do not edit.",
+  "description": "Level recommended, basedOn essential. Lists the ids whose action differs from essential. Generated from docs/rulebook; do not edit.",
   "rules": [
     { "id": "AL0200", "action": "Warning", "justification": "Compiler warning at author severity from Recommended; D-01" },
     { "id": "AS0084", "action": "Error", "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended; F-07" }
@@ -173,7 +173,7 @@ Stage file, `tests/fixtures/schemas/valid/ruleset.delta/stage-ci.json`:
 {
   "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
   "name": "Rulebook stage CI",
-  "description": "Stage ci. Applied on top of every level's default result. Generated from docs/rulebook; do not edit.",
+  "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",
   "rules": [
     { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI; F-05" },
     { "id": "AL0603", "action": "Info", "justification": "Implicit conversion; advisory in CI; D-01" }

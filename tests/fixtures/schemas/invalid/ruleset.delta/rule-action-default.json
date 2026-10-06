@@ -1,6 +1,6 @@
 {
   "name": "Rulebook Recommended",
-  "description": "Level recommended, based on essential. Generated from docs/rulebook; do not edit.",
+  "description": "Level recommended, basedOn essential. Lists the ids whose action differs from essential. Generated from docs/rulebook; do not edit.",
   "rules": [
     { "id": "AL0200", "action": "Default", "justification": "Compiler warning at author severity from Recommended; D-01" },
     { "id": "AS0084", "action": "Error", "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended; F-07" }
