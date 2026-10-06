@@ -69,8 +69,13 @@ foreach ($p in $expected.Keys) {
     foreach ($r in $t.rows) { if ($seen.ContainsKey($r.ID)) { Fail 'V1' "duplicate id $($r.ID)" }; $seen[$r.ID] = $true; if ($r.ID -notmatch '^(AL|AA|AW|PTE|AS|PC|AC|LC|DC|FC|TA|CM)[0-9]{4}i?$') { Fail 'V1' "bad id format $($r.ID)" } }
 }
 if ($inv.Count -ne 628) { Fail 'V1' "total inventory is $($inv.Count), expected 628" }
+# every prefix of inventory.json is a key of the expected table, so the per-prefix loops of V1 and V2 see every id
+$invPrefixes = @($inv | ForEach-Object { $_.prefix } | Sort-Object -Unique -CaseSensitive)
+$expectedPrefixes = @($expected.Keys | Sort-Object -CaseSensitive)
+if (($invPrefixes -join ',') -cne ($expectedPrefixes -join ',')) { Fail 'V1' "inventory.json prefixes are $($invPrefixes -join ','), expected $($expectedPrefixes -join ',')" }
 # the shared sort key (Rulebook.Generate) reproduces the inventory order: strictly ascending, compared ordinally
-for ($i = 1; $i -lt $inv.Count; $i++) { if ([string]::CompareOrdinal((Get-DiagnosticSortKey -Id $inv[$i - 1].id), (Get-DiagnosticSortKey -Id $inv[$i].id)) -ge 0) { Fail 'V1' "inventory.json is not in ascending Get-DiagnosticSortKey order at $($inv[$i - 1].id), $($inv[$i].id)" } }
+$sortKeys = @($inv | ForEach-Object { Get-DiagnosticSortKey -Id $_.id })
+for ($i = 1; $i -lt $inv.Count; $i++) { if ([string]::CompareOrdinal($sortKeys[$i - 1], $sortKeys[$i]) -ge 0) { Fail 'V1' "inventory.json is not in ascending Get-DiagnosticSortKey order at $($inv[$i - 1].id), $($inv[$i].id)" } }
 foreach ($p in $expected.Keys) { $n = @($inv | Where-Object prefix -eq $p).Count; if ($n -ne $expected[$p]) { Fail 'V1' "$p has $n ids, expected $($expected[$p])" } }
 
 # ---- V2 matrix rows == inventory rows, same order, md == json; levels.json and stages.json describe the shipped set ----

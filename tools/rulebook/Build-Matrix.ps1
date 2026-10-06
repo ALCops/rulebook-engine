@@ -232,7 +232,11 @@ foreach ($r in ($inv | Where-Object prefix -eq 'PTE')) {
 }
 # Pairs in id order of the PTE side: Get-DiagnosticSortKey, compared ordinally.
 $sortedPairs = [System.Collections.Generic.SortedDictionary[string, object]]::new([System.StringComparer]::Ordinal)
-foreach ($pair in $pairs) { $sortedPairs.Add((Get-DiagnosticSortKey -Id $pair['pte']), $pair) }
+foreach ($pair in $pairs) {
+    $key = Get-DiagnosticSortKey -Id $pair['pte']
+    if ($sortedPairs.ContainsKey($key)) { throw "Duplicate twin pair for $($pair['pte'])" }
+    $sortedPairs.Add($key, $pair)
+}
 $twins = [ordered]@{
     generatedBy = 'tools/rulebook/Build-Matrix.ps1'
     setting     = 'twins'
