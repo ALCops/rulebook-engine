@@ -141,6 +141,29 @@ Describe 'New-RulebookPublishStage guards' {
         Test-Path -LiteralPath $output | Should-BeFalse
     }
 
+    It 'names the same stale and missing endpoints as Update-RulebookEndpoints -WhatIf (C12) on <Name>' -ForEach @(
+        @{ Name = 'stale-endpoints'; Mutate = $false }
+        @{ Name = 'a template copy with one edited and one deleted endpoint'; Mutate = $true }
+    ) {
+        if ($Mutate) {
+            $root = Copy-Template
+            $file = Join-Path $root 'rulesets' 'recommended.vnext.ruleset.json'
+            Write-FixtureText -Path $file -Text ((Get-Content -LiteralPath $file -Raw).Replace('"name": "Rulebook ', '"name": "Edited '))
+            Remove-Item -LiteralPath (Join-Path $root 'rulesets' 'essential.ruleset.json')
+        } else {
+            $root = New-FixtureRepo -Name 'stale-endpoints' -Destination (Get-TestFolder)
+        }
+        # Deletions are strays, which Publish never stages; created and modified are what both must refuse.
+        $c12 = @(Update-RulebookEndpoints -RepositoryRoot $root -WhatIf | Where-Object Change -CIn 'created', 'modified' | ForEach-Object File)
+        $c12.Count | Should-BeGreaterThan 0
+        $message = $null
+        try { $null = New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) } catch { $message = $_.Exception.Message }
+        $refused = @([regex]::Matches([string]$message, '(rulesets/[a-z0-9.-]+\.ruleset\.json) is (stale|missing)') | ForEach-Object { $_.Groups[1].Value })
+        [System.Array]::Sort($c12, [System.StringComparer]::Ordinal)
+        [System.Array]::Sort($refused, [System.StringComparer]::Ordinal)
+        $refused | Should-BeCollection $c12
+    }
+
     It 'refuses a missing endpoint' {
         $root = Copy-Template
         Remove-Item -LiteralPath (Join-Path $root 'rulesets' 'complete.vnext.ruleset.json')
@@ -163,6 +186,10 @@ Describe 'Resolve-RulebookBaseUrl' {
         Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -Repository 'Contoso/Rulebook' | Should-Be $baseUrl
     }
 
+    It 'accepts dots inside a segment' {
+        Resolve-RulebookBaseUrl -Settings @{ baseUrl = 'https://rules.contoso.com/v1.2/..rulebook' } | Should-Be 'https://rules.contoso.com/v1.2/..rulebook'
+    }
+
     It 'lets the override win' {
         Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -Override 'https://rules.contoso.com' | Should-Be 'https://rules.contoso.com'
     }
@@ -182,6 +209,10 @@ Describe 'Resolve-RulebookBaseUrl' {
         @{ Value = 'https://contoso.github.io/rulebook/'; Message = '*ends with a slash*' }
         @{ Value = 'http://contoso.github.io/rulebook'; Message = '*must be an https URL*' }
         @{ Value = 'https://contoso.github.io/rule book'; Message = '*must be an https URL*' }
+        @{ Value = 'https://contoso.github.io/rulebook?v=1'; Message = '*must be an https URL*query*' }
+        @{ Value = 'https://contoso.github.io/rulebook#top'; Message = '*must be an https URL*fragment*' }
+        @{ Value = 'https://contoso.github.io/./rulebook'; Message = '*must be an https URL*segments*' }
+        @{ Value = 'https://contoso.github.io/rulebook/..'; Message = '*must be an https URL*segments*' }
     ) {
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $Value } -Repository 'Contoso/Rulebook' } | Should-Throw -ExceptionMessage $Message
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -Override $Value } | Should-Throw -ExceptionMessage $Message
@@ -281,11 +312,12 @@ Describe 'Test-RulebookEndpoints' {
         }
     }
 
-    It 'passes every endpoint and skeleton on the first pass and skips index.html' {
+    It 'passes every endpoint, skeleton and index.html on the first pass' {
         $results = @(Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies))
-        $results.Count | Should-Be 3
+        $results.Count | Should-Be 4
         @($results | Where-Object Reason -NE 'ok').Count | Should-Be 0
-        @($results | ForEach-Object Attempts) | Should-BeCollection @(1, 1, 1)
+        @($results | ForEach-Object Attempts) | Should-BeCollection @(1, 1, 1, 1)
+        ($results | Where-Object Kind -EQ 'index').Url | Should-Be "$baseUrl/index.html"
         $results[0].Status | Should-Be 200
         Should-Invoke Start-Sleep -ModuleName Rulebook.Publish -Times 0 -Exactly
     }
@@ -332,18 +364,61 @@ Describe 'Test-RulebookEndpoints' {
         Should-Invoke Start-Sleep -ModuleName Rulebook.Publish -Times 1 -Exactly -ParameterFilter { $Seconds -eq 30 }
     }
 
-    It 'reports a timeout as timeout and another failure as error' {
-        $script:served["$baseUrl/rulesets/strict.ruleset.json"] = [System.Threading.Tasks.TaskCanceledException]::new('The request was canceled due to the configured HttpClient.Timeout of 15 seconds elapsing.')
+    It 'classifies the exception by type: a timeout, a cancellation and a connection failure' {
+        # Invoke-WebRequest -TimeoutSec throws a TaskCanceledException whose inner exception is a TimeoutException.
+        $script:served["$baseUrl/rulesets/strict.ruleset.json"] = [System.Threading.Tasks.TaskCanceledException]::new('The request was canceled due to the configured HttpClient.Timeout of 15 seconds elapsing.', [System.TimeoutException]::new('A task was canceled.'))
         $script:served["$baseUrl/rulesets/strict.ci.ruleset.json"] = [System.Net.Http.HttpRequestException]::new('No such host is known.')
+        $script:served["$baseUrl/skeletons/strict.ci.ruleset.json"] = [System.Threading.Tasks.TaskCanceledException]::new('A timeout word in a plain cancellation')
         $results = @(Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies) -WindowSeconds 0)
         ($results | Where-Object Path -EQ 'rulesets/strict.ruleset.json').Reason | Should-Be 'timeout'
+        ($results | Where-Object Path -EQ 'rulesets/strict.ruleset.json').Detail | Should-BeLikeString '*HttpClient.Timeout*'
         ($results | Where-Object Path -EQ 'rulesets/strict.ci.ruleset.json').Reason | Should-Be 'error'
         ($results | Where-Object Path -EQ 'rulesets/strict.ci.ruleset.json').Status | Should-Be 0
+        ($results | Where-Object Path -EQ 'rulesets/strict.ci.ruleset.json').Detail | Should-Be 'No such host is known.'
+        ($results | Where-Object Path -EQ 'skeletons/strict.ci.ruleset.json').Reason | Should-Be 'error'
+    }
+
+    It 'starts no request after the window once the first pass is done' {
+        # rulesets/strict.ruleset.json takes 1.6 s and both endpoints stay 404: pass 1 takes them both, pass 2 starts
+        # inside the 2 s window and its first request ends past it, so the second endpoint is not requested again.
+        $script:served.Remove("$baseUrl/rulesets/strict.ruleset.json")
+        $script:served.Remove("$baseUrl/rulesets/strict.ci.ruleset.json")
+        $slow = "$baseUrl/rulesets/strict.ruleset.json"
+        Mock Invoke-WebRequest -ModuleName Rulebook.Publish -ParameterFilter { $Uri -eq $slow } { [System.Threading.Thread]::Sleep(1600); [pscustomobject]@{ StatusCode = 404; Content = 'Not Found' } }
+        $manifest = @(New-TestManifest -Bodies ([ordered]@{ 'rulesets/strict.ruleset.json' = 'a'; 'rulesets/strict.ci.ruleset.json' = 'b' }))
+        $results = @(Test-RulebookEndpoints -Manifest $manifest -WindowSeconds 2 -IntervalSeconds 1)
+        ($results | Where-Object Path -EQ 'rulesets/strict.ruleset.json').Attempts | Should-Be 2
+        ($results | Where-Object Path -EQ 'rulesets/strict.ci.ruleset.json').Attempts | Should-Be 1
+        @($results | ForEach-Object Reason) | Should-BeCollection @('missing', 'missing')
+    }
+
+    It 'reports a staged file that cannot be read without requesting its URL' {
+        $manifest = @(New-TestManifest -Bodies $bodies)
+        $manifest[0].StagedFile = Join-Path $TestDrive 'gone' 'strict.ruleset.json'
+        $results = @(Test-RulebookEndpoints -Manifest $manifest -WindowSeconds 0)
+        $results[0].Reason | Should-Be 'error'
+        $results[0].Attempts | Should-Be 0
+        $results[0].Detail | Should-BeLikeString 'the staged file cannot be read*'
+        @($results | Where-Object Reason -EQ 'ok').Count | Should-Be 3
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 0 -Exactly -ParameterFilter { $Uri -eq "$baseUrl/rulesets/strict.ruleset.json" }
     }
 
     It 'requests with the compiler timeout of 15 s by default' {
         $null = Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies)
-        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 3 -Exactly -ParameterFilter { $TimeoutSec -eq 15 -and $SkipHttpErrorCheck }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 4 -Exactly -ParameterFilter { $TimeoutSec -eq 15 -and $SkipHttpErrorCheck }
+    }
+}
+
+Describe 'Invoke-PagesPreflight' {
+    It 'calls GET /repos/{owner}/{repo}/pages with the token and maps the answer' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.Publish { [pscustomobject]@{ StatusCode = 404; Content = [System.Text.Encoding]::UTF8.GetBytes('{"message":"Not Found","status":"404"}') } }
+        $result = Invoke-PagesPreflight -Repository 'Contoso/Rulebook' -ApiUrl 'https://api.example.com/' -Token 'secret' -BaseUrl $baseUrl
+        $result.Ok | Should-BeFalse
+        $result.StatusCode | Should-Be 404
+        $result.Message | Should-BeLikeString '*not enabled*'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 1 -Exactly -ParameterFilter {
+            $Uri -eq 'https://api.example.com/repos/Contoso/Rulebook/pages' -and $Headers.Authorization -eq 'Bearer secret' -and $SkipHttpErrorCheck
+        }
     }
 }
 

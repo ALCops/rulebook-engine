@@ -48,10 +48,11 @@ function Format-AnnotationText {
     return $escaped
 }
 
-function Format-TableCell {
+function ConvertTo-SingleLine {
+    # A message on one Markdown line (list item or paragraph); no table escaping.
     param([AllowNull()][string]$Text)
     if ([string]::IsNullOrEmpty($Text)) { return '' }
-    return $Text.Replace('|', '\|').Replace("`r", ' ').Replace("`n", ' ')
+    return $Text.Replace("`r", ' ').Replace("`n", ' ')
 }
 
 function Add-Annotation {
@@ -84,21 +85,27 @@ $script:errorMessages = [System.Collections.Generic.List[string]]::new()
 $summary = [System.Text.StringBuilder]::new()
 
 if ($Phase -eq 'Stage') {
-    $root = (Resolve-Path -LiteralPath $RepositoryRoot).ProviderPath
-    $workspace = if ([string]::IsNullOrEmpty($WorkspaceRoot)) { $root } else { (Resolve-Path -LiteralPath $WorkspaceRoot).ProviderPath }
-    $separator = [System.IO.Path]::DirectorySeparatorChar
-    $settingsFile = [System.IO.Path]::GetRelativePath($workspace, (Join-Path $root '.github' 'Rulebook-Settings.json')).Replace($separator, '/')
     $manifest = @()
     $resolvedBaseUrl = $null
     $preflight = $null
     $failed = $false
     [void]$summary.AppendLine('## Rulebook publish').AppendLine()
     try {
+        $root = (Resolve-Path -LiteralPath $RepositoryRoot -ErrorAction Stop).ProviderPath
+        $workspace = if ([string]::IsNullOrEmpty($WorkspaceRoot)) { $root } else { (Resolve-Path -LiteralPath $WorkspaceRoot -ErrorAction Stop).ProviderPath }
+        $separator = [System.IO.Path]::DirectorySeparatorChar
+        $settingsFile = [System.IO.Path]::GetRelativePath($workspace, (Join-Path $root '.github' 'Rulebook-Settings.json')).Replace($separator, '/')
         $inputs = Read-RulebookInputs -RepositoryRoot $root
         if (-not $inputs.SettingsPresent) { throw "Settings missing: .github/Rulebook-Settings.json in $root" }
         $settings = $inputs.Settings
+        # Target and base URL are reported independently, so one run names both problems.
         try {
             $resolvedTarget = Resolve-RulebookPublishTarget -Settings $settings -Override $Target
+        } catch {
+            Add-Annotation -File $settingsFile -Message $_.Exception.Message
+            $failed = $true
+        }
+        try {
             $resolvedBaseUrl = Resolve-RulebookBaseUrl -Settings $settings -Repository $Repository -Override $BaseUrl
         } catch {
             Add-Annotation -File $settingsFile -Message $_.Exception.Message
@@ -112,12 +119,8 @@ if ($Phase -eq 'Stage') {
             }
             if ($Deploy) {
                 if ([string]::IsNullOrEmpty($Repository)) { throw 'The Pages preflight needs the repository (GITHUB_REPOSITORY) as owner/name.' }
-                $headers = @{ Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
-                if (-not [string]::IsNullOrEmpty($Token)) { $headers.Authorization = "Bearer $Token" }
-                $response = Invoke-WebRequest -Uri "$($ApiUrl.TrimEnd('/'))/repos/$Repository/pages" -Headers $headers -TimeoutSec 30 -SkipHttpErrorCheck -ErrorAction Stop
-                $body = if ($response.Content -is [byte[]]) { [System.Text.Encoding]::UTF8.GetString($response.Content) } else { [string]$response.Content }
-                $preflight = Get-PagesPreflightResult -StatusCode ([int]$response.StatusCode) -Body $body -BaseUrl $resolvedBaseUrl -Repository $Repository
-                Write-Host "Pages preflight: HTTP $([int]$response.StatusCode). $($preflight.Message)"
+                $preflight = Invoke-PagesPreflight -Repository $Repository -ApiUrl $ApiUrl -Token $Token -BaseUrl $resolvedBaseUrl
+                Write-Host "Pages preflight: HTTP $($preflight.StatusCode). $($preflight.Message)"
                 if ($preflight.Warning) { Add-Annotation -Command warning -Message $preflight.Warning }
                 if (-not $preflight.Ok) { Add-Annotation -Message $preflight.Message; $failed = $true }
             }
@@ -136,7 +139,7 @@ if ($Phase -eq 'Stage') {
 
     if ($failed) {
         [void]$summary.AppendLine('Publish stopped before deploying:').AppendLine()
-        foreach ($message in $script:errorMessages) { [void]$summary.AppendLine('- ' + (Format-TableCell $message)) }
+        foreach ($message in $script:errorMessages) { [void]$summary.AppendLine('- ' + (ConvertTo-SingleLine $message)) }
         [void]$summary.AppendLine()
     } else {
         $mode = if ($Deploy) { 'Deploying to GitHub Pages' } else { 'Staged only (deploy is off)' }
@@ -170,15 +173,16 @@ $failed = $false
 try {
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Manifest not found: $ManifestPath (run -Phase Stage first)" }
     $manifest = @(Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json)
-    Write-Host "Checking $(@($manifest | Where-Object Kind -CIn 'endpoint', 'skeleton').Count) URLs for up to $WindowSeconds s"
+    Write-Host "Checking $(@($manifest | Where-Object Kind -CIn 'endpoint', 'skeleton', 'index').Count) URLs for up to $WindowSeconds s"
     $results = @(Test-RulebookEndpoints -Manifest $manifest -TimeoutSeconds $TimeoutSeconds -WindowSeconds $WindowSeconds -IntervalSeconds $IntervalSeconds)
     foreach ($result in $results | Where-Object Reason -CNE 'ok') {
         $reason = switch ($result.Reason) {
             'missing' { 'is missing (HTTP 404)' }
             'different' { 'serves a different body than the committed file' }
             'timeout' { "timed out after $TimeoutSeconds s" }
-            default { "failed (HTTP $($result.Status))" }
+            default { if ($result.Status -gt 0) { "failed (HTTP $($result.Status))" } else { 'failed' } }
         }
+        if ($result.Detail) { $reason += " ($($result.Detail))" }
         Add-Annotation -Message ('{0} {1} after {2} attempt(s) in {3} s. Consumers of this URL compile with AL1033 (alc aborts; VS Code falls back to the analyzer defaults).' -f $result.Url, $reason, $result.Attempts, $result.Seconds)
         $failed = $true
     }
@@ -193,7 +197,7 @@ try {
     [void]$summary.AppendLine()
 } catch {
     Add-Annotation -Message $_.Exception.Message
-    [void]$summary.AppendLine((Format-TableCell $_.Exception.Message)).AppendLine()
+    [void]$summary.AppendLine((ConvertTo-SingleLine $_.Exception.Message)).AppendLine()
     $failed = $true
 }
 $summaryText = $summary.ToString().Replace("`r`n", "`n")

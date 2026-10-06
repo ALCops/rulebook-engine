@@ -183,6 +183,24 @@ Describe 'Publish.ps1 -Phase Stage' {
         @($run.Result.Annotations | Where-Object { $_ -like "::error *::Publish target 'dist-repo' is not implemented yet; see https://github.com/ALCops/rulebook-engine/issues/55*" }).Count | Should-Be 1
     }
 
+    It 'reports a wrong target and an empty baseUrl together' {
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Target = 'gist' }
+        $run.Result.ExitCode | Should-Be 1
+        $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
+        $errors.Count | Should-Be 2
+        $errors[0] | Should-BeLikeString "*Publish target 'gist' is not implemented yet*issues/57*"
+        $errors[1] | Should-BeLikeString '*baseUrl is empty*'
+        $run.Summary | Should-MatchString '(?m)^- Publish target ''gist'''
+        $run.Summary | Should-MatchString '(?m)^- baseUrl is empty'
+    }
+
+    It 'fails a repository root that does not exist with an annotation and a result' {
+        $run = Invoke-Entry @{ RepositoryRoot = (Join-Path $TestDrive 'no-such-repo') }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Annotations[0] | Should-BeLikeString '::error title=Publish::*no-such-repo*'
+        $run.Summary | Should-MatchString 'Publish stopped before deploying'
+    }
+
     It 'fails stale endpoints before staging (D42)' {
         $root = Copy-Template
         $file = Join-Path $root 'rulesets' 'essential.ruleset.json'
@@ -206,9 +224,20 @@ Describe 'Publish.ps1 -Phase Check' {
         $stage.Result.ExitCode | Should-Be 0
         $run = Invoke-Entry @{ Phase = 'Check'; ManifestPath = $stage.Result.ManifestPath; WindowSeconds = 0; TimeoutSeconds = 5 }
         $run.Result.ExitCode | Should-Be 1
-        @($run.Result.Results).Count | Should-Be 24
-        @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/rulesets/strict.ci.ruleset.json failed (HTTP 0) after 1 attempt(s)*AL1033*' }).Count | Should-Be 1
-        $run.Summary | Should-MatchString '\*\*0 of 24 URLs\*\*'
+        @($run.Result.Results).Count | Should-Be 25
+        @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/rulesets/strict.ci.ruleset.json failed (*) after 1 attempt(s)*AL1033*' }).Count | Should-Be 1
+        @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/ failed*' }).Count | Should-Be 1
+        $run.Summary | Should-MatchString '\*\*0 of 25 URLs\*\*'
+    }
+
+    It 'reports a staged file that is gone as a failed URL, not an exception' {
+        $manifestPath = Join-Path $TestDrive 'gone-manifest.json'
+        $entry = [pscustomobject]@{ Path = 'rulesets/strict.ruleset.json'; Url = 'https://127.0.0.1:9/rulebook/rulesets/strict.ruleset.json'; Kind = 'endpoint'; StagedFile = (Join-Path $TestDrive 'gone' 'strict.ruleset.json') }
+        Set-Content -LiteralPath $manifestPath -Value (ConvertTo-Json -InputObject @($entry))
+        $run = Invoke-Entry @{ Phase = 'Check'; ManifestPath = $manifestPath; WindowSeconds = 0 }
+        $run.Result.ExitCode | Should-Be 1
+        @($run.Result.Results)[0].Reason | Should-Be 'error'
+        $run.Result.Annotations[0] | Should-BeLikeString '::error title=Publish::https://127.0.0.1:9/rulebook/rulesets/strict.ruleset.json failed (the staged file cannot be read*) after 0 attempt(s)*'
     }
 
     It 'fails without a manifest' {

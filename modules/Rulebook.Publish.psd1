@@ -11,6 +11,7 @@
     FunctionsToExport    = @(
         'ConvertTo-RulebookIndexHtml'
         'Get-PagesPreflightResult'
+        'Invoke-PagesPreflight'
         'New-RulebookPublishStage'
         'Resolve-RulebookBaseUrl'
         'Resolve-RulebookPublishTarget'

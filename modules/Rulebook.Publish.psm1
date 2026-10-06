@@ -10,7 +10,9 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 
 $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-$script:BaseUrlPattern = '^https://[^\s/]+(/[^\s/]+)*\z'
+# https, a host, path segments without '.' or '..', no query, fragment, whitespace or trailing slash. The settings
+# schema pattern of baseUrl says the same.
+$script:BaseUrlPattern = '^https://[^\s/?#]+(/(?!\.\.?(/|\z))[^\s/?#]+)*\z'
 $script:Placeholder = '{BASEURL}'
 # The targets of the settings schema that WP05 does not implement, with their backlog issues.
 $script:PendingTargets = [ordered]@{
@@ -69,10 +71,11 @@ function Get-ResponseText {
 }
 
 function Test-TimeoutError {
+    # Invoke-WebRequest -TimeoutSec ends with a TaskCanceledException whose inner exception is a TimeoutException
+    # (.NET 5 and later); any other cancellation or an HttpRequestException is not a timeout.
     param([Parameter(Mandatory)][System.Exception]$Exception)
     for ($current = $Exception; $null -ne $current; $current = $current.InnerException) {
-        if ($current -is [System.TimeoutException] -or $current -is [System.Threading.Tasks.TaskCanceledException]) { return $true }
-        if ($current.Message -match 'time(d)?\s?out|timeout') { return $true }
+        if ($current -is [System.TimeoutException]) { return $true }
     }
     return $false
 }
@@ -124,7 +127,7 @@ function Resolve-RulebookBaseUrl {
         throw "baseUrl is empty. Set `"baseUrl`": `"$proposal`" in $($script:SettingsPath) (the GitHub Pages address of this repository; use your custom domain instead if the Pages site has one), commit it in a pull request and run Publish again."
     }
     if ($value.EndsWith('/')) { throw "$where ends with a slash: '$value'. Remove the trailing slash." }
-    if ($value -cnotmatch $script:BaseUrlPattern) { throw "$where must be an https URL without spaces or a trailing slash: '$value'." }
+    if ($value -cnotmatch $script:BaseUrlPattern) { throw "$where must be an https URL without spaces, a query (?), a fragment (#), '.' or '..' segments or a trailing slash: '$value'." }
     return $value
 }
 
@@ -211,12 +214,14 @@ function New-RulebookPublishStage {
     [CmdletBinding()]
     [OutputType([pscustomobject])]
     param([Parameter(Mandatory)][string]$RepositoryRoot, [Parameter(Mandatory)][string]$BaseUrl, [Parameter(Mandatory)][string]$OutputPath)
-    if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL without a trailing slash: '$BaseUrl'" }
+    if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL without a query, a fragment, dot segments or a trailing slash: '$BaseUrl'" }
     $inputs = Read-RulebookInputs -RepositoryRoot $RepositoryRoot
     if (-not $inputs.SettingsPresent) { throw "Settings missing: $($script:SettingsPath) in $($inputs.Root)" }
     if ($inputs.Levels.Count -eq 0 -or $inputs.Stages.Count -eq 0) { throw "$($script:SettingsPath): levels and stages must each list at least one entry (C5)" }
 
     $endpoints = [System.Collections.Generic.List[object]]::new()
+    # The committed bytes, read once: compared with the generator output here and staged below as they are.
+    $committed = [System.Collections.Generic.Dictionary[string, byte[]]]::new([System.StringComparer]::Ordinal)
     $problems = [System.Collections.Generic.List[string]]::new()
     foreach ($level in $inputs.Levels) {
         foreach ($stage in $inputs.Stages) {
@@ -224,10 +229,13 @@ function New-RulebookPublishStage {
             $endpoints.Add($endpoint)
             $source = Join-Path $inputs.Root $endpoint.File
             if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { $problems.Add("$($endpoint.File) is missing"); continue }
+            # The same text and comparison as Update-RulebookEndpoints, which is check C12; a test pins the two together.
             $expected = $script:Utf8NoBom.GetBytes((ConvertTo-RulesetJson -Name $endpoint.Name -Description $endpoint.Description -Rules $endpoint.Entries))
-            if (-not [System.Linq.Enumerable]::SequenceEqual([byte[]][System.IO.File]::ReadAllBytes($source), [byte[]]$expected)) {
+            $bytes = [System.IO.File]::ReadAllBytes($source)
+            if (-not [System.Linq.Enumerable]::SequenceEqual($bytes, [byte[]]$expected)) {
                 $problems.Add("$($endpoint.File) is stale")
             }
+            $committed[$endpoint.File] = $bytes
         }
     }
     if ($problems.Count -gt 0) {
@@ -251,7 +259,7 @@ function New-RulebookPublishStage {
     $manifest = [System.Collections.Generic.List[object]]::new()
     foreach ($endpoint in $endpoints) {
         $staged = Join-Path $output $endpoint.File
-        Write-StagedFile -Path $staged -Bytes ([System.IO.File]::ReadAllBytes((Join-Path $inputs.Root $endpoint.File)))
+        Write-StagedFile -Path $staged -Bytes $committed[$endpoint.File]
         $manifest.Add([pscustomobject]@{ Path = $endpoint.File; Url = "$BaseUrl/$($endpoint.File)"; Kind = 'endpoint'; StagedFile = $staged })
     }
     foreach ($skeleton in $skeletonSources) {
@@ -328,14 +336,16 @@ function Get-PagesPreflightResult {
 function Test-RulebookEndpoints {
     <#
     .SYNOPSIS
-    GETs every endpoint and skeleton URL of a staging manifest until each serves the staged bytes or the window ends.
+    GETs every URL of a staging manifest (endpoints, skeletons, index.html) until each serves the staged bytes or the window ends.
     .DESCRIPTION
-    One pass requests every pending URL with -TimeoutSeconds per request (the compiler uses 15 s). A URL passes on
+    The first pass requests every URL with -TimeoutSeconds per request (the compiler uses 15 s). A URL passes on
     HTTP 200 with a body equal to the staged file (both UTF-8 decoded, compared ordinally). Pending URLs are
-    retried every -IntervalSeconds until -WindowSeconds of waiting is used up (GitHub Pages serves with
-    max-age=600, hence 660 s). Returns one result per URL: Path, Url, Kind, Status (HTTP status or 0), Reason
-    (ok, missing, different, timeout, error), Attempts and Seconds (elapsed when it passed or was last tried).
-    Never throws; the caller decides the exit code.
+    retried every -IntervalSeconds; after the first pass no request starts once -WindowSeconds have passed, so the
+    run ends at most one request timeout after the window (GitHub Pages serves with max-age=600, hence 660 s).
+    Requests are sequential so that Invoke-WebRequest and Start-Sleep can be mocked. Returns one result per URL:
+    Path, Url, Kind, Status (HTTP status or 0), Reason (ok, missing, different, timeout, error), Attempts, Seconds
+    (elapsed when it passed or was last tried) and Detail (the exception message of a timeout or error). A staged
+    file that cannot be read is an error with no request. Never throws; the caller decides the exit code.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Checks the whole published set')]
     [CmdletBinding()]
@@ -348,25 +358,34 @@ function Test-RulebookEndpoints {
     )
     $results = [System.Collections.Generic.List[object]]::new()
     foreach ($entry in $Manifest) {
-        if ($entry.Kind -cnotin 'endpoint', 'skeleton') { continue }
-        $expected = [System.IO.File]::ReadAllText($entry.StagedFile, $script:Utf8NoBom)
-        $results.Add([pscustomobject]@{
-                Path = $entry.Path; Url = $entry.Url; Kind = $entry.Kind; Status = 0; Reason = 'pending'; Attempts = 0; Seconds = 0.0
-                Expected = $expected
-            })
+        if ($entry.Kind -cnotin 'endpoint', 'skeleton', 'index') { continue }
+        $item = [pscustomobject]@{
+            Path = $entry.Path; Url = $entry.Url; Kind = $entry.Kind; Status = 0; Reason = 'pending'; Attempts = 0; Seconds = 0.0; Detail = $null
+            Expected = $null
+        }
+        try {
+            $item.Expected = [System.IO.File]::ReadAllText($entry.StagedFile, $script:Utf8NoBom)
+        } catch {
+            $item.Reason = 'error'
+            $item.Detail = "the staged file cannot be read: $($_.Exception.Message)"
+        }
+        $results.Add($item)
     }
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
     # The pass limit keeps the loop finite when Start-Sleep is mocked; the clock ends it when requests are slow.
     $maxPasses = 1 + [math]::Floor($WindowSeconds / $IntervalSeconds)
     for ($pass = 1; $pass -le $maxPasses; $pass++) {
-        $pending = @($results | Where-Object { $_.Reason -cne 'ok' })
+        $pending = @($results | Where-Object { $_.Reason -cne 'ok' -and $null -ne $_.Expected })
         if ($pending.Count -eq 0) { break }
         if ($pass -gt 1) {
-            if ($clock.Elapsed.TotalSeconds -ge $WindowSeconds) { break }
-            Start-Sleep -Seconds $IntervalSeconds
+            $left = $WindowSeconds - $clock.Elapsed.TotalSeconds
+            if ($left -le 0) { break }
+            Start-Sleep -Seconds ([math]::Max(1, [math]::Min($IntervalSeconds, [math]::Ceiling($left))))
         }
         foreach ($item in $pending) {
+            if ($pass -gt 1 -and $clock.Elapsed.TotalSeconds -ge $WindowSeconds) { break }
             $item.Attempts++
+            $item.Detail = $null
             try {
                 $response = Invoke-WebRequest -Uri $item.Url -Method Get -TimeoutSec $TimeoutSeconds -SkipHttpErrorCheck -ErrorAction Stop
                 $item.Status = [int]$response.StatusCode
@@ -380,13 +399,40 @@ function Test-RulebookEndpoints {
             } catch {
                 $item.Status = 0
                 $item.Reason = if (Test-TimeoutError $_.Exception) { 'timeout' } else { 'error' }
+                $item.Detail = $_.Exception.Message
             }
             $item.Seconds = [math]::Round($clock.Elapsed.TotalSeconds, 1)
         }
     }
     foreach ($item in $results) {
-        [pscustomobject]@{ Path = $item.Path; Url = $item.Url; Kind = $item.Kind; Status = $item.Status; Reason = $item.Reason; Attempts = $item.Attempts; Seconds = $item.Seconds }
+        [pscustomobject]@{
+            Path = $item.Path; Url = $item.Url; Kind = $item.Kind; Status = $item.Status; Reason = $item.Reason; Attempts = $item.Attempts; Seconds = $item.Seconds; Detail = $item.Detail
+        }
     }
+}
+
+function Invoke-PagesPreflight {
+    <#
+    .SYNOPSIS
+    Calls GET /repos/{owner}/{repo}/pages and maps the answer with Get-PagesPreflightResult.
+    .DESCRIPTION
+    Returns the result of Get-PagesPreflightResult plus StatusCode. A request that fails without an HTTP answer
+    throws. Never creates the site.
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [string]$ApiUrl = 'https://api.github.com',
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$BaseUrl
+    )
+    $headers = @{ Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
+    if (-not [string]::IsNullOrEmpty($Token)) { $headers.Authorization = "Bearer $Token" }
+    $response = Invoke-WebRequest -Uri "$($ApiUrl.TrimEnd('/'))/repos/$Repository/pages" -Headers $headers -TimeoutSec 30 -SkipHttpErrorCheck -ErrorAction Stop
+    $status = [int]$response.StatusCode
+    $result = Get-PagesPreflightResult -StatusCode $status -Body (Get-ResponseText $response) -BaseUrl $BaseUrl -Repository $Repository
+    $result | Add-Member -NotePropertyName StatusCode -NotePropertyValue $status -PassThru
 }
 
 #endregion
@@ -394,6 +440,7 @@ function Test-RulebookEndpoints {
 Export-ModuleMember -Function @(
     'ConvertTo-RulebookIndexHtml'
     'Get-PagesPreflightResult'
+    'Invoke-PagesPreflight'
     'New-RulebookPublishStage'
     'Resolve-RulebookBaseUrl'
     'Resolve-RulebookPublishTarget'
