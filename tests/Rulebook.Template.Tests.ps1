@@ -393,6 +393,17 @@ Describe 'Shipped template content' {
         Get-FolderName 'skeletons' | Should-Be (Get-SortedName @(foreach ($level in $shippedLevels) { foreach ($stage in $shippedStages) { "$level.$stage.ruleset.json" } }))
     }
 
+    It 'ships settings with quarantine unset, twins both and an empty baseUrl that pass the settings schema' {
+        $path = Join-Path $templateDir '.github' 'Rulebook-Settings.json'
+        $settings = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable
+        $settings['quarantine'].Contains('stages') | Should-BeTrue
+        $settings['quarantine']['stages'] | Should-BeNull
+        $settings['quarantine']['prereleaseStages'] | Should-BeNull
+        $settings['twins'] | Should-Be 'both'
+        $settings['baseUrl'] | Should-Be ''
+        Test-Json -Path $path -SchemaFile (Join-Path $schemaDir 'rulebook-settings.schema.json') | Should-BeTrue
+    }
+
     It 'has the entry counts of the file table in matrix/counts.md' {
         $counts.Entries.Count | Should-Be 6
         foreach ($file in $counts.Entries.Keys) {
