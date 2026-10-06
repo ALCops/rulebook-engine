@@ -67,7 +67,7 @@ When a change touches `tools/rulebook/` or `docs/rulebook/`, also run `pwsh ./to
 
 `.github/workflows/ci.yml` has two jobs on `ubuntu-latest` with a 15-minute timeout each, `test` and `validate-action`. Both run on every pull request and on every push to `main` or a release branch (`v*`). `test` installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push to a pull request cancels its running job; pushes to `main` and release branches always finish.
 
-`validate-action` runs the composite action from the checkout (`uses: ./actions/Validate`) the way an organization workflow does: it must pass on `tests/fixtures/repos/valid-minimal` and fail on `tests/fixtures/repos/stale-endpoints`, and the job fails otherwise. Its step on `stale-endpoints` prints one expected C12 error annotation. The ruleset requires `test`; requiring `validate-action` too is a ruleset change (section 6).
+`validate-action` runs the composite action from the checkout (`uses: ./actions/Validate`) the way an organization workflow does: it must pass on `tests/fixtures/repos/valid-minimal` and fail on `tests/fixtures/repos/stale-endpoints`, and the job fails otherwise. Its step on `stale-endpoints` prints one expected C12 error annotation. The ruleset requires both checks (section 6).
 
 The module versions are pinned in `ci.yml` (PSScriptAnalyzer 1.25.0, Pester 6.2.0) and bumped by hand, because Dependabot does not cover the PowerShell Gallery; it only updates the action tags.
 
@@ -83,7 +83,7 @@ Applied on 2026-10-03 by the WP00 pull request ([#2](https://github.com/ALCops/r
 
 | Setting | Value | Command |
 |---|---|---|
-| Ruleset `protect-main` on the default branch | Pull request required, 0 approvals, deletion and force-push blocked, check `test` from GitHub Actions required, no bypass actors. | `gh api --method POST ... rulesets --input ruleset-engine.json` |
+| Ruleset `protect-main` on the default branch | Pull request required, 0 approvals, deletion and force-push blocked, checks `test` and `validate-action` from GitHub Actions required, no bypass actors. `validate-action` was added on 2026-10-06 with the WP03 pull request ([#46](https://github.com/ALCops/rulebook-engine/pull/46)) through a PUT of the same JSON. | `gh api --method POST ... rulesets --input ruleset-engine.json`, later `gh api --method PUT ... rulesets/24420852 --input ruleset-engine.json` |
 | Workflow permissions | Read-only `GITHUB_TOKEN` (applied). "Actions may create and approve pull requests" is not applied yet: the repository-level PUT is refused (409) while the organization policy "Allow GitHub Actions to create and approve pull requests" is off. An org admin enables it under Org Settings > Actions > General; then the PUT below applies. | `gh api --method PUT ... actions/permissions/workflow` |
 | Labels | `dependencies` and `skip-changelog`, next to the defaults (`enhancement`, `bug`, `documentation`). | `gh label create` |
 
@@ -108,7 +108,9 @@ The ruleset, saved as `ruleset-engine.json` outside the repository (`integration
     { "type": "required_status_checks", "parameters": {
         "strict_required_status_checks_policy": false,
         "do_not_enforce_on_create": false,
-        "required_status_checks": [ { "context": "test", "integration_id": 15368 } ] } }
+        "required_status_checks": [
+          { "context": "test", "integration_id": 15368 },
+          { "context": "validate-action", "integration_id": 15368 } ] } }
   ]
 }
 ```
