@@ -22,7 +22,7 @@ What exists today, and the work package that adds the rest. A folder is created 
 
 | Path | Content | Added by |
 |---|---|---|
-| `.github/workflows/ci.yml` | PSScriptAnalyzer and Pester on every pull request and every push to `main` and to a release branch (`v*`); the Validate action on two fixtures. | WP00, WP03 |
+| `.github/workflows/ci.yml` | PSScriptAnalyzer, the matrix checks V1 to V14 and Pester on every pull request and every push to `main` and to a release branch (`v*`); the Validate action on two fixtures. | WP00, WP03, WP04 |
 | `.github/workflows/` (deploy) | Copies `template/` into `ALCops/rulebook` and pins action references to `@v1`. | WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)) |
 | `.github/release.yml` | Maps pull request labels to release-note sections ([D38](docs/adr/0038-release-notes-are-generated-from-pull-request-labels.md)). | WP00 |
 | `.github/dependabot.yml` | Weekly, grouped updates of the GitHub Actions used by the workflows. | WP00 |
@@ -61,11 +61,11 @@ Invoke-Pester -Path ./tests -Output Detailed
 
 The analyzer must print nothing. Outside GitHub Actions the Linux smoke case is skipped (it runs only when `$env:GITHUB_ACTIONS` is set). The effective-diff tests of the Generate suite and the diff tests of the Validate action suite need `git` on the path and are skipped without it.
 
-When a change touches `tools/rulebook/` or `docs/rulebook/`, also run `pwsh ./tools/rulebook/Test-Rulebook.ps1`. Regenerating the level content with `Extract-Inventory.ps1` needs the sibling clones `../Analyzers` and `../nav-sdk-source`.
+When a change touches `tools/rulebook/` or `docs/rulebook/`, also run `pwsh ./tools/rulebook/Test-Rulebook.ps1` (checks V1 to V14 of [docs/rulebook/verification.md](docs/rulebook/verification.md); CI runs it too). The three scripts in `tools/rulebook/` import `modules/Rulebook.Generate.psd1` for the diagnostic sort key (`Get-DiagnosticSortKey`) and build paths with `Join-Path` segments, never a Windows separator. Regenerating the level content with `Extract-Inventory.ps1` needs the sibling clones `../Analyzers` and `../nav-sdk-source`.
 
 ## 4. CI
 
-`.github/workflows/ci.yml` has two jobs on `ubuntu-latest` with a 15-minute timeout each, `test` and `validate-action`. Both run on every pull request and on every push to `main` or a release branch (`v*`). `test` installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push to a pull request cancels its running job; pushes to `main` and release branches always finish.
+`.github/workflows/ci.yml` has two jobs on `ubuntu-latest` with a 15-minute timeout each, `test` and `validate-action`. Both run on every pull request and on every push to `main` or a release branch (`v*`). `test` installs PSScriptAnalyzer and Pester 6, runs the analyzer over the whole repository and fails on any finding (after printing the findings table), runs the matrix checks V1 to V14 (`tools/rulebook/Test-Rulebook.ps1`, which exits 1 on a failed check), runs Pester from `tests/`, and uploads `testResults.xml` (NUnit) as the `testResults` artifact, also when a step failed. The workflow token is read-only, and a new push to a pull request cancels its running job; pushes to `main` and release branches always finish.
 
 `validate-action` runs the composite action from the checkout (`uses: ./actions/Validate`) the way an organization workflow does: it must pass on `tests/fixtures/repos/valid-minimal` and fail on `tests/fixtures/repos/stale-endpoints`, and the job fails otherwise. Its step on `stale-endpoints` prints one expected C12 error annotation. The ruleset requires both checks (section 6).
 

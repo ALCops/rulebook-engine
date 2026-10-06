@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 7.4
 <#
 .SYNOPSIS
   Applies the placement algorithm to docs/rulebook/inventory/inventory.json and writes
@@ -18,12 +18,14 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$RulebookDir = (Join-Path $PSScriptRoot '..\..\docs\rulebook')
+    [string]$RulebookDir = (Join-Path $PSScriptRoot '..' '..' 'docs' 'rulebook')
 )
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot '..' '..' 'modules' 'Rulebook.Generate.psd1') -Function Get-DiagnosticSortKey -Force
 $RulebookDir = (Resolve-Path $RulebookDir).Path
-$inv = Get-Content -Raw (Join-Path $RulebookDir 'inventory\inventory.json') | ConvertFrom-Json
-$prefixOrder = @('AL','AA','AW','PTE','AS','PC','AC','LC','DC','FC','TA','CM')
+$inv = Get-Content -Raw (Join-Path $RulebookDir 'inventory' 'inventory.json') | ConvertFrom-Json
+# Prefixes in inventory order (the inventory is sorted by Get-DiagnosticSortKey of Rulebook.Generate).
+$prefixes = @($inv | ForEach-Object { $_.prefix } | Select-Object -Unique)
 $levelNames = @('Essential','Recommended','Strict','Complete')
 $levelSlugs = @($levelNames | ForEach-Object { $_.ToLowerInvariant() })
 $stageNames = @('default','CI','vNext')
@@ -228,12 +230,19 @@ foreach ($r in ($inv | Where-Object prefix -eq 'PTE')) {
     if (@($byId[$as].flags | Where-Object { $_ -eq "twin:$($r.id)" }).Count -ne 1) { throw "twin flag of $($r.id) is not mirrored on $as" }
     $pairs.Add([ordered]@{ pte = $r.id; appsource = $as; title = $r.title })
 }
+# Pairs in id order of the PTE side: Get-DiagnosticSortKey, compared ordinally.
+$sortedPairs = [System.Collections.Generic.SortedDictionary[string, object]]::new([System.StringComparer]::Ordinal)
+foreach ($pair in $pairs) {
+    $key = Get-DiagnosticSortKey -Id $pair['pte']
+    if ($sortedPairs.ContainsKey($key)) { throw "Duplicate twin pair for $($pair['pte'])" }
+    $sortedPairs.Add($key, $pair)
+}
 $twins = [ordered]@{
     generatedBy = 'tools/rulebook/Build-Matrix.ps1'
     setting     = 'twins'
     values      = @('both','appsource','pte')
     count       = $pairs.Count
-    pairs       = @($pairs | Sort-Object pte)
+    pairs       = @($sortedPairs.Values)
 }
 $twins | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $matrixDir 'twins.json') -Encoding utf8NoBOM
 
@@ -259,7 +268,7 @@ for ($si = 0; $si -lt $stageNames.Count; $si++) {
 $stagesOut = [ordered]@{ generatedBy = 'tools/rulebook/Build-Matrix.ps1'; setting = 'stages'; count = $stageList.Count; stages = @($stageList) }
 $stagesOut | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $matrixDir 'stages.json') -Encoding utf8NoBOM
 
-foreach ($p in $prefixOrder) {
+foreach ($p in $prefixes) {
     $set = @($matrix | Where-Object prefix -eq $p)
     $analyzer = ($inv | Where-Object prefix -eq $p | Select-Object -First 1).analyzer
     $sb = [System.Text.StringBuilder]::new()
