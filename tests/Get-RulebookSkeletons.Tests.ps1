@@ -165,24 +165,26 @@ Describe 'Get-RulebookSkeletons.ps1' {
         @(Get-ChildItem -LiteralPath $folder -File).Count | Should-Be 3
     }
 
-    It 'prints the settings relative to the AL project root for -OutputPath ./MyApp/.rulebook' {
-        $workspace = Get-TestFolder
-        [void](New-Item -ItemType Directory -Path $workspace)
-        Push-Location -LiteralPath $workspace
+    It 'prints the settings relative to the current folder, run from the AL project root <Name>' -ForEach @(
+        @{ Name = 'MyApp with the default output'; OutputPath = $null; Setting = '.rulebook/default.ruleset.json' }
+        @{ Name = 'MyApp with -OutputPath .'; OutputPath = '.'; Setting = 'default.ruleset.json' }
+        @{ Name = 'MyApp with -OutputPath tools/.rulebook'; OutputPath = 'tools/.rulebook'; Setting = 'tools/.rulebook/default.ruleset.json' }
+    ) {
+        $project = Join-Path (Get-TestFolder) 'MyApp'
+        [void](New-Item -ItemType Directory -Path $project)
+        $parameters = @{ BaseUrl = $baseUrl; Level = 'strict' }
+        if ($OutputPath) { $parameters.OutputPath = $OutputPath }
+        Push-Location -LiteralPath $project
         try {
-            $run = Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = './MyApp/.rulebook' }
+            $run = Invoke-Script $parameters
         } finally {
             Pop-Location
         }
-        Test-Path -LiteralPath (Join-Path $workspace 'MyApp' '.rulebook' 'ci.ruleset.json') -PathType Leaf | Should-BeTrue
         $text = $run.Lines -join "`n"
-        $text | Should-MatchString ([regex]::Escape("MyApp/.rulebook/ci.ruleset.json <- $baseUrl/skeletons/strict.ci.ruleset.json"))
-        $text | Should-MatchString ([regex]::Escape('the AL project root (the folder that contains .rulebook/)'))
-        $text | Should-MatchString ([regex]::Escape('"al.ruleSetPath": ".rulebook/default.ruleset.json"'))
-        $text | Should-MatchString ([regex]::Escape('"rulesetFile": ".rulebook/ci.ruleset.json"'))
-        $text | Should-NotMatchString 'Path": "MyApp'
+        $text | Should-MatchString ([regex]::Escape('Settings paths are relative to the current folder; run the script from the AL project root (the folder with app.json).'))
+        $text | Should-MatchString ([regex]::Escape("`"al.ruleSetPath`": `"$Setting`""))
         $text | Should-NotMatchString '\\'
-        @(Get-ChildItem -LiteralPath (Join-Path $workspace 'MyApp' '.rulebook') -Filter '*.tmp').Count | Should-Be 0
+        @(Get-ChildItem -LiteralPath $project -Recurse -Filter '*.tmp').Count | Should-Be 0
     }
 
     It 'names the URL when the connection fails' {
@@ -231,13 +233,26 @@ Describe 'Get-RulebookSkeletons.ps1' {
         }
     }
 
-    It 'warns when an include is not under the base URL' {
+    It 'refuses an include that points at another site' {
         $text = $utf8.GetString($script:served["$baseUrl/skeletons/strict.ci.ruleset.json"]).Replace("$baseUrl/rulesets/", 'https://elsewhere.example.com/rulesets/')
         $script:siteResponses["$baseUrl/skeletons/strict.ci.ruleset.json"] = $utf8.GetBytes($text)
-        $run = Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = (Get-TestFolder) }
-        $run.Warnings.Count | Should-Be 1
-        $run.Warnings[0] | Should-BeLikeString "*ci.ruleset.json: the include https://elsewhere.example.com/rulesets/strict.ci.ruleset.json is not under $baseUrl; the compiler will fetch*"
-        $run.Result.Count | Should-Be 3
+        $folder = Get-TestFolder
+        { Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = $folder } } | Should-Throw -ExceptionMessage "Nothing was written. $baseUrl/skeletons/strict.ci.ruleset.json includes https://elsewhere.example.com/rulesets/strict.ci.ruleset.json, which points at another site than $baseUrl; the skeleton was not written."
+        Test-Path -LiteralPath $folder | Should-BeFalse
+    }
+
+    It 'accepts the include Get-EndpointFileName of the engine names, for every level and stage of the template' {
+        # The script keeps its own copy of the endpoint name rule; this pins it to Rulebook.Generate.
+        $inputs = Read-RulebookInputs -RepositoryRoot (Join-Path $repoRoot 'template')
+        foreach ($level in $inputs.Levels) {
+            foreach ($stage in $inputs.Stages) {
+                $endpoint = "$baseUrl/rulesets/$(Get-EndpointFileName -Level $level.Slug -Stage $stage.Slug)"
+                $body = "{ `"name`": `"x`", `"includedRuleSets`": [ { `"action`": `"Default`", `"path`": `"$endpoint`" } ], `"rules`": [] }`n"
+                $script:siteResponses["$baseUrl/skeletons/$($level.Slug).$($stage.Slug).ruleset.json"] = $utf8.GetBytes($body)
+            }
+            $run = Invoke-Script @{ BaseUrl = $baseUrl; Level = $level.Slug; OutputPath = (Get-TestFolder) }
+            $run.Result.Count | Should-Be $inputs.Stages.Count -Because $level.Slug
+        }
     }
 
     It 'refuses a manifest whose <Name>' -ForEach @(
@@ -274,13 +289,25 @@ Describe 'Get-RulebookSkeletons.ps1' {
         $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/main/docs/al-project.md'))
     }
 
+    It 'accepts http for the loopback host <Value>' -ForEach @(
+        @{ Value = 'http://127.0.0.1:8787' }
+        @{ Value = 'http://localhost:8787/site' }
+        @{ Value = 'http://[::1]:8787' }
+    ) {
+        foreach ($url in @($script:served.Keys)) { $script:siteResponses[$url.Replace($baseUrl, $Value)] = $script:served[$url] }
+        $run = Invoke-Script @{ BaseUrl = $Value; Level = 'strict'; OutputPath = (Get-TestFolder) }
+        $run.Result.Count | Should-Be 3
+    }
+
     It 'rejects the base URL <Value> before any request' -ForEach @(
+        @{ Value = 'http://contoso.github.io/rulebook' }
+        @{ Value = 'http://127.0.0.2/rulebook' }
         @{ Value = 'ftp://contoso.github.io/rulebook' }
         @{ Value = 'contoso.github.io/rulebook' }
         @{ Value = 'https://contoso.github.io/rulebook?v=1' }
         @{ Value = 'https://contoso.github.io/rule book' }
     ) {
-        { Invoke-Script @{ BaseUrl = $Value; Level = 'strict'; OutputPath = (Get-TestFolder) } } | Should-Throw -ExceptionMessage '-BaseUrl must be the address of the published Rulebook site, for example https://contoso.github.io/rulebook*'
+        { Invoke-Script @{ BaseUrl = $Value; Level = 'strict'; OutputPath = (Get-TestFolder) } } | Should-Throw -ExceptionMessage '-BaseUrl must be the address of the published Rulebook site, for example https://contoso.github.io/rulebook (https; http only for 127.0.0.1, localhost or [[]::1]; no query or fragment)*'
         Should-Invoke Invoke-WebRequest -Times 0 -Exactly
     }
 }

@@ -18,13 +18,14 @@ for writing before the first file is written. Redirects are not followed, becaus
 them either: -BaseUrl must be the final address of the site. Every failure throws, so 'pwsh -File' exits with 1.
 
 The script is self-contained (PowerShell 7, no module) and only downloads: it does not change any settings file. It
-prints the settings that point VS Code and AL-Go at the files, with paths relative to the AL project root, the folder
-that contains the output folder. The details are on the user page docs/al-project.md in
-the ALCops/rulebook repository (written with WP06), linked below.
+prints the settings that point VS Code and AL-Go at the files, with paths relative to the current folder: run it from
+the AL project root, the folder with app.json. The details are on the user page docs/al-project.md in the
+ALCops/rulebook repository (written with WP06), linked below.
 
 .PARAMETER BaseUrl
 The address of the published Rulebook site, the baseUrl of the organization's rulebook repository, for example
-https://contoso.github.io/rulebook. A trailing slash is ignored.
+https://contoso.github.io/rulebook. A trailing slash is ignored. https is required; http is accepted only for a
+loopback host (127.0.0.1, localhost, [::1]), for a site served locally.
 
 .PARAMETER Level
 The level to download, by its slug (strict) or its name (Strict, any casing).
@@ -43,10 +44,11 @@ Writes .rulebook/default.ruleset.json, .rulebook/ci.ruleset.json and .rulebook/v
 folder, each including the strict endpoint of its stage.
 
 .EXAMPLE
-./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level Recommended -OutputPath ./MyApp/.rulebook -Force
+Set-Location ./MyApp
+./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level Recommended -Force
 
-Replaces the files of the AL project in ./MyApp with the skeletons of the Recommended level. The settings it prints
-are relative to ./MyApp, for example "al.ruleSetPath": ".rulebook/default.ruleset.json".
+Replaces the files in .rulebook/ of the AL project in ./MyApp with the skeletons of the Recommended level. The
+settings it prints are relative to ./MyApp, for example "al.ruleSetPath": ".rulebook/default.ruleset.json".
 
 .LINK
 https://github.com/ALCops/rulebook/blob/main/docs/al-project.md
@@ -148,11 +150,16 @@ function Get-ManifestEntry {
     }
 }
 
-# 1. The base URL: http(s), a host, no query, fragment, whitespace, quote or backslash; one trailing slash dropped.
+# 1. The base URL: https, or http for a loopback host only (a site served locally, as the engine CI does); a host, no
+#    query, fragment, whitespace, quote or backslash; one trailing slash dropped.
 $BaseUrl = $BaseUrl.Trim()
 if ($BaseUrl.EndsWith('/')) { $BaseUrl = $BaseUrl.Substring(0, $BaseUrl.Length - 1) }
-if ($BaseUrl -notmatch '^https?://[^\s/?#"\\]+(/[^\s?#"\\]+)*\z') {
-    throw "-BaseUrl must be the address of the published Rulebook site, for example https://contoso.github.io/rulebook (http or https, no query or fragment): '$BaseUrl'"
+$baseUrlError = "-BaseUrl must be the address of the published Rulebook site, for example https://contoso.github.io/rulebook (https; http only for 127.0.0.1, localhost or [::1]; no query or fragment): '$BaseUrl'"
+if ($BaseUrl -notmatch '^(https?)://([^\s/?#"\\]+)(/[^\s?#"\\]+)*\z') { throw $baseUrlError }
+if ($Matches[1] -eq 'http') {
+    $authority = $Matches[2]
+    $hostName = if ($authority.StartsWith('[')) { $authority.Substring(0, $authority.IndexOf(']') + 1) } else { $authority.Split(':')[0] }
+    if ($hostName -notin '127.0.0.1', 'localhost', '[::1]') { throw $baseUrlError }
 }
 
 # 2. The manifest.
@@ -186,7 +193,6 @@ $levelSlug = $selected[0].Slug
 
 # 5. The targets, relative to the PowerShell location ([System.IO.File] would resolve against the process folder).
 $outputFull = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath).TrimEnd('\', '/')
-$outputLeaf = Split-Path -Leaf $outputFull
 $here = (Get-Location).ProviderPath
 $targets = foreach ($stage in $stages) {
     $file = Join-Path $outputFull "$($stage.Slug).ruleset.json"
@@ -200,8 +206,8 @@ $targets = foreach ($stage in $stages) {
         Url      = "$BaseUrl/skeletons/$levelSlug.$($stage.Slug).ruleset.json"
         File     = $file
         Display  = $display
-        # The path in the settings, relative to the AL project root (the folder that contains the output folder).
-        Setting  = "$outputLeaf/$($stage.Slug).ruleset.json"
+        # The path in the settings: relative to the current folder, which the output asks to be the AL project root.
+        Setting  = [System.IO.Path]::GetRelativePath($here, $file).Replace('\', '/')
         Endpoint = $endpoint
         Bytes    = $null
     }
@@ -230,25 +236,25 @@ foreach ($target in $targets) {
         throw "Nothing was written. $($target.Url) is not a Rulebook skeleton: it needs exactly one entry in includedRuleSets with a path."
     }
     $include = $includes[0]['path']
-    # The include must be the endpoint of this level and stage: after the base URL it was published with (else
-    # -BaseUrl) it is exactly that path; under another address it at least ends with it. Anything else is a wrong or
-    # stale skeleton on the site. Scheme and host compare case-insensitively, the path ordinally.
+    # The include must be the endpoint of this level and stage under the base URL the site was published with or under
+    # -BaseUrl. An include under neither points at another site; one with another path is a wrong or stale skeleton.
+    # Scheme and host compare case-insensitively, the path ordinally.
     $includeBase = if ($publishedBaseUrl) { $publishedBaseUrl } else { $BaseUrl }
     $includeKey = ConvertTo-UrlKey $include
-    $prefix = (ConvertTo-UrlKey $includeBase) + '/'
-    $matchesEndpoint = if ($includeKey.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
-        $includeKey.Substring($prefix.Length) -ceq $target.Endpoint
-    } else {
-        $includeKey.EndsWith('/' + $target.Endpoint, [System.StringComparison]::Ordinal)
+    $prefix = $null
+    foreach ($candidate in $includeBase, $BaseUrl) {
+        $key = (ConvertTo-UrlKey $candidate) + '/'
+        if ($includeKey.StartsWith($key, [System.StringComparison]::Ordinal)) { $prefix = $key; break }
     }
-    if (-not $matchesEndpoint) {
+    if ($null -eq $prefix) {
+        throw "Nothing was written. $($target.Url) includes $include, which points at another site than $includeBase; the skeleton was not written."
+    }
+    if ($includeKey.Substring($prefix.Length) -cne $target.Endpoint) {
         throw "Nothing was written. $($target.Url) includes $include, but the skeleton of level $levelSlug and stage $($target.Stage) must include $includeBase/$($target.Endpoint): the site serves a wrong or stale skeleton."
     }
     # A site read through another address than its baseUrl (a local copy, a proxy) still includes the published URL.
     if ($publishedBaseUrl -and (ConvertTo-UrlKey $publishedBaseUrl) -cne (ConvertTo-UrlKey $BaseUrl)) {
         Write-Warning "$($target.Display): the site was published with baseUrl $publishedBaseUrl, not $BaseUrl; the compiler will fetch $include."
-    } elseif (-not (ConvertTo-UrlKey $include).StartsWith((ConvertTo-UrlKey $BaseUrl) + '/', [System.StringComparison]::Ordinal)) {
-        Write-Warning "$($target.Display): the include $include is not under $BaseUrl; the compiler will fetch $include."
     }
     $target.Bytes = $response.Bytes
 }
@@ -265,20 +271,25 @@ foreach ($target in $targets) {
     $item = Get-Item -LiteralPath $target.File -Force -ErrorAction SilentlyContinue
     if ($null -ne $item -and $item.IsReadOnly) { throw "No file was written. $($target.Display) is read-only." }
 }
+$replaced = [System.Collections.Generic.List[string]]::new()
 try {
     foreach ($target in $targets) { [System.IO.File]::WriteAllBytes("$($target.File).tmp", $target.Bytes) }
     foreach ($target in $targets) {
         [System.IO.File]::Move("$($target.File).tmp", $target.File, $true)
+        $replaced.Add($target.Display)
         Write-Host "$($target.Display) <- $($target.Url)"
     }
 } catch {
     foreach ($target in $targets) { Remove-Item -LiteralPath "$($target.File).tmp" -Force -ErrorAction SilentlyContinue }
-    throw "Writing the files failed: $($_.Exception.Message)"
+    $untouched = @($targets | Where-Object { $_.Display -cnotin $replaced } | ForEach-Object Display)
+    $done = if ($replaced.Count -gt 0) { $replaced -join ', ' } else { 'none' }
+    $left = if ($untouched.Count -gt 0) { $untouched -join ', ' } else { 'none' }
+    throw "Writing the files failed: $($_.Exception.Message). Written: $done. Left untouched: $left."
 }
 
-# 9. The settings that use the files, relative to the AL project root, and one result per file.
+# 9. The settings that use the files, and one result per file.
 Write-Host ''
-Write-Host "Settings, with paths relative to the AL project root (the folder that contains $outputLeaf/):"
+Write-Host 'Settings paths are relative to the current folder; run the script from the AL project root (the folder with app.json).'
 foreach ($target in $targets) {
     switch -CaseSensitive ($target.Stage) {
         'default' { Write-Host "VS Code, .vscode/settings.json: `"al.ruleSetPath`": `"$($target.Setting)`"" }
