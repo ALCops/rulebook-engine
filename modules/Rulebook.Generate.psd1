@@ -10,6 +10,7 @@
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
         'Compare-RulebookEndpoints'
+        'ConvertTo-JsonString'
         'ConvertTo-RulesetJson'
         'Get-AnalyzerDefault'
         'Get-DiagnosticSortKey'

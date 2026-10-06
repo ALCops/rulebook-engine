@@ -1064,8 +1064,16 @@ function Compare-RulebookEndpoints {
 #region Writer
 
 function ConvertTo-JsonString {
-    # JSON string literal. Escapes only backslash, double quote and control characters; < > & ' and non-ASCII
-    # characters are written as they are (ConvertTo-Json would escape them).
+    <#
+    .SYNOPSIS
+    A JSON string literal, quotes included; null for $null.
+    .DESCRIPTION
+    Escapes only backslash, double quote and control characters; < > & ' and non-ASCII characters are written as
+    they are (ConvertTo-Json would escape them). Shared by every hand-rolled writer of the engine, so a title or a
+    justification is written the same way in every file.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
     param([AllowNull()][string]$Value)
     if ($null -eq $Value) { return 'null' }
     if ($Value -notmatch '[\\"\x00-\x1f]') { return '"' + $Value + '"' }
@@ -1090,12 +1098,14 @@ function ConvertTo-JsonString {
 function ConvertTo-RulesetJson {
     <#
     .SYNOPSIS
-    The deterministic text of a ruleset file: name, description, rules with one rule per line.
+    The deterministic text of a ruleset file: $schema (optional), name, description, rules with one rule per line.
     .DESCRIPTION
     Hand-rolled rather than ConvertTo-Json: the documented examples and fixtures use one rule per line, and
     ConvertTo-Json uses the platform newline and cannot emit one-line objects. Two-space indent, LF line ends, one
     trailing LF; an empty rules array is written as []. Rules are objects or dictionaries with Id and Action (and
-    Justification, written with -IncludeJustification when set). The order of -Rules is kept.
+    Justification, written with -IncludeJustification when set). The order of -Rules is kept. -Schema writes a
+    "$schema" line before name (the shipped level and stage files carry the delta profile URL); without it the text
+    has no $schema, which is what endpoints and skeletons need.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -1103,10 +1113,12 @@ function ConvertTo-RulesetJson {
         [Parameter(Mandatory)][string]$Name,
         [AllowNull()][AllowEmptyString()][string]$Description,
         [AllowNull()][AllowEmptyCollection()][object[]]$Rules = @(),
-        [switch]$IncludeJustification
+        [switch]$IncludeJustification,
+        [AllowNull()][AllowEmptyString()][string]$Schema
     )
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add('{')
+    if (-not [string]::IsNullOrEmpty($Schema)) { $lines.Add('  "$schema": ' + (ConvertTo-JsonString $Schema) + ',') }
     $lines.Add('  "name": ' + (ConvertTo-JsonString $Name) + ',')
     if (-not [string]::IsNullOrEmpty($Description)) { $lines.Add('  "description": ' + (ConvertTo-JsonString $Description) + ',') }
     $items = @($Rules | Where-Object { $null -ne $_ })
@@ -1158,6 +1170,7 @@ function Get-DiagnosticSortKey {
 
 Export-ModuleMember -Function @(
     'Compare-RulebookEndpoints'
+    'ConvertTo-JsonString'
     'ConvertTo-RulesetJson'
     'Get-AnalyzerDefault'
     'Get-DiagnosticSortKey'

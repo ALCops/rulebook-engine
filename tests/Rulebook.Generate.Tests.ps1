@@ -643,6 +643,30 @@ Describe 'ConvertTo-RulesetJson' {
         $with | Should-MatchString '\{ "id": "AL0200", "action": "Warning", "justification": "Why" \},\n    \{ "id": "AL0432", "action": "Info" \}\n'
         ConvertTo-RulesetJson -Name 'n' -Rules $rules | Should-NotMatchString 'justification'
     }
+
+    It 'writes -Schema as the first property and changes nothing else' {
+        $rules = @([pscustomobject]@{ Id = 'AL0200'; Action = 'Warning'; Justification = 'Why' })
+        $without = ConvertTo-RulesetJson -Name 'n' -Description 'd' -Rules $rules -IncludeJustification
+        $with = ConvertTo-RulesetJson -Name 'n' -Description 'd' -Rules $rules -IncludeJustification -Schema 'https://example.invalid/s.json'
+        $lines = $with.Split("`n")
+        $lines[0] | Should-Be '{'
+        $lines[1] | Should-Be '  "$schema": "https://example.invalid/s.json",'
+        (@($lines[0]) + @($lines | Select-Object -Skip 2)) -join "`n" | Should-Be $without
+    }
+
+    It 'writes no $schema for an empty -Schema' {
+        ConvertTo-RulesetJson -Name 'n' -Rules @() -Schema '' | Should-Be (ConvertTo-RulesetJson -Name 'n' -Rules @())
+    }
+}
+
+Describe 'ConvertTo-JsonString' {
+    It 'is exported' {
+        (Get-Command ConvertTo-JsonString -Module Rulebook.Generate).Name | Should-Be 'ConvertTo-JsonString'
+    }
+
+    It 'escapes backslash, double quote and control characters only' {
+        ConvertTo-JsonString ('a"b\c' + "`t<&>'") | Should-Be '"a\"b\\c\t<&>''"'
+    }
 }
 
 Describe 'Update-RulebookEndpoints' {
