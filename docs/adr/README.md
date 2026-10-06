@@ -22,7 +22,7 @@ Every decision that shapes Rulebook, one file per decision, with the alternative
 
 ## Index
 
-D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, and D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits.
+D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits, and D43 in the WP06 planning interview of the same day that publishes `rulebook.json` with the levels and stages.
 
 | # | Title | Status | Date |
 |---|---|---|---|
@@ -68,6 +68,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D40](0040-justification-is-optional-in-level-and-stage-files-too.md) | Justification is optional in level and stage files too | Accepted | 2026-10-04 |
 | [D41](0041-quarantine-wins-over-a-stage-entry-for-an-unmentioned-id.md) | Quarantine wins over a stage entry for an id no level file mentions | Accepted | 2026-10-05 |
 | [D42](0042-publish-is-a-gate-and-never-commits.md) | Publish is a gate and never commits | Accepted | 2026-10-06 |
+| [D43](0043-rulebook-json-is-published-from-wp06-with-levels-and-stages.md) | `rulebook.json` is published from WP06 with the levels and stages | Accepted | 2026-10-06 |
 
 ## Open decisions
 
@@ -87,6 +88,7 @@ Closed: O1 and O2 by D19 (and D17), O5 moot since D21, O6 by D28 (one skeleton f
 - Bootstrap interview of 2026-10-03 for WP00 ([#2](https://github.com/ALCops/rulebook-engine/issues/2)): generated release notes and Pester 6, D38 and D39.
 - WP03 planning interview of 2026-10-05 ([#5](https://github.com/ALCops/rulebook-engine/issues/5), [#42](https://github.com/ALCops/rulebook-engine/issues/42)): D41.
 - WP05 planning interview of 2026-10-06 ([#7](https://github.com/ALCops/rulebook-engine/issues/7)): D42.
+- WP06 planning interview of 2026-10-06 ([#8](https://github.com/ALCops/rulebook-engine/issues/8)): D43.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
 - [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism behind D2, D3 and O3, O4.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).

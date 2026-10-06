@@ -44,7 +44,8 @@ Paths in an organization rulebook repository. Class is what the update workflow 
 | `catalog/scan-state.json` | Scan state. Reserved for WP08 (section 8). | org-owned | none yet |
 | `rulesets/<level>.ruleset.json`, `rulesets/<level>.<stage>.ruleset.json` | The generated endpoints, written by `Update-RulebookEndpoints` (WP03) in id order. `levels x stages` files. | generated | `ruleset.endpoint.schema.json` |
 | `skeletons/<level>.<stage>.ruleset.json` | One include of the endpoint with `{BASEURL}`; project exceptions go into `rules`. `levels x stages` files. | system (regenerated from the settings) | `ruleset.skeleton.schema.json` |
-| `.rulebook/<stage>.ruleset.json` in an AL project | A copied skeleton with `{BASEURL}` resolved. Not part of the rulebook repository. | not managed | `ruleset.skeleton.schema.json` |
+| `skeletons/README.md` | Explains the skeletons next to them (WP06). Not published; exempt from C11 by its exact name, as `README.md` in `rulesets/` is. | system | none |
+| `.rulebook/<stage>.ruleset.json` in an AL project | A published skeleton with `{BASEURL}` resolved, written by the init script `scripts/Get-RulebookSkeletons.ps1` or downloaded by hand. One per stage. Not part of the rulebook repository. | not managed | `ruleset.skeleton.schema.json` |
 
 The **profile follows the folder**: `base/*.ruleset.json` and `stages/*.json` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. `base/`, `stages/`, `rulesets/` and `skeletons/` are flat. A file in `base/` or `stages/` that the template does not ship is org-owned by that fact.
 
@@ -70,15 +71,16 @@ The `default` stage has no file and no suffix in `rulesets/`; that is the only p
 <baseUrl>/rulesets/<level>.<stage>.ruleset.json    every other stage
 ```
 
-The published layout (Publish, WP05) is exactly these files plus the rendered skeletons and an index page:
+The published layout (Publish, WP05 and WP06) is exactly these files plus the rendered skeletons, the manifest and an index page:
 
 ```
 <baseUrl>/index.html                               (also served at <baseUrl>/) one table per stage, one row per level
 <baseUrl>/rulesets/<level>[.<stage>].ruleset.json  the levels x stages endpoints, as committed
 <baseUrl>/skeletons/<level>.<stage>.ruleset.json   the skeletons with {BASEURL} replaced by baseUrl
+<baseUrl>/rulebook.json                            the levels and stages, machine-readable (D43); read by the init script
 ```
 
-Nothing else is published: not `base/`, `stages/`, `catalog/`, the settings or a stray file in `rulesets/`. The dashboard (WP14) adds `<baseUrl>/rulebook.json`, `<baseUrl>/catalog/diagnostics.json` and the site pages.
+Nothing else is published: not `base/`, `stages/`, `catalog/`, the settings, `skeletons/README.md` or a stray file in `rulesets/`. The dashboard (WP14) extends `<baseUrl>/rulebook.json` and adds `<baseUrl>/catalog/diagnostics.json` and the site pages.
 
 - `baseUrl` is `https://` with a DNS host name and an optional numeric port (no user info), has no query, fragment, `.` and `..` segments, quotes, backslashes or control characters (it is written into the skeleton JSON as it is) and never ends with a slash (settings schema and C5), or empty until the organization sets it: the template ships `""` and Publish fails until it is set. It is rendered into skeletons and docs, never into `rulesets/`.
 - The URL is unversioned (D8). A future version prefix would go between `baseUrl` and `rulesets/`, so nothing else is ever placed at that position.
@@ -154,7 +156,7 @@ What the schemas cannot check, and the validation check that does (ARCHITECTURE.
 | Every listed level and non-default stage has its file; `stages/default.json` does not exist | C6 |
 | Every id exists in the catalog | C7 |
 | Override selectors name slugs from the settings (the schema checks only their shape) | C10 |
-| No endpoint entry equals the catalog default; exactly `levels x stages` endpoints and skeletons | C11 |
+| No endpoint entry equals the catalog default; exactly `levels x stages` endpoints and skeletons, and no other file in `rulesets/` or `skeletons/` except `README.md` | C11 |
 | `count` in `base/twins.json` equals the number of pairs | C14 |
 
 The settings schema is closed: an unknown key at the top level or in `publish`, `quarantine`, `commitOptions` or `site` is an error, and a work package that needs a new key adds it to the schema in its own pull request. `publish.target` requires its own fields (`dist-repo`: `repository`, `branch`; `azure-blob`: `storageAccount`, `container`; `gist`: `gistId`); the fields of another target are allowed and ignored. The catalog schema is minimal: `id`, `defaultSeverity` and `enabledByDefault` are required per entry, the other known fields are typed, and the scan may add more.

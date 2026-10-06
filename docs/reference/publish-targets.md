@@ -14,7 +14,8 @@ How the Publish action gets an organization's endpoints to a URL the AL compiler
 4. [The reachability check](#4-the-reachability-check)
 5. [Action reference](#5-action-reference)
 6. [Live run of 2026-10-06](#6-live-run-of-2026-10-06)
-7. [Backlog targets](#7-backlog-targets)
+7. [Live run of WP06 (skeletons)](#7-live-run-of-wp06-skeletons)
+8. [Backlog targets](#8-backlog-targets)
 
 ---
 
@@ -29,7 +30,7 @@ How the Publish action gets an organization's endpoints to a URL the AL compiler
 
 The settings schema accepts all four, so an organization's settings stay valid while a target is in the backlog. Publish fails a target that is not implemented with `Publish target '<target>' is not implemented yet; see <issue>`.
 
-Every target publishes the same files ([naming.md](naming.md) section 4): `index.html`, the levels x stages endpoints of `rulesets/` as committed, and the skeletons with `{BASEURL}` rendered. A file that is no longer staged (a removed stage or level, a stray file in `rulesets/`) is not published; on Pages a deploy replaces the whole site, so it disappears with the next run.
+Every target publishes the same files ([naming.md](naming.md) section 4): `index.html`, the levels x stages endpoints of `rulesets/` as committed, the skeletons with `{BASEURL}` rendered, and `rulebook.json` with the levels and stages (since WP06, D43; the init script `scripts/Get-RulebookSkeletons.ps1` reads it). A file that is no longer staged (a removed stage or level, a stray file in `rulesets/`) is not published; on Pages a deploy replaces the whole site, so it disappears with the next run.
 
 ## 2. GitHub Pages, step by step
 
@@ -44,7 +45,7 @@ Every target publishes the same files ([naming.md](naming.md) section 4): `index
 2. **Set `baseUrl`** in `.github/Rulebook-Settings.json` to the site address without a trailing slash: `https://<owner>.github.io/<repo>`, all lowercase, or `https://<owner>.github.io` for a repository named `<owner>.github.io`. With `baseUrl` empty, Publish fails and proposes this value. Commit the change in a pull request.
 3. **Run Publish**: the merge to `main` triggers it, or run it by hand (Actions > Publish > Run workflow). The first run creates the `github-pages` environment if it does not exist yet; this also happens on a run that fails the preflight.
 
-After the run, `<baseUrl>/` lists every endpoint and skeleton. Copy a skeleton from there into the AL project; the repository copies under `skeletons/` keep `{BASEURL}`.
+After the run, `<baseUrl>/` lists every endpoint and skeleton and shows the two commands that download the skeletons of a level into an AL project with the init script. Copy a skeleton from there or use the script; the repository copies under `skeletons/` keep `{BASEURL}`.
 
 ### The workflow
 
@@ -81,7 +82,7 @@ The two `422` messages come from the create call (`POST /pages`) in spike (d); a
 
 ## 4. The reachability check
 
-After `deploy-pages` reports success, `Test-RulebookEndpoints` requests every endpoint and skeleton URL and `<baseUrl>/` for `index.html` (25 URLs in the shipped set) with a 15 s timeout per request, as the compiler does. Requests are sequential. A URL passes on HTTP 200 with a body equal to the staged file (UTF-8, compared ordinally, line ends included). Redirects are not followed (`-MaximumRedirection 0`), as the compiler does not follow them: a 3xx answer is `redirect`, with the `Location` in the message, and is not retried: the run fails right after the first pass instead of after the window. Pending URLs are retried every 30 s until `checkWindowSeconds` (default 660) is used up; the first pass always requests every URL once, the waits end at the window, a pass that starts by then still runs, and no request starts later than one request timeout (15 s) after the window, so the check ends at most two timeouts after it. A manifest with no URL fails the check. A timeout is recognized by its exception type (`TimeoutException` inside the `TaskCanceledException` of `Invoke-WebRequest -TimeoutSec`); a staged file that cannot be read is an `error` without a request. A URL still `missing` (404), `different`, `redirect`, `timeout` or `error` then fails the job with one annotation:
+After `deploy-pages` reports success, `Test-RulebookEndpoints` requests every endpoint and skeleton URL, `<baseUrl>/rulebook.json` and `<baseUrl>/` for `index.html` (26 URLs in the shipped set) with a 15 s timeout per request, as the compiler does. Requests are sequential. A URL passes on HTTP 200 with a body equal to the staged file (UTF-8, compared ordinally, line ends included). Redirects are not followed (`-MaximumRedirection 0`), as the compiler does not follow them: a 3xx answer is `redirect`, with the `Location` in the message, and is not retried: the run fails right after the first pass instead of after the window. Pending URLs are retried every 30 s until `checkWindowSeconds` (default 660) is used up; the first pass always requests every URL once, the waits end at the window, a pass that starts by then still runs, and no request starts later than one request timeout (15 s) after the window, so the check ends at most two timeouts after it. A manifest with no URL fails the check. A timeout is recognized by its exception type (`TimeoutException` inside the `TaskCanceledException` of `Invoke-WebRequest -TimeoutSec`); a staged file that cannot be read is an `error` without a request. A URL still `missing` (404), `different`, `redirect`, `timeout` or `error` then fails the job with one annotation:
 
 ```
 ::error title=Publish::https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json is missing (HTTP 404) after 23 attempt(s) in 660.4 s. Consumers of this URL compile with AL1033 (alc aborts; VS Code falls back to the analyzer defaults).
@@ -136,7 +137,11 @@ The runs above checked endpoints and skeletons only. After the first review roun
 
 The number of fetches per compile was not measured here (no `strace` on Windows); [spike (a)](spikes/a-hosts-and-skeleton-include.md) measured one request per compile on `github.io`. The failure path of the check (a missing or different URL) is covered by the Pester tests, not by the live run.
 
-## 7. Backlog targets
+## 7. Live run of WP06 (skeletons)
+
+Live run: see the WP06 pull request.
+
+## 8. Backlog targets
 
 | Target | Open points | Issue |
 |---|---|---|

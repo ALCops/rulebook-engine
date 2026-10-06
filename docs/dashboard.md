@@ -118,6 +118,8 @@ The matrix is rendered by Hugo as static HTML; JavaScript hides rows, switches t
 
 `site/data/rulebook.json`, one file, written by `Export-RulebookSiteData` (WP14):
 
+> **Status:** `<baseUrl>/rulebook.json` is published since WP06 ([#8](https://github.com/ALCops/rulebook-engine/issues/8), [D43](adr/0043-rulebook-json-is-published-from-wp06-with-levels-and-stages.md)) in its minimal form: `generatedAt`, `repository` (when the Publish action knows it), `baseUrl`, `levels[]` (`name`, `slug`, `basedOn`, `description`) and `stages[]` (`name`, `slug`, `description`), written by `ConvertTo-RulebookManifestJson`. `basedOn` is the **slug** of the level (D28), not its name as in the example below, and `description` is left out when it is empty. `issueTemplate`, `rules`, `overrides` and `quarantine` come with WP14, which extends the same file; readers such as the init script ignore keys they do not know.
+
 ```json
 {
   "generatedAt": "2026-10-03T12:00:00Z",

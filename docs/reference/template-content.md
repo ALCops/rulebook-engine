@@ -19,7 +19,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 
 ## 1. Files
 
-40 files: 8 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
+41 files: 9 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
 
 | Path | Class | Origin |
 |---|---|---|
@@ -34,6 +34,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 | `stages/ci.json`, `stages/vnext.json` | system | `Build-RulebookStages` |
 | `catalog/diagnostics.json` | org-owned | `Build-RulebookCatalog` (the seed, section 5) |
 | `skeletons/<level>.<stage>.ruleset.json` (12) | system | `New-RulebookSkeleton`, from the settings |
+| `skeletons/README.md` | system | Hand-written (WP06): what the skeletons are, the init script, the settings and the exceptions; not published, exempt from C11. `New-RulebookSkeleton` deletes only `*.ruleset.json`, so it survives a regeneration |
 | `rulesets/<level>[.<stage>].ruleset.json` (12) | generated | `Update-RulebookEndpoints` (Rulebook.Generate, WP03) |
 
 There is no placeholder for files that later work packages own: no workflows besides Validate and Publish, no `.github/RELEASENOTES.copy.md` (the deploy step writes it, D38), no `docs/` (WP11), no `site/` (WP14). The deploy workflow (WP13) must keep `docs/` in its keep list until WP11 decides where the organization documentation lives.
@@ -91,7 +92,7 @@ Invoke-Pester -Path ./tests -Output Detailed
 
 Commit `docs/rulebook/` and `template/` together. The checks that catch a forgotten regeneration:
 
-- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and expects no change. It also copies the 8 hand-written files into a scratch folder, runs the wrapper there, and compares every file byte for byte with the committed one.
+- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and expects no change. It also copies the 9 hand-written files into a scratch folder, runs the wrapper there, and compares every file byte for byte with the committed one.
 - The same suite composes every cell of `resolved.json` from the committed files with `Get-EffectiveAction` (V13 on disk), checks the entry counts against `matrix/counts.md` and the Listed column, and runs `Test-Rulebook` on `template/`.
 - CI runs the Validate action on `template/` with `failOnWarning`, which includes the regeneration check C12 for `rulesets/`.
 
