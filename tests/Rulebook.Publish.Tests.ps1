@@ -470,10 +470,23 @@ Describe 'Test-RulebookEndpoints' {
         }
         $results = @(Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies) -WindowSeconds 0)
         $redirect = $results | Where-Object Path -EQ 'rulesets/strict.ruleset.json'
+        $redirect.Attempts | Should-Be 1
         $redirect.Reason | Should-Be 'redirect'
         $redirect.Status | Should-Be 301
         $redirect.Detail | Should-Be 'redirects to https://rules.contoso.com/rulesets/strict.ruleset.json'
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 4 -Exactly -ParameterFilter { $MaximumRedirection -eq 0 }
+    }
+
+    It 'does not retry a redirect' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.Publish {
+            $headers = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.IEnumerable[string]]]::new()
+            $headers['Location'] = [string[]]@('https://rules.contoso.com/')
+            [pscustomobject]@{ StatusCode = 301; Content = ''; Headers = $headers }
+        }
+        $results = @(Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies) -WindowSeconds 660 -IntervalSeconds 30)
+        @($results | ForEach-Object Reason) | Should-BeCollection @('redirect', 'redirect', 'redirect', 'redirect')
+        @($results | ForEach-Object Attempts) | Should-BeCollection @(1, 1, 1, 1)
+        Should-Invoke Start-Sleep -ModuleName Rulebook.Publish -Times 0 -Exactly
     }
 
     It 'runs the last pass that starts when the waits reach the window' {

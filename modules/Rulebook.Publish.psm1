@@ -389,7 +389,8 @@ function Test-RulebookEndpoints {
     request starts later than one -TimeoutSeconds after the window, so the run ends at most two request timeouts
     after it (GitHub Pages serves with max-age=600, hence 660 s).
     Requests are sequential so that Invoke-WebRequest and Start-Sleep can be mocked. Returns one result per URL:
-    Path, Url, Kind, Status (HTTP status or 0), Reason (ok, missing, different, redirect, timeout, error), Attempts, Seconds
+    Path, Url, Kind, Status (HTTP status or 0), Reason (ok, missing, different, redirect, timeout, error; a redirect is
+    not retried), Attempts, Seconds
     (elapsed when it passed or was last tried) and Detail (the exception message of a timeout or error). A staged
     file that cannot be read is an error with no request. Never throws; the caller decides the exit code.
     #>
@@ -421,7 +422,8 @@ function Test-RulebookEndpoints {
     # The pass limit keeps the loop finite when Start-Sleep is mocked; the clock ends it when requests are slow.
     $maxPasses = 1 + [math]::Floor($WindowSeconds / $IntervalSeconds)
     for ($pass = 1; $pass -le $maxPasses; $pass++) {
-        $pending = @($results | Where-Object { $_.Reason -cne 'ok' -and $null -ne $_.Expected })
+        # A redirect is final: the address is wrong, and waiting for the cache does not change that.
+        $pending = @($results | Where-Object { $_.Reason -cnotin 'ok', 'redirect' -and $null -ne $_.Expected })
         if ($pending.Count -eq 0) { break }
         if ($pass -gt 1) {
             $left = $WindowSeconds - $clock.Elapsed.TotalSeconds
