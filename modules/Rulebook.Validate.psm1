@@ -619,7 +619,9 @@ function Invoke-RulebookChecks {
     # The C11 file set: any file in rulesets/ or skeletons/ whose name is not an expected endpoint or skeleton name,
     # and any expected name that is missing. While C12 runs, a missing or stray *.ruleset.json in rulesets/ is left
     # to C12 ('would be created' or 'would be deleted'): one finding per cause. skeletons/ is checked only when it
-    # exists; the template ships them since WP04 (assumption 9 of WP03).
+    # exists; the template ships them since WP04 (assumption 9 of WP03). README.md (exact name, ordinal) is exempt in
+    # both folders: the template ships skeletons/README.md since WP06, and Publish copies by expected name only, so a
+    # README is never published.
     if ($Settings.Valid) {
         $c12Runs = $Context.Blocking.Count -eq 0
         foreach ($folder in @(@{ Name = 'rulesets'; Skeleton = $false }, @{ Name = 'skeletons'; Skeleton = $true })) {
@@ -638,7 +640,7 @@ function Invoke-RulebookChecks {
                 }
             }
             foreach ($name in $actual) {
-                if ($name -cin $expected -or ($leftToC12 -and $name -like '*.ruleset.json')) { continue }
+                if ($name -cin $expected -or $name -ceq 'README.md' -or ($leftToC12 -and $name -like '*.ruleset.json')) { continue }
                 Add-Finding -Context $Context -Rule C11 -Severity error -File "$($folder.Name)/$name" -Message "$($folder.Name)/$name matches no levels x stages entry"
             }
         }

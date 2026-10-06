@@ -347,9 +347,27 @@ Describe 'C11 sparse and complete endpoints' {
 
     It 'always reports a file in rulesets/ that is not an endpoint name, also while C12 runs' {
         $root = Copy-Fixture
-        Write-FixtureText -Path (Join-Path $root 'rulesets' 'README.md') -Text 'notes'
+        Write-FixtureText -Path (Join-Path $root 'rulesets' 'notes.txt') -Text 'notes'
         Write-FixtureText -Path (Join-Path $root 'rulesets' 'extra.json') -Text '{ "name": "x", "rules": [] }'
-        (Get-FindingText (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @('C11 error rulesets/README.md -', 'C11 error rulesets/extra.json -')
+        (Get-FindingText (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @('C11 error rulesets/extra.json -', 'C11 error rulesets/notes.txt -')
+    }
+
+    It 'exempts README.md in rulesets/ and skeletons/ (a template copy, which ships skeletons/README.md)' {
+        $root = Join-Path $TestDrive ([guid]::NewGuid().ToString('n').Substring(0, 12))
+        Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
+        Test-Path -LiteralPath (Join-Path $root 'skeletons' 'README.md') -PathType Leaf | Should-BeTrue
+        Write-FixtureText -Path (Join-Path $root 'rulesets' 'README.md') -Text 'notes'
+        @(Test-Rulebook -RepositoryRoot $root).Count | Should-Be 0
+    }
+
+    It 'exempts README.md by its exact name only (ordinal)' {
+        # A separate copy per spelling: on a case-insensitive file system readme.md would be README.md.
+        $lower = Join-Path $TestDrive ([guid]::NewGuid().ToString('n').Substring(0, 12))
+        Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $lower
+        Remove-Item -LiteralPath (Join-Path $lower 'skeletons' 'README.md')
+        Write-FixtureText -Path (Join-Path $lower 'skeletons' 'readme.md') -Text 'notes'
+        Write-FixtureText -Path (Join-Path $lower 'rulesets' 'README.txt') -Text 'notes'
+        (Get-FindingText (Test-Rulebook -RepositoryRoot $lower)) | Should-BeCollection @('C11 error rulesets/README.txt -', 'C11 error skeletons/readme.md -')
     }
 
     It 'checks skeletons/ when it exists' {
