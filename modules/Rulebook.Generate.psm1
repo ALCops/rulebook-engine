@@ -378,12 +378,6 @@ function Get-SourcePath {
     return $sorted
 }
 
-function Get-EndpointFileName {
-    param([Parameter(Mandatory)][string]$Level, [Parameter(Mandatory)][string]$Stage)
-    if ($Stage -eq 'default') { return "$Level.ruleset.json" }
-    return "$Level.$Stage.ruleset.json"
-}
-
 function Get-EndpointDescription {
     param([Parameter(Mandatory)]$Inputs, [Parameter(Mandatory)][string]$Level, [Parameter(Mandatory)][string]$Stage)
     $chainFiles = @($Inputs.ChainFiles[$Level] | ForEach-Object { "base/$_.ruleset.json" }) -join ', '
@@ -853,6 +847,35 @@ function Get-EffectiveAction {
         -TwinsSetting $TwinsSetting -Overrides $Overrides -Quarantine $Quarantine -Catalog $Catalog
 }
 
+function Get-EndpointFileName {
+    <#
+    .SYNOPSIS
+    The file name of an endpoint in rulesets/: <level>.ruleset.json for the default stage, else <level>.<stage>.ruleset.json.
+    .DESCRIPTION
+    -Level and -Stage are slugs. The literal 'default' is dropped only here (ARCHITECTURE.md section 6.1); a
+    skeleton is always <level>.<stage>.ruleset.json. Rulebook.Template and Rulebook.Publish use this name too.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)][string]$Level, [Parameter(Mandatory)][string]$Stage)
+    if ($Stage -ceq 'default') { return "$Level.ruleset.json" }
+    return "$Level.$Stage.ruleset.json"
+}
+
+function Get-SkeletonFileName {
+    <#
+    .SYNOPSIS
+    The file name of a skeleton in skeletons/: always <level>.<stage>.ruleset.json, the default stage included.
+    .DESCRIPTION
+    -Level and -Stage are slugs. Rulebook.Template writes the skeletons under this name and Rulebook.Publish stages
+    and links them under it.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)][string]$Level, [Parameter(Mandatory)][string]$Stage)
+    return "$Level.$Stage.ruleset.json"
+}
+
 function Get-RulebookEndpoint {
     <#
     .SYNOPSIS
@@ -1175,7 +1198,9 @@ Export-ModuleMember -Function @(
     'Get-AnalyzerDefault'
     'Get-DiagnosticSortKey'
     'Get-EffectiveAction'
+    'Get-EndpointFileName'
     'Get-RulebookEndpoint'
+    'Get-SkeletonFileName'
     'Read-Catalog'
     'Read-Overrides'
     'Read-Quarantine'

@@ -92,11 +92,11 @@ No Hugo theme and no Hugo modules, so no Go toolchain and no submodule. Everythi
 
 ### Build
 
-When `site.enabled` is true the Publish action (WP05):
+WP05 ships the Publish action with the plain `index.html` only: it stages `rulesets/`, the rendered `skeletons/` and `index.html`, and with `site.enabled` true it prints a notice that the site arrives with WP14 (decision of 2026-10-06 on [#7](https://github.com/ALCops/rulebook-engine/issues/7)). WP14 adds the site step and publishing `catalog/diagnostics.json` and `rulebook.json` to the same action, in `New-RulebookPublishStage` of `modules/Rulebook.Publish`. Then, when `site.enabled` is true, the Publish action:
 
 1. Writes `site/data/rulebook.json` (section 5) from the catalog, the settings and the generator's resolved output.
 2. Runs `hugo --source site --baseURL <baseUrl> --destination <staging>` with a Hugo version pinned in the engine action. Hugo 0.126 or later for content adapters; 0.156.0 or later for `hugo.Data` ([spike (h)](reference/spikes/h-hugo-content-adapter.md)).
-3. Copies `rulesets/`, the rendered `skeletons/` and `catalog/diagnostics.json` into the same staging root, then publishes the staging root as today.
+3. Copies `rulesets/`, the rendered `skeletons/`, `catalog/diagnostics.json` and `rulebook.json` into the same staging root, then publishes the staging root as WP05 does. The reachability check gains one `GET <baseUrl>/`.
 
 The site replaces the hand-written `index.html` of WP05. With `site.enabled` false the plain `index.html` is published, unchanged from WP05.
 

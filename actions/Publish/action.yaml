@@ -1,0 +1,99 @@
+name: Rulebook Publish
+description: Stages the endpoints, the rendered skeletons and index.html of an organization rulebook repository, deploys them to GitHub Pages and checks that every published URL serves the committed file.
+author: ALCops
+
+inputs:
+  repositoryRoot:
+    description: Path of the rulebook repository, relative to the workspace.
+    required: false
+    default: '.'
+  baseUrl:
+    description: Overrides baseUrl of .github/Rulebook-Settings.json (https, no trailing slash). Empty uses the setting.
+    required: false
+    default: ''
+  target:
+    description: Overrides publish.target of the settings. Empty uses the setting. Only 'pages' is implemented.
+    required: false
+    default: ''
+  deploy:
+    description: "'false' stages the files and skips the Pages preflight, the deploy and the check."
+    required: false
+    default: 'true'
+  skipCheck:
+    description: "'true' skips the reachability check after the deploy."
+    required: false
+    default: 'false'
+  checkWindowSeconds:
+    description: How long the reachability check waits for every URL to serve the committed file. GitHub Pages serves with max-age=600.
+    required: false
+    default: '660'
+  token:
+    description: Token for the Pages preflight (GET /repos/{owner}/{repo}/pages); needs pages read access.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  stagingPath:
+    description: The staging folder that was deployed.
+    value: ${{ steps.stage.outputs.stagingPath }}
+  failure:
+    description: "Why the stage step failed, empty on success: target, baseUrl-empty, baseUrl-invalid, preflight, stage or error."
+    value: ${{ steps.stage.outputs.failure }}
+  pageUrl:
+    description: The URL of the published site.
+    value: ${{ steps.deploy.outputs.page_url || steps.stage.outputs.pageUrl }}
+
+runs:
+  using: composite
+  steps:
+    - name: Stage the published files
+      id: stage
+      shell: pwsh
+      # Inputs reach the script through the environment, never interpolated into the script (script injection).
+      env:
+        INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
+        INPUT_BASEURL: ${{ inputs.baseUrl }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_DEPLOY: ${{ inputs.deploy }}
+        INPUT_TOKEN: ${{ inputs.token }}
+      run: |
+        $parameters = @{
+          Phase          = 'Stage'
+          RepositoryRoot = $env:INPUT_REPOSITORYROOT
+          BaseUrl        = $env:INPUT_BASEURL
+          Target         = $env:INPUT_TARGET
+          Deploy         = $env:INPUT_DEPLOY -eq 'true'
+        }
+        # The result object is the last pipeline output; anything a module emits before it is ignored.
+        $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'Publish.ps1') @parameters)[-1]
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['ExitCode']) { Write-Host '::error::Publish.ps1 returned no result'; exit 1 }
+        exit $result.ExitCode
+
+    - name: Upload the Pages artifact
+      if: inputs.deploy == 'true'
+      uses: actions/upload-pages-artifact@v5
+      with:
+        path: ${{ steps.stage.outputs.stagingPath }}
+
+    - name: Deploy to GitHub Pages
+      id: deploy
+      if: inputs.deploy == 'true'
+      uses: actions/deploy-pages@v5
+
+    - name: Check every published URL
+      if: inputs.deploy == 'true' && inputs.skipCheck != 'true'
+      shell: pwsh
+      env:
+        INPUT_MANIFESTPATH: ${{ steps.stage.outputs.manifestPath }}
+        INPUT_CHECKWINDOWSECONDS: ${{ inputs.checkWindowSeconds }}
+      run: |
+        $window = 0
+        if (-not [int]::TryParse($env:INPUT_CHECKWINDOWSECONDS, [ref]$window) -or $window -lt 0) { Write-Host "::error::checkWindowSeconds must be a whole number of seconds, not '$($env:INPUT_CHECKWINDOWSECONDS)'"; exit 1 }
+        $parameters = @{
+          Phase         = 'Check'
+          ManifestPath  = $env:INPUT_MANIFESTPATH
+          WindowSeconds = $window
+        }
+        $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'Publish.ps1') @parameters)[-1]
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['ExitCode']) { Write-Host '::error::Publish.ps1 returned no result'; exit 1 }
+        exit $result.ExitCode

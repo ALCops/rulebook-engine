@@ -91,3 +91,66 @@ jobs:
         run: |
           Write-Host '::error::Validate did not report errors on tests/fixtures/repos/stale-endpoints'
           exit 1
+
+  publish-action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # deploy 'false' stages only: no Pages preflight, no deploy, no reachability check (the live run is documented
+      # in docs/reference/publish-targets.md).
+      - name: Stage template (must pass)
+        id: stage
+        uses: ./actions/Publish
+        with:
+          repositoryRoot: template
+          baseUrl: https://example.github.io/rulebook
+          deploy: 'false'
+
+      - name: Check the staged files
+        shell: pwsh
+        env:
+          STAGING_PATH: ${{ steps.stage.outputs.stagingPath }}
+          PAGE_URL: ${{ steps.stage.outputs.pageUrl }}
+        run: |
+          $failures = [System.Collections.Generic.List[string]]::new()
+          $endpoints = @(Get-ChildItem -LiteralPath (Join-Path $env:STAGING_PATH 'rulesets') -File)
+          $skeletons = @(Get-ChildItem -LiteralPath (Join-Path $env:STAGING_PATH 'skeletons') -File)
+          $top = @(Get-ChildItem -LiteralPath $env:STAGING_PATH | ForEach-Object Name | Sort-Object)
+          if ($endpoints.Count -ne 12) { $failures.Add("expected 12 endpoints, found $($endpoints.Count)") }
+          if ($skeletons.Count -ne 12) { $failures.Add("expected 12 skeletons, found $($skeletons.Count)") }
+          if (($top -join ',') -cne 'index.html,rulesets,skeletons') { $failures.Add("unexpected top level: $($top -join ', ')") }
+          $skeleton = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'skeletons' 'strict.ci.ruleset.json') -Raw
+          if (-not $skeleton.Contains('"path": "https://example.github.io/rulebook/rulesets/strict.ci.ruleset.json"')) { $failures.Add('skeletons/strict.ci.ruleset.json does not carry the rendered URL') }
+          if (-not (Get-Content -LiteralPath template/skeletons/strict.ci.ruleset.json -Raw).Contains('{BASEURL}')) { $failures.Add('template/skeletons/strict.ci.ruleset.json lost {BASEURL}') }
+          if ($env:PAGE_URL -cne 'https://example.github.io/rulebook/') { $failures.Add("pageUrl is '$($env:PAGE_URL)'") }
+          foreach ($failure in $failures) { Write-Host "::error::$failure" }
+          if ($failures.Count -gt 0) { exit 1 }
+          Write-Host "Staged $($endpoints.Count) endpoints, $($skeletons.Count) skeletons and index.html"
+
+      - name: Upload the staging folder
+        uses: actions/upload-artifact@v7
+        with:
+          name: publish-staging
+          path: ${{ steps.stage.outputs.stagingPath }}
+          if-no-files-found: error
+
+      - name: Stage template without baseUrl (must fail)
+        id: nobaseurl
+        continue-on-error: true
+        uses: ./actions/Publish
+        with:
+          repositoryRoot: template
+          deploy: 'false'
+
+      # The failure output names the reason, so a crash or another error does not count as the expected failure.
+      - name: Require the empty baseUrl failure
+        if: steps.nobaseurl.outcome != 'failure' || steps.nobaseurl.outputs.failure != 'baseUrl-empty'
+        shell: pwsh
+        env:
+          FAILURE: ${{ steps.nobaseurl.outputs.failure }}
+        run: |
+          Write-Host "::error::Publish did not fail on template/ with an empty baseUrl (failure output: '$($env:FAILURE)')"
+          exit 1

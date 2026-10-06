@@ -70,7 +70,17 @@ The `default` stage has no file and no suffix in `rulesets/`; that is the only p
 <baseUrl>/rulesets/<level>.<stage>.ruleset.json    every other stage
 ```
 
-- `baseUrl` is `https://` and never ends with a slash (settings schema and C5), or empty until the organization sets it: the template ships `""` and Publish fails until it is set. It is rendered into skeletons and docs, never into `rulesets/`.
+The published layout (Publish, WP05) is exactly these files plus the rendered skeletons and an index page:
+
+```
+<baseUrl>/index.html                               (also served at <baseUrl>/) one table per stage, one row per level
+<baseUrl>/rulesets/<level>[.<stage>].ruleset.json  the levels x stages endpoints, as committed
+<baseUrl>/skeletons/<level>.<stage>.ruleset.json   the skeletons with {BASEURL} replaced by baseUrl
+```
+
+Nothing else is published: not `base/`, `stages/`, `catalog/`, the settings or a stray file in `rulesets/`. The dashboard (WP14) adds `<baseUrl>/rulebook.json`, `<baseUrl>/catalog/diagnostics.json` and the site pages.
+
+- `baseUrl` is `https://` with a DNS host name and an optional numeric port (no user info), has no query, fragment, `.` and `..` segments, quotes, backslashes or control characters (it is written into the skeleton JSON as it is) and never ends with a slash (settings schema and C5), or empty until the organization sets it: the template ships `""` and Publish fails until it is set. It is rendered into skeletons and docs, never into `rulesets/`.
 - The URL is unversioned (D8). A future version prefix would go between `baseUrl` and `rulesets/`, so nothing else is ever placed at that position.
 - There is no segment for the kind of extension (D21).
 - Hosts: the compiler fetches through Microsoft's anti-SSRF policy. `*.github.io` (the `pages` target) and `raw.githubusercontent.com` (the `dist-repo` target) pass with `/enableexternalrulesets`, with one request per compile and no redirect ([spike a](spikes/a-hosts-and-skeleton-include.md)). Custom domains, Azure static websites and gist raw URLs are not tested.

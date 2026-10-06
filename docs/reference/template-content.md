@@ -19,12 +19,13 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 
 ## 1. Files
 
-39 files: 7 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
+40 files: 8 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
 
 | Path | Class | Origin |
 |---|---|---|
 | `.github/Rulebook-Settings.json` | settings | Hand-written: the `template-default.json` settings fixture with `"baseUrl": ""` |
-| `.github/workflows/Validate.yaml` | system | Hand-written (WP03); the later workflows come with their work packages |
+| `.github/workflows/Validate.yaml` | system | Hand-written (WP03) |
+| `.github/workflows/Publish.yaml` | system | Hand-written (WP05); the later workflows come with their work packages |
 | `README.md` | never touched after creation | Hand-written, organization-facing |
 | `overrides.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `quarantine.default.json`, `quarantine.ci.json`, `quarantine.vnext.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
@@ -35,7 +36,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 | `skeletons/<level>.<stage>.ruleset.json` (12) | system | `New-RulebookSkeleton`, from the settings |
 | `rulesets/<level>[.<stage>].ruleset.json` (12) | generated | `Update-RulebookEndpoints` (Rulebook.Generate, WP03) |
 
-There is no placeholder for files that later work packages own: no other workflows, no `.github/RELEASENOTES.copy.md` (the deploy step writes it, D38), no `docs/` (WP11), no `site/` (WP14). The deploy workflow (WP13) must keep `docs/` in its keep list until WP11 decides where the organization documentation lives.
+There is no placeholder for files that later work packages own: no workflows besides Validate and Publish, no `.github/RELEASENOTES.copy.md` (the deploy step writes it, D38), no `docs/` (WP11), no `site/` (WP14). The deploy workflow (WP13) must keep `docs/` in its keep list until WP11 decides where the organization documentation lives.
 
 Every generated file is UTF-8 without BOM, LF, with a trailing LF, and its text depends on the inputs only (no date, commit or machine path), so regenerating unchanged inputs gives the same bytes.
 
@@ -90,7 +91,7 @@ Invoke-Pester -Path ./tests -Output Detailed
 
 Commit `docs/rulebook/` and `template/` together. The checks that catch a forgotten regeneration:
 
-- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and expects no change. It also copies the 7 hand-written files into a scratch folder, runs the wrapper there, and compares every file byte for byte with the committed one.
+- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and expects no change. It also copies the 8 hand-written files into a scratch folder, runs the wrapper there, and compares every file byte for byte with the committed one.
 - The same suite composes every cell of `resolved.json` from the committed files with `Get-EffectiveAction` (V13 on disk), checks the entry counts against `matrix/counts.md` and the Listed column, and runs `Test-Rulebook` on `template/`.
 - CI runs the Validate action on `template/` with `failOnWarning`, which includes the regeneration check C12 for `rulesets/`.
 

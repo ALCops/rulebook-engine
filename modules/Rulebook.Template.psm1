@@ -484,8 +484,8 @@ function New-RulebookSkeleton {
     $files = Get-OrdinalMap
     foreach ($level in $levels) {
         foreach ($stage in $stages) {
-            $endpoint = if ($stage.Slug -ceq 'default') { "$($level.Slug).ruleset.json" } else { "$($level.Slug).$($stage.Slug).ruleset.json" }
-            $files["$($level.Slug).$($stage.Slug).ruleset.json"] = ConvertTo-SkeletonJson -Name "Rulebook $($level.Name) / $($stage.Name)" -EndpointFile $endpoint
+            $endpoint = Get-EndpointFileName -Level $level.Slug -Stage $stage.Slug
+            $files[(Get-SkeletonFileName -Level $level.Slug -Stage $stage.Slug)] = ConvertTo-SkeletonJson -Name "Rulebook $($level.Name) / $($stage.Name)" -EndpointFile $endpoint
         }
     }
     Sync-GeneratedFolder -Directory $OutputPath -Filter '*.ruleset.json' -Files $files
