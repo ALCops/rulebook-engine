@@ -1,0 +1,8 @@
+[
+  { "id": "AL0200", "prefix": "AL", "Core": "None", "Extended": "Warning", "Default": "=", "CI": "=", "Basis": "D-01", "Justification": "Advisory below Extended; D-01" },
+  { "id": "AL0432", "prefix": "AL", "Core": "Warning", "Extended": "Warning", "Default": "=", "CI": "Info", "Basis": "F-05", "Justification": "Advisory in CI; F-05" },
+  { "id": "AL0603", "prefix": "AL", "Core": "None", "Extended": "Info", "Default": "=", "CI": "=", "Basis": "D-09", "Justification": "Opt-in rule enabled from Extended; D-09" },
+  { "id": "PTE0003", "prefix": "PTE", "Core": "Error", "Extended": "Error", "Default": "=", "CI": "=", "Basis": "D-05", "Justification": "Deployment blocker; D-05" },
+  { "id": "AS0061", "prefix": "AS", "Core": "None", "Extended": "Error", "Default": "=", "CI": "=", "Basis": "F-07", "Justification": "Marketplace check from Extended; F-07" },
+  { "id": "AS0084", "prefix": "AS", "Core": "Error", "Extended": "Warning", "Default": "=", "CI": "=", "Basis": "OV-01", "Justification": "Lowered at Extended for the fixture; OV-01" }
+]

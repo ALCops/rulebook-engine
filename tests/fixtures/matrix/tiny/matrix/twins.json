@@ -1,0 +1,9 @@
+{
+  "generatedBy": "tools/rulebook/Build-Matrix.ps1",
+  "setting": "twins",
+  "values": ["both", "appsource", "pte"],
+  "count": 1,
+  "pairs": [
+    { "pte": "PTE0003", "appsource": "AS0061", "title": "Procedures must not subscribe to CompanyOpen events" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "generatedBy": "tools/rulebook/Build-Matrix.ps1",
+  "setting": "levels",
+  "count": 2,
+  "levels": [
+    { "name": "Core", "slug": "core", "file": "base/core.ruleset.json" },
+    { "name": "Extended", "slug": "extended", "basedOn": "Core", "file": "base/extended.ruleset.json" }
+  ]
+}
