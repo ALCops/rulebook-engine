@@ -170,6 +170,37 @@ Describe 'New-RulebookPublishStage guards' {
         { New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage '*rulesets/complete.vnext.ruleset.json is missing*'
     }
 
+    It 'refuses a skeleton without {BASEURL}' {
+        $root = Copy-Template
+        $file = Join-Path $root 'skeletons' 'strict.ci.ruleset.json'
+        Write-FixtureText -Path $file -Text ((Get-Content -LiteralPath $file -Raw).Replace('{BASEURL}', 'https://hardcoded.example.com'))
+        { New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage '*skeletons/strict.ci.ruleset.json does not contain {BASEURL}*'
+    }
+
+    It 'refuses a skeleton that is not valid JSON after rendering' {
+        $root = Copy-Template
+        Write-FixtureText -Path (Join-Path $root 'skeletons' 'strict.ci.ruleset.json') -Text '{ "includedRuleSets": [ { "path": "{BASEURL}/rulesets/strict.ci.ruleset.json" } ]'
+        { New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage '*skeletons/strict.ci.ruleset.json is not valid JSON after rendering*'
+    }
+
+    It 'refuses an output folder that is the repository or contains it' {
+        $root = Copy-Template
+        { New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath $root } | Should-Throw -ExceptionMessage '*is the repository, a folder that contains it, or a drive root*'
+        { New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Split-Path -Parent $root) } | Should-Throw -ExceptionMessage '*folder that contains it*'
+        { New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath ([System.IO.Path]::GetPathRoot($root)) } | Should-Throw -ExceptionMessage '*drive root*'
+        Test-Path -LiteralPath (Join-Path $root '.github' 'Rulebook-Settings.json') | Should-BeTrue
+        # A sibling whose name starts with the repository's name is not a parent.
+        $output = "$root-stage"
+        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath $output).Count | Should-Be 25
+    }
+
+    It 'reuses -Inputs' {
+        $root = Copy-Template
+        $inputs = Read-RulebookInputs -RepositoryRoot $root
+        Mock Read-RulebookInputs -ModuleName Rulebook.Publish { throw 'read again' }
+        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) -Inputs $inputs).Count | Should-Be 25
+    }
+
     It 'refuses a missing skeleton' {
         $root = Copy-Template
         Remove-Item -LiteralPath (Join-Path $root 'skeletons' 'essential.vnext.ruleset.json')
@@ -213,6 +244,9 @@ Describe 'Resolve-RulebookBaseUrl' {
         @{ Value = 'https://contoso.github.io/rulebook#top'; Message = '*must be an https URL*fragment*' }
         @{ Value = 'https://contoso.github.io/./rulebook'; Message = '*must be an https URL*segments*' }
         @{ Value = 'https://contoso.github.io/rulebook/..'; Message = '*must be an https URL*segments*' }
+        @{ Value = 'https://contoso.github.io/rule"book'; Message = '*must be an https URL*quotes*' }
+        @{ Value = 'https://contoso.github.io/rule\book'; Message = '*must be an https URL*backslashes*' }
+        @{ Value = "https://contoso.github.io/rule$([char]0x7)book"; Message = '*must be an https URL*' }
     ) {
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $Value } -Repository 'Contoso/Rulebook' } | Should-Throw -ExceptionMessage $Message
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -Override $Value } | Should-Throw -ExceptionMessage $Message
@@ -380,16 +414,27 @@ Describe 'Test-RulebookEndpoints' {
 
     It 'starts no request after the window once the first pass is done' {
         # rulesets/strict.ruleset.json takes 1.6 s and both endpoints stay 404: pass 1 takes them both, pass 2 starts
-        # inside the 2 s window and its first request ends past it, so the second endpoint is not requested again.
+        # inside the 2 s window and its first request ends at 3.2 s, past window plus timeout (3 s), so the second
+        # endpoint is not requested again.
         $script:served.Remove("$baseUrl/rulesets/strict.ruleset.json")
         $script:served.Remove("$baseUrl/rulesets/strict.ci.ruleset.json")
         $slow = "$baseUrl/rulesets/strict.ruleset.json"
         Mock Invoke-WebRequest -ModuleName Rulebook.Publish -ParameterFilter { $Uri -eq $slow } { [System.Threading.Thread]::Sleep(1600); [pscustomobject]@{ StatusCode = 404; Content = 'Not Found' } }
         $manifest = @(New-TestManifest -Bodies ([ordered]@{ 'rulesets/strict.ruleset.json' = 'a'; 'rulesets/strict.ci.ruleset.json' = 'b' }))
-        $results = @(Test-RulebookEndpoints -Manifest $manifest -WindowSeconds 2 -IntervalSeconds 1)
+        $results = @(Test-RulebookEndpoints -Manifest $manifest -WindowSeconds 2 -IntervalSeconds 1 -TimeoutSeconds 1)
         ($results | Where-Object Path -EQ 'rulesets/strict.ruleset.json').Attempts | Should-Be 2
         ($results | Where-Object Path -EQ 'rulesets/strict.ci.ruleset.json').Attempts | Should-Be 1
         @($results | ForEach-Object Reason) | Should-BeCollection @('missing', 'missing')
+    }
+
+    It 'runs the last pass that starts when the waits reach the window' {
+        # Real waits: pass 1 at 0 s, pass 2 after 1 s, pass 3 after the wait that ends at the 2 s window.
+        Mock Start-Sleep -ModuleName Rulebook.Publish { [System.Threading.Thread]::Sleep([int]($Seconds * 1000)) }
+        $script:served.Remove("$baseUrl/rulesets/strict.ruleset.json")
+        $results = @(Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies ([ordered]@{ 'rulesets/strict.ruleset.json' = 'a' })) -WindowSeconds 2 -IntervalSeconds 1)
+        $results[0].Reason | Should-Be 'missing'
+        $results[0].Attempts | Should-Be 3
+        $results[0].Seconds | Should-BeGreaterThanOrEqual 2
     }
 
     It 'reports a staged file that cannot be read without requesting its URL' {
@@ -406,6 +451,15 @@ Describe 'Test-RulebookEndpoints' {
     It 'requests with the compiler timeout of 15 s by default' {
         $null = Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies)
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 4 -Exactly -ParameterFilter { $TimeoutSec -eq 15 -and $SkipHttpErrorCheck }
+    }
+}
+
+Describe 'Invoke-PagesPreflight rate limit' {
+    It 'reads X-RateLimit-Remaining 0 on a 403 as the rate limit' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.Publish { [pscustomobject]@{ StatusCode = 403; Content = '{"message":"Forbidden"}'; Headers = @{ 'X-RateLimit-Remaining' = [string[]]@('0') } } }
+        $result = Invoke-PagesPreflight -Repository 'Contoso/Rulebook' -BaseUrl $baseUrl
+        $result.Ok | Should-BeFalse
+        $result.Message | Should-BeLikeString '*rate limit is exhausted*'
     }
 }
 
@@ -440,6 +494,8 @@ Describe 'Get-PagesPreflightResult' {
         @{ Name = 'no site (404)'; Status = 404; Body = '{"message":"Not Found","status":"404"}'; Message = "*not enabled*Source 'GitHub Actions'*must be public*Pages creation*never creates*" }
         @{ Name = 'the plan gate'; Status = 422; Body = '{"message":"Your current plan does not support GitHub Pages for this repository.","status":"422"}'; Message = '*Make the repository public*upgrade*issues/55*' }
         @{ Name = 'the organization policy'; Status = 422; Body = '{"message":"GitHub organization administrators disabled Pages creation.","status":"422"}'; Message = '*organization administrator*Member privileges > Pages creation*' }
+        @{ Name = 'an exhausted rate limit (message)'; Status = 403; Body = '{"message":"API rate limit exceeded for installation.","status":"403"}'; Message = '*rate limit is exhausted*again later*' }
+        @{ Name = 'a secondary rate limit (429)'; Status = 429; Body = '{"message":"You have exceeded a secondary rate limit."}'; Message = '*rate limit is exhausted*' }
         @{ Name = 'a token without pages permission'; Status = 403; Body = '{"message":"Resource not accessible by integration","status":"403"}'; Message = "*pages: write*id-token: write*" }
         @{ Name = 'any other status'; Status = 500; Body = 'oops'; Message = '*HTTP 500*' }
     ) {

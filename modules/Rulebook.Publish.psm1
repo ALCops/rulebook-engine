@@ -10,9 +10,10 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 
 $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-# https, a host, path segments without '.' or '..', no query, fragment, whitespace or trailing slash. The settings
-# schema pattern of baseUrl says the same.
-$script:BaseUrlPattern = '^https://[^\s/?#]+(/(?!\.\.?(/|\z))[^\s/?#]+)*\z'
+# https, a host, path segments without '.' or '..', no query, fragment, whitespace, control character, quote or
+# backslash (the value is written into the skeleton JSON as it is), no trailing slash. The settings schema pattern
+# of baseUrl says the same.
+$script:BaseUrlPattern = '^https://[^\s/?#"\\\u0000-\u001F]+(/(?!\.\.?(/|\z))[^\s/?#"\\\u0000-\u001F]+)*\z'
 $script:Placeholder = '{BASEURL}'
 # The targets of the settings schema that WP05 does not implement, with their backlog issues.
 $script:PendingTargets = [ordered]@{
@@ -127,7 +128,7 @@ function Resolve-RulebookBaseUrl {
         throw "baseUrl is empty. Set `"baseUrl`": `"$proposal`" in $($script:SettingsPath) (the GitHub Pages address of this repository; use your custom domain instead if the Pages site has one), commit it in a pull request and run Publish again."
     }
     if ($value.EndsWith('/')) { throw "$where ends with a slash: '$value'. Remove the trailing slash." }
-    if ($value -cnotmatch $script:BaseUrlPattern) { throw "$where must be an https URL without spaces, a query (?), a fragment (#), '.' or '..' segments or a trailing slash: '$value'." }
+    if ($value -cnotmatch $script:BaseUrlPattern) { throw "$where must be an https URL without spaces, quotes, backslashes, a query (?), a fragment (#), '.' or '..' segments or a trailing slash: '$value'." }
     return $value
 }
 
@@ -207,15 +208,32 @@ function New-RulebookPublishStage {
     a stray or removed file is not published) after checking that each equals what Update-RulebookEndpoints would
     write (Publish is a gate, D42); a missing or stale endpoint throws with the fix. Writes
     skeletons/<level>.<stage>.ruleset.json with {BASEURL} replaced by -BaseUrl (ordinal; the repository copy is
-    untouched; a missing skeleton throws) and index.html. Returns one manifest entry per file in settings order:
-    Path (relative, '/'), Url, Kind (endpoint, skeleton, index) and StagedFile (full path).
+    untouched; a missing skeleton or one without the placeholder throws, and each rendered skeleton must parse as
+    JSON) and index.html. Returns one manifest entry per file in settings order: Path (relative, '/'), Url, Kind
+    (endpoint, skeleton, index) and StagedFile (full path). -Inputs reuses a Read-RulebookInputs result of the
+    same repository. -OutputPath must not be the repository, a folder that contains it, or a drive root.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Writes only the staging folder the caller names; -WhatIf would stage nothing to check')]
     [CmdletBinding()]
     [OutputType([pscustomobject])]
-    param([Parameter(Mandatory)][string]$RepositoryRoot, [Parameter(Mandatory)][string]$BaseUrl, [Parameter(Mandatory)][string]$OutputPath)
-    if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL without a query, a fragment, dot segments or a trailing slash: '$BaseUrl'" }
-    $inputs = Read-RulebookInputs -RepositoryRoot $RepositoryRoot
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$BaseUrl,
+        [Parameter(Mandatory)][string]$OutputPath,
+        [AllowNull()]$Inputs
+    )
+    if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL without quotes, backslashes, a query, a fragment, dot segments or a trailing slash: '$BaseUrl'" }
+    $inputs = if ($null -ne $Inputs) { $Inputs } else { Read-RulebookInputs -RepositoryRoot $RepositoryRoot }
+    # The output folder is deleted and recreated: never the repository, a folder above it or a drive root.
+    $separator = [System.IO.Path]::DirectorySeparatorChar
+    $outputFull = [System.IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)).TrimEnd('\', '/')
+    $rootFull = [System.IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RepositoryRoot)).TrimEnd('\', '/')
+    $driveRoot = [System.IO.Path]::GetPathRoot($outputFull + $separator).TrimEnd('\', '/')
+    if ([string]::Equals($outputFull, $driveRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+        [string]::Equals($outputFull, $rootFull, [System.StringComparison]::OrdinalIgnoreCase) -or
+        ($rootFull + $separator).StartsWith($outputFull + $separator, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "OutputPath '$OutputPath' is the repository, a folder that contains it, or a drive root; it is deleted before staging, so choose an empty folder elsewhere."
+    }
     if (-not $inputs.SettingsPresent) { throw "Settings missing: $($script:SettingsPath) in $($inputs.Root)" }
     if ($inputs.Levels.Count -eq 0 -or $inputs.Stages.Count -eq 0) { throw "$($script:SettingsPath): levels and stages must each list at least one entry (C5)" }
 
@@ -250,7 +268,11 @@ function New-RulebookPublishStage {
             if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
                 throw "skeletons/$leaf is missing. The skeletons come with the template (New-RulebookSkeleton); restore the file from the template or the git history."
             }
-            $skeletonSources.Add([pscustomobject]@{ Leaf = $leaf; Source = $source })
+            $text = [System.IO.File]::ReadAllText($source, $script:Utf8NoBom)
+            if (-not $text.Contains($script:Placeholder)) {
+                throw "skeletons/$leaf does not contain $($script:Placeholder), so its include would not point at baseUrl. Restore the file from the template (New-RulebookSkeleton writes {BASEURL}/rulesets/<endpoint>)."
+            }
+            $skeletonSources.Add([pscustomobject]@{ Leaf = $leaf; Text = $text })
         }
     }
 
@@ -265,8 +287,10 @@ function New-RulebookPublishStage {
     foreach ($skeleton in $skeletonSources) {
         $path = "skeletons/$($skeleton.Leaf)"
         $staged = Join-Path $output $path
-        $text = [System.IO.File]::ReadAllText($skeleton.Source, $script:Utf8NoBom)
-        Write-StagedFile -Path $staged -Bytes ($script:Utf8NoBom.GetBytes($text.Replace($script:Placeholder, $BaseUrl, [System.StringComparison]::Ordinal)))
+        $rendered = $skeleton.Text.Replace($script:Placeholder, $BaseUrl, [System.StringComparison]::Ordinal)
+        # A guard: the base URL pattern keeps the JSON valid, and the compiler discards an invalid file (AL1033).
+        try { $null = $rendered | ConvertFrom-Json -ErrorAction Stop } catch { throw "skeletons/$($skeleton.Leaf) is not valid JSON after rendering the base URL: $($_.Exception.Message)" }
+        Write-StagedFile -Path $staged -Bytes ($script:Utf8NoBom.GetBytes($rendered))
         $manifest.Add([pscustomobject]@{ Path = $path; Url = "$BaseUrl/$path"; Kind = 'skeleton'; StagedFile = $staged })
     }
     $index = Join-Path $output 'index.html'
@@ -295,7 +319,8 @@ function Get-PagesPreflightResult {
         [Parameter(Mandatory)][int]$StatusCode,
         [AllowNull()][AllowEmptyString()][string]$Body,
         [AllowNull()][AllowEmptyString()][string]$BaseUrl,
-        [AllowNull()][AllowEmptyString()][string]$Repository
+        [AllowNull()][AllowEmptyString()][string]$Repository,
+        [AllowNull()][AllowEmptyString()][string]$RateLimitRemaining
     )
     $json = $null
     if (-not [string]::IsNullOrWhiteSpace($Body)) {
@@ -323,6 +348,9 @@ function Get-PagesPreflightResult {
     if ($apiMessage -like '*administrators disabled Pages creation*') {
         return & $result $false 'An organization administrator has disabled Pages creation. Ask an owner to allow it under Organization settings > Member privileges > Pages creation (Public), then enable Pages for this repository once.' $null
     }
+    if (($StatusCode -eq 403 -or $StatusCode -eq 429) -and ($RateLimitRemaining -eq '0' -or $apiMessage -like '*rate limit*')) {
+        return & $result $false "The GitHub API rate limit is exhausted (HTTP $StatusCode$(if ($apiMessage) { ": $apiMessage" })). Run Publish again later." $null
+    }
     if ($apiMessage -like '*Resource not accessible by integration*' -or $StatusCode -eq 403) {
         return & $result $false "The workflow token cannot read the Pages site (HTTP $StatusCode$(if ($apiMessage) { ": $apiMessage" })). Give the job 'pages: write' and 'id-token: write' permissions, and make sure Pages is enabled once in $settingsPage." $null
     }
@@ -340,8 +368,9 @@ function Test-RulebookEndpoints {
     .DESCRIPTION
     The first pass requests every URL with -TimeoutSeconds per request (the compiler uses 15 s). A URL passes on
     HTTP 200 with a body equal to the staged file (both UTF-8 decoded, compared ordinally). Pending URLs are
-    retried every -IntervalSeconds; after the first pass no request starts once -WindowSeconds have passed, so the
-    run ends at most one request timeout after the window (GitHub Pages serves with max-age=600, hence 660 s).
+    retried every -IntervalSeconds; the waits end at -WindowSeconds, and a pass that starts by then runs, but no
+    request starts later than one -TimeoutSeconds after the window, so the run ends at most two request timeouts
+    after it (GitHub Pages serves with max-age=600, hence 660 s).
     Requests are sequential so that Invoke-WebRequest and Start-Sleep can be mocked. Returns one result per URL:
     Path, Url, Kind, Status (HTTP status or 0), Reason (ok, missing, different, timeout, error), Attempts, Seconds
     (elapsed when it passed or was last tried) and Detail (the exception message of a timeout or error). A staged
@@ -383,7 +412,7 @@ function Test-RulebookEndpoints {
             Start-Sleep -Seconds ([math]::Max(1, [math]::Min($IntervalSeconds, [math]::Ceiling($left))))
         }
         foreach ($item in $pending) {
-            if ($pass -gt 1 -and $clock.Elapsed.TotalSeconds -ge $WindowSeconds) { break }
+            if ($pass -gt 1 -and $clock.Elapsed.TotalSeconds -gt $WindowSeconds + $TimeoutSeconds) { break }
             $item.Attempts++
             $item.Detail = $null
             try {
@@ -431,7 +460,12 @@ function Invoke-PagesPreflight {
     if (-not [string]::IsNullOrEmpty($Token)) { $headers.Authorization = "Bearer $Token" }
     $response = Invoke-WebRequest -Uri "$($ApiUrl.TrimEnd('/'))/repos/$Repository/pages" -Headers $headers -TimeoutSec 30 -SkipHttpErrorCheck -ErrorAction Stop
     $status = [int]$response.StatusCode
-    $result = Get-PagesPreflightResult -StatusCode $status -Body (Get-ResponseText $response) -BaseUrl $BaseUrl -Repository $Repository
+    $remaining = $null
+    $responseHeaders = $response.PSObject.Properties['Headers']
+    if ($null -ne $responseHeaders -and $responseHeaders.Value -is [System.Collections.IDictionary] -and $responseHeaders.Value.Contains('X-RateLimit-Remaining')) {
+        $remaining = [string](@($responseHeaders.Value['X-RateLimit-Remaining'])[0])
+    }
+    $result = Get-PagesPreflightResult -StatusCode $status -Body (Get-ResponseText $response) -BaseUrl $BaseUrl -Repository $Repository -RateLimitRemaining $remaining
     $result | Add-Member -NotePropertyName StatusCode -NotePropertyValue $status -PassThru
 }
 

@@ -58,9 +58,9 @@
       "pattern": "^([0-9a-f]{40})?(?![\\s\\S])"
     },
     "baseUrl": {
-      "description": "Where rulesets/ is served from: https, no query, fragment, dot segment or trailing slash; empty until the organization sets it (the template ships it empty and Publish fails until it is set).",
+      "description": "Where rulesets/ is served from: https, no query, fragment, dot segment, quote, backslash, control character or trailing slash; empty until the organization sets it (the template ships it empty and Publish fails until it is set).",
       "type": "string",
-      "pattern": "^(https://[^\\s/?#]+(/(?!\\.\\.?(/|(?![\\s\\S])))[^\\s/?#]+)*)?(?![\\s\\S])"
+      "pattern": "^(https://[^\\s/?#\"\\\\\\u0000-\\u001F]+(/(?!\\.\\.?(/|(?![\\s\\S])))[^\\s/?#\"\\\\\\u0000-\\u001F]+)*)?(?![\\s\\S])"
     },
     "publish": {
       "description": "The publish target and its fields. Fields of another target are not forbidden; they are ignored.",

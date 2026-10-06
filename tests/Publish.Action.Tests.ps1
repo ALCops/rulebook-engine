@@ -194,6 +194,15 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run.Summary | Should-MatchString '(?m)^- baseUrl is empty'
     }
 
+    It 'does not point an error from an action input at the settings file' {
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template); Target = 'gist'; BaseUrl = 'https://contoso.github.io/rulebook/' }
+        $run.Result.ExitCode | Should-Be 1
+        $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
+        $errors.Count | Should-Be 2
+        foreach ($line in $errors) { $line | Should-BeLikeString '::error title=Publish::*' }
+        $errors[1] | Should-BeLikeString '*The baseUrl input ends with a slash*'
+    }
+
     It 'fails a repository root that does not exist with an annotation and a result' {
         $run = Invoke-Entry @{ RepositoryRoot = (Join-Path $TestDrive 'no-such-repo') }
         $run.Result.ExitCode | Should-Be 1
@@ -238,6 +247,14 @@ Describe 'Publish.ps1 -Phase Check' {
         $run.Result.ExitCode | Should-Be 1
         @($run.Result.Results)[0].Reason | Should-Be 'error'
         $run.Result.Annotations[0] | Should-BeLikeString '::error title=Publish::https://127.0.0.1:9/rulebook/rulesets/strict.ruleset.json failed (the staged file cannot be read*) after 0 attempt(s)*'
+    }
+
+    It 'fails when the manifest lists no URL' {
+        $manifestPath = Join-Path $TestDrive 'empty-manifest.json'
+        Set-Content -LiteralPath $manifestPath -Value '[]'
+        $run = Invoke-Entry @{ Phase = 'Check'; ManifestPath = $manifestPath; WindowSeconds = 0 }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Annotations[0] | Should-BeLikeString '::error title=Publish::No URL was checked*'
     }
 
     It 'fails without a manifest' {

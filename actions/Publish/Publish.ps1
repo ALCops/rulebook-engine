@@ -99,16 +99,17 @@ if ($Phase -eq 'Stage') {
         if (-not $inputs.SettingsPresent) { throw "Settings missing: .github/Rulebook-Settings.json in $root" }
         $settings = $inputs.Settings
         # Target and base URL are reported independently, so one run names both problems.
+        # The annotation points at the settings file only when the value came from it, not from an action input.
         try {
             $resolvedTarget = Resolve-RulebookPublishTarget -Settings $settings -Override $Target
         } catch {
-            Add-Annotation -File $settingsFile -Message $_.Exception.Message
+            Add-Annotation -File $(if ([string]::IsNullOrWhiteSpace($Target)) { $settingsFile }) -Message $_.Exception.Message
             $failed = $true
         }
         try {
             $resolvedBaseUrl = Resolve-RulebookBaseUrl -Settings $settings -Repository $Repository -Override $BaseUrl
         } catch {
-            Add-Annotation -File $settingsFile -Message $_.Exception.Message
+            Add-Annotation -File $(if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $settingsFile }) -Message $_.Exception.Message
             $failed = $true
         }
         if (-not $failed) {
@@ -126,7 +127,7 @@ if ($Phase -eq 'Stage') {
             }
         }
         if (-not $failed) {
-            $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath)
+            $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath -Inputs $inputs)
             $manifestParent = Split-Path -Parent $ManifestPath
             if (-not (Test-Path -LiteralPath $manifestParent)) { [void](New-Item -ItemType Directory -Path $manifestParent -Force) }
             [System.IO.File]::WriteAllText($ManifestPath, (ConvertTo-Json -InputObject $manifest -Depth 3), [System.Text.UTF8Encoding]::new($false))
@@ -175,6 +176,7 @@ try {
     $manifest = @(Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json)
     Write-Host "Checking $(@($manifest | Where-Object Kind -CIn 'endpoint', 'skeleton', 'index').Count) URLs for up to $WindowSeconds s"
     $results = @(Test-RulebookEndpoints -Manifest $manifest -TimeoutSeconds $TimeoutSeconds -WindowSeconds $WindowSeconds -IntervalSeconds $IntervalSeconds)
+    if ($results.Count -eq 0) { throw "No URL was checked: the manifest $ManifestPath lists no endpoint, skeleton or index." }
     foreach ($result in $results | Where-Object Reason -CNE 'ok') {
         $reason = switch ($result.Reason) {
             'missing' { 'is missing (HTTP 404)' }
