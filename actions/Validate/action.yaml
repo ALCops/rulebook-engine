@@ -1,0 +1,47 @@
+name: Rulebook Validate
+description: Runs the Rulebook checks C1 to C15 on an organization rulebook repository, annotates the findings and writes the effective diff to the job summary.
+author: ALCops
+
+inputs:
+  repositoryRoot:
+    description: Path of the rulebook repository, relative to the workspace.
+    required: false
+    default: '.'
+  failOnWarning:
+    description: "'true' fails the step on warnings too; errors always fail it."
+    required: false
+    default: 'false'
+  checkForUpdates:
+    description: Run the template update check in check mode. Accepted and ignored until WP07 (#9) wires it.
+    required: false
+    default: 'true'
+
+outputs:
+  errors:
+    description: Number of error findings.
+    value: ${{ steps.validate.outputs.errors }}
+  warnings:
+    description: Number of warning findings.
+    value: ${{ steps.validate.outputs.warnings }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate rulebook
+      id: validate
+      shell: pwsh
+      # Inputs reach the script through the environment, never interpolated into the script (script injection).
+      env:
+        INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
+        INPUT_FAILONWARNING: ${{ inputs.failOnWarning }}
+        INPUT_CHECKFORUPDATES: ${{ inputs.checkForUpdates }}
+      run: |
+        $parameters = @{
+          RepositoryRoot  = $env:INPUT_REPOSITORYROOT
+          FailOnWarning   = $env:INPUT_FAILONWARNING -eq 'true'
+          CheckForUpdates = $env:INPUT_CHECKFORUPDATES -eq 'true'
+        }
+        # The result object is the last pipeline output; anything a module emits before it is ignored.
+        $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'Validate.ps1') @parameters)[-1]
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['ExitCode']) { Write-Host '::error::Validate.ps1 returned no result'; exit 1 }
+        exit $result.ExitCode

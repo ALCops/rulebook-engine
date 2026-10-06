@@ -754,7 +754,7 @@ function Read-RulebookInputs {
         # The slug becomes a file name and a URL segment: no dots, no slashes, unique per array (C5).
         $seen = Get-OrdinalSet
         foreach ($item in $kind.Items) {
-            if ($null -eq $item.Slug -or $item.Slug -cnotmatch '^[a-z0-9-]+$') {
+            if ($null -eq $item.Slug -or $item.Slug -cnotmatch '^[a-z0-9-]+\z') {
                 throw "$($script:SettingsPath)`: $($kind.Name) entry '$($item.Name)' does not lowercase to a slug matching ^[a-z0-9-]+$ (C5)"
             }
             if (-not $seen.Add($item.Slug)) { throw "$($script:SettingsPath)`: $($kind.Name) slug '$($item.Slug)' is used twice (C5)" }
@@ -892,7 +892,7 @@ function Get-RulebookEndpoint {
     $table = Get-OrdinalMap
     $listed = [System.Collections.Generic.List[object]]::new()
     foreach ($id in $candidates) {
-        $overrides = if ($Inputs.OverridesById.ContainsKey($id)) { $Inputs.OverridesById[$id].ToArray() } else { @() }
+        $overrides = @(if ($Inputs.OverridesById.ContainsKey($id)) { $Inputs.OverridesById[$id] })
         $result = Resolve-Effective -Id $id -Level $Level -Stage $Stage -Chain $chain -StageDelta $stageDelta `
             -Twins $Inputs.Twins -TwinsSetting $Inputs.TwinsSetting -Overrides $overrides -Quarantine $quarantine -Catalog $Inputs.Catalog
         $table[$id] = $result

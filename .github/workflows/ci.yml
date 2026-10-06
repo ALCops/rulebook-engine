@@ -54,3 +54,30 @@ jobs:
           name: testResults
           path: testResults.xml
           if-no-files-found: warn
+
+  validate-action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate valid-minimal (must pass)
+        uses: ./actions/Validate
+        with:
+          repositoryRoot: tests/fixtures/repos/valid-minimal
+
+      - name: Validate stale-endpoints (must fail)
+        id: stale
+        continue-on-error: true
+        uses: ./actions/Validate
+        with:
+          repositoryRoot: tests/fixtures/repos/stale-endpoints
+
+      # A crash of the action also fails the step; requiring errors > 0 makes sure the checks themselves failed.
+      - name: Require the stale-endpoints failure
+        if: steps.stale.outcome != 'failure' || fromJSON(steps.stale.outputs.errors || '0') < 1
+        shell: pwsh
+        run: |
+          Write-Host '::error::Validate did not report errors on tests/fixtures/repos/stale-endpoints'
+          exit 1
