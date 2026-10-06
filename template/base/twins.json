@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json",
+  "generatedBy": "tools/rulebook/Build-Template.ps1",
+  "setting": "twins",
+  "values": ["both", "appsource", "pte"],
+  "count": 17,
+  "pairs": [
+    { "pte": "PTE0003", "appsource": "AS0061", "title": "Procedures must not subscribe to CompanyOpen events" },
+    { "pte": "PTE0004", "appsource": "AS0103", "title": "Table definitions must have a matching permission set." },
+    { "pte": "PTE0005", "appsource": "AS0053", "title": "The compilation target of an application must be a value that is allowed in a multi-tenant SaaS environment" },
+    { "pte": "PTE0008", "appsource": "AS0062", "title": "Page controls and actions must use the ApplicationArea property" },
+    { "pte": "PTE0010", "appsource": "AS0047", "title": "The extension name is too long." },
+    { "pte": "PTE0011", "appsource": "AS0048", "title": "The publisher name is too long." },
+    { "pte": "PTE0012", "appsource": "AS0081", "title": "InternalsVisibleTo should not be used as a security feature." },
+    { "pte": "PTE0014", "appsource": "AS0094", "title": "Permission Sets should not be defined in XML files." },
+    { "pte": "PTE0015", "appsource": "AS0104", "title": "The extension name is not valid." },
+    { "pte": "PTE0016", "appsource": "AS0110", "title": "Permission set extensions should not include permissions for objects defined in another application." },
+    { "pte": "PTE0017", "appsource": "AS0111", "title": "Permission set extensions should not include permission sets defined in another application." },
+    { "pte": "PTE0018", "appsource": "AS0112", "title": "Permission set extensions should not include permission sets which include permissions for objects defined in another application." },
+    { "pte": "PTE0019", "appsource": "AS0113", "title": "Permission set extensions should not include wildcard permissions." },
+    { "pte": "PTE0021", "appsource": "AS0008", "title": "Defining reserved namespaces is not allowed." },
+    { "pte": "PTE0022", "appsource": "AS0099", "title": "The member ID should be within the allowed range" },
+    { "pte": "PTE0025", "appsource": "AS0130", "title": "Avoid using duplicate object names" },
+    { "pte": "PTE0026", "appsource": "AS0138", "title": "Table fields should use the AllowInCustomizations property" }
+  ]
+}
