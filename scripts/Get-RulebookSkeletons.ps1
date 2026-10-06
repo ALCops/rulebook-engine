@@ -10,13 +10,15 @@ one of them, and downloads <BaseUrl>/skeletons/<level>.<stage>.ruleset.json for 
 includes the endpoint of its stage; the project's own exceptions go into its rules. The files are written exactly as
 the site serves them, so they are the same files a manual download gives.
 
-Nothing is written unless every step succeeds: the manifest is read and -Level is resolved before any skeleton is
-requested, an existing target file stops the script unless -Force is set, and every skeleton is downloaded and
-checked before the first file is written. Redirects are not followed, because the AL compiler does not follow them
-either: -BaseUrl must be the final address of the site. Every failure throws, so 'pwsh -File' exits with 1.
+Nothing is written until every download and check has succeeded; the files are then written one by one. The manifest
+is read and -Level is resolved before any skeleton is requested, an existing target file stops the script unless
+-Force is set, every skeleton is downloaded and checked, and the output folder and every existing target are checked
+for writing before the first file is written. Redirects are not followed, because the AL compiler does not follow
+them either: -BaseUrl must be the final address of the site. Every failure throws, so 'pwsh -File' exits with 1.
 
 The script is self-contained (PowerShell 7, no module) and only downloads: it does not change any settings file. It
-prints the settings that point VS Code and AL-Go at the files.
+prints the settings that point VS Code and AL-Go at the files. The details are on the user page docs/al-project.md in
+the ALCops/rulebook repository (written with WP06), linked below.
 
 .PARAMETER BaseUrl
 The address of the published Rulebook site, the baseUrl of the organization's rulebook repository, for example
@@ -92,6 +94,13 @@ function Get-RulebookResponse {
         }
     }
     return [pscustomobject]@{ Status = [int]$response.StatusCode; Bytes = $bytes; Location = $location }
+}
+
+function ConvertTo-UrlKey {
+    # A URL with its scheme and host (and port) lowercased and its path as it is, for comparing addresses.
+    param([Parameter(Mandatory)][string]$Url)
+    if ($Url -match '^([A-Za-z][A-Za-z0-9+.-]*://[^/]*)(.*)\z') { return $Matches[1].ToLowerInvariant() + $Matches[2] }
+    return $Url
 }
 
 function Get-ResponseFailure {
@@ -208,16 +217,26 @@ foreach ($target in $targets) {
     }
     $include = $includes[0]['path']
     # A site read through another address than its baseUrl (a local copy, a proxy) still includes the published URL.
-    if ($publishedBaseUrl -and $publishedBaseUrl -cne $BaseUrl) {
+    # Scheme and host compare case-insensitively, the path ordinally.
+    if ($publishedBaseUrl -and (ConvertTo-UrlKey $publishedBaseUrl) -cne (ConvertTo-UrlKey $BaseUrl)) {
         Write-Warning "$($target.Display): the site was published with baseUrl $publishedBaseUrl, not $BaseUrl; the compiler will fetch $include."
-    } elseif (-not $include.StartsWith("$BaseUrl/", [System.StringComparison]::Ordinal)) {
+    } elseif (-not (ConvertTo-UrlKey $include).StartsWith((ConvertTo-UrlKey $BaseUrl) + '/', [System.StringComparison]::Ordinal)) {
         Write-Warning "$($target.Display): the include $include is not under $BaseUrl; the compiler will fetch $include."
     }
     $target.Bytes = $response.Bytes
 }
 
-# 8. The files, byte for byte as served.
-[void][System.IO.Directory]::CreateDirectory($outputFull)
+# 8. The files, byte for byte as served, one by one after a check that each can be written.
+try {
+    [void][System.IO.Directory]::CreateDirectory($outputFull)
+} catch {
+    throw "No file was written. The folder $outputFull cannot be created: $($_.Exception.Message)"
+}
+foreach ($target in $targets) {
+    if (Test-Path -LiteralPath $target.File -PathType Container) { throw "No file was written. $($target.Display) is a folder, not a file." }
+    $item = Get-Item -LiteralPath $target.File -Force -ErrorAction SilentlyContinue
+    if ($null -ne $item -and $item.IsReadOnly) { throw "No file was written. $($target.Display) is read-only." }
+}
 foreach ($target in $targets) {
     [System.IO.File]::WriteAllBytes($target.File, $target.Bytes)
     Write-Host "$($target.Display) <- $($target.Url)"
@@ -234,7 +253,7 @@ foreach ($target in $targets) {
     }
 }
 Write-Host 'Exceptions go into rules of each file. Reload the VS Code window after changing a file.'
-Write-Host "Details: $docsUrl"
+Write-Host "Details: the user page docs/al-project.md in the ALCops/rulebook repository (written with WP06), $docsUrl"
 foreach ($target in $targets) {
     [pscustomobject]@{ Stage = $target.Stage; File = $target.File; Url = $target.Url; Bytes = $target.Bytes.Length }
 }

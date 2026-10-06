@@ -165,6 +165,39 @@ Describe 'Get-RulebookSkeletons.ps1' {
         @(Get-ChildItem -LiteralPath $folder -File).Count | Should-Be 3
     }
 
+    It 'compares the scheme and host of the base URL case-insensitively and does not warn' {
+        $run = Invoke-Script @{ BaseUrl = 'HTTPS://Contoso.GitHub.io/rulebook'; Level = 'strict'; OutputPath = (Get-TestFolder) }
+        $run.Warnings | Should-BeCollection @()
+        $run.Result.Count | Should-Be 3
+    }
+
+    It 'still warns when the path of the base URL differs in case' {
+        $local = 'https://contoso.github.io/Rulebook'
+        foreach ($url in @($script:served.Keys)) { $script:siteResponses[$url.Replace($baseUrl, $local)] = $script:served[$url] }
+        $run = Invoke-Script @{ BaseUrl = $local; Level = 'strict'; OutputPath = (Get-TestFolder) }
+        $run.Warnings.Count | Should-Be 3
+    }
+
+    It 'refuses with -Force a target that is <Name> before writing any file' -ForEach @(
+        @{ Name = 'a folder'; Message = '*No file was written.*ci.ruleset.json is a folder, not a file.' }
+        @{ Name = 'read-only'; Message = '*No file was written.*ci.ruleset.json is read-only.' }
+    ) {
+        $folder = Get-TestFolder
+        $target = Join-Path $folder 'ci.ruleset.json'
+        if ($Name -eq 'a folder') {
+            [void](New-Item -ItemType Directory -Path $target -Force)
+        } else {
+            Write-FixtureText -Path $target -Text '{}'
+            (Get-Item -LiteralPath $target).IsReadOnly = $true
+        }
+        try {
+            { Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = $folder; Force = $true } } | Should-Throw -ExceptionMessage $Message
+            Test-Path -LiteralPath (Join-Path $folder 'default.ruleset.json') | Should-BeFalse
+        } finally {
+            if ($Name -eq 'read-only') { (Get-Item -LiteralPath $target).IsReadOnly = $false }
+        }
+    }
+
     It 'warns when an include is not under the base URL' {
         $text = $utf8.GetString($script:served["$baseUrl/skeletons/strict.ci.ruleset.json"]).Replace("$baseUrl/rulesets/", 'https://elsewhere.example.com/rulesets/')
         $script:siteResponses["$baseUrl/skeletons/strict.ci.ruleset.json"] = $utf8.GetBytes($text)

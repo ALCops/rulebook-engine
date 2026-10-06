@@ -43,7 +43,7 @@ Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/
 ./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level strict
 ```
 
-Why one file per stage, the settings per consumer and when `suppressWarnings` in `app.json` works instead of an exception: `docs/al-project.md`.
+Why one file per stage, the settings per consumer and when `suppressWarnings` in `app.json` works instead of an exception: the user page `docs/al-project.md` in the ALCops/rulebook repository (written with WP06).
 
 ## Changing a rule
 

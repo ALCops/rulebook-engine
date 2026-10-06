@@ -1,8 +1,8 @@
 #requires -Version 7.4
 # Rulebook.Publish: stages what an organization publishes (the levels x stages endpoints of rulesets/, the skeletons
 # with {BASEURL} rendered, the rulebook.json manifest, a plain index.html), explains a missing or misconfigured GitHub
-# Pages site, and checks after the deploy that every published URL serves the staged bytes. Publish is a gate and never commits (D42): the
-# staging refuses endpoints that differ from what Rulebook.Generate produces.
+# Pages site, and checks after the deploy that every published URL serves the staged bytes. Publish is a gate and
+# never commits (D42): the staging refuses endpoints that differ from what Rulebook.Generate produces.
 # Contract: docs/ARCHITECTURE.md sections 7.2 and 9. Setup per target: docs/reference/publish-targets.md.
 
 Set-StrictMode -Version 3.0
