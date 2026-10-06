@@ -353,3 +353,201 @@ Describe 'New-RulebookSkeleton' {
         { New-RulebookSkeleton -SettingsPath $settings -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage "*stages slug 'ci' is used twice (C5)"
     }
 }
+
+Describe 'Validate on template/' {
+    It 'Test-Rulebook reports nothing, C12 included' {
+        $findings = @(Test-Rulebook -RepositoryRoot $templateDir)
+        @($findings | ForEach-Object { '{0} {1} {2} {3}' -f $_.Rule, $_.File, $_.Id, $_.Message }) | Should-BeCollection @()
+    }
+}
+
+Describe 'Shipped template content' {
+    BeforeAll {
+        $script:inventory = @(Get-Content -LiteralPath (Join-Path $rulebookDir 'inventory' 'inventory.json') -Raw | ConvertFrom-Json -AsHashtable)
+        $script:counts = Read-CountsTable
+        $script:shippedLevels = @('essential', 'recommended', 'strict', 'complete')
+        $script:shippedStages = @('default', 'ci', 'vnext')
+        $script:endpointNames = foreach ($level in $shippedLevels) {
+            foreach ($stage in $shippedStages) { if ($stage -eq 'default') { "$level.ruleset.json" } else { "$level.$stage.ruleset.json" } }
+        }
+        $script:templateInputs = Read-RulebookInputs -RepositoryRoot $templateDir
+
+        function Get-SortedName {
+            # The names sorted ordinally, joined with ', '.
+            param([string[]]$Names)
+            [string[]]$copy = @($Names)
+            [System.Array]::Sort($copy, [System.StringComparer]::Ordinal)
+            return $copy -join ', '
+        }
+
+        function Get-FolderName {
+            param([string]$Folder)
+            return Get-SortedName @(Get-ChildItem -LiteralPath (Join-Path $templateDir $Folder) -File | ForEach-Object Name)
+        }
+    }
+
+    It 'has exactly 4 level files, base/twins.json, 2 stage files, 12 endpoints and 12 skeletons with the naming.md names' {
+        Get-FolderName 'base' | Should-Be (Get-SortedName (@($shippedLevels | ForEach-Object { "$_.ruleset.json" }) + 'twins.json'))
+        Get-FolderName 'stages' | Should-Be 'ci.json, vnext.json'
+        Get-FolderName 'rulesets' | Should-Be (Get-SortedName $endpointNames)
+        Get-FolderName 'skeletons' | Should-Be (Get-SortedName @(foreach ($level in $shippedLevels) { foreach ($stage in $shippedStages) { "$level.$stage.ruleset.json" } }))
+    }
+
+    It 'has the entry counts of the file table in matrix/counts.md' {
+        $counts.Entries.Count | Should-Be 6
+        foreach ($file in $counts.Entries.Keys) {
+            @(Get-RuleText -Path (Join-Path $templateDir $file)).Count | Should-Be $counts.Entries[$file] -Because $file
+        }
+    }
+
+    It 'lists in every endpoint the number of ids of the Listed column in matrix/counts.md' {
+        $counts.Listed.Count | Should-Be 12
+        foreach ($key in $counts.Listed.Keys) {
+            $level, $stage = $key -split '\.'
+            $file = if ($stage -eq 'default') { "$level.ruleset.json" } else { "$level.$stage.ruleset.json" }
+            @(Get-RuleText -Path (Join-Path $templateDir 'rulesets' $file)).Count | Should-Be $counts.Listed[$key] -Because $file
+        }
+    }
+
+    It 'writes every generated file in ascending Get-DiagnosticSortKey order' {
+        $files = @(
+            Get-ChildItem -LiteralPath (Join-Path $templateDir 'base') -Filter '*.ruleset.json' -File
+            Get-ChildItem -LiteralPath (Join-Path $templateDir 'stages') -File
+            Get-ChildItem -LiteralPath (Join-Path $templateDir 'rulesets') -File
+        )
+        $unsorted = foreach ($file in $files) {
+            $keys = @((Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json).rules | ForEach-Object { Get-DiagnosticSortKey -Id $_.id })
+            for ($i = 1; $i -lt $keys.Count; $i++) { if ([string]::CompareOrdinal($keys[$i - 1], $keys[$i]) -ge 0) { $file.Name; break } }
+        }
+        @($unsorted) | Should-BeCollection @()
+        $catalogKeys = @((Get-Content -LiteralPath (Join-Path $templateDir 'catalog' 'diagnostics.json') -Raw | ConvertFrom-Json).diagnostics | ForEach-Object { Get-DiagnosticSortKey -Id $_.id })
+        for ($i = 1; $i -lt $catalogKeys.Count; $i++) { [string]::CompareOrdinal($catalogKeys[$i - 1], $catalogKeys[$i]) | Should-BeLessThan 0 }
+    }
+
+    It 'ships base/twins.json with 17 pairs and count 17' {
+        $twins = Get-Content -LiteralPath (Join-Path $templateDir 'base' 'twins.json') -Raw | ConvertFrom-Json
+        $twins.count | Should-Be 17
+        @($twins.pairs).Count | Should-Be 17
+        $twins.'$schema' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json'
+    }
+
+    It 'seeds the catalog with every inventory id in inventory order at its analyzer default' {
+        $catalogPath = Join-Path $templateDir 'catalog' 'diagnostics.json'
+        $ids = @((Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json).diagnostics | ForEach-Object id)
+        $ids.Count | Should-Be 628
+        $ids | Should-BeCollection @($inventory | ForEach-Object { $_['id'] })
+        $catalog = Read-Catalog -Path $catalogPath
+        $wrong = foreach ($row in $inventory) {
+            $default = if ($row['enabled']) { $row['default'] } else { 'None' }
+            if ($catalog[$row['id']].Default -cne $default) { $row['id'] }
+        }
+        @($wrong) | Should-BeCollection @()
+    }
+
+    It 'composes <Id> to <Action> on strict from <Source>' -ForEach @(
+        @{ Id = 'PC0002'; Action = 'Error'; Source = 'default' }
+        @{ Id = 'AS0001'; Action = 'Error'; Source = 'default' }
+        @{ Id = 'PTE0001'; Action = 'Error'; Source = 'default' }
+        @{ Id = 'AS0084'; Action = 'Error'; Source = 'level:recommended' }
+    ) {
+        $result = Get-EffectiveAction -Inputs $templateInputs -Id $Id -Level 'strict' -Stage 'default'
+        '{0} {1}' -f $result.Action, $result.Source | Should-Be "$Action $Source"
+    }
+
+    It 'holds AL0432 at Info in stages/ci.json' {
+        Get-RuleText -Path (Join-Path $templateDir 'stages' 'ci.json') | Should-ContainCollection @('AL0432 Info')
+    }
+
+    It 'lists AL0432 Info in rulesets/strict.ci.ruleset.json and not AS0001, PTE0001 or AS0084' {
+        $entries = Get-RuleText -Path (Join-Path $templateDir 'rulesets' 'strict.ci.ruleset.json')
+        $entries -ccontains 'AL0432 Info' | Should-BeTrue
+        @($entries | Where-Object { $_ -match '^(AS0001|PTE0001|AS0084) ' }) | Should-BeCollection @()
+    }
+
+    It 'lists AS0084 None in rulesets/essential.ci.ruleset.json' {
+        (Get-RuleText -Path (Join-Path $templateDir 'rulesets' 'essential.ci.ruleset.json')) -ccontains 'AS0084 None' | Should-BeTrue
+    }
+
+    It 'lists no endpoint entry at its catalog default' {
+        $atDefault = foreach ($name in $endpointNames) {
+            $json = Get-Content -LiteralPath (Join-Path $templateDir 'rulesets' $name) -Raw | ConvertFrom-Json
+            foreach ($rule in $json.rules) { if ($rule.action -ceq $templateInputs.Catalog[$rule.id].Default) { "$name $($rule.id)" } }
+        }
+        @($atDefault) | Should-BeCollection @()
+    }
+
+    It 'has no carriage return in any file under template/' {
+        $withCr = foreach ($file in Get-ChildItem -LiteralPath $templateDir -Recurse -File -Force) {
+            if ([System.Array]::IndexOf([System.IO.File]::ReadAllBytes($file.FullName), [byte]13) -ge 0) { $file.FullName }
+        }
+        @($withCr) | Should-BeCollection @()
+    }
+
+    It 'composes every cell of matrix/resolved.json from the files on disk (V13)' {
+        $resolved = Get-Content -LiteralPath (Join-Path $rulebookDir 'matrix' 'resolved.json') -Raw | ConvertFrom-Json -AsHashtable
+        $mismatches = [System.Collections.Generic.List[string]]::new()
+        $calls = 0
+        $elapsed = Measure-Command {
+            foreach ($id in $resolved.Keys) {
+                foreach ($key in $resolved[$id].Keys) {
+                    $level, $stage = $key -split '\.'
+                    $calls++
+                    $action = (Get-EffectiveAction -Inputs $templateInputs -Id $id -Level $level -Stage $stage).Action
+                    if ($action -cne $resolved[$id][$key]) { $mismatches.Add("$id $key composes to $action, resolved.json says $($resolved[$id][$key])") }
+                }
+            }
+        }
+        Write-Host ('V13 on template/: {0} Get-EffectiveAction calls in {1:N2} s' -f $calls, $elapsed.TotalSeconds)
+        $calls | Should-Be 7536
+        @($mismatches) | Should-BeCollection @()
+    }
+}
+
+Describe 'Build-Template.ps1' {
+    BeforeAll {
+        $script:wrapper = Join-Path $repoRoot 'tools' 'rulebook' 'Build-Template.ps1'
+        $script:handWritten = @(
+            '.github/Rulebook-Settings.json'
+            '.github/workflows/Validate.yaml'
+            'README.md'
+            'overrides.json'
+            'quarantine.default.json'
+            'quarantine.ci.json'
+            'quarantine.vnext.json'
+        )
+    }
+
+    It 'reports no change with -WhatIf on the committed template/' {
+        @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()
+    }
+
+    It 'regenerates template/ byte for byte from the 7 hand-written files' {
+        $scratch = Get-TestFolder
+        foreach ($file in $handWritten) {
+            $target = Join-Path $scratch $file
+            [void](New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force)
+            Copy-Item -LiteralPath (Join-Path $templateDir $file) -Destination $target
+        }
+        $changes = @(& $wrapper -TemplateDir $scratch 6>$null)
+        $changes.Count | Should-Be 32
+        @($changes | Where-Object Change -ne 'created') | Should-BeCollection @()
+        Get-TemplateHash -Root $scratch | Should-BeCollection (Get-TemplateHash -Root $templateDir)
+        @(& $wrapper -TemplateDir $scratch 6>$null) | Should-BeCollection @()
+        $elapsed = Measure-Command { $script:endpointChanges = @(Update-RulebookEndpoints -RepositoryRoot $scratch) }
+        Write-Host ('Update-RulebookEndpoints on template/ (628 ids): {0:N2} s' -f $elapsed.TotalSeconds)
+        $endpointChanges.Count | Should-Be 0
+        $elapsed.TotalSeconds | Should-BeLessThan 30
+    }
+
+    It 'rejects settings whose basedOn names no level file' {
+        $copy = Copy-Template
+        Edit-FixtureJson -Path (Join-Path $copy '.github' 'Rulebook-Settings.json') -Script { $_['levels'][2]['basedOn'] = 'Paranoid' }
+        { & $wrapper -TemplateDir $copy 6>$null } | Should-Throw -ExceptionMessage "*Unresolved basedOn 'paranoid' of level 'Strict'*"
+    }
+
+    It 'rejects settings with an unknown twins value' {
+        $copy = Copy-Template
+        Edit-FixtureJson -Path (Join-Path $copy '.github' 'Rulebook-Settings.json') -Script { $_['twins'] = 'all' }
+        { & $wrapper -TemplateDir $copy 6>$null } | Should-Throw -ExceptionMessage "*twins is 'all'*"
+    }
+}

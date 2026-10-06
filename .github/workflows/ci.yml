@@ -71,6 +71,12 @@ jobs:
         with:
           repositoryRoot: tests/fixtures/repos/valid-minimal
 
+      - name: Validate template (must pass, no warnings)
+        uses: ./actions/Validate
+        with:
+          repositoryRoot: template
+          failOnWarning: 'true'
+
       - name: Validate stale-endpoints (must fail)
         id: stale
         continue-on-error: true
