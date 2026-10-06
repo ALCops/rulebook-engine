@@ -10,14 +10,16 @@ one of them, and downloads <BaseUrl>/skeletons/<level>.<stage>.ruleset.json for 
 includes the endpoint of its stage; the project's own exceptions go into its rules. The files are written exactly as
 the site serves them, so they are the same files a manual download gives.
 
-Nothing is written until every download and check has succeeded; the files are then written one by one. The manifest
-is read and -Level is resolved before any skeleton is requested, an existing target file stops the script unless
--Force is set, every skeleton is downloaded and checked, and the output folder and every existing target are checked
+Nothing is written until every download and check has succeeded; the files are then written one by one next to their
+targets (<file>.tmp) and moved into place. The manifest is read and -Level is resolved before any skeleton is
+requested, an existing target file stops the script unless -Force is set, every skeleton is downloaded and checked
+(one include, of the endpoint of its level and stage), and the output folder and every existing target are checked
 for writing before the first file is written. Redirects are not followed, because the AL compiler does not follow
 them either: -BaseUrl must be the final address of the site. Every failure throws, so 'pwsh -File' exits with 1.
 
 The script is self-contained (PowerShell 7, no module) and only downloads: it does not change any settings file. It
-prints the settings that point VS Code and AL-Go at the files. The details are on the user page docs/al-project.md in
+prints the settings that point VS Code and AL-Go at the files, with paths relative to the AL project root, the folder
+that contains the output folder. The details are on the user page docs/al-project.md in
 the ALCops/rulebook repository (written with WP06), linked below.
 
 .PARAMETER BaseUrl
@@ -43,7 +45,8 @@ folder, each including the strict endpoint of its stage.
 .EXAMPLE
 ./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level Recommended -OutputPath ./MyApp/.rulebook -Force
 
-Replaces the files of another AL project folder with the skeletons of the Recommended level.
+Replaces the files of the AL project in ./MyApp with the skeletons of the Recommended level. The settings it prints
+are relative to ./MyApp, for example "al.ruleSetPath": ".rulebook/default.ruleset.json".
 
 .LINK
 https://github.com/ALCops/rulebook/blob/main/docs/al-project.md
@@ -66,9 +69,14 @@ function Get-RulebookResponse {
     # GET without following redirects: { Status, Bytes, Location }. With -MaximumRedirection 0 Invoke-WebRequest
     # returns the 3xx response and also writes an error; -ErrorAction Stop would turn that into an exception without
     # the response, so the error is collected and rethrown only when there is no response at all.
+    # A refused connection, a DNS or a TLS failure terminates the statement despite SilentlyContinue, hence the catch.
     param([Parameter(Mandatory)][string]$Uri)
     $requestErrors = $null
-    $response = Invoke-WebRequest -Uri $Uri -Method Get -TimeoutSec 15 -MaximumRedirection 0 -SkipHttpErrorCheck -ErrorAction SilentlyContinue -ErrorVariable requestErrors
+    try {
+        $response = Invoke-WebRequest -Uri $Uri -Method Get -TimeoutSec 15 -MaximumRedirection 0 -SkipHttpErrorCheck -ErrorAction SilentlyContinue -ErrorVariable requestErrors
+    } catch {
+        throw "Cannot read ${Uri}: $($_.Exception.Message)"
+    }
     if ($null -eq $response) {
         $reason = if (@($requestErrors).Count -gt 0) { @($requestErrors)[0].Exception.Message } else { 'no response' }
         throw "Cannot read ${Uri}: $reason"
@@ -177,19 +185,25 @@ if ($selected.Count -eq 0) {
 $levelSlug = $selected[0].Slug
 
 # 5. The targets, relative to the PowerShell location ([System.IO.File] would resolve against the process folder).
-$outputFull = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
+$outputFull = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath).TrimEnd('\', '/')
+$outputLeaf = Split-Path -Leaf $outputFull
 $here = (Get-Location).ProviderPath
 $targets = foreach ($stage in $stages) {
     $file = Join-Path $outputFull "$($stage.Slug).ruleset.json"
-    # Shown relative to the current location, the folder the settings are relative to; the full path when outside it.
+    # The written file is shown relative to the current location, or as the full path when outside it.
     $display = [System.IO.Path]::GetRelativePath($here, $file).Replace('\', '/')
     if ($display.StartsWith('../', [System.StringComparison]::Ordinal) -or [System.IO.Path]::IsPathRooted($display)) { $display = $file }
+    # The endpoint the skeleton must include: the default stage has no suffix (as Get-EndpointFileName in the engine).
+    $endpoint = if ($stage.Slug -ceq 'default') { "rulesets/$levelSlug.ruleset.json" } else { "rulesets/$levelSlug.$($stage.Slug).ruleset.json" }
     [pscustomobject]@{
-        Stage   = $stage.Slug
-        Url     = "$BaseUrl/skeletons/$levelSlug.$($stage.Slug).ruleset.json"
-        File    = $file
-        Display = $display
-        Bytes   = $null
+        Stage    = $stage.Slug
+        Url      = "$BaseUrl/skeletons/$levelSlug.$($stage.Slug).ruleset.json"
+        File     = $file
+        Display  = $display
+        # The path in the settings, relative to the AL project root (the folder that contains the output folder).
+        Setting  = "$outputLeaf/$($stage.Slug).ruleset.json"
+        Endpoint = $endpoint
+        Bytes    = $null
     }
 }
 
@@ -216,8 +230,21 @@ foreach ($target in $targets) {
         throw "Nothing was written. $($target.Url) is not a Rulebook skeleton: it needs exactly one entry in includedRuleSets with a path."
     }
     $include = $includes[0]['path']
+    # The include must be the endpoint of this level and stage: after the base URL it was published with (else
+    # -BaseUrl) it is exactly that path; under another address it at least ends with it. Anything else is a wrong or
+    # stale skeleton on the site. Scheme and host compare case-insensitively, the path ordinally.
+    $includeBase = if ($publishedBaseUrl) { $publishedBaseUrl } else { $BaseUrl }
+    $includeKey = ConvertTo-UrlKey $include
+    $prefix = (ConvertTo-UrlKey $includeBase) + '/'
+    $matchesEndpoint = if ($includeKey.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+        $includeKey.Substring($prefix.Length) -ceq $target.Endpoint
+    } else {
+        $includeKey.EndsWith('/' + $target.Endpoint, [System.StringComparison]::Ordinal)
+    }
+    if (-not $matchesEndpoint) {
+        throw "Nothing was written. $($target.Url) includes $include, but the skeleton of level $levelSlug and stage $($target.Stage) must include $includeBase/$($target.Endpoint): the site serves a wrong or stale skeleton."
+    }
     # A site read through another address than its baseUrl (a local copy, a proxy) still includes the published URL.
-    # Scheme and host compare case-insensitively, the path ordinally.
     if ($publishedBaseUrl -and (ConvertTo-UrlKey $publishedBaseUrl) -cne (ConvertTo-UrlKey $BaseUrl)) {
         Write-Warning "$($target.Display): the site was published with baseUrl $publishedBaseUrl, not $BaseUrl; the compiler will fetch $include."
     } elseif (-not (ConvertTo-UrlKey $include).StartsWith((ConvertTo-UrlKey $BaseUrl) + '/', [System.StringComparison]::Ordinal)) {
@@ -226,7 +253,8 @@ foreach ($target in $targets) {
     $target.Bytes = $response.Bytes
 }
 
-# 8. The files, byte for byte as served, one by one after a check that each can be written.
+# 8. The files, byte for byte as served, after a check that each can be written: first every file as <file>.tmp
+#    next to its target, then moved into place. Leftover .tmp files are removed when writing fails.
 try {
     [void][System.IO.Directory]::CreateDirectory($outputFull)
 } catch {
@@ -237,19 +265,26 @@ foreach ($target in $targets) {
     $item = Get-Item -LiteralPath $target.File -Force -ErrorAction SilentlyContinue
     if ($null -ne $item -and $item.IsReadOnly) { throw "No file was written. $($target.Display) is read-only." }
 }
-foreach ($target in $targets) {
-    [System.IO.File]::WriteAllBytes($target.File, $target.Bytes)
-    Write-Host "$($target.Display) <- $($target.Url)"
+try {
+    foreach ($target in $targets) { [System.IO.File]::WriteAllBytes("$($target.File).tmp", $target.Bytes) }
+    foreach ($target in $targets) {
+        [System.IO.File]::Move("$($target.File).tmp", $target.File, $true)
+        Write-Host "$($target.Display) <- $($target.Url)"
+    }
+} catch {
+    foreach ($target in $targets) { Remove-Item -LiteralPath "$($target.File).tmp" -Force -ErrorAction SilentlyContinue }
+    throw "Writing the files failed: $($_.Exception.Message)"
 }
 
-# 9. The settings that use the files, and one result per file.
+# 9. The settings that use the files, relative to the AL project root, and one result per file.
 Write-Host ''
+Write-Host "Settings, with paths relative to the AL project root (the folder that contains $outputLeaf/):"
 foreach ($target in $targets) {
     switch -CaseSensitive ($target.Stage) {
-        'default' { Write-Host "VS Code, .vscode/settings.json: `"al.ruleSetPath`": `"$($target.Display)`"" }
-        'ci' { Write-Host "AL-Go, .AL-Go/settings.json: `"rulesetFile`": `"$($target.Display)`", `"enableExternalRulesets`": true" }
-        'vnext' { Write-Host "AL-Go next major, .github/NextMajor.settings.json: `"rulesetFile`": `"$($target.Display)`"" }
-        default { Write-Host "Stage $($target.Stage): point the build of that stage at $($target.Display)" }
+        'default' { Write-Host "VS Code, .vscode/settings.json: `"al.ruleSetPath`": `"$($target.Setting)`"" }
+        'ci' { Write-Host "AL-Go, .AL-Go/settings.json: `"rulesetFile`": `"$($target.Setting)`", `"enableExternalRulesets`": true" }
+        'vnext' { Write-Host "AL-Go next major, .github/NextMajor.settings.json: `"rulesetFile`": `"$($target.Setting)`"" }
+        default { Write-Host "Stage $($target.Stage): point the build of that stage at $($target.Setting)" }
     }
 }
 Write-Host 'Exceptions go into rules of each file. Reload the VS Code window after changing a file.'

@@ -165,6 +165,39 @@ Describe 'Get-RulebookSkeletons.ps1' {
         @(Get-ChildItem -LiteralPath $folder -File).Count | Should-Be 3
     }
 
+    It 'prints the settings relative to the AL project root for -OutputPath ./MyApp/.rulebook' {
+        $workspace = Get-TestFolder
+        [void](New-Item -ItemType Directory -Path $workspace)
+        Push-Location -LiteralPath $workspace
+        try {
+            $run = Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = './MyApp/.rulebook' }
+        } finally {
+            Pop-Location
+        }
+        Test-Path -LiteralPath (Join-Path $workspace 'MyApp' '.rulebook' 'ci.ruleset.json') -PathType Leaf | Should-BeTrue
+        $text = $run.Lines -join "`n"
+        $text | Should-MatchString ([regex]::Escape("MyApp/.rulebook/ci.ruleset.json <- $baseUrl/skeletons/strict.ci.ruleset.json"))
+        $text | Should-MatchString ([regex]::Escape('the AL project root (the folder that contains .rulebook/)'))
+        $text | Should-MatchString ([regex]::Escape('"al.ruleSetPath": ".rulebook/default.ruleset.json"'))
+        $text | Should-MatchString ([regex]::Escape('"rulesetFile": ".rulebook/ci.ruleset.json"'))
+        $text | Should-NotMatchString 'Path": "MyApp'
+        $text | Should-NotMatchString '\\'
+        @(Get-ChildItem -LiteralPath (Join-Path $workspace 'MyApp' '.rulebook') -Filter '*.tmp').Count | Should-Be 0
+    }
+
+    It 'names the URL when the connection fails' {
+        $script:siteResponses["$baseUrl/rulebook.json"] = { throw [System.Net.Http.HttpRequestException]::new('No connection could be made because the target machine actively refused it.') }
+        { Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = (Get-TestFolder) } } | Should-Throw -ExceptionMessage "Cannot read $baseUrl/rulebook.json: No connection could be made*"
+    }
+
+    It 'refuses a skeleton whose include is not the endpoint of its level and stage' {
+        $text = $utf8.GetString($script:served["$baseUrl/skeletons/strict.ci.ruleset.json"]).Replace('rulesets/strict.ci.ruleset.json', 'rulesets/recommended.ci.ruleset.json')
+        $script:siteResponses["$baseUrl/skeletons/strict.ci.ruleset.json"] = $utf8.GetBytes($text)
+        $folder = Get-TestFolder
+        { Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = $folder } } | Should-Throw -ExceptionMessage "Nothing was written. $baseUrl/skeletons/strict.ci.ruleset.json includes $baseUrl/rulesets/recommended.ci.ruleset.json, but the skeleton of level strict and stage ci must include $baseUrl/rulesets/strict.ci.ruleset.json*wrong or stale*"
+        Test-Path -LiteralPath $folder | Should-BeFalse
+    }
+
     It 'compares the scheme and host of the base URL case-insensitively and does not warn' {
         $run = Invoke-Script @{ BaseUrl = 'HTTPS://Contoso.GitHub.io/rulebook'; Level = 'strict'; OutputPath = (Get-TestFolder) }
         $run.Warnings | Should-BeCollection @()
