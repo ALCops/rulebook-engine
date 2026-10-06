@@ -121,14 +121,70 @@ jobs:
           $top = @(Get-ChildItem -LiteralPath $env:STAGING_PATH | ForEach-Object Name | Sort-Object)
           if ($endpoints.Count -ne 12) { $failures.Add("expected 12 endpoints, found $($endpoints.Count)") }
           if ($skeletons.Count -ne 12) { $failures.Add("expected 12 skeletons, found $($skeletons.Count)") }
-          if (($top -join ',') -cne 'index.html,rulesets,skeletons') { $failures.Add("unexpected top level: $($top -join ', ')") }
+          if (($top -join ',') -cne 'index.html,rulebook.json,rulesets,skeletons') { $failures.Add("unexpected top level: $($top -join ', ')") }
           $skeleton = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'skeletons' 'strict.ci.ruleset.json') -Raw
           if (-not $skeleton.Contains('"path": "https://example.github.io/rulebook/rulesets/strict.ci.ruleset.json"')) { $failures.Add('skeletons/strict.ci.ruleset.json does not carry the rendered URL') }
           if (-not (Get-Content -LiteralPath template/skeletons/strict.ci.ruleset.json -Raw).Contains('{BASEURL}')) { $failures.Add('template/skeletons/strict.ci.ruleset.json lost {BASEURL}') }
+          if (Test-Path -LiteralPath (Join-Path $env:STAGING_PATH 'skeletons' 'README.md')) { $failures.Add('skeletons/README.md was staged') }
+          $manifest = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'rulebook.json') -Raw | ConvertFrom-Json
+          if ($manifest.baseUrl -cne 'https://example.github.io/rulebook') { $failures.Add("rulebook.json has baseUrl '$($manifest.baseUrl)'") }
+          if ($manifest.repository -cne $env:GITHUB_REPOSITORY) { $failures.Add("rulebook.json has repository '$($manifest.repository)'") }
+          if ((@($manifest.levels.slug) -join ',') -cne 'essential,recommended,strict,complete') { $failures.Add("rulebook.json has the levels $(@($manifest.levels.slug) -join ', ')") }
+          if ((@($manifest.stages.slug) -join ',') -cne 'default,ci,vnext') { $failures.Add("rulebook.json has the stages $(@($manifest.stages.slug) -join ', ')") }
+          if (-not (Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'index.html') -Raw).Contains('<h2 id="al-project">')) { $failures.Add('index.html has no "Set up an AL project" section') }
           if ($env:PAGE_URL -cne 'https://example.github.io/rulebook/') { $failures.Add("pageUrl is '$($env:PAGE_URL)'") }
           foreach ($failure in $failures) { Write-Host "::error::$failure" }
           if ($failures.Count -gt 0) { exit 1 }
-          Write-Host "Staged $($endpoints.Count) endpoints, $($skeletons.Count) skeletons and index.html"
+          Write-Host "Staged $($endpoints.Count) endpoints, $($skeletons.Count) skeletons, rulebook.json and index.html"
+
+      # The init script over real HTTP: the staged site served from 127.0.0.1. The skeletons include
+      # https://example.github.io/rulebook, so the script warns that the site was published with another baseUrl.
+      - name: Serve the staged site
+        shell: bash
+        env:
+          STAGING_PATH: ${{ steps.stage.outputs.stagingPath }}
+        run: |
+          nohup python3 -m http.server 8787 --directory "$STAGING_PATH" --bind 127.0.0.1 > "$RUNNER_TEMP/http-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/http-server.pid"
+          for i in $(seq 1 20); do
+            if curl -sSf -o /dev/null http://127.0.0.1:8787/rulebook.json; then echo "Serving $STAGING_PATH on http://127.0.0.1:8787"; exit 0; fi
+            sleep 0.5
+          done
+          echo '::error::python3 -m http.server did not start'
+          cat "$RUNNER_TEMP/http-server.log"
+          exit 1
+
+      - name: Init script against the staged site
+        shell: pwsh
+        env:
+          STAGING_PATH: ${{ steps.stage.outputs.stagingPath }}
+        run: |
+          $failures = [System.Collections.Generic.List[string]]::new()
+          $output = Join-Path $env:RUNNER_TEMP 'al' '.rulebook'
+          $downloads = Join-Path $env:RUNNER_TEMP 'curl'
+          [void](New-Item -ItemType Directory -Path $downloads -Force)
+          $results = @(./scripts/Get-RulebookSkeletons.ps1 -BaseUrl http://127.0.0.1:8787 -Level strict -OutputPath $output -WarningVariable warnings)
+          if ((@($results.Stage) -join ',') -cne 'default,ci,vnext') { $failures.Add("the script returned the stages $(@($results.Stage) -join ', ')") }
+          if (@($warnings).Count -ne 3) { $failures.Add("expected 3 base URL warnings, got $(@($warnings).Count)") }
+          foreach ($stage in 'default', 'ci', 'vnext') {
+            $url = "http://127.0.0.1:8787/skeletons/strict.$stage.ruleset.json"
+            $curlFile = Join-Path $downloads "$stage.ruleset.json"
+            curl -sSf -o $curlFile $url
+            if ($LASTEXITCODE -ne 0) { $failures.Add("curl failed on $url"); continue }
+            $written = (Get-FileHash -LiteralPath (Join-Path $output "$stage.ruleset.json") -Algorithm SHA256).Hash
+            $staged = (Get-FileHash -LiteralPath (Join-Path $env:STAGING_PATH 'skeletons' "strict.$stage.ruleset.json") -Algorithm SHA256).Hash
+            $curled = (Get-FileHash -LiteralPath $curlFile -Algorithm SHA256).Hash
+            if ($written -cne $staged -or $written -cne $curled) { $failures.Add(".rulebook/$stage.ruleset.json $written differs from the staged file $staged or the curl download $curled") }
+            else { Write-Host ".rulebook/$stage.ruleset.json: SHA256 $written, equal to the staged file and the curl download" }
+          }
+          foreach ($failure in $failures) { Write-Host "::error::$failure" }
+          if ($failures.Count -gt 0) { exit 1 }
+
+      - name: Stop the server
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/http-server.pid" ]; then kill "$(cat "$RUNNER_TEMP/http-server.pid")" || true; fi
 
       - name: Upload the staging folder
         uses: actions/upload-artifact@v7

@@ -414,11 +414,11 @@ Describe 'Shipped template content' {
         }
     }
 
-    It 'has exactly 4 level files, base/twins.json, 2 stage files, 12 endpoints and 12 skeletons with the naming.md names' {
+    It 'has exactly 4 level files, base/twins.json, 2 stage files, 12 endpoints, 12 skeletons and the skeletons README with the naming.md names' {
         Get-FolderName 'base' | Should-Be (Get-SortedName (@($shippedLevels | ForEach-Object { "$_.ruleset.json" }) + 'twins.json'))
         Get-FolderName 'stages' | Should-Be 'ci.json, vnext.json'
         Get-FolderName 'rulesets' | Should-Be (Get-SortedName $endpointNames)
-        Get-FolderName 'skeletons' | Should-Be (Get-SortedName @(foreach ($level in $shippedLevels) { foreach ($stage in $shippedStages) { "$level.$stage.ruleset.json" } }))
+        Get-FolderName 'skeletons' | Should-Be (Get-SortedName (@(foreach ($level in $shippedLevels) { foreach ($stage in $shippedStages) { "$level.$stage.ruleset.json" } }) + 'README.md'))
     }
 
     It 'ships settings with quarantine unset, twins both and an empty baseUrl that pass the settings schema' {
@@ -555,6 +555,7 @@ Describe 'Build-Template.ps1' {
             'quarantine.default.json'
             'quarantine.ci.json'
             'quarantine.vnext.json'
+            'skeletons/README.md'
         )
     }
 
@@ -562,7 +563,7 @@ Describe 'Build-Template.ps1' {
         @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()
     }
 
-    It 'regenerates template/ byte for byte from the 8 hand-written files' {
+    It 'regenerates template/ byte for byte from the 9 hand-written files' {
         $scratch = Get-TestFolder
         foreach ($file in $handWritten) {
             $target = Join-Path $scratch $file

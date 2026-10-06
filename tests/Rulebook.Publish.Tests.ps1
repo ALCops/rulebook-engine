@@ -37,7 +37,8 @@ BeforeAll {
             $file = Join-Path $folder $path
             [void](New-Item -ItemType Directory -Path (Split-Path -Parent $file) -Force)
             [System.IO.File]::WriteAllText($file, $Bodies[$path], $script:utf8)
-            [pscustomobject]@{ Path = $path; Url = "$script:baseUrl/$path"; Kind = $(if ($path -like 'skeletons/*') { 'skeleton' } elseif ($path -eq 'index.html') { 'index' } else { 'endpoint' }); StagedFile = $file }
+            $kind = if ($path -like 'skeletons/*') { 'skeleton' } elseif ($path -eq 'index.html') { 'index' } elseif ($path -eq 'rulebook.json') { 'manifest' } else { 'endpoint' }
+            [pscustomobject]@{ Path = $path; Url = "$script:baseUrl/$path"; Kind = $kind; StagedFile = $file }
         }
     }
 }
@@ -53,23 +54,29 @@ Describe 'New-RulebookPublishStage on template/' {
         $script:manifest = @(New-RulebookPublishStage -RepositoryRoot $stageRoot -BaseUrl $baseUrl -OutputPath $output)
     }
 
-    It 'stages exactly the 12 endpoints, the 12 skeletons and index.html' {
+    It 'stages exactly the 12 endpoints, the 12 skeletons, rulebook.json and index.html' {
         $files = Get-RelativeFileList -Root $output
-        $files.Count | Should-Be 25
+        $files.Count | Should-Be 26
         @($files | Where-Object { $_ -like 'rulesets/*' }).Count | Should-Be 12
         @($files | Where-Object { $_ -like 'skeletons/*' }).Count | Should-Be 12
-        foreach ($file in 'index.html', 'rulesets/strict.ruleset.json', 'rulesets/strict.ci.ruleset.json', 'skeletons/strict.default.ruleset.json') { $files -ccontains $file | Should-BeTrue }
+        foreach ($file in 'index.html', 'rulebook.json', 'rulesets/strict.ruleset.json', 'rulesets/strict.ci.ruleset.json', 'skeletons/strict.default.ruleset.json') { $files -ccontains $file | Should-BeTrue }
         @($files | Where-Object { $_ -match '^(base|catalog|site|stages)/' -or $_ -like '.github/*' }).Count | Should-Be 0
+        # The template ships skeletons/README.md; staging copies by expected name, so it is not published.
+        Test-Path -LiteralPath (Join-Path $stageRoot 'skeletons' 'README.md') -PathType Leaf | Should-BeTrue
+        $files -ccontains 'skeletons/README.md' | Should-BeFalse
     }
 
     It 'returns a manifest in settings order with URLs under the base URL' {
-        $manifest.Count | Should-Be 25
+        $manifest.Count | Should-Be 26
         @($manifest | Where-Object Kind -EQ 'endpoint').Count | Should-Be 12
         @($manifest | Where-Object Kind -EQ 'skeleton').Count | Should-Be 12
         $manifest[0].Path | Should-Be 'rulesets/essential.ruleset.json'
         $manifest[1].Path | Should-Be 'rulesets/essential.ci.ruleset.json'
         $manifest[0].Url | Should-Be "$baseUrl/rulesets/essential.ruleset.json"
         $manifest[12].Path | Should-Be 'skeletons/essential.default.ruleset.json'
+        $manifest[-2].Kind | Should-Be 'manifest'
+        $manifest[-2].Path | Should-Be 'rulebook.json'
+        $manifest[-2].Url | Should-Be "$baseUrl/rulebook.json"
         $manifest[-1].Kind | Should-Be 'index'
         $manifest[-1].Url | Should-Be "$baseUrl/"
         foreach ($entry in $manifest) { Test-Path -LiteralPath $entry.StagedFile -PathType Leaf | Should-BeTrue }
@@ -93,6 +100,27 @@ Describe 'New-RulebookPublishStage on template/' {
         $default.Contains("$baseUrl/rulesets/strict.ruleset.json") | Should-BeTrue
     }
 
+    It 'writes rulebook.json with the levels and stages in settings order and no repository without -Repository' {
+        $json = [System.IO.File]::ReadAllText((Join-Path $output 'rulebook.json'), $utf8) | ConvertFrom-Json -AsHashtable
+        $json['baseUrl'] | Should-Be $baseUrl
+        # ConvertFrom-Json turns the date into a DateTime, so the text is checked.
+        [System.IO.File]::ReadAllText((Join-Path $output 'rulebook.json'), $utf8) | Should-MatchString '(?m)^  "generatedAt": "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z",$'
+        $json.Contains('repository') | Should-BeFalse
+        @($json['levels'] | ForEach-Object { $_['slug'] }) | Should-BeCollection @('essential', 'recommended', 'strict', 'complete')
+        @($json['levels'] | ForEach-Object { $_['name'] }) | Should-BeCollection @('Essential', 'Recommended', 'Strict', 'Complete')
+        $json['levels'][0].Contains('basedOn') | Should-BeFalse
+        @($json['levels'] | Select-Object -Skip 1 | ForEach-Object { $_['basedOn'] }) | Should-BeCollection @('essential', 'recommended', 'strict')
+        @($json['stages'] | ForEach-Object { $_['slug'] }) | Should-BeCollection @('default', 'ci', 'vnext')
+        @($json['stages'] | ForEach-Object { $_['name'] }) | Should-BeCollection @('default', 'CI', 'vNext')
+        $json['stages'][1]['description'] | Should-BeLikeString 'Pull request and release builds*'
+    }
+
+    It 'writes the repository into rulebook.json with -Repository' {
+        $folder = Get-TestFolder
+        $null = New-RulebookPublishStage -RepositoryRoot $stageRoot -BaseUrl $baseUrl -OutputPath $folder -Repository 'Contoso/Rulebook'
+        ([System.IO.File]::ReadAllText((Join-Path $folder 'rulebook.json'), $utf8) | ConvertFrom-Json -AsHashtable)['repository'] | Should-Be 'Contoso/Rulebook'
+    }
+
     It 'writes LF and no BOM' {
         foreach ($entry in $manifest) {
             $bytes = [System.IO.File]::ReadAllBytes($entry.StagedFile)
@@ -107,7 +135,7 @@ Describe 'New-RulebookPublishStage on template/' {
         Set-Content -LiteralPath (Join-Path $folder 'rulesets' 'removed.vnext.ruleset.json') -Value '{}'
         $null = New-RulebookPublishStage -RepositoryRoot $stageRoot -BaseUrl $baseUrl -OutputPath $folder
         Test-Path -LiteralPath (Join-Path $folder 'rulesets' 'removed.vnext.ruleset.json') | Should-BeFalse
-        (Get-RelativeFileList -Root $folder).Count | Should-Be 25
+        (Get-RelativeFileList -Root $folder).Count | Should-Be 26
     }
 }
 
@@ -191,7 +219,7 @@ Describe 'New-RulebookPublishStage guards' {
         Test-Path -LiteralPath (Join-Path $root '.github' 'Rulebook-Settings.json') | Should-BeTrue
         # A sibling whose name starts with the repository's name is not a parent.
         $output = "$root-stage"
-        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath $output).Count | Should-Be 25
+        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath $output).Count | Should-Be 26
     }
 
     It 'resolves a relative output path against the current location' {
@@ -204,7 +232,7 @@ Describe 'New-RulebookPublishStage guards' {
         } finally {
             Pop-Location
         }
-        $manifest.Count | Should-Be 25
+        $manifest.Count | Should-Be 26
         $expected = Join-Path (Split-Path -Parent $root) 'relative-stage'
         Test-Path -LiteralPath (Join-Path $expected 'index.html') | Should-BeTrue
         $manifest[0].StagedFile | Should-BeLikeString "$expected*"
@@ -215,7 +243,7 @@ Describe 'New-RulebookPublishStage guards' {
         $root = Copy-Template
         $inputs = Read-RulebookInputs -RepositoryRoot $root
         Mock Read-RulebookInputs -ModuleName Rulebook.Publish { throw 'read again' }
-        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) -Inputs $inputs).Count | Should-Be 25
+        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) -Inputs $inputs).Count | Should-Be 26
     }
 
     It 'refuses a missing skeleton' {
@@ -336,6 +364,26 @@ Describe 'ConvertTo-RulebookIndexHtml' {
         $html | Should-MatchString '<meta charset="utf-8">'
     }
 
+    It 'has the AL project section before the stage tables, with the init script, the settings and the links' {
+        $section = $html.IndexOf('<h2 id="al-project">Set up an AL project</h2>')
+        $section | Should-BeGreaterThan $html.IndexOf('</dl>')
+        $section | Should-BeLessThan $html.IndexOf('<h2 id="stage-default">')
+        $html | Should-MatchString ([regex]::Escape('<pre><code>Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1'))
+        $html | Should-MatchString ([regex]::Escape("./Get-RulebookSkeletons.ps1 -BaseUrl $baseUrl -Level essential</code></pre>"))
+        $html | Should-MatchString ([regex]::Escape('<code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code>'))
+        $html | Should-MatchString ([regex]::Escape('<code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>'))
+        $html | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/main/docs/al-project.md">'))
+        $html | Should-MatchString ([regex]::Escape("<a href=`"$baseUrl/rulebook.json`"><code>$baseUrl/rulebook.json</code></a>"))
+    }
+
+    It 'encodes the base URL and the level in the AL project section' {
+        $custom = Read-RulebookInputs -RepositoryRoot $templateDir
+        $page = ConvertTo-RulebookIndexHtml -Inputs $custom -BaseUrl 'https://contoso.github.io/a&b' -Endpoints @($endpoints)
+        $page | Should-MatchString ([regex]::Escape('-BaseUrl https://contoso.github.io/a&amp;b -Level essential'))
+        $page | Should-MatchString ([regex]::Escape('href="https://contoso.github.io/a&amp;b/rulebook.json"'))
+        $page.Contains('a&b') | Should-BeFalse
+    }
+
     It 'encodes text and keeps a custom level and stage in settings order' {
         $root = New-FixtureRepo -Name 'custom-level' -Destination (Get-TestFolder)
         Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script {
@@ -356,12 +404,58 @@ Describe 'ConvertTo-RulebookIndexHtml' {
     }
 }
 
+Describe 'ConvertTo-RulebookManifestJson' {
+    BeforeAll {
+        $script:inputs = Read-RulebookInputs -RepositoryRoot $templateDir
+        $script:pinned = [datetime]::new(2026, 10, 6, 12, 0, 0, [System.DateTimeKind]::Utc)
+    }
+
+    It 'writes the same bytes for the same inputs and time' {
+        $first = ConvertTo-RulebookManifestJson -Inputs $inputs -BaseUrl $baseUrl -Repository 'Contoso/Rulebook' -GeneratedAt $pinned
+        $second = ConvertTo-RulebookManifestJson -Inputs $inputs -BaseUrl $baseUrl -Repository 'Contoso/Rulebook' -GeneratedAt $pinned
+        $second | Should-Be $first
+        $lines = $first.Split("`n")
+        $lines[0..3] | Should-BeCollection @('{', '  "generatedAt": "2026-10-06T12:00:00Z",', '  "repository": "Contoso/Rulebook",', "  `"baseUrl`": `"$baseUrl`",")
+        $lines | Should-ContainCollection @('    { "name": "Recommended", "slug": "recommended", "basedOn": "essential", "description": "Every default-on rule at its author severity; marketplace checks join here." },')
+        $first.EndsWith("}`n") | Should-BeTrue
+        $first.Contains("`r") | Should-BeFalse
+        $first.Contains("`n`n") | Should-BeFalse
+        $utf8.GetBytes($first)[0] | Should-Be ([byte][char]'{')
+    }
+
+    It 'writes generatedAt in UTC and leaves out an empty repository' {
+        $local = [datetime]::new(2026, 10, 6, 14, 30, 5, [System.DateTimeKind]::Utc).ToLocalTime()
+        $text = ConvertTo-RulebookManifestJson -Inputs $inputs -BaseUrl $baseUrl -Repository '' -GeneratedAt $local
+        $json = $text | ConvertFrom-Json -AsHashtable
+        $text | Should-MatchString '(?m)^  "generatedAt": "2026-10-06T14:30:05Z",$'
+        $json.Contains('repository') | Should-BeFalse
+    }
+
+    It 'escapes quotes and backslashes and keeps a custom level and stage in settings order' {
+        $root = New-FixtureRepo -Name 'custom-level' -Destination (Get-TestFolder)
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script {
+            $_.levels[2].description = 'House "rules" in C:\rules & <more>'
+            $_.stages = @($_.stages[0], @{ name = 'Nightly' }, $_.stages[1], $_.stages[2])
+        }
+        Copy-Item -LiteralPath (Join-Path $root 'stages' 'ci.json') -Destination (Join-Path $root 'stages' 'nightly.json')
+        $custom = Read-RulebookInputs -RepositoryRoot $root
+        $text = ConvertTo-RulebookManifestJson -Inputs $custom -BaseUrl $baseUrl -GeneratedAt $pinned
+        $text | Should-MatchString ([regex]::Escape('"description": "House \"rules\" in C:\\rules & <more>"'))
+        $json = $text | ConvertFrom-Json -AsHashtable
+        $json['levels'][2]['description'] | Should-Be 'House "rules" in C:\rules & <more>'
+        @($json['levels'] | ForEach-Object { $_['slug'] }) | Should-BeCollection @('essential', 'recommended', 'custom', 'strict', 'complete')
+        @($json['stages'] | ForEach-Object { $_['slug'] }) | Should-BeCollection @('default', 'nightly', 'ci', 'vnext')
+        $json['stages'][1].Contains('description') | Should-BeFalse
+    }
+}
+
 Describe 'Test-RulebookEndpoints' {
     BeforeAll {
         $script:bodies = [ordered]@{
             'rulesets/strict.ruleset.json'           = "{`n  `"name`": `"Rulebook Strict / default`",`n  `"rules`": []`n}`n"
             'rulesets/strict.ci.ruleset.json'        = "{`n  `"name`": `"Rulebook Strict / CI`",`n  `"rules`": []`n}`n"
             'skeletons/strict.ci.ruleset.json'       = "{ `"name`": `"skeleton`" }`n"
+            'rulebook.json'                          = "{`n  `"baseUrl`": `"https://contoso.github.io/rulebook`"`n}`n"
             'index.html'                             = "<html></html>`n"
         }
     }
@@ -381,14 +475,21 @@ Describe 'Test-RulebookEndpoints' {
         }
     }
 
-    It 'passes every endpoint, skeleton and index.html on the first pass' {
+    It 'passes every endpoint, skeleton, rulebook.json and index.html on the first pass' {
         $results = @(Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies))
-        $results.Count | Should-Be 4
+        $results.Count | Should-Be 5
         @($results | Where-Object Reason -NE 'ok').Count | Should-Be 0
-        @($results | ForEach-Object Attempts) | Should-BeCollection @(1, 1, 1, 1)
+        @($results | ForEach-Object Attempts) | Should-BeCollection @(1, 1, 1, 1, 1)
         ($results | Where-Object Kind -EQ 'index').Url | Should-Be "$baseUrl/index.html"
+        ($results | Where-Object Kind -EQ 'manifest').Url | Should-Be "$baseUrl/rulebook.json"
         $results[0].Status | Should-Be 200
         Should-Invoke Start-Sleep -ModuleName Rulebook.Publish -Times 0 -Exactly
+    }
+
+    It 'skips an entry of another kind' {
+        $manifest = @(New-TestManifest -Bodies $bodies) + [pscustomobject]@{ Path = 'notes.txt'; Url = "$baseUrl/notes.txt"; Kind = 'other'; StagedFile = (Join-Path $TestDrive 'notes.txt') }
+        @(Test-RulebookEndpoints -Manifest $manifest -WindowSeconds 0).Count | Should-Be 5
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 0 -Exactly -ParameterFilter { $Uri -eq "$baseUrl/notes.txt" }
     }
 
     It 'reports an endpoint that stays 404 as missing and names its URL' {
@@ -474,7 +575,7 @@ Describe 'Test-RulebookEndpoints' {
         $redirect.Reason | Should-Be 'redirect'
         $redirect.Status | Should-Be 301
         $redirect.Detail | Should-Be 'redirects to https://rules.contoso.com/rulesets/strict.ruleset.json'
-        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 4 -Exactly -ParameterFilter { $MaximumRedirection -eq 0 }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 5 -Exactly -ParameterFilter { $MaximumRedirection -eq 0 }
     }
 
     It 'does not retry a redirect' {
@@ -484,8 +585,8 @@ Describe 'Test-RulebookEndpoints' {
             [pscustomobject]@{ StatusCode = 301; Content = ''; Headers = $headers }
         }
         $results = @(Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies) -WindowSeconds 660 -IntervalSeconds 30)
-        @($results | ForEach-Object Reason) | Should-BeCollection @('redirect', 'redirect', 'redirect', 'redirect')
-        @($results | ForEach-Object Attempts) | Should-BeCollection @(1, 1, 1, 1)
+        @($results | ForEach-Object Reason) | Should-BeCollection @('redirect', 'redirect', 'redirect', 'redirect', 'redirect')
+        @($results | ForEach-Object Attempts) | Should-BeCollection @(1, 1, 1, 1, 1)
         Should-Invoke Start-Sleep -ModuleName Rulebook.Publish -Times 0 -Exactly
     }
 
@@ -506,13 +607,13 @@ Describe 'Test-RulebookEndpoints' {
         $results[0].Reason | Should-Be 'error'
         $results[0].Attempts | Should-Be 0
         $results[0].Detail | Should-BeLikeString 'the staged file cannot be read*'
-        @($results | Where-Object Reason -EQ 'ok').Count | Should-Be 3
+        @($results | Where-Object Reason -EQ 'ok').Count | Should-Be 4
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 0 -Exactly -ParameterFilter { $Uri -eq "$baseUrl/rulesets/strict.ruleset.json" }
     }
 
     It 'requests with the compiler timeout of 15 s by default' {
         $null = Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies)
-        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 4 -Exactly -ParameterFilter { $TimeoutSec -eq 15 -and $SkipHttpErrorCheck }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 5 -Exactly -ParameterFilter { $TimeoutSec -eq 15 -and $SkipHttpErrorCheck }
     }
 }
 

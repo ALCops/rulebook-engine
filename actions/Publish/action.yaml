@@ -1,5 +1,5 @@
 name: Rulebook Publish
-description: Stages the endpoints, the rendered skeletons and index.html of an organization rulebook repository, deploys them to GitHub Pages and checks that every published URL serves the committed file.
+description: Stages the endpoints, the rendered skeletons, rulebook.json and index.html of an organization rulebook repository, deploys them to GitHub Pages and checks that every published URL serves the committed file.
 author: ALCops
 
 inputs:

@@ -14,7 +14,8 @@ How the Publish action gets an organization's endpoints to a URL the AL compiler
 4. [The reachability check](#4-the-reachability-check)
 5. [Action reference](#5-action-reference)
 6. [Live run of 2026-10-06](#6-live-run-of-2026-10-06)
-7. [Backlog targets](#7-backlog-targets)
+7. [Live run of WP06 (skeletons)](#7-live-run-of-wp06-skeletons)
+8. [Backlog targets](#8-backlog-targets)
 
 ---
 
@@ -29,7 +30,7 @@ How the Publish action gets an organization's endpoints to a URL the AL compiler
 
 The settings schema accepts all four, so an organization's settings stay valid while a target is in the backlog. Publish fails a target that is not implemented with `Publish target '<target>' is not implemented yet; see <issue>`.
 
-Every target publishes the same files ([naming.md](naming.md) section 4): `index.html`, the levels x stages endpoints of `rulesets/` as committed, and the skeletons with `{BASEURL}` rendered. A file that is no longer staged (a removed stage or level, a stray file in `rulesets/`) is not published; on Pages a deploy replaces the whole site, so it disappears with the next run.
+Every target publishes the same files ([naming.md](naming.md) section 4): `index.html`, the levels x stages endpoints of `rulesets/` as committed, the skeletons with `{BASEURL}` rendered, and `rulebook.json` with the levels and stages (since WP06, D43; the init script `scripts/Get-RulebookSkeletons.ps1` reads it). A file that is no longer staged (a removed stage or level, a stray file in `rulesets/`) is not published; on Pages a deploy replaces the whole site, so it disappears with the next run.
 
 ## 2. GitHub Pages, step by step
 
@@ -44,7 +45,7 @@ Every target publishes the same files ([naming.md](naming.md) section 4): `index
 2. **Set `baseUrl`** in `.github/Rulebook-Settings.json` to the site address without a trailing slash: `https://<owner>.github.io/<repo>`, all lowercase, or `https://<owner>.github.io` for a repository named `<owner>.github.io`. With `baseUrl` empty, Publish fails and proposes this value. Commit the change in a pull request.
 3. **Run Publish**: the merge to `main` triggers it, or run it by hand (Actions > Publish > Run workflow). The first run creates the `github-pages` environment if it does not exist yet; this also happens on a run that fails the preflight.
 
-After the run, `<baseUrl>/` lists every endpoint and skeleton. Copy a skeleton from there into the AL project; the repository copies under `skeletons/` keep `{BASEURL}`.
+After the run, `<baseUrl>/` lists every endpoint and skeleton and shows the two commands that download the skeletons of a level into an AL project with the init script. Copy a skeleton from there or use the script; the repository copies under `skeletons/` keep `{BASEURL}`.
 
 ### The workflow
 
@@ -81,7 +82,7 @@ The two `422` messages come from the create call (`POST /pages`) in spike (d); a
 
 ## 4. The reachability check
 
-After `deploy-pages` reports success, `Test-RulebookEndpoints` requests every endpoint and skeleton URL and `<baseUrl>/` for `index.html` (25 URLs in the shipped set) with a 15 s timeout per request, as the compiler does. Requests are sequential. A URL passes on HTTP 200 with a body equal to the staged file (UTF-8, compared ordinally, line ends included). Redirects are not followed (`-MaximumRedirection 0`), as the compiler does not follow them: a 3xx answer is `redirect`, with the `Location` in the message, and is not retried: the run fails right after the first pass instead of after the window. Pending URLs are retried every 30 s until `checkWindowSeconds` (default 660) is used up; the first pass always requests every URL once, the waits end at the window, a pass that starts by then still runs, and no request starts later than one request timeout (15 s) after the window, so the check ends at most two timeouts after it. A manifest with no URL fails the check. A timeout is recognized by its exception type (`TimeoutException` inside the `TaskCanceledException` of `Invoke-WebRequest -TimeoutSec`); a staged file that cannot be read is an `error` without a request. A URL still `missing` (404), `different`, `redirect`, `timeout` or `error` then fails the job with one annotation:
+After `deploy-pages` reports success, `Test-RulebookEndpoints` requests every endpoint and skeleton URL, `<baseUrl>/rulebook.json` and `<baseUrl>/` for `index.html` (26 URLs in the shipped set) with a 15 s timeout per request, as the compiler does. Requests are sequential. A URL passes on HTTP 200 with a body equal to the staged file (UTF-8, compared ordinally, line ends included). Redirects are not followed (`-MaximumRedirection 0`), as the compiler does not follow them: a 3xx answer is `redirect`, with the `Location` in the message, and is not retried: the run fails right after the first pass instead of after the window. Pending URLs are retried every 30 s until `checkWindowSeconds` (default 660) is used up; the first pass always requests every URL once, the waits end at the window, a pass that starts by then still runs, and no request starts later than one request timeout (15 s) after the window, so the check ends at most two timeouts after it. A manifest with no URL fails the check. A timeout is recognized by its exception type (`TimeoutException` inside the `TaskCanceledException` of `Invoke-WebRequest -TimeoutSec`); a staged file that cannot be read is an `error` without a request. A URL still `missing` (404), `different`, `redirect`, `timeout` or `error` then fails the job with one annotation:
 
 ```
 ::error title=Publish::https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json is missing (HTTP 404) after 23 attempt(s) in 660.4 s. Consumers of this URL compile with AL1033 (alc aborts; VS Code falls back to the analyzer defaults).
@@ -136,7 +137,34 @@ The runs above checked endpoints and skeletons only. After the first review roun
 
 The number of fetches per compile was not measured here (no `strace` on Windows); [spike (a)](spikes/a-hosts-and-skeleton-include.md) measured one request per compile on `github.io`. The failure path of the check (a missing or different URL) is covered by the Pester tests, not by the live run.
 
-## 7. Backlog targets
+## 7. Live run of WP06 (skeletons)
+
+The WP06 pull request ([#60](https://github.com/ALCops/rulebook-engine/pull/60)) on 2026-10-06: a public scratch repository under a personal account, `Arthurvdv/rulebook-e2e-skeletons`, seeded from the engine's `template/` (including `skeletons/README.md`) with both workflows pointing at `@wp06/skeletons` and `baseUrl` `https://arthurvdv.github.io/rulebook-e2e-skeletons`. Times are UTC. "Observed" is what was seen; "code-derived" comes from reading the analyzer source.
+
+| Step | Run | Result |
+|---|---|---|
+| Push of the seed to `main` at 15:16:21 | [37486055091](https://github.com/Arthurvdv/rulebook-e2e-skeletons/actions/runs/37486055091) | Validate passed. Publish did not start: the push created the branch, and the `paths` filter did not trigger on it (observed). |
+| `gh api -X POST .../pages -f build_type=workflow` | | `build_type: workflow`, `html_url` `https://arthurvdv.github.io/rulebook-e2e-skeletons/` |
+| `workflow_dispatch` of Publish at 15:16:44 | [37486112176](https://github.com/Arthurvdv/rulebook-e2e-skeletons/actions/runs/37486112176) | Success. Preflight `HTTP 200`; staged 12 endpoints, 12 skeletons, `rulebook.json` and `index.html`; check: 26 of 26 URLs, the last after 2.9 s. |
+| Workstation checks at 15:17 | | `rulebook.json` `200 application/json; charset=utf-8` with the levels `essential, recommended, strict, complete`, the stages `default, ci, vnext`, `repository` `Arthurvdv/rulebook-e2e-skeletons` and the `baseUrl`; `<baseUrl>/` `200` with the "Set up an AL project" section; `<baseUrl>/skeletons/README.md` `404`. |
+| Init script from the branch, `-Level strict`, at 15:17:55 | | Three files in `.rulebook/`, no warning; each byte-equal (SHA-256) to a `curl` download of the same skeleton URL. |
+
+**VS Code** (Windows, the AL extension of [spike (e)](spikes/e-vscode-refetch.md), CodeCop only, a one-codeunit fixture with `System.app` 28, `al.enableExternalRulesets` true). Probes: AA0247 "Use namespaces" (CodeCop default Info, listed at Warning by `strict` and `strict.ci`), AA0137 (unused variable, default Warning, not listed: the control) and AA0215 (default Warning, not listed). All observed:
+
+| # | Action | Problems pane |
+|---|---|---|
+| 1 | Folder opened, no `al.ruleSetPath` | AA0247 Information, AA0137 Warning, AA0215 Warning, no AL1033 |
+| 2 | Init script from the branch's raw URL, `-Level strict` | Three files, no warning. After a hand edit of `default.ruleset.json`, a second run with `-Force` rewrote all three. |
+| 3 | `al.ruleSetPath` `.rulebook/default.ruleset.json`, Reload Window | AA0247 **Warning**, AA0137 Warning, AA0215 Warning, no AL1033 |
+| 4 | Exception `AA0247` `None` in the file's `rules`, Reload Window | AA0247 gone; AA0137 and AA0215 stay; no AL1033 |
+| 5 | `rules` empty again, `suppressWarnings` `["AA0247", "AA0137"]` in `app.json`, Reload Window | AA0137 gone; AA0247 Warning stays (listed by the endpoint, so `suppressWarnings` is a no-op, as in [spike (f)](spikes/f-suppresswarnings-sparse-endpoint.md)) |
+| 6 | Include of `.rulebook/ci.ruleset.json` broken (`.jsonx`), `al.ruleSetPath` at that file, Reload Window | AL1033 on `app.json`; AA0247 back to Information (analyzer defaults); restored afterwards |
+
+Side observation: VS Code shows the JSON schema warning "Array has too few items. Expected 1 or more." on `"rules": []` of a skeleton; the AL extension's schema for `*.ruleset.json` asks for at least one rule. The compiler accepts the empty array (step 3).
+
+**Do not use AA0235 as a probe.** The first fixture used AA0235 (an `OnInstallAppPerCompany` trigger without a `Company-Initialize` subscriber, default Info, listed at Warning by `strict`). It never fired, not even with the local file setting it to Error (observed): its analyzer (`Rule0235OnInstallPerCompanyOnCompanyInitializeSubscriptionAnalyzer`, `BaseAppDependencyExists`) returns at once unless `app.json` depends on Microsoft's Base Application (code-derived), and the fixture has only `System.app`.
+
+## 8. Backlog targets
 
 | Target | Open points | Issue |
 |---|---|---|

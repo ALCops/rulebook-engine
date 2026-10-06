@@ -17,7 +17,7 @@ The rulebook ships four levels (`Essential`, `Recommended`, `Strict`, `Complete`
 | `quarantine.<stage>.json` | New diagnostic ids held at `None` per stage until you adopt them. | org-owned | the scan workflow (later version) |
 | `catalog/diagnostics.json` | Every known diagnostic id with its analyzer default. | org-owned | the scan workflow (later version) |
 | `rulesets/` | The published endpoints: one flat file per level and stage, listing only the ids whose action differs from the analyzer default. | generated | every workflow that changes an input; never edit by hand |
-| `skeletons/` | One file per level and stage to copy into an AL project. | system | the update workflow (later version) |
+| `skeletons/` | One file per level and stage to copy into an AL project, and a README that explains them (not published). | system | the update workflow (later version) |
 | `README.md` | This file. | yours | you |
 
 System files are replaced when you update from the template; settings are kept; org-owned files are yours and are never overwritten; generated files are rebuilt from the others.
@@ -35,6 +35,15 @@ After the first run, `baseUrl` opens a page that lists every endpoint and skelet
 ## Using a skeleton in an AL project
 
 Copy the skeleton for your level, one per stage, into the project as `.rulebook/<stage>.ruleset.json`, for example `skeletons/strict.ci.ruleset.json` as `.rulebook/ci.ruleset.json`. Point `al.ruleSetPath` (VS Code) at `.rulebook/default.ruleset.json` and the AL-Go `rulesetFile` at `.rulebook/ci.ruleset.json`. Download the skeleton from the published site (`<baseUrl>/skeletons/strict.ci.ruleset.json`, linked from the index page): the published copy carries your `baseUrl`. The skeletons in this repository keep the placeholder `{BASEURL}`, so an update from the template never conflicts with your URL. Project exceptions go into the skeleton's `rules`; they override the endpoint.
+
+The init script does the download for you: it reads the levels and stages from `<baseUrl>/rulebook.json` and writes one file per stage into `.rulebook/` of the current folder (PowerShell 7):
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1
+./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level strict
+```
+
+Why one file per stage, the settings per consumer and when `suppressWarnings` in `app.json` works instead of an exception: the user page `docs/al-project.md` in the ALCops/rulebook repository (written with WP06).
 
 ## Changing a rule
 

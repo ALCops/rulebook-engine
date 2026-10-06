@@ -143,15 +143,19 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run.Result.ExitCode | Should-Be 0
         $run.Result.BaseUrl | Should-Be 'https://contoso.github.io/rulebook'
         $run.Result.Preflight | Should-BeNull
-        @(Get-ChildItem -LiteralPath $run.Result.StagingPath -Recurse -File).Count | Should-Be 25
+        @(Get-ChildItem -LiteralPath $run.Result.StagingPath -Recurse -File).Count | Should-Be 26
         Test-Path -LiteralPath $run.Result.ManifestPath -PathType Leaf | Should-BeTrue
-        @(Get-Content -LiteralPath $run.Result.ManifestPath -Raw | ConvertFrom-Json).Count | Should-Be 25
+        @(Get-Content -LiteralPath $run.Result.ManifestPath -Raw | ConvertFrom-Json).Count | Should-Be 26
         $outputs = Get-Content -LiteralPath $outputFile -Raw
         $outputs | Should-MatchString ('(?m)^stagingPath=' + [regex]::Escape($run.Result.StagingPath) + '$')
         $outputs | Should-MatchString ('(?m)^manifestPath=' + [regex]::Escape($run.Result.ManifestPath) + '$')
         $outputs | Should-MatchString '(?m)^pageUrl=https://contoso\.github\.io/rulebook/$'
-        $run.Summary | Should-MatchString 'Staged only \(deploy is off\): 25 files'
+        $run.Summary | Should-MatchString 'Staged only \(deploy is off\): 26 files'
         $run.Summary | Should-MatchString '\| skeleton \| https://contoso\.github\.io/rulebook/skeletons/strict\.ci\.ruleset\.json \|'
+        $run.Summary | Should-MatchString '\| manifest \| https://contoso\.github\.io/rulebook/rulebook\.json \|'
+        $run.Lines | Should-ContainCollection @("Staged 12 endpoints, 12 skeletons, rulebook.json and index.html in $($run.Result.StagingPath)")
+        # The repository reaches rulebook.json (GITHUB_REPOSITORY in the action, -Repository here).
+        (Get-Content -LiteralPath (Join-Path $run.Result.StagingPath 'rulebook.json') -Raw | ConvertFrom-Json).repository | Should-Be 'Contoso/Rulebook'
     }
 
     It 'prints the site notice when site.enabled is true' {
@@ -245,10 +249,10 @@ Describe 'Publish.ps1 -Phase Check' {
         $stage.Result.ExitCode | Should-Be 0
         $run = Invoke-Entry @{ Phase = 'Check'; ManifestPath = $stage.Result.ManifestPath; WindowSeconds = 0; TimeoutSeconds = 5 }
         $run.Result.ExitCode | Should-Be 1
-        @($run.Result.Results).Count | Should-Be 25
+        @($run.Result.Results).Count | Should-Be 26
         @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/rulesets/strict.ci.ruleset.json failed (*) after 1 attempt(s)*AL1033*' }).Count | Should-Be 1
         @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/ failed*' }).Count | Should-Be 1
-        $run.Summary | Should-MatchString '\*\*0 of 25 URLs\*\*'
+        $run.Summary | Should-MatchString '\*\*0 of 26 URLs\*\*'
     }
 
     It 'reports a staged file that is gone as a failed URL, not an exception' {
