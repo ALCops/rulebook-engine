@@ -46,6 +46,22 @@ BeforeAll {
         return $lines
     }
 
+    function Invoke-WithoutHost {
+        # Runs Script in a new runspace without a host, so the 'What if:' lines of -WhatIf are not printed. Imports the
+        # Template module there; returns the output and rethrows the first error.
+        param([Parameter(Mandatory)][scriptblock]$Script, [object[]]$ArgumentList = @())
+        $shell = [powershell]::Create()
+        try {
+            $null = $shell.AddCommand('Import-Module').AddArgument((Join-Path $script:repoRoot 'modules' 'Rulebook.Template.psd1')).AddStatement().AddScript($Script.ToString())
+            foreach ($argument in $ArgumentList) { $null = $shell.AddArgument($argument) }
+            $output = $shell.Invoke()
+            if ($shell.Streams.Error.Count -gt 0) { throw $shell.Streams.Error[0] }
+            return $output
+        } finally {
+            $shell.Dispose()
+        }
+    }
+
     function Get-RuleText {
         # 'id action' or 'id action justification' per rule of a ruleset file.
         param([Parameter(Mandatory)][string]$Path, [switch]$WithJustification)
@@ -157,7 +173,8 @@ Describe 'Build-RulebookBase' {
 
     It 'writes nothing with -WhatIf and reports the same changes' {
         $out = Get-TestFolder
-        @(Build-RulebookBase -RulebookDir $tiny -OutputPath $out -WhatIf | ForEach-Object Change) | Should-BeCollection @('created', 'created', 'created')
+        $changes = Invoke-WithoutHost -Script { param($rulebookDir, $outputPath) Build-RulebookBase -RulebookDir $rulebookDir -OutputPath $outputPath -WhatIf } -ArgumentList $tiny, $out
+        @($changes | ForEach-Object Change) | Should-BeCollection @('created', 'created', 'created')
         Test-Path -LiteralPath $out | Should-BeFalse
     }
 
@@ -191,10 +208,16 @@ Describe 'Build-RulebookBase' {
         @{ Name = 'a resolved cell is not an action'; File = 'matrix/resolved.json'; Edit = { $_['AL0200']['core.default'] = 'Default' }; Message = "*AL0200 has action 'Default' at core.default*" }
         @{ Name = 'an id has no resolved cells'; File = 'matrix/resolved.json'; Edit = { $_.Remove('AS0084') }; Message = '*no cells for AS0084*' }
         @{ Name = 'a twin side is in two pairs'; File = 'matrix/twins.json'; Edit = { $_['pairs'] = @($_['pairs']) + @(@{ pte = 'PTE0004'; appsource = 'AS0061' }) }; Message = '*lists AS0061 in two pairs*' }
+        @{ Name = 'twins.json has no values'; File = 'matrix/twins.json'; Edit = { $_.Remove('values') }; Message = "matrix/twins.json has no 'values'" }
+        @{ Name = 'levels.json has no levels'; File = 'matrix/levels.json'; Edit = { $_.Remove('levels') }; Message = "matrix/levels.json has no 'levels'" }
+        @{ Name = 'an inventory row has no boolean enabled'; File = 'inventory/inventory.json'; Edit = { $_[2]['enabled'] = 'false' }; Message = 'inventory/inventory.json: AL0603 has no boolean enabled' }
+        @{ Name = 'an inventory default is not a severity'; File = 'inventory/inventory.json'; Edit = { $_[0]['default'] = 'None' }; Message = "inventory/inventory.json: AL0200 has default 'None'*" }
     ) {
         $copy = Copy-Tiny
         Edit-FixtureJson -Path (Join-Path $copy $File) -Script $Edit
-        { Build-RulebookBase -RulebookDir $copy -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage $Message
+        $out = Get-TestFolder
+        { Build-RulebookBase -RulebookDir $copy -OutputPath $out } | Should-Throw -ExceptionMessage $Message
+        Test-Path -LiteralPath $out | Should-BeFalse -Because 'nothing is written when an input throws'
     }
 }
 
@@ -252,6 +275,7 @@ Describe 'Build-RulebookCatalog' {
         $script:catalogPath = Join-Path (Get-TestFolder) 'catalog' 'diagnostics.json'
         $script:catalogChanges = @(Build-RulebookCatalog -RulebookDir $tiny -OutputPath $catalogPath)
         $script:catalogLines = Get-Line $catalogPath
+        $script:tinyIds = @(Get-Content -LiteralPath (Join-Path $tiny 'inventory' 'inventory.json') -Raw | ConvertFrom-Json | ForEach-Object id)
     }
 
     It 'reports catalog/diagnostics.json' {
@@ -266,7 +290,7 @@ Describe 'Build-RulebookCatalog' {
 
     It 'writes one entry per line with the keys in order' {
         $entries = @($catalogLines | Where-Object { $_ -like '    {*' })
-        $entries.Count | Should-Be 6
+        $entries.Count | Should-Be $tinyIds.Count
         foreach ($line in $entries) {
             $line | Should-MatchString '^    \{ "id": "[A-Z]+[0-9]{4}i?", "analyzer": "[^"]+", "defaultSeverity": "(Error|Warning|Info|Hidden)", "enabledByDefault": (true|false)(, "title": "(?:[^"\\]|\\.)*")?(, "docs": "[^"]*")? \},?$'
         }
@@ -298,13 +322,14 @@ Describe 'New-RulebookSkeleton' {
     BeforeAll {
         $script:skeletonOut = Get-TestFolder
         $script:skeletonChanges = @(New-RulebookSkeleton -SettingsPath $settingsFixture -OutputPath $skeletonOut)
-        $script:skeletonNames = foreach ($level in 'essential', 'recommended', 'strict', 'complete') {
-            foreach ($stage in 'default', 'ci', 'vnext') { "$level.$stage.ruleset.json" }
+        $fixtureSettings = Get-Content -LiteralPath $settingsFixture -Raw | ConvertFrom-Json
+        $script:skeletonNames = foreach ($level in $fixtureSettings.levels) {
+            foreach ($stage in $fixtureSettings.stages) { '{0}.{1}.ruleset.json' -f $level.name.ToLowerInvariant(), $stage.name.ToLowerInvariant() }
         }
     }
 
     It 'writes levels x stages skeletons named <level>.<stage>.ruleset.json' {
-        $skeletonChanges.Count | Should-Be 12
+        $skeletonChanges.Count | Should-Be @($skeletonNames).Count
         [string[]]$actual = @(Get-ChildItem -LiteralPath $skeletonOut -File | ForEach-Object Name)
         [System.Array]::Sort($actual, [System.StringComparer]::Ordinal)
         [string[]]$expected = @($skeletonNames)
@@ -371,6 +396,9 @@ Describe 'Shipped template content' {
             foreach ($stage in $shippedStages) { if ($stage -eq 'default') { "$level.ruleset.json" } else { "$level.$stage.ruleset.json" } }
         }
         $script:templateInputs = Read-RulebookInputs -RepositoryRoot $templateDir
+        $script:levelCount = @($templateInputs.Levels).Count
+        $script:stageCount = @($templateInputs.Stages).Count
+        $script:matrixTwins = Get-Content -LiteralPath (Join-Path $rulebookDir 'matrix' 'twins.json') -Raw | ConvertFrom-Json
 
         function Get-SortedName {
             # The names sorted ordinally, joined with ', '.
@@ -405,14 +433,14 @@ Describe 'Shipped template content' {
     }
 
     It 'has the entry counts of the file table in matrix/counts.md' {
-        $counts.Entries.Count | Should-Be 6
+        $counts.Entries.Count | Should-Be ($levelCount + $stageCount - 1)
         foreach ($file in $counts.Entries.Keys) {
             @(Get-RuleText -Path (Join-Path $templateDir $file)).Count | Should-Be $counts.Entries[$file] -Because $file
         }
     }
 
     It 'lists in every endpoint the number of ids of the Listed column in matrix/counts.md' {
-        $counts.Listed.Count | Should-Be 12
+        $counts.Listed.Count | Should-Be ($levelCount * $stageCount)
         foreach ($key in $counts.Listed.Keys) {
             $level, $stage = $key -split '\.'
             $file = if ($stage -eq 'default') { "$level.ruleset.json" } else { "$level.$stage.ruleset.json" }
@@ -435,17 +463,18 @@ Describe 'Shipped template content' {
         for ($i = 1; $i -lt $catalogKeys.Count; $i++) { [string]::CompareOrdinal($catalogKeys[$i - 1], $catalogKeys[$i]) | Should-BeLessThan 0 }
     }
 
-    It 'ships base/twins.json with 17 pairs and count 17' {
+    It 'ships base/twins.json with the pairs of matrix/twins.json (17 today) and their count' {
         $twins = Get-Content -LiteralPath (Join-Path $templateDir 'base' 'twins.json') -Raw | ConvertFrom-Json
-        $twins.count | Should-Be 17
-        @($twins.pairs).Count | Should-Be 17
+        $twins.count | Should-Be $matrixTwins.count
+        @($twins.pairs).Count | Should-Be @($matrixTwins.pairs).Count
+        @($twins.pairs | ForEach-Object { $_.pte + '/' + $_.appsource } | Sort-Object) | Should-BeCollection @($matrixTwins.pairs | ForEach-Object { $_.pte + '/' + $_.appsource } | Sort-Object)
         $twins.'$schema' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json'
     }
 
     It 'seeds the catalog with every inventory id in inventory order at its analyzer default' {
         $catalogPath = Join-Path $templateDir 'catalog' 'diagnostics.json'
         $ids = @((Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json).diagnostics | ForEach-Object id)
-        $ids.Count | Should-Be 628
+        $ids.Count | Should-Be $inventory.Count
         $ids | Should-BeCollection @($inventory | ForEach-Object { $_['id'] })
         $catalog = Read-Catalog -Path $catalogPath
         $wrong = foreach ($row in $inventory) {
@@ -509,7 +538,7 @@ Describe 'Shipped template content' {
             }
         }
         Write-Host ('V13 on template/: {0} Get-EffectiveAction calls in {1:N2} s' -f $calls, $elapsed.TotalSeconds)
-        $calls | Should-Be 7536
+        $calls | Should-Be ($inventory.Count * $levelCount * $stageCount)
         @($mismatches) | Should-BeCollection @()
     }
 }
@@ -540,12 +569,16 @@ Describe 'Build-Template.ps1' {
             Copy-Item -LiteralPath (Join-Path $templateDir $file) -Destination $target
         }
         $changes = @(& $wrapper -TemplateDir $scratch 6>$null)
-        $changes.Count | Should-Be 32
+        # Generated: the level files, twins.json, the non-default stage files, the catalog, the skeletons and endpoints.
+        $settings = Get-Content -LiteralPath (Join-Path $scratch '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json
+        $levelTotal = @((Get-Content -LiteralPath (Join-Path $rulebookDir 'matrix' 'levels.json') -Raw | ConvertFrom-Json).levels).Count
+        $stageTotal = @((Get-Content -LiteralPath (Join-Path $rulebookDir 'matrix' 'stages.json') -Raw | ConvertFrom-Json).stages).Count
+        $changes.Count | Should-Be ($levelTotal + 1 + ($stageTotal - 1) + 1 + 2 * @($settings.levels).Count * @($settings.stages).Count)
         @($changes | Where-Object Change -ne 'created') | Should-BeCollection @()
         Get-TemplateHash -Root $scratch | Should-BeCollection (Get-TemplateHash -Root $templateDir)
         @(& $wrapper -TemplateDir $scratch 6>$null) | Should-BeCollection @()
         $elapsed = Measure-Command { $script:endpointChanges = @(Update-RulebookEndpoints -RepositoryRoot $scratch) }
-        Write-Host ('Update-RulebookEndpoints on template/ (628 ids): {0:N2} s' -f $elapsed.TotalSeconds)
+        Write-Host ('Update-RulebookEndpoints on template/ ({0} catalog ids): {1:N2} s' -f (Read-Catalog -Path (Join-Path $scratch 'catalog' 'diagnostics.json')).Count, $elapsed.TotalSeconds)
         $endpointChanges.Count | Should-Be 0
         $elapsed.TotalSeconds | Should-BeLessThan 30
     }

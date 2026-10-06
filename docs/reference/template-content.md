@@ -73,13 +73,13 @@ The wrapper runs, in this order:
 4. `New-RulebookSkeleton -SettingsPath template/.github/Rulebook-Settings.json -OutputPath template/skeletons`
 5. `Update-RulebookEndpoints -RepositoryRoot template`
 
-The endpoints come last because they are generated from the files the first steps write. `-RulebookDir` and `-TemplateDir` default to `docs/rulebook` and `template` next to the script. Each function writes only files whose bytes differ, deletes the files of its folder that it no longer produces (`*.ruleset.json` in `base/`, `skeletons/` and `rulesets/`, `*.json` in `stages/`), and returns one change object per file (`File`, `Change`: `created`, `modified`, `deleted`). The hand-written files are never touched.
+The endpoints come last because they are generated from the files the first steps write. Each function builds and checks all its texts before it writes the first file, but the steps run one after the other: a step that throws leaves the files of the earlier steps written, so fix the input and run the wrapper again. `-RulebookDir` and `-TemplateDir` default to `docs/rulebook` and `template` next to the script. Each function writes only files whose bytes differ, deletes the files of its folder that it no longer produces (`*.ruleset.json` in `base/`, `skeletons/` and `rulesets/`, `*.json` in `stages/`), and returns one change object per file (`File`, `Change`: `created`, `modified`, `deleted`). The hand-written files are never touched.
 
 Step 5 reads the settings as an organization repository would, so a settings file the generator cannot handle (a `basedOn` that names no level file, a `twins` value outside `both`, `appsource` and `pte`) stops the wrapper with the Rulebook.Generate error.
 
 ## 4. Keeping template/ current
 
-`template/` is derived from `docs/rulebook/`, `modules/Rulebook.Template.psm1` and the template settings. After a change to any of them:
+`template/` is derived from `docs/rulebook/`, `modules/Rulebook.Template.psm1` and the template settings. `Build-Template.ps1 -WhatIf` reports the drift of `base/`, `stages/`, the catalog and `skeletons/` against the inputs on disk; `rulesets/` it compares with the level and stage files currently on disk, so after a matrix change the endpoint drift is caught by C12 (once `base/` and `stages/` are regenerated) and by the Pester drift test, which regenerates everything from scratch. After a change to any of the inputs:
 
 ```powershell
 pwsh ./tools/rulebook/Build-Matrix.ps1      # when the placement rules or the inventory changed

@@ -33,17 +33,49 @@ function Get-TextValue {
     return $Value
 }
 
-function Read-MatrixJson {
-    param([Parameter(Mandatory)][string]$RulebookDir, [Parameter(Mandatory)][string]$RelativePath)
-    $path = Join-Path $RulebookDir $RelativePath
-    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "File not found: $path" }
+function Read-JsonFile {
+    # Parses a JSON file into hashtables; throws 'File not found' or 'Invalid JSON in <path>'. An array is
+    # enumerated into the pipeline; the callers collect it with @().
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "File not found: $Path" }
     try {
-        $json = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable -Depth 10 -ErrorAction Stop
+        $json = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable -Depth 10 -ErrorAction Stop
     } catch {
-        throw "Invalid JSON in ${path}: $($_.Exception.Message)"
+        throw "Invalid JSON in ${Path}: $($_.Exception.Message)"
     }
-    # An array is enumerated into the pipeline; the callers collect it with @().
     return $json
+}
+
+function Read-MatrixObject {
+    # A matrix file whose root is an object holding Keys.
+    param([Parameter(Mandatory)][string]$RulebookDir, [Parameter(Mandatory)][string]$RelativePath, [string[]]$Keys = @())
+    $json = Read-JsonFile -Path (Join-Path $RulebookDir $RelativePath)
+    if ($json -isnot [System.Collections.IDictionary]) { throw "${RelativePath}: the root is not an object" }
+    foreach ($key in $Keys) {
+        if (-not $json.Contains($key)) { throw "${RelativePath} has no '$key'" }
+    }
+    return , $json
+}
+
+function Join-JsonLine {
+    # The text of a hand-rolled JSON file: LF line ends and one trailing LF.
+    param([Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Lines)
+    return ($Lines -join "`n") + "`n"
+}
+
+function Add-JsonArrayLine {
+    # Appends "  "<Key>": [" with one item per line and the commas, then "  ]"; "  "<Key>": []" without items. The
+    # array is the last property of its object (no comma after it).
+    param([Parameter(Mandatory)][System.Collections.Generic.List[string]]$Lines, [Parameter(Mandatory)][string]$Key, [AllowEmptyCollection()][string[]]$Items = @())
+    if ($Items.Count -eq 0) {
+        $Lines.Add('  "' + $Key + '": []')
+        return
+    }
+    $Lines.Add('  "' + $Key + '": [')
+    for ($i = 0; $i -lt $Items.Count; $i++) {
+        $Lines.Add('    ' + $Items[$i] + $(if ($i -lt $Items.Count - 1) { ',' } else { '' }))
+    }
+    $Lines.Add('  ]')
 }
 
 function Get-InventoryDefault {
@@ -76,19 +108,26 @@ function Read-MatrixInput {
     # validation): the matrix must mirror the inventory row by row, every id must have its resolved cells, the
     # levels must form a basedOn tree of slugs, the stages must include default and name a matrix column each.
     param([Parameter(Mandatory)][string]$RulebookDir)
-    $inventory = @(Read-MatrixJson -RulebookDir $RulebookDir -RelativePath 'inventory/inventory.json')
-    $matrix = @(Read-MatrixJson -RulebookDir $RulebookDir -RelativePath 'matrix/matrix.json')
-    $resolved = Read-MatrixJson -RulebookDir $RulebookDir -RelativePath 'matrix/resolved.json'
-    $levelsJson = Read-MatrixJson -RulebookDir $RulebookDir -RelativePath 'matrix/levels.json'
-    $stagesJson = Read-MatrixJson -RulebookDir $RulebookDir -RelativePath 'matrix/stages.json'
-    $twinsJson = Read-MatrixJson -RulebookDir $RulebookDir -RelativePath 'matrix/twins.json'
+    $inventory = @(Read-JsonFile -Path (Join-Path $RulebookDir 'inventory/inventory.json'))
+    $matrix = @(Read-JsonFile -Path (Join-Path $RulebookDir 'matrix/matrix.json'))
+    $resolved = Read-MatrixObject -RulebookDir $RulebookDir -RelativePath 'matrix/resolved.json'
+    $levelsJson = Read-MatrixObject -RulebookDir $RulebookDir -RelativePath 'matrix/levels.json' -Keys 'levels'
+    $stagesJson = Read-MatrixObject -RulebookDir $RulebookDir -RelativePath 'matrix/stages.json' -Keys 'stages'
+    $twinsJson = Read-MatrixObject -RulebookDir $RulebookDir -RelativePath 'matrix/twins.json' -Keys 'pairs', 'values'
 
     if ($matrix.Count -ne $inventory.Count) {
         throw "matrix/matrix.json has $($matrix.Count) rows, inventory/inventory.json $($inventory.Count); run Build-Matrix.ps1"
     }
     $byMatrixId = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::Ordinal)
     for ($i = 0; $i -lt $inventory.Count; $i++) {
+        if ($inventory[$i] -isnot [System.Collections.IDictionary] -or $matrix[$i] -isnot [System.Collections.IDictionary]) {
+            throw "inventory/inventory.json or matrix/matrix.json: row $i is not an object"
+        }
         $id = [string]$inventory[$i]['id']
+        if ($inventory[$i]['enabled'] -isnot [bool]) { throw "inventory/inventory.json: $id has no boolean enabled" }
+        if ([string]$inventory[$i]['default'] -cnotin $script:Severities) {
+            throw "inventory/inventory.json: $id has default '$($inventory[$i]['default'])'; allowed are Error, Warning, Info and Hidden"
+        }
         if ([string]$matrix[$i]['id'] -cne $id) {
             throw "matrix/matrix.json row $i is $($matrix[$i]['id']), inventory/inventory.json row $i is $id; the order must match (run Build-Matrix.ps1)"
         }
@@ -134,6 +173,7 @@ function Read-MatrixInput {
     foreach ($row in $inventory) {
         $id = [string]$row['id']
         $cells = $resolved[$id]
+        if ($cells -isnot [System.Collections.IDictionary]) { throw "matrix/resolved.json: the cells of $id are not an object" }
         foreach ($level in $levels) {
             $key = "$($level.Slug).default"
             if (-not $cells.Contains($key)) { throw "matrix/resolved.json has no cell $key for $id" }
@@ -149,14 +189,32 @@ function Read-MatrixInput {
         }
     }
 
+    # Twin pairs sorted by Get-DiagnosticSortKey of the PTE side; a side in two pairs throws.
+    $sortedPairs = [System.Collections.Generic.SortedDictionary[string, object]]::new([System.StringComparer]::Ordinal)
+    $sides = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($pair in @($twinsJson['pairs'] | Where-Object { $null -ne $_ })) {
+        if ($pair -isnot [System.Collections.IDictionary]) { throw 'matrix/twins.json has a pair that is not an object' }
+        $item = [pscustomobject]@{
+            Pte       = [string]$pair['pte']
+            AppSource = [string]$pair['appsource']
+            Title     = Get-TextValue $pair['title'] -What "matrix/twins.json: the title of the pair $($pair['pte'])"
+        }
+        if ([string]::IsNullOrEmpty($item.Pte) -or [string]::IsNullOrEmpty($item.AppSource)) { throw 'matrix/twins.json has a pair without a pte or an appsource id' }
+        foreach ($side in $item.Pte, $item.AppSource) {
+            if (-not $sides.Add($side)) { throw "matrix/twins.json lists $side in two pairs" }
+        }
+        $sortedPairs.Add((Get-DiagnosticSortKey -Id $item.Pte), $item)
+    }
+
     return [pscustomobject]@{
-        Inventory  = $inventory
-        Matrix     = $matrix
-        ByMatrixId = $byMatrixId
-        Resolved   = $resolved
-        Levels     = $levels
-        Stages     = $stages
-        Twins      = $twinsJson
+        Inventory   = $inventory
+        Matrix      = $matrix
+        ByMatrixId  = $byMatrixId
+        Resolved    = $resolved
+        Levels      = $levels
+        Stages      = $stages
+        TwinPairs   = @($sortedPairs.Values)
+        TwinsValues = @($twinsJson['values'] | ForEach-Object { [string]$_ })
     }
 }
 
@@ -234,30 +292,22 @@ function Sync-GeneratedFolder {
 
 function ConvertTo-TwinsJson {
     # base/twins.json in the layout of the test fixtures: one pair per line, $schema first, title only when set.
-    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Values, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Pairs)
+    param([Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Values, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Pairs)
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add('{')
     $lines.Add('  "$schema": ' + (ConvertTo-JsonString $script:TwinsSchemaUrl) + ',')
     $lines.Add('  "generatedBy": ' + (ConvertTo-JsonString $script:TwinsGeneratedBy) + ',')
     $lines.Add('  "setting": "twins",')
-    $lines.Add('  "values": [' + (@($Values | ForEach-Object { ConvertTo-JsonString ([string]$_) }) -join ', ') + '],')
+    $lines.Add('  "values": [' + (@($Values | ForEach-Object { ConvertTo-JsonString $_ }) -join ', ') + '],')
     $lines.Add('  "count": ' + $Pairs.Count + ',')
-    if ($Pairs.Count -eq 0) {
-        $lines.Add('  "pairs": []')
-    } else {
-        $lines.Add('  "pairs": [')
-        for ($i = 0; $i -lt $Pairs.Count; $i++) {
-            $pair = $Pairs[$i]
-            $line = '    { "pte": ' + (ConvertTo-JsonString $pair.Pte) + ', "appsource": ' + (ConvertTo-JsonString $pair.AppSource)
-            if (-not [string]::IsNullOrEmpty($pair.Title)) { $line += ', "title": ' + (ConvertTo-JsonString $pair.Title) }
-            $line += ' }'
-            if ($i -lt $Pairs.Count - 1) { $line += ',' }
-            $lines.Add($line)
-        }
-        $lines.Add('  ]')
+    $items = foreach ($pair in $Pairs) {
+        $item = '{ "pte": ' + (ConvertTo-JsonString $pair.Pte) + ', "appsource": ' + (ConvertTo-JsonString $pair.AppSource)
+        if (-not [string]::IsNullOrEmpty($pair.Title)) { $item += ', "title": ' + (ConvertTo-JsonString $pair.Title) }
+        $item + ' }'
     }
+    Add-JsonArrayLine -Lines $lines -Key 'pairs' -Items @($items)
     $lines.Add('}')
-    return ($lines -join "`n") + "`n"
+    return Join-JsonLine -Lines $lines
 }
 
 function ConvertTo-CatalogJson {
@@ -267,33 +317,25 @@ function ConvertTo-CatalogJson {
     $lines.Add('{')
     $lines.Add('  "$schema": ' + (ConvertTo-JsonString $script:CatalogSchemaUrl) + ',')
     $lines.Add('  "version": 1,')
-    if ($Entries.Count -eq 0) {
-        $lines.Add('  "diagnostics": []')
-    } else {
-        $lines.Add('  "diagnostics": [')
-        for ($i = 0; $i -lt $Entries.Count; $i++) {
-            $entry = $Entries[$i]
-            $line = '    { "id": ' + (ConvertTo-JsonString $entry.Id)
-            $line += ', "analyzer": ' + (ConvertTo-JsonString $entry.Analyzer)
-            $line += ', "defaultSeverity": ' + (ConvertTo-JsonString $entry.DefaultSeverity)
-            $line += ', "enabledByDefault": ' + $(if ($entry.EnabledByDefault) { 'true' } else { 'false' })
-            if (-not [string]::IsNullOrEmpty($entry.Title)) { $line += ', "title": ' + (ConvertTo-JsonString $entry.Title) }
-            if (-not [string]::IsNullOrEmpty($entry.Docs)) { $line += ', "docs": ' + (ConvertTo-JsonString $entry.Docs) }
-            $line += ' }'
-            if ($i -lt $Entries.Count - 1) { $line += ',' }
-            $lines.Add($line)
-        }
-        $lines.Add('  ]')
+    $items = foreach ($entry in $Entries) {
+        $item = '{ "id": ' + (ConvertTo-JsonString $entry.Id)
+        $item += ', "analyzer": ' + (ConvertTo-JsonString $entry.Analyzer)
+        $item += ', "defaultSeverity": ' + (ConvertTo-JsonString $entry.DefaultSeverity)
+        $item += ', "enabledByDefault": ' + $(if ($entry.EnabledByDefault) { 'true' } else { 'false' })
+        if (-not [string]::IsNullOrEmpty($entry.Title)) { $item += ', "title": ' + (ConvertTo-JsonString $entry.Title) }
+        if (-not [string]::IsNullOrEmpty($entry.Docs)) { $item += ', "docs": ' + (ConvertTo-JsonString $entry.Docs) }
+        $item + ' }'
     }
+    Add-JsonArrayLine -Lines $lines -Key 'diagnostics' -Items @($items)
     $lines.Add('}')
-    return ($lines -join "`n") + "`n"
+    return Join-JsonLine -Lines $lines
 }
 
 function ConvertTo-SkeletonJson {
     # A skeleton: one include of the endpoint with {BASEURL}, rendered by Publish into the published copy (WP05).
     param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$EndpointFile)
     $include = '{ "action": "Default", "path": ' + (ConvertTo-JsonString "{BASEURL}/rulesets/$EndpointFile") + ' }'
-    $lines = @(
+    return Join-JsonLine -Lines @(
         '{'
         '  "name": ' + (ConvertTo-JsonString $Name) + ','
         '  "description": ' + (ConvertTo-JsonString $script:SkeletonDescription) + ','
@@ -301,7 +343,6 @@ function ConvertTo-SkeletonJson {
         '  "rules": []'
         '}'
     )
-    return ($lines -join "`n") + "`n"
 }
 
 #endregion
@@ -317,15 +358,14 @@ function Build-RulebookBase {
     (inventory Default when Enabled, else None); every other level the ids whose cell differs from the cell of its
     basedOn level. Entries in inventory order with the action and the matrix row Justification; the files carry
     the delta profile URL in $schema. base/twins.json is matrix/twins.json with $schema, the pairs sorted by
-    Get-DiagnosticSortKey of the PTE side. Other *.ruleset.json files in the folder are deleted. Writes only files
-    whose bytes differ and returns one Rulebook.TemplateChange per change; -WhatIf writes nothing.
+    Get-DiagnosticSortKey of the PTE side. Other *.ruleset.json files in the folder are deleted. Every text is built
+    and checked before the first write. Writes only files whose bytes differ and returns one Rulebook.TemplateChange
+    per change; -WhatIf writes nothing.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType('Rulebook.TemplateChange')]
     param([Parameter(Mandatory)][string]$RulebookDir, [Parameter(Mandatory)][string]$OutputPath)
     $matrixInput = Read-MatrixInput -RulebookDir $RulebookDir
-    $names = @{}
-    foreach ($level in $matrixInput.Levels) { $names[$level.Slug] = $level.Name }
 
     $files = Get-OrdinalMap
     foreach ($level in $matrixInput.Levels) {
@@ -337,7 +377,7 @@ function Build-RulebookBase {
             $below = if ($null -eq $level.BasedOn) { Get-InventoryDefault -Row $row } else { [string]$cells["$($level.BasedOn).default"] }
             $action = [string]$cells[$key]
             if ($action -cne $below) {
-                $justification = Get-TextValue $matrixInput.ByMatrixId[$id]['Justification'] -What "Justification of $id"
+                $justification = Get-TextValue $matrixInput.ByMatrixId[$id]['Justification'] -What "matrix/matrix.json: the justification of $id"
                 $rules.Add([pscustomobject]@{ Id = $id; Action = $action; Justification = $justification })
             }
         }
@@ -349,23 +389,9 @@ function Build-RulebookBase {
         $files["$($level.Slug).ruleset.json"] = ConvertTo-RulesetJson -Name "Rulebook $($level.Name)" -Description $description `
             -Rules $rules.ToArray() -IncludeJustification -Schema $script:DeltaSchemaUrl
     }
-    Sync-GeneratedFolder -Directory $OutputPath -Filter '*.ruleset.json' -Files $files
+    $twinsText = ConvertTo-TwinsJson -Values $matrixInput.TwinsValues -Pairs $matrixInput.TwinPairs
 
-    $sorted = [System.Collections.Generic.SortedDictionary[string, object]]::new([System.StringComparer]::Ordinal)
-    $sides = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-    foreach ($pair in @($matrixInput.Twins['pairs'] | Where-Object { $null -ne $_ })) {
-        $item = [pscustomobject]@{
-            Pte       = [string]$pair['pte']
-            AppSource = [string]$pair['appsource']
-            Title     = Get-TextValue $pair['title'] -What "Title of the twin pair $($pair['pte'])"
-        }
-        foreach ($side in $item.Pte, $item.AppSource) {
-            if (-not $sides.Add($side)) { throw "matrix/twins.json lists $side in two pairs" }
-        }
-        $sorted.Add((Get-DiagnosticSortKey -Id $item.Pte), $item)
-    }
-    $values = @($matrixInput.Twins['values'])
-    $twinsText = ConvertTo-TwinsJson -Values $values -Pairs @($sorted.Values)
+    Sync-GeneratedFolder -Directory $OutputPath -Filter '*.ruleset.json' -Files $files
     Write-GeneratedFile -Path (Join-Path $OutputPath 'twins.json') -File "$(Split-Path -Leaf $OutputPath)/twins.json" -Text $twinsText
 }
 
@@ -392,7 +418,7 @@ function Build-RulebookStages {
             $matrixRow = $matrixInput.ByMatrixId[$id]
             $column = [string]$matrixRow[$stage.Name]
             if ($column -cne '=') {
-                $justification = Get-TextValue $matrixRow['Justification'] -What "Justification of $id"
+                $justification = Get-TextValue $matrixRow['Justification'] -What "matrix/matrix.json: the justification of $id"
                 $rules.Add([pscustomobject]@{ Id = $id; Action = $column; Justification = $justification })
             }
         }
@@ -418,16 +444,14 @@ function Build-RulebookCatalog {
     $matrixInput = Read-MatrixInput -RulebookDir $RulebookDir
     $entries = foreach ($row in $matrixInput.Inventory) {
         $id = [string]$row['id']
-        $severity = [string]$row['default']
-        if ($severity -cnotin $script:Severities) { throw "inventory/inventory.json: $id has default '$severity'; allowed are Error, Warning, Info and Hidden" }
-        if ($row['enabled'] -isnot [bool]) { throw "inventory/inventory.json: $id has no boolean enabled" }
+        # default and enabled are checked by Read-MatrixInput.
         [pscustomobject]@{
             Id               = $id
-            Analyzer         = Get-TextValue $row['analyzer'] -What "Analyzer of $id"
-            DefaultSeverity  = $severity
+            Analyzer         = Get-TextValue $row['analyzer'] -What "inventory/inventory.json: the analyzer of $id"
+            DefaultSeverity  = [string]$row['default']
             EnabledByDefault = [bool]$row['enabled']
-            Title            = Get-TextValue $row['title'] -What "Title of $id"
-            Docs             = Get-TextValue $row['docs'] -What "Docs of $id"
+            Title            = Get-TextValue $row['title'] -What "inventory/inventory.json: the title of $id"
+            Docs             = Get-TextValue $row['docs'] -What "inventory/inventory.json: the docs URL of $id"
         }
     }
     $text = ConvertTo-CatalogJson -Entries @($entries)
@@ -448,14 +472,12 @@ function New-RulebookSkeleton {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType('Rulebook.TemplateChange')]
     param([Parameter(Mandatory)][string]$SettingsPath, [Parameter(Mandatory)][string]$OutputPath)
-    if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) { throw "File not found: $SettingsPath" }
-    try {
-        $settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json -AsHashtable -Depth 10 -ErrorAction Stop
-    } catch {
-        throw "Invalid JSON in ${SettingsPath}: $($_.Exception.Message)"
-    }
+    $settings = Read-JsonFile -Path $SettingsPath
+    if ($settings -isnot [System.Collections.IDictionary]) { throw "${SettingsPath}: the root is not an object" }
     $levels = @(foreach ($level in @($settings['levels'] | Where-Object { $null -ne $_ })) { ConvertTo-SlugEntry -Name ([string]$level['name']) -Kind 'levels' -Source $SettingsPath })
     $stages = @(foreach ($stage in @($settings['stages'] | Where-Object { $null -ne $_ })) { ConvertTo-SlugEntry -Name ([string]$stage['name']) -Kind 'stages' -Source $SettingsPath })
+    # No levels or stages would delete every skeleton; refuse instead (C5 reports the settings).
+    if ($levels.Count -eq 0 -or $stages.Count -eq 0) { throw "${SettingsPath}: levels and stages must each list at least one entry (C5)" }
     Assert-UniqueSlug -Entries $levels -Kind 'levels' -Source $SettingsPath
     Assert-UniqueSlug -Entries $stages -Kind 'stages' -Source $SettingsPath
 

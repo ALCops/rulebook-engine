@@ -59,6 +59,11 @@ BeforeDiscovery {
             }
             @{ Name = "template/$relative"; Path = $_.FullName; Schema = if ($base) { Join-Path $schemaDir "$base.schema.json" } else { $null } }
         } | Sort-Object { $_.Name })
+    # Expected: levels and stages of the template settings, plus twins.json, the catalog, the settings and overrides.
+    $templateSettings = Get-Content -Path (Join-Path $templateDir '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json
+    $levelCount = @($templateSettings.levels).Count
+    $stageCount = @($templateSettings.stages).Count
+    $script:templateJsonCount = $levelCount + 1 + ($stageCount - 1) + 1 + 2 * $levelCount * $stageCount + 1 + 1 + $stageCount
 
     $namingPath = Join-Path $repoRoot 'docs' 'reference' 'naming.md'
     $namingText = (Get-Content -Path $namingPath -Raw) -replace "`r`n", "`n"
@@ -175,8 +180,8 @@ Describe 'Live files' {
         Test-Json -Path $path -SchemaFile (Join-Path $schemaDir 'rulebook-twins.schema.json') | Should-BeTrue
     }
 
-    It 'template/ holds the 37 JSON files of the shipped content' -ForEach @(@{ Count = $templateCases.Count }) {
-        $Count | Should-Be 37
+    It 'template/ holds the JSON files of the shipped content (<Expected>)' -ForEach @(@{ Count = $templateCases.Count; Expected = $templateJsonCount }) {
+        $Count | Should-Be $Expected
     }
 
     It '<Name> matches the schema of its folder' -ForEach $templateCases {

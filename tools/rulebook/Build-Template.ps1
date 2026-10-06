@@ -23,14 +23,15 @@ Import-Module (Join-Path $PSScriptRoot '..' '..' 'modules' 'Rulebook.Template.ps
 $RulebookDir = (Resolve-Path -LiteralPath $RulebookDir).ProviderPath
 $TemplateDir = (Resolve-Path -LiteralPath $TemplateDir).ProviderPath
 
-# Module functions do not see this script's preference variables, so -WhatIf is passed on explicitly.
-$whatIf = [bool]$WhatIfPreference
+# Module functions do not see this script's preference variables, so -WhatIf and -Confirm are passed on explicitly.
+# A step that throws leaves the files of the earlier steps written; fix the input and run again.
+$common = @{ WhatIf = [bool]$WhatIfPreference; Confirm = ($ConfirmPreference -eq 'Low') }
 $changes = @(
-    Build-RulebookBase -RulebookDir $RulebookDir -OutputPath (Join-Path $TemplateDir 'base') -WhatIf:$whatIf
-    Build-RulebookStages -RulebookDir $RulebookDir -OutputPath (Join-Path $TemplateDir 'stages') -WhatIf:$whatIf
-    Build-RulebookCatalog -RulebookDir $RulebookDir -OutputPath (Join-Path $TemplateDir 'catalog' 'diagnostics.json') -WhatIf:$whatIf
-    New-RulebookSkeleton -SettingsPath (Join-Path $TemplateDir '.github' 'Rulebook-Settings.json') -OutputPath (Join-Path $TemplateDir 'skeletons') -WhatIf:$whatIf
-    Update-RulebookEndpoints -RepositoryRoot $TemplateDir -WhatIf:$whatIf
+    Build-RulebookBase -RulebookDir $RulebookDir -OutputPath (Join-Path $TemplateDir 'base') @common
+    Build-RulebookStages -RulebookDir $RulebookDir -OutputPath (Join-Path $TemplateDir 'stages') @common
+    Build-RulebookCatalog -RulebookDir $RulebookDir -OutputPath (Join-Path $TemplateDir 'catalog' 'diagnostics.json') @common
+    New-RulebookSkeleton -SettingsPath (Join-Path $TemplateDir '.github' 'Rulebook-Settings.json') -OutputPath (Join-Path $TemplateDir 'skeletons') @common
+    Update-RulebookEndpoints -RepositoryRoot $TemplateDir @common
 )
 
 if ($changes.Count -eq 0) {
