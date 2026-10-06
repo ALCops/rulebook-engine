@@ -127,8 +127,7 @@ if ($Phase -eq 'Stage') {
             $manifestParent = Split-Path -Parent $ManifestPath
             if (-not (Test-Path -LiteralPath $manifestParent)) { [void](New-Item -ItemType Directory -Path $manifestParent -Force) }
             [System.IO.File]::WriteAllText($ManifestPath, (ConvertTo-Json -InputObject $manifest -Depth 3), [System.Text.UTF8Encoding]::new($false))
-            $counts = $manifest | Group-Object Kind -NoElement | ForEach-Object { '{0} {1}' -f $_.Count, $_.Name }
-            Write-Host "Staged $($counts -join ', ') in $StagingPath"
+            Write-Host ('Staged {0} endpoints, {1} skeletons and index.html in {2}' -f @($manifest | Where-Object Kind -CEQ 'endpoint').Count, @($manifest | Where-Object Kind -CEQ 'skeleton').Count, $StagingPath)
         }
     } catch {
         Add-Annotation -Message $_.Exception.Message
