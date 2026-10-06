@@ -484,7 +484,7 @@ function New-RulebookSkeleton {
     $files = Get-OrdinalMap
     foreach ($level in $levels) {
         foreach ($stage in $stages) {
-            $endpoint = if ($stage.Slug -ceq 'default') { "$($level.Slug).ruleset.json" } else { "$($level.Slug).$($stage.Slug).ruleset.json" }
+            $endpoint = Get-EndpointFileName -Level $level.Slug -Stage $stage.Slug
             $files["$($level.Slug).$($stage.Slug).ruleset.json"] = ConvertTo-SkeletonJson -Name "Rulebook $($level.Name) / $($stage.Name)" -EndpointFile $endpoint
         }
     }

@@ -15,6 +15,7 @@
         'Get-AnalyzerDefault'
         'Get-DiagnosticSortKey'
         'Get-EffectiveAction'
+        'Get-EndpointFileName'
         'Get-RulebookEndpoint'
         'Read-Catalog'
         'Read-Overrides'
