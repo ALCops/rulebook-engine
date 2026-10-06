@@ -128,6 +128,8 @@ A public scratch repository under a personal account, `Arthurvdv/rulebook-e2e-pu
 - `essential.default` skeleton: exit 0, no diagnostics (`essential` sets `AA0137`, `AA0215` and `AA0247` to `None`).
 - `strict.ci` skeleton after the override was published: `error AA0137`, exit 1, no `.app`. The organization's override reached the compiler through Pages.
 
+A last push to the scratch repository (a workflow file only) re-published unchanged content: [37453345103](https://github.com/Arthurvdv/rulebook-e2e-publish/actions/runs/37453345103), 16 of 16 URLs after 1.6 s. The same push added a copy of the engine's `publish-action` CI job (checking out the engine at `wp05/publish`), since the engine's CI does not run on a branch push: [37453358932](https://github.com/Arthurvdv/rulebook-e2e-publish/actions/runs/37453358932) staged 12 endpoints, 12 skeletons and `index.html`, uploaded the 25 files as an artifact, and the step without `baseUrl` failed as required with the proposal `https://arthurvdv.github.io/rulebook-e2e-publish`.
+
 The number of fetches per compile was not measured here (no `strace` on Windows); [spike (a)](spikes/a-hosts-and-skeleton-include.md) measured one request per compile on `github.io`. The failure path of the check (a missing or different URL) is covered by the Pester tests, not by the live run.
 
 ## 7. Backlog targets
