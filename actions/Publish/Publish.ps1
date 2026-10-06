@@ -5,9 +5,10 @@ Entry script of the Publish action: stage the published files (-Phase Stage) or 
 .DESCRIPTION
 -Phase Stage reads the settings, resolves the target (only 'pages' is implemented) and the base URL, prints a notice
 when site.enabled is set (the dashboard arrives with WP14), runs the GitHub Pages preflight when -Deploy is set,
-stages the endpoints, the rendered skeletons and index.html into -StagingPath (New-RulebookPublishStage, which
-refuses stale endpoints: Publish is a gate and never commits, D42), writes the manifest to -ManifestPath, the URL
-list to the job summary and the outputs stagingPath, manifestPath and pageUrl to GITHUB_OUTPUT.
+stages the endpoints, the rendered skeletons, rulebook.json (with -Repository) and index.html into -StagingPath
+(New-RulebookPublishStage, which refuses stale endpoints: Publish is a gate and never commits, D42), writes the
+manifest to -ManifestPath, the URL list to the job summary and the outputs stagingPath, manifestPath and pageUrl to
+GITHUB_OUTPUT.
 
 -Phase Check reads -ManifestPath and runs Test-RulebookEndpoints: one error annotation per URL that is missing or
 differs after -WindowSeconds, and the result table in the job summary.
@@ -138,7 +139,7 @@ if ($Phase -eq 'Stage') {
         }
         if (-not $failed) {
             try {
-                $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath -Inputs $inputs)
+                $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath -Inputs $inputs -Repository $Repository)
             } catch {
                 Add-Failure 'stage'
                 throw
@@ -146,7 +147,7 @@ if ($Phase -eq 'Stage') {
             $manifestParent = Split-Path -Parent $ManifestPath
             if (-not (Test-Path -LiteralPath $manifestParent)) { [void](New-Item -ItemType Directory -Path $manifestParent -Force) }
             [System.IO.File]::WriteAllText($ManifestPath, (ConvertTo-Json -InputObject $manifest -Depth 3), [System.Text.UTF8Encoding]::new($false))
-            Write-Host ('Staged {0} endpoints, {1} skeletons and index.html in {2}' -f @($manifest | Where-Object Kind -CEQ 'endpoint').Count, @($manifest | Where-Object Kind -CEQ 'skeleton').Count, $StagingPath)
+            Write-Host ('Staged {0} endpoints, {1} skeletons, rulebook.json and index.html in {2}' -f @($manifest | Where-Object Kind -CEQ 'endpoint').Count, @($manifest | Where-Object Kind -CEQ 'skeleton').Count, $StagingPath)
         }
     } catch {
         Add-Annotation -Message $_.Exception.Message
@@ -192,9 +193,9 @@ $failed = $false
 try {
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Manifest not found: $ManifestPath (run -Phase Stage first)" }
     $manifest = @(Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json)
-    Write-Host "Checking $(@($manifest | Where-Object Kind -CIn 'endpoint', 'skeleton', 'index').Count) URLs for up to $WindowSeconds s"
+    Write-Host "Checking $(@($manifest | Where-Object Kind -CIn 'endpoint', 'skeleton', 'manifest', 'index').Count) URLs for up to $WindowSeconds s"
     $results = @(Test-RulebookEndpoints -Manifest $manifest -TimeoutSeconds $TimeoutSeconds -WindowSeconds $WindowSeconds -IntervalSeconds $IntervalSeconds)
-    if ($results.Count -eq 0) { throw "No URL was checked: the manifest $ManifestPath lists no endpoint, skeleton or index." }
+    if ($results.Count -eq 0) { throw "No URL was checked: the manifest $ManifestPath lists no endpoint, skeleton, manifest or index." }
     foreach ($result in $results | Where-Object Reason -CNE 'ok') {
         $reason = switch ($result.Reason) {
             'missing' { 'is missing (HTTP 404)' }

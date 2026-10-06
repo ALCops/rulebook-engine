@@ -1,7 +1,7 @@
 #requires -Version 7.4
 # Rulebook.Publish: stages what an organization publishes (the levels x stages endpoints of rulesets/, the skeletons
-# with {BASEURL} rendered, a plain index.html), explains a missing or misconfigured GitHub Pages site, and checks
-# after the deploy that every published URL serves the staged bytes. Publish is a gate and never commits (D42): the
+# with {BASEURL} rendered, the rulebook.json manifest, a plain index.html), explains a missing or misconfigured GitHub
+# Pages site, and checks after the deploy that every published URL serves the staged bytes. Publish is a gate and never commits (D42): the
 # staging refuses endpoints that differ from what Rulebook.Generate produces.
 # Contract: docs/ARCHITECTURE.md sections 7.2 and 9. Setup per target: docs/reference/publish-targets.md.
 
@@ -16,6 +16,10 @@ $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 # of baseUrl says the same.
 $script:BaseUrlPattern = '^https://[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*(:[0-9]{1,5})?(/(?!\.\.?(/|\z))[^\s/?#"\\\u0000-\u001F]+)*\z'
 $script:Placeholder = '{BASEURL}'
+# The init script the index page tells AL projects to download: main until WP13 switches the URL to the v1 release
+# branch (https://github.com/ALCops/rulebook-engine/issues/15).
+$script:SkeletonScriptUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1'
+$script:AlProjectDocsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/al-project.md'
 # The targets of the settings schema that WP05 does not implement, with their backlog issues.
 $script:PendingTargets = [ordered]@{
     'dist-repo'  = 'https://github.com/ALCops/rulebook-engine/issues/55'
@@ -156,8 +160,11 @@ function ConvertTo-RulebookIndexHtml {
     The static index.html of the published site: one table per stage, one row per level, in settings order.
     .DESCRIPTION
     Each row has the level's display name, the endpoint URL as a link (each endpoint URL appears exactly once as
-    link text), the number of ids the endpoint lists and the skeleton download link. All text is HTML-encoded. No
-    JavaScript. -Endpoints are Rulebook.Endpoint objects (Get-RulebookEndpoint) for every level x stage.
+    link text), the number of ids the endpoint lists and the skeleton download link. Before the tables, the section
+    "Set up an AL project" (id al-project) shows the two commands of the init script scripts/Get-RulebookSkeletons.ps1
+    with the first level as the example, the al.ruleSetPath and AL-Go rulesetFile lines, and links docs/al-project.md
+    and rulebook.json. All text is HTML-encoded. No JavaScript. -Endpoints are Rulebook.Endpoint objects
+    (Get-RulebookEndpoint) for every level x stage.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -189,6 +196,16 @@ function ConvertTo-RulebookIndexHtml {
         $lines.Add('<dd>' + (ConvertTo-HtmlText $level.Description) + '</dd>')
     }
     $lines.Add('</dl>')
+    # The init script in two commands rather than a download-and-execute one-liner: the file can be read before it
+    # runs, and its #requires line is honoured. The first level is only the example.
+    $levelSlugs = @($Inputs.Levels | ForEach-Object Slug)
+    $exampleLevel = if ($levelSlugs.Count -gt 0) { $levelSlugs[0] } else { '<level>' }
+    $manifestUrl = ConvertTo-HtmlText "$BaseUrl/rulebook.json"
+    $lines.Add('<h2 id="al-project">Set up an AL project</h2>')
+    $lines.Add('<p>An AL project keeps one file per stage in <code>.rulebook/</code>: the skeleton of its level, which includes the endpoint, with the project exceptions in its <code>rules</code>. The init script downloads the files of a level, for example:</p>')
+    $lines.Add('<pre><code>Invoke-WebRequest ' + (ConvertTo-HtmlText $script:SkeletonScriptUrl) + ' -OutFile Get-RulebookSkeletons.ps1')
+    $lines.Add('./Get-RulebookSkeletons.ps1 -BaseUrl ' + (ConvertTo-HtmlText $BaseUrl) + ' -Level ' + (ConvertTo-HtmlText $exampleLevel) + '</code></pre>')
+    $lines.Add('<p>Then point VS Code at the default stage with <code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code> and AL-Go at the CI stage with <code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>. Details: <a href="' + (ConvertTo-HtmlText $script:AlProjectDocsUrl) + '">docs/al-project.md</a>. The levels and stages of this site, machine-readable: <a href="' + $manifestUrl + '"><code>' + $manifestUrl + '</code></a>.</p>')
     foreach ($stage in $Inputs.Stages) {
         $lines.Add('<h2 id="stage-' + (ConvertTo-HtmlText $stage.Slug) + '">Stage ' + (ConvertTo-HtmlText $stage.Name) + '</h2>')
         if (-not [string]::IsNullOrEmpty($stage.Description)) { $lines.Add('<p>' + (ConvertTo-HtmlText $stage.Description) + '</p>') }
@@ -216,19 +233,66 @@ function ConvertTo-RulebookIndexHtml {
     return ($lines -join "`n") + "`n"
 }
 
+function ConvertTo-RulebookManifestJson {
+    <#
+    .SYNOPSIS
+    The text of rulebook.json: the published levels and stages, machine-readable (D43).
+    .DESCRIPTION
+    The minimal form of the dashboard data contract (docs/dashboard.md section 5): generatedAt (UTC,
+    yyyy-MM-ddTHH:mm:ssZ), repository (only when -Repository is set), baseUrl, levels (name, slug, basedOn as a slug
+    when set, description when set) and stages (name, slug, description when set), in settings order. WP14 adds
+    fields to the same file; a reader ignores keys it does not know. Hand-rolled like the ruleset writers: two-space
+    indent, one level or stage per line, LF, one trailing LF, no BOM. -Inputs is a Read-RulebookInputs result.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)]$Inputs,
+        [Parameter(Mandatory)][string]$BaseUrl,
+        [AllowNull()][AllowEmptyString()][string]$Repository,
+        [datetime]$GeneratedAt = [datetime]::UtcNow
+    )
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add('{')
+    $lines.Add('  "generatedAt": ' + (ConvertTo-JsonString $GeneratedAt.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ', [System.Globalization.CultureInfo]::InvariantCulture)) + ',')
+    if (-not [string]::IsNullOrEmpty($Repository)) { $lines.Add('  "repository": ' + (ConvertTo-JsonString $Repository) + ',') }
+    $lines.Add('  "baseUrl": ' + (ConvertTo-JsonString $BaseUrl) + ',')
+    foreach ($key in 'levels', 'stages') {
+        $items = @(if ($key -ceq 'levels') { $Inputs.Levels } else { $Inputs.Stages })
+        $last = $key -ceq 'stages'
+        if ($items.Count -eq 0) { $lines.Add('  "' + $key + '": []' + $(if ($last) { '' } else { ',' })); continue }
+        $lines.Add('  "' + $key + '": [')
+        for ($i = 0; $i -lt $items.Count; $i++) {
+            $item = $items[$i]
+            $line = '    { "name": ' + (ConvertTo-JsonString ([string]$item.Name)) + ', "slug": ' + (ConvertTo-JsonString ([string]$item.Slug))
+            $basedOn = if ($null -ne $item.PSObject.Properties['BasedOn']) { [string]$item.BasedOn } else { '' }
+            if (-not [string]::IsNullOrEmpty($basedOn)) { $line += ', "basedOn": ' + (ConvertTo-JsonString $basedOn) }
+            if (-not [string]::IsNullOrEmpty([string]$item.Description)) { $line += ', "description": ' + (ConvertTo-JsonString ([string]$item.Description)) }
+            $line += ' }'
+            if ($i -lt $items.Count - 1) { $line += ',' }
+            $lines.Add($line)
+        }
+        $lines.Add($(if ($last) { '  ]' } else { '  ],' }))
+    }
+    $lines.Add('}')
+    return ($lines -join "`n") + "`n"
+}
+
 function New-RulebookPublishStage {
     <#
     .SYNOPSIS
-    Writes the folder Publish deploys: the levels x stages endpoints, the rendered skeletons and index.html.
+    Writes the folder Publish deploys: the levels x stages endpoints, the rendered skeletons, rulebook.json and index.html.
     .DESCRIPTION
     Clears and creates -OutputPath. Copies exactly the expected rulesets/<endpoint> files (never a folder glob, so
     a stray or removed file is not published) after checking that each equals what Update-RulebookEndpoints would
     write (Publish is a gate, D42); a missing or stale endpoint throws with the fix. Writes
     skeletons/<level>.<stage>.ruleset.json with {BASEURL} replaced by -BaseUrl (ordinal; the repository copy is
     untouched; a missing skeleton or one without the placeholder throws, and each rendered skeleton must parse as
-    JSON) and index.html. Returns one manifest entry per file in settings order: Path (relative, '/'), Url, Kind
-    (endpoint, skeleton, index) and StagedFile (full path). -Inputs reuses a Read-RulebookInputs result of the
-    same repository. -OutputPath must not be the repository, a folder that contains it, or a drive root.
+    JSON), rulebook.json (ConvertTo-RulebookManifestJson with -Repository, D43) and index.html. Nothing else in
+    skeletons/ is staged, so skeletons/README.md is not published. Returns one manifest entry per file, endpoints
+    and skeletons in settings order, then rulebook.json and index.html: Path (relative, '/'), Url, Kind (endpoint,
+    skeleton, manifest, index) and StagedFile (full path). -Inputs reuses a Read-RulebookInputs result of the same
+    repository. -OutputPath must not be the repository, a folder that contains it, or a drive root.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Writes only the staging folder the caller names; -WhatIf would stage nothing to check')]
     [CmdletBinding()]
@@ -237,7 +301,8 @@ function New-RulebookPublishStage {
         [Parameter(Mandatory)][string]$RepositoryRoot,
         [Parameter(Mandatory)][string]$BaseUrl,
         [Parameter(Mandatory)][string]$OutputPath,
-        [AllowNull()]$Inputs
+        [AllowNull()]$Inputs,
+        [AllowNull()][AllowEmptyString()][string]$Repository
     )
     if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL with a host name, without quotes, backslashes, a query, a fragment, dot segments or a trailing slash: '$BaseUrl'" }
     $inputs = if ($null -ne $Inputs) { $Inputs } else { Read-RulebookInputs -RepositoryRoot $RepositoryRoot }
@@ -310,6 +375,9 @@ function New-RulebookPublishStage {
         Write-StagedFile -Path $staged -Bytes ($script:Utf8NoBom.GetBytes($rendered))
         $manifest.Add([pscustomobject]@{ Path = $path; Url = "$BaseUrl/$path"; Kind = 'skeleton'; StagedFile = $staged })
     }
+    $rulebookJson = Join-Path $output 'rulebook.json'
+    Write-StagedFile -Path $rulebookJson -Bytes ($script:Utf8NoBom.GetBytes((ConvertTo-RulebookManifestJson -Inputs $inputs -BaseUrl $BaseUrl -Repository $Repository)))
+    $manifest.Add([pscustomobject]@{ Path = 'rulebook.json'; Url = "$BaseUrl/rulebook.json"; Kind = 'manifest'; StagedFile = $rulebookJson })
     $index = Join-Path $output 'index.html'
     Write-StagedFile -Path $index -Bytes ($script:Utf8NoBom.GetBytes((ConvertTo-RulebookIndexHtml -Inputs $inputs -BaseUrl $BaseUrl -Endpoints $endpoints.ToArray())))
     $manifest.Add([pscustomobject]@{ Path = 'index.html'; Url = "$BaseUrl/"; Kind = 'index'; StagedFile = $index })
@@ -381,7 +449,7 @@ function Get-PagesPreflightResult {
 function Test-RulebookEndpoints {
     <#
     .SYNOPSIS
-    GETs every URL of a staging manifest (endpoints, skeletons, index.html) until each serves the staged bytes or the window ends.
+    GETs every URL of a staging manifest (endpoints, skeletons, rulebook.json, index.html) until each serves the staged bytes or the window ends.
     .DESCRIPTION
     The first pass requests every URL with -TimeoutSeconds per request (the compiler uses 15 s). A URL passes on
     HTTP 200 with a body equal to the staged file (both UTF-8 decoded, compared ordinally). Pending URLs are
@@ -405,7 +473,7 @@ function Test-RulebookEndpoints {
     )
     $results = [System.Collections.Generic.List[object]]::new()
     foreach ($entry in $Manifest) {
-        if ($entry.Kind -cnotin 'endpoint', 'skeleton', 'index') { continue }
+        if ($entry.Kind -cnotin 'endpoint', 'skeleton', 'manifest', 'index') { continue }
         $item = [pscustomobject]@{
             Path = $entry.Path; Url = $entry.Url; Kind = $entry.Kind; Status = 0; Reason = 'pending'; Attempts = 0; Seconds = 0.0; Detail = $null
             Expected = $null
@@ -500,6 +568,7 @@ function Invoke-PagesPreflight {
 
 Export-ModuleMember -Function @(
     'ConvertTo-RulebookIndexHtml'
+    'ConvertTo-RulebookManifestJson'
     'Get-PagesPreflightResult'
     'Invoke-PagesPreflight'
     'New-RulebookPublishStage'
