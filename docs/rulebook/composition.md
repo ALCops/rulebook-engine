@@ -46,7 +46,9 @@ Let `cell(id, level, stage)` be the resolved action from `matrix/resolved.json` 
 
 **Level files:** `base/essential.ruleset.json` has one entry per id where `cell(id, essential, default) != default(id)`, in inventory order, with that action and the matrix `Justification`. `base/<level>.ruleset.json` for every other shipped level has one entry per id where `cell(id, level, default) != cell(id, basedOn(level), default)`. The file-level `description` names the `basedOn` level.
 
-**Stage files:** `stages/<stage>.json` has one entry per id whose stage column is not `=`, with that action and the justification of the stage rule. There is no file for `default`.
+**Stage files:** `stages/<stage>.json` has one entry per id whose stage column is not `=`, with that action and the matrix `Justification` of the row, verbatim (the same text as the level entry of that id). There is no file for `default`.
+
+`modules/Rulebook.Template` implements these two derivations for the template (`Build-RulebookBase`, `Build-RulebookStages`, run by `tools/rulebook/Build-Template.ps1`); [../reference/template-content.md](../reference/template-content.md) describes the generated `template/` file by file.
 
 **Level chain** for an id and a level: walk `basedOn` from the root to the level; the last file on the path that mentions the id gives `chain(id, level)`. If no file mentions it, the chain is undefined. `basedOn` may name any level file in `base/`, listed in the settings or not; cycles are a validation error. A level file may set any id higher or lower than its `basedOn` level; nothing compares the two.
 
@@ -87,7 +89,7 @@ Quarantine entries carry `id` and an optional `justification` only; the action i
 | File | Entry |
 |---|---|
 | `base/<level>.ruleset.json` | `{ "id": "AL0200", "action": "Warning", "justification": "Compiler warning at author severity from Recommended; D-01" }` |
-| `stages/<stage>.json` | `{ "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI; S-2" }` |
+| `stages/<stage>.json` | `{ "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" }` (the matrix row justification) |
 | `rulesets/` | `{ "id": "AL0432", "action": "Info" }` |
 | `base/twins.json` | `{ "pte": "PTE0011", "appsource": "AS0048", "title": "The publisher name is too long" }` inside `pairs` |
 | `overrides.json` | `{ "id": "AL0432", "action": "None", "levels": ["*"], "stages": ["ci"], "justification": "Obsoletion backlog tracked in DEV-1234" }` |
@@ -104,6 +106,7 @@ Quarantine entries carry `id` and an optional `justification` only; the action i
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
   "name": "Rulebook Recommended",
   "description": "Level recommended, basedOn essential. Lists the ids whose action differs from essential. Generated from docs/rulebook; do not edit.",
   "rules": [
@@ -121,11 +124,12 @@ AS0001 and PTE0001 are absent from this file because Recommended does not change
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
   "name": "Rulebook stage CI",
   "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",
   "rules": [
-    { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI; S-2" },
-    { "id": "AL0603", "action": "Info", "justification": "Implicit conversion is advisory in CI; S-2" }
+    { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
+    { "id": "AL0603", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" }
   ]
 }
 ```

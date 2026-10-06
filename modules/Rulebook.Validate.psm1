@@ -619,7 +619,7 @@ function Invoke-RulebookChecks {
     # The C11 file set: any file in rulesets/ or skeletons/ whose name is not an expected endpoint or skeleton name,
     # and any expected name that is missing. While C12 runs, a missing or stray *.ruleset.json in rulesets/ is left
     # to C12 ('would be created' or 'would be deleted'): one finding per cause. skeletons/ is checked only when it
-    # exists, until WP06 generates the skeletons (assumption 9).
+    # exists; the template ships them since WP04 (assumption 9 of WP03).
     if ($Settings.Valid) {
         $c12Runs = $Context.Blocking.Count -eq 0
         foreach ($folder in @(@{ Name = 'rulesets'; Skeleton = $false }, @{ Name = 'skeletons'; Skeleton = $true })) {

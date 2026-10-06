@@ -70,7 +70,7 @@ The `default` stage has no file and no suffix in `rulesets/`; that is the only p
 <baseUrl>/rulesets/<level>.<stage>.ruleset.json    every other stage
 ```
 
-- `baseUrl` is `https://` and never ends with a slash (settings schema and C5). It is rendered into skeletons and docs, never into `rulesets/`.
+- `baseUrl` is `https://` and never ends with a slash (settings schema and C5), or empty until the organization sets it: the template ships `""` and Publish fails until it is set. It is rendered into skeletons and docs, never into `rulesets/`.
 - The URL is unversioned (D8). A future version prefix would go between `baseUrl` and `rulesets/`, so nothing else is ever placed at that position.
 - There is no segment for the kind of extension (D21).
 - Hosts: the compiler fetches through Microsoft's anti-SSRF policy. `*.github.io` (the `pages` target) and `raw.githubusercontent.com` (the `dist-repo` target) pass with `/enableexternalrulesets`, with one request per compile and no redirect ([spike a](spikes/a-hosts-and-skeleton-include.md)). Custom domains, Azure static websites and gist raw URLs are not tested.
@@ -129,7 +129,8 @@ Every rule is `{ id, action }` plus the optional `justification` where allowed, 
 
 - The settings file carries the settings schema URL; the update workflow refreshes it.
 - The shipped `base/*.ruleset.json` and `stages/*.json` carry the delta profile URL, so an editor validates a hand-edited level or stage file.
-- The shipped `base/twins.json` carries the twins schema URL; the WP04 template generator writes it. The engine's `docs/rulebook/matrix/twins.json`, written by `tools/rulebook/Build-Matrix.ps1`, carries none: it is a build input of the engine, never edited in an organization repository, and the tests validate it against the local schema file ([#43](https://github.com/ALCops/rulebook-engine/issues/43)).
+- The shipped `base/twins.json` carries the twins schema URL; the WP04 template generator (`Build-RulebookBase`) writes it. The engine's `docs/rulebook/matrix/twins.json`, written by `tools/rulebook/Build-Matrix.ps1`, carries none: it is a build input of the engine, never edited in an organization repository, and the tests validate it against the local schema file ([#43](https://github.com/ALCops/rulebook-engine/issues/43)).
+- The shipped seed `catalog/diagnostics.json` carries the catalog schema URL; the shipped `overrides.json` and `quarantine.<stage>.json` carry the overrides and quarantine schema URLs, with an empty `rules` array.
 - Every schema allows an optional `$schema` string, the endpoint and skeleton profiles included, but the generator never writes one into an endpoint or a skeleton: the compiler fetches those files and they stay minimal.
 
 No schema file has an `$id`. `Test-Json -SchemaFile` (pwsh 7.6) resolves a relative `$ref` to a sibling file, such as the profile files' `"$ref": "ruleset.schema.json#/$defs/delta"`, only when the schema has no absolute `$id`; with an `https://` `$id` it fails to parse the schema. Each schema says so in its `$comment`. Every pattern ends with `(?![\s\S])` instead of `$`, because in .NET (`Test-Json`) `$` also matches before a trailing newline, while `\z` would be a literal `z` in the ECMA-262 regexes editors use; the lookahead means end of string in both. The input schemas are self-contained and repeat the shared definitions (`diagnosticId`, `ruleAction`, `slug`); the test suite checks they stay identical.

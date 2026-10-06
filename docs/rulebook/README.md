@@ -17,7 +17,7 @@ An agent that generates the `.ruleset.json` files of the Rulebook template reads
 1. Read [00-conventions.md](00-conventions.md) for the enumerations, the table schemas, the resolution recipe and the sparse rule.
 2. Read [01-levels.md](01-levels.md) for what each level and stage means, why there is no target, and the invariants.
 3. Parse `inventory/<PREFIX>.md` (what exists, including each id's default severity and enablement) and `matrix/<PREFIX>.md` (what to do with it). `matrix/resolved.json` already holds every resolved cell, keyed `<id>` then `<level>.<stage>` (`recommended.ci`), if you prefer JSON to Markdown. `matrix/twins.json` lists the twin pairs the `twins` setting acts on; `matrix/levels.json` and `matrix/stages.json` give the shipped ladder and stages in order.
-4. Produce the files that [composition.md](composition.md) specifies, using its queries and entry format. The `Justification` column becomes the `justification` property of the level and stage files; endpoints list only the ids whose action differs from the analyzer default.
+4. Produce the files that [composition.md](composition.md) specifies, using its queries and entry format. The `Justification` column becomes the `justification` property of the level and stage files; endpoints list only the ids whose action differs from the analyzer default. In the engine, `modules/Rulebook.Template` does this for `template/`, run by `tools/rulebook/Build-Template.ps1` ([../reference/template-content.md](../reference/template-content.md)).
 5. Run the checks in [verification.md](verification.md); V13 states that the delta files must compose back to every resolved cell and that every endpoint lists exactly the deviations from the defaults.
 
 Everything outside a table is written for humans; only the tables and the JSON files are contracts.
@@ -81,6 +81,7 @@ Reading the table: at Essential the ladder blocks CI on 243 diagnostics (119 Err
 pwsh tools/rulebook/Extract-Inventory.ps1   # from ../nav-sdk-source and ../Analyzers
 pwsh tools/rulebook/Build-Matrix.ps1
 pwsh tools/rulebook/Test-Rulebook.ps1
+pwsh tools/rulebook/Build-Template.ps1      # regenerates template/; commit it with docs/rulebook
 ```
 
 See [versions.md](versions.md) for the full refresh procedure when a new analyzer version ships.
