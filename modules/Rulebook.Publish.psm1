@@ -462,8 +462,14 @@ function Invoke-PagesPreflight {
     $status = [int]$response.StatusCode
     $remaining = $null
     $responseHeaders = $response.PSObject.Properties['Headers']
-    if ($null -ne $responseHeaders -and $responseHeaders.Value -is [System.Collections.IDictionary] -and $responseHeaders.Value.Contains('X-RateLimit-Remaining')) {
-        $remaining = [string](@($responseHeaders.Value['X-RateLimit-Remaining'])[0])
+    # Invoke-WebRequest returns a Dictionary[string, IEnumerable[string]], which has no one-argument Contains; match
+    # the key case-insensitively by enumerating.
+    if ($null -ne $responseHeaders -and $responseHeaders.Value -is [System.Collections.IDictionary]) {
+        foreach ($key in @($responseHeaders.Value.Keys)) {
+            if ([string]::Equals([string]$key, 'X-RateLimit-Remaining', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $remaining = [string](@($responseHeaders.Value[$key])[0])
+            }
+        }
     }
     $result = Get-PagesPreflightResult -StatusCode $status -Body (Get-ResponseText $response) -BaseUrl $BaseUrl -Repository $Repository -RateLimitRemaining $remaining
     $result | Add-Member -NotePropertyName StatusCode -NotePropertyValue $status -PassThru

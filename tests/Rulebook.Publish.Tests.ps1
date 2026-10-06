@@ -456,7 +456,12 @@ Describe 'Test-RulebookEndpoints' {
 
 Describe 'Invoke-PagesPreflight rate limit' {
     It 'reads X-RateLimit-Remaining 0 on a 403 as the rate limit' {
-        Mock Invoke-WebRequest -ModuleName Rulebook.Publish { [pscustomobject]@{ StatusCode = 403; Content = '{"message":"Forbidden"}'; Headers = @{ 'X-RateLimit-Remaining' = [string[]]@('0') } } }
+        # The header type of Invoke-WebRequest: a generic dictionary without a one-argument Contains.
+        Mock Invoke-WebRequest -ModuleName Rulebook.Publish {
+            $headers = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.IEnumerable[string]]]::new()
+            $headers['x-ratelimit-remaining'] = [string[]]@('0')
+            [pscustomobject]@{ StatusCode = 403; Content = '{"message":"Forbidden"}'; Headers = $headers }
+        }
         $result = Invoke-PagesPreflight -Repository 'Contoso/Rulebook' -BaseUrl $baseUrl
         $result.Ok | Should-BeFalse
         $result.Message | Should-BeLikeString '*rate limit is exhausted*'
@@ -465,7 +470,11 @@ Describe 'Invoke-PagesPreflight rate limit' {
 
 Describe 'Invoke-PagesPreflight' {
     It 'calls GET /repos/{owner}/{repo}/pages with the token and maps the answer' {
-        Mock Invoke-WebRequest -ModuleName Rulebook.Publish { [pscustomobject]@{ StatusCode = 404; Content = [System.Text.Encoding]::UTF8.GetBytes('{"message":"Not Found","status":"404"}') } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.Publish {
+            $headers = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.IEnumerable[string]]]::new()
+            $headers['X-RateLimit-Remaining'] = [string[]]@('4999')
+            [pscustomobject]@{ StatusCode = 404; Content = [System.Text.Encoding]::UTF8.GetBytes('{"message":"Not Found","status":"404"}'); Headers = $headers }
+        }
         $result = Invoke-PagesPreflight -Repository 'Contoso/Rulebook' -ApiUrl 'https://api.example.com/' -Token 'secret' -BaseUrl $baseUrl
         $result.Ok | Should-BeFalse
         $result.StatusCode | Should-Be 404
