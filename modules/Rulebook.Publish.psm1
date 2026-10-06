@@ -10,10 +10,11 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 
 $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-# https, a host, path segments without '.' or '..', no query, fragment, whitespace, control character, quote or
+# https, a DNS host name (letters, digits and hyphens per label, dots between) with an optional numeric port and no
+# user info, path segments without '.' or '..', no query, fragment, whitespace, control character, quote or
 # backslash (the value is written into the skeleton JSON as it is), no trailing slash. The settings schema pattern
 # of baseUrl says the same.
-$script:BaseUrlPattern = '^https://[^\s/?#"\\\u0000-\u001F]+(/(?!\.\.?(/|\z))[^\s/?#"\\\u0000-\u001F]+)*\z'
+$script:BaseUrlPattern = '^https://[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*(:[0-9]{1,5})?(/(?!\.\.?(/|\z))[^\s/?#"\\\u0000-\u001F]+)*\z'
 $script:Placeholder = '{BASEURL}'
 # The targets of the settings schema that WP05 does not implement, with their backlog issues.
 $script:PendingTargets = [ordered]@{
@@ -69,6 +70,19 @@ function Get-ResponseText {
     if ($null -eq $content) { return '' }
     if ($content -is [byte[]]) { return $script:Utf8NoBom.GetString($content) }
     return [string]$content
+}
+
+function Get-ResponseHeader {
+    # The first value of a response header, matched case-insensitively; $null when absent. Invoke-WebRequest returns
+    # a Dictionary[string, IEnumerable[string]], which has no one-argument Contains, so the keys are enumerated.
+    param($Response, [Parameter(Mandatory)][string]$Name)
+    if ($null -eq $Response) { return $null }
+    $property = $Response.PSObject.Properties['Headers']
+    if ($null -eq $property -or $property.Value -isnot [System.Collections.IDictionary]) { return $null }
+    foreach ($key in @($property.Value.Keys)) {
+        if ([string]::Equals([string]$key, $Name, [System.StringComparison]::OrdinalIgnoreCase)) { return [string](@($property.Value[$key])[0]) }
+    }
+    return $null
 }
 
 function Test-TimeoutError {
@@ -128,7 +142,7 @@ function Resolve-RulebookBaseUrl {
         throw "baseUrl is empty. Set `"baseUrl`": `"$proposal`" in $($script:SettingsPath) (the GitHub Pages address of this repository; use your custom domain instead if the Pages site has one), commit it in a pull request and run Publish again."
     }
     if ($value.EndsWith('/')) { throw "$where ends with a slash: '$value'. Remove the trailing slash." }
-    if ($value -cnotmatch $script:BaseUrlPattern) { throw "$where must be an https URL without spaces, quotes, backslashes, a query (?), a fragment (#), '.' or '..' segments or a trailing slash: '$value'." }
+    if ($value -cnotmatch $script:BaseUrlPattern) { throw "$where must be an https URL with a host name (no user info), without spaces, quotes, backslashes, a query (?), a fragment (#), '.' or '..' segments or a trailing slash: '$value'." }
     return $value
 }
 
@@ -150,7 +164,6 @@ function ConvertTo-RulebookIndexHtml {
     param([Parameter(Mandatory)]$Inputs, [Parameter(Mandatory)][string]$BaseUrl, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Endpoints)
     $byKey = @{}
     foreach ($endpoint in $Endpoints) { $byKey[$endpoint.Key] = $endpoint }
-    $h = { param($Text) ConvertTo-HtmlText $Text }
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add('<!DOCTYPE html>')
     $lines.Add('<html lang="en">')
@@ -172,24 +185,28 @@ function ConvertTo-RulebookIndexHtml {
     $lines.Add('<h2>Levels</h2>')
     $lines.Add('<dl>')
     foreach ($level in $Inputs.Levels) {
-        $lines.Add('<dt>' + (& $h $level.Name) + '</dt>')
-        $lines.Add('<dd>' + (& $h $level.Description) + '</dd>')
+        $lines.Add('<dt>' + (ConvertTo-HtmlText $level.Name) + '</dt>')
+        $lines.Add('<dd>' + (ConvertTo-HtmlText $level.Description) + '</dd>')
     }
     $lines.Add('</dl>')
     foreach ($stage in $Inputs.Stages) {
-        $lines.Add('<h2 id="stage-' + (& $h $stage.Slug) + '">Stage ' + (& $h $stage.Name) + '</h2>')
-        if (-not [string]::IsNullOrEmpty($stage.Description)) { $lines.Add('<p>' + (& $h $stage.Description) + '</p>') }
+        $lines.Add('<h2 id="stage-' + (ConvertTo-HtmlText $stage.Slug) + '">Stage ' + (ConvertTo-HtmlText $stage.Name) + '</h2>')
+        if (-not [string]::IsNullOrEmpty($stage.Description)) { $lines.Add('<p>' + (ConvertTo-HtmlText $stage.Description) + '</p>') }
         $lines.Add('<table>')
         $lines.Add('<thead><tr><th>Level</th><th>Endpoint</th><th>Listed ids</th><th>Skeleton</th></tr></thead>')
         $lines.Add('<tbody>')
         foreach ($level in $Inputs.Levels) {
             $endpoint = $byKey["$($level.Slug).$($stage.Slug)"]
             if ($null -eq $endpoint) { throw "ConvertTo-RulebookIndexHtml: no endpoint for $($level.Slug).$($stage.Slug)" }
-            $url = "$BaseUrl/$($endpoint.File)"
-            $skeleton = "$($level.Slug).$($stage.Slug).ruleset.json"
-            $skeletonUrl = "$BaseUrl/skeletons/$skeleton"
-            $lines.Add(('<tr><td>{0}</td><td><a href="{1}"><code>{1}</code></a></td><td class="count">{2}</td><td><a href="{3}" download="{4}">{4}</a></td></tr>' -f
-                    (& $h $level.Name), (& $h $url), @($endpoint.Entries).Count, (& $h $skeletonUrl), (& $h $skeleton)))
+            $endpointUrl = ConvertTo-HtmlText "$BaseUrl/$($endpoint.File)"
+            $skeleton = Get-SkeletonFileName -Level $level.Slug -Stage $stage.Slug
+            $skeletonUrl = ConvertTo-HtmlText "$BaseUrl/skeletons/$skeleton"
+            $skeletonName = ConvertTo-HtmlText $skeleton
+            $row = '<tr><td>' + (ConvertTo-HtmlText $level.Name) + '</td>'
+            $row += '<td><a href="' + $endpointUrl + '"><code>' + $endpointUrl + '</code></a></td>'
+            $row += '<td class="count">' + @($endpoint.Entries).Count + '</td>'
+            $row += '<td><a href="' + $skeletonUrl + '" download="' + $skeletonName + '">' + $skeletonName + '</a></td></tr>'
+            $lines.Add($row)
         }
         $lines.Add('</tbody>')
         $lines.Add('</table>')
@@ -222,7 +239,7 @@ function New-RulebookPublishStage {
         [Parameter(Mandatory)][string]$OutputPath,
         [AllowNull()]$Inputs
     )
-    if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL without quotes, backslashes, a query, a fragment, dot segments or a trailing slash: '$BaseUrl'" }
+    if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL with a host name, without quotes, backslashes, a query, a fragment, dot segments or a trailing slash: '$BaseUrl'" }
     $inputs = if ($null -ne $Inputs) { $Inputs } else { Read-RulebookInputs -RepositoryRoot $RepositoryRoot }
     # The output folder is deleted and recreated: never the repository, a folder above it or a drive root.
     $separator = [System.IO.Path]::DirectorySeparatorChar
@@ -263,7 +280,7 @@ function New-RulebookPublishStage {
     $skeletonSources = [System.Collections.Generic.List[object]]::new()
     foreach ($level in $inputs.Levels) {
         foreach ($stage in $inputs.Stages) {
-            $leaf = "$($level.Slug).$($stage.Slug).ruleset.json"
+            $leaf = Get-SkeletonFileName -Level $level.Slug -Stage $stage.Slug
             $source = Join-Path $inputs.Root 'skeletons' $leaf
             if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
                 throw "skeletons/$leaf is missing. The skeletons come with the template (New-RulebookSkeleton); restore the file from the template or the git history."
@@ -276,8 +293,8 @@ function New-RulebookPublishStage {
         }
     }
 
-    if (Test-Path -LiteralPath $OutputPath) { Remove-Item -LiteralPath $OutputPath -Recurse -Force }
-    $output = [System.IO.Directory]::CreateDirectory($OutputPath).FullName
+    if (Test-Path -LiteralPath $outputFull) { Remove-Item -LiteralPath $outputFull -Recurse -Force }
+    $output = [System.IO.Directory]::CreateDirectory($outputFull).FullName
     $manifest = [System.Collections.Generic.List[object]]::new()
     foreach ($endpoint in $endpoints) {
         $staged = Join-Path $output $endpoint.File
@@ -372,7 +389,7 @@ function Test-RulebookEndpoints {
     request starts later than one -TimeoutSeconds after the window, so the run ends at most two request timeouts
     after it (GitHub Pages serves with max-age=600, hence 660 s).
     Requests are sequential so that Invoke-WebRequest and Start-Sleep can be mocked. Returns one result per URL:
-    Path, Url, Kind, Status (HTTP status or 0), Reason (ok, missing, different, timeout, error), Attempts, Seconds
+    Path, Url, Kind, Status (HTTP status or 0), Reason (ok, missing, different, redirect, timeout, error), Attempts, Seconds
     (elapsed when it passed or was last tried) and Detail (the exception message of a timeout or error). A staged
     file that cannot be read is an error with no request. Never throws; the caller decides the exit code.
     #>
@@ -416,9 +433,21 @@ function Test-RulebookEndpoints {
             $item.Attempts++
             $item.Detail = $null
             try {
-                $response = Invoke-WebRequest -Uri $item.Url -Method Get -TimeoutSec $TimeoutSeconds -SkipHttpErrorCheck -ErrorAction Stop
+                # The compiler does not follow redirects, so neither does the check. With -MaximumRedirection 0
+                # Invoke-WebRequest returns the 3xx response and also writes an error; -ErrorAction Stop would turn
+                # that into an exception, so the error is collected and rethrown only when there is no response.
+                $requestErrors = $null
+                $response = Invoke-WebRequest -Uri $item.Url -Method Get -TimeoutSec $TimeoutSeconds -MaximumRedirection 0 -SkipHttpErrorCheck -ErrorAction SilentlyContinue -ErrorVariable requestErrors
+                if ($null -eq $response) {
+                    if (@($requestErrors).Count -gt 0) { throw @($requestErrors)[0].Exception }
+                    throw 'Invoke-WebRequest returned no response'
+                }
                 $item.Status = [int]$response.StatusCode
-                if ($item.Status -eq 200) {
+                if ($item.Status -ge 300 -and $item.Status -lt 400) {
+                    $item.Reason = 'redirect'
+                    $location = Get-ResponseHeader $response 'Location'
+                    $item.Detail = if ($location) { "redirects to $location" } else { 'redirects' }
+                } elseif ($item.Status -eq 200) {
                     $item.Reason = if ([string]::Equals((Get-ResponseText $response), $item.Expected, [System.StringComparison]::Ordinal)) { 'ok' } else { 'different' }
                 } elseif ($item.Status -eq 404) {
                     $item.Reason = 'missing'
@@ -460,17 +489,7 @@ function Invoke-PagesPreflight {
     if (-not [string]::IsNullOrEmpty($Token)) { $headers.Authorization = "Bearer $Token" }
     $response = Invoke-WebRequest -Uri "$($ApiUrl.TrimEnd('/'))/repos/$Repository/pages" -Headers $headers -TimeoutSec 30 -SkipHttpErrorCheck -ErrorAction Stop
     $status = [int]$response.StatusCode
-    $remaining = $null
-    $responseHeaders = $response.PSObject.Properties['Headers']
-    # Invoke-WebRequest returns a Dictionary[string, IEnumerable[string]], which has no one-argument Contains; match
-    # the key case-insensitively by enumerating.
-    if ($null -ne $responseHeaders -and $responseHeaders.Value -is [System.Collections.IDictionary]) {
-        foreach ($key in @($responseHeaders.Value.Keys)) {
-            if ([string]::Equals([string]$key, 'X-RateLimit-Remaining', [System.StringComparison]::OrdinalIgnoreCase)) {
-                $remaining = [string](@($responseHeaders.Value[$key])[0])
-            }
-        }
-    }
+    $remaining = Get-ResponseHeader $response 'X-RateLimit-Remaining'
     $result = Get-PagesPreflightResult -StatusCode $status -Body (Get-ResponseText $response) -BaseUrl $BaseUrl -Repository $Repository -RateLimitRemaining $remaining
     $result | Add-Member -NotePropertyName StatusCode -NotePropertyValue $status -PassThru
 }

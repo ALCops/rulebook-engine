@@ -82,6 +82,13 @@ $StagingPath = & $resolvePath $StagingPath
 $ManifestPath = & $resolvePath $ManifestPath
 $script:annotations = [System.Collections.Generic.List[string]]::new()
 $script:errorMessages = [System.Collections.Generic.List[string]]::new()
+# The first reason the run failed, written as the output 'failure': target, baseUrl-empty, baseUrl-invalid,
+# preflight, stage or check (anything else is error).
+$script:failure = $null
+function Add-Failure {
+    param([Parameter(Mandatory)][string]$Kind)
+    if ($null -eq $script:failure) { $script:failure = $Kind }
+}
 $summary = [System.Text.StringBuilder]::new()
 
 if ($Phase -eq 'Stage') {
@@ -104,12 +111,15 @@ if ($Phase -eq 'Stage') {
             $resolvedTarget = Resolve-RulebookPublishTarget -Settings $settings -Override $Target
         } catch {
             Add-Annotation -File $(if ([string]::IsNullOrWhiteSpace($Target)) { $settingsFile }) -Message $_.Exception.Message
+            Add-Failure 'target'
             $failed = $true
         }
         try {
             $resolvedBaseUrl = Resolve-RulebookBaseUrl -Settings $settings -Repository $Repository -Override $BaseUrl
         } catch {
             Add-Annotation -File $(if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $settingsFile }) -Message $_.Exception.Message
+            $empty = [string]::IsNullOrWhiteSpace($BaseUrl) -and [string]::IsNullOrEmpty([string]$settings['baseUrl'])
+            Add-Failure $(if ($empty) { 'baseUrl-empty' } else { 'baseUrl-invalid' })
             $failed = $true
         }
         if (-not $failed) {
@@ -123,11 +133,16 @@ if ($Phase -eq 'Stage') {
                 $preflight = Invoke-PagesPreflight -Repository $Repository -ApiUrl $ApiUrl -Token $Token -BaseUrl $resolvedBaseUrl
                 Write-Host "Pages preflight: HTTP $($preflight.StatusCode). $($preflight.Message)"
                 if ($preflight.Warning) { Add-Annotation -Command warning -Message $preflight.Warning }
-                if (-not $preflight.Ok) { Add-Annotation -Message $preflight.Message; $failed = $true }
+                if (-not $preflight.Ok) { Add-Annotation -Message $preflight.Message; Add-Failure 'preflight'; $failed = $true }
             }
         }
         if (-not $failed) {
-            $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath -Inputs $inputs)
+            try {
+                $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath -Inputs $inputs)
+            } catch {
+                Add-Failure 'stage'
+                throw
+            }
             $manifestParent = Split-Path -Parent $ManifestPath
             if (-not (Test-Path -LiteralPath $manifestParent)) { [void](New-Item -ItemType Directory -Path $manifestParent -Force) }
             [System.IO.File]::WriteAllText($ManifestPath, (ConvertTo-Json -InputObject $manifest -Depth 3), [System.Text.UTF8Encoding]::new($false))
@@ -135,9 +150,11 @@ if ($Phase -eq 'Stage') {
         }
     } catch {
         Add-Annotation -Message $_.Exception.Message
+        Add-Failure 'error'
         $failed = $true
     }
 
+    if ($failed -and $env:GITHUB_OUTPUT) { Write-Text -Path $env:GITHUB_OUTPUT -Text "failure=$($script:failure)`n" }
     if ($failed) {
         [void]$summary.AppendLine('Publish stopped before deploying:').AppendLine()
         foreach ($message in $script:errorMessages) { [void]$summary.AppendLine('- ' + (ConvertTo-SingleLine $message)) }
@@ -157,6 +174,7 @@ if ($Phase -eq 'Stage') {
     return [pscustomobject]@{
         ExitCode     = $(if ($failed) { 1 } else { 0 })
         Phase        = $Phase
+        Failure      = $script:failure
         BaseUrl      = $resolvedBaseUrl
         StagingPath  = $StagingPath
         ManifestPath = $ManifestPath
@@ -182,6 +200,7 @@ try {
             'missing' { 'is missing (HTTP 404)' }
             'different' { 'serves a different body than the committed file' }
             'timeout' { "timed out after $TimeoutSeconds s" }
+            'redirect' { "answers with a redirect (HTTP $($result.Status)), which the compiler does not follow; set baseUrl to the final address" }
             default { if ($result.Status -gt 0) { "failed (HTTP $($result.Status))" } else { 'failed' } }
         }
         if ($result.Detail) { $reason += " ($($result.Detail))" }
@@ -207,6 +226,7 @@ Write-Text -Path $SummaryPath -Text $summaryText
 [pscustomobject]@{
     ExitCode    = $(if ($failed) { 1 } else { 0 })
     Phase       = $Phase
+    Failure     = $(if ($failed) { 'check' })
     Results     = $results
     Annotations = $script:annotations.ToArray()
     Summary     = $summaryText

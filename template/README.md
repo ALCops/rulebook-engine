@@ -9,7 +9,7 @@ The rulebook ships four levels (`Essential`, `Recommended`, `Strict`, `Complete`
 | Path | Content | Class | Written by |
 |---|---|---|---|
 | `.github/Rulebook-Settings.json` | Base URL, publish target, quarantine policy, twins setting, the levels and stages. | settings | you |
-| `.github/workflows/` | The rulebook workflows. `Validate.yaml` checks every pull request and push; `Publish.yaml` publishes the endpoints on every push to `main`; the update, scan and change workflows arrive with a later version of the template. | system | the update workflow (later version) |
+| `.github/workflows/` | The rulebook workflows. `Validate.yaml` checks every pull request and push; `Publish.yaml` publishes the endpoints when a push to `main` changes them, the skeletons or the settings; the update, scan and change workflows arrive with a later version of the template. | system | the update workflow (later version) |
 | `base/<level>.ruleset.json` | The level content: `essential` lists the ids that differ from the analyzer defaults, every other level the ids that differ from the level it is based on. | system | the update workflow (later version) |
 | `base/twins.json` | The PerTenantExtensionCop and AppSourceCop rules that check the same thing. | system | the update workflow (later version) |
 | `stages/<stage>.json` | What the `ci` and `vnext` stages change on top of every level. | system | the update workflow (later version) |
@@ -28,7 +28,7 @@ System files are replaced when you update from the template; settings are kept; 
 2. Enable Pages once: Settings > Pages > Build and deployment > Source **GitHub Actions**. The Publish workflow never creates the site itself.
 3. In `.github/Rulebook-Settings.json`, set `baseUrl` to the site address, `https://`, all lowercase, no trailing slash: `https://<owner>.github.io/<repository>` (for example `https://contoso.github.io/rulebook`), or your custom domain. `publish.target` stays `pages`; the other targets are planned.
 4. Set `quarantine.stages` and `quarantine.prereleaseStages` to the stages that hold back new diagnostic ids (for example `["ci"]`), or to `[]` to adopt new ids right away. The scan does not run until both are set.
-5. Merge the settings change into `main` (a pull request lets Validate check it first). The Publish workflow runs on every push to `main` (or by hand under Actions > Publish): it validates the rulebook, publishes `rulesets/`, the skeletons with your `baseUrl` filled in and an index page to `baseUrl`, and then checks that every URL serves the committed file. It never commits: when `rulesets/` is out of date it stops and tells you to regenerate it in a pull request.
+5. Merge the settings change into `main` (a pull request lets Validate check it first). The Publish workflow runs on every push to `main` that changes `rulesets/`, `skeletons/`, the settings or the workflow itself, and by hand under Actions > Publish: it validates the rulebook, publishes `rulesets/`, the skeletons with your `baseUrl` filled in and an index page to `baseUrl`, and then checks that every URL serves the committed file. It never commits: when `rulesets/` is out of date it stops and tells you to regenerate it in a pull request.
 
 After the first run, `baseUrl` opens a page that lists every endpoint and skeleton. If Publish fails before deploying, its message says what to change (Pages not enabled, `baseUrl` empty, endpoints out of date).
 

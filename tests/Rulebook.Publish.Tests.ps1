@@ -194,6 +194,23 @@ Describe 'New-RulebookPublishStage guards' {
         @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath $output).Count | Should-Be 25
     }
 
+    It 'resolves a relative output path against the current location' {
+        $root = Copy-Template
+        Push-Location -LiteralPath $root
+        try {
+            { New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath '.' } | Should-Throw -ExceptionMessage '*is the repository*'
+            { New-RulebookPublishStage -RepositoryRoot '.' -BaseUrl $baseUrl -OutputPath '..' } | Should-Throw -ExceptionMessage '*folder that contains it*'
+            $manifest = @(New-RulebookPublishStage -RepositoryRoot '.' -BaseUrl $baseUrl -OutputPath '../relative-stage')
+        } finally {
+            Pop-Location
+        }
+        $manifest.Count | Should-Be 25
+        $expected = Join-Path (Split-Path -Parent $root) 'relative-stage'
+        Test-Path -LiteralPath (Join-Path $expected 'index.html') | Should-BeTrue
+        $manifest[0].StagedFile | Should-BeLikeString "$expected*"
+        Test-Path -LiteralPath (Join-Path $root '.github' 'Rulebook-Settings.json') | Should-BeTrue
+    }
+
     It 'reuses -Inputs' {
         $root = Copy-Template
         $inputs = Read-RulebookInputs -RepositoryRoot $root
@@ -215,6 +232,10 @@ Describe 'New-RulebookPublishStage guards' {
 Describe 'Resolve-RulebookBaseUrl' {
     It 'returns the setting' {
         Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -Repository 'Contoso/Rulebook' | Should-Be $baseUrl
+    }
+
+    It 'accepts a port and an uppercase host' {
+        Resolve-RulebookBaseUrl -Settings @{ baseUrl = 'https://Rules.Contoso.com:8443/rulebook' } | Should-Be 'https://Rules.Contoso.com:8443/rulebook'
     }
 
     It 'accepts dots inside a segment' {
@@ -247,9 +268,21 @@ Describe 'Resolve-RulebookBaseUrl' {
         @{ Value = 'https://contoso.github.io/rule"book'; Message = '*must be an https URL*quotes*' }
         @{ Value = 'https://contoso.github.io/rule\book'; Message = '*must be an https URL*backslashes*' }
         @{ Value = "https://contoso.github.io/rule$([char]0x7)book"; Message = '*must be an https URL*' }
+        @{ Value = 'https://..'; Message = '*must be an https URL with a host name*' }
+        @{ Value = 'https://user:secret@contoso.github.io/rulebook'; Message = '*must be an https URL with a host name*' }
+        @{ Value = 'https://contoso.github.io:abc/rulebook'; Message = '*must be an https URL with a host name*' }
+        @{ Value = 'https://-contoso.github.io'; Message = '*must be an https URL with a host name*' }
     ) {
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $Value } -Repository 'Contoso/Rulebook' } | Should-Throw -ExceptionMessage $Message
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -Override $Value } | Should-Throw -ExceptionMessage $Message
+    }
+}
+
+Describe 'Get-SkeletonFileName' {
+    It 'always writes the stage, default included' {
+        Get-SkeletonFileName -Level 'strict' -Stage 'default' | Should-Be 'strict.default.ruleset.json'
+        Get-SkeletonFileName -Level 'strict' -Stage 'ci' | Should-Be 'strict.ci.ruleset.json'
+        Get-EndpointFileName -Level 'strict' -Stage 'default' | Should-Be 'strict.ruleset.json'
     }
 }
 
@@ -425,6 +458,20 @@ Describe 'Test-RulebookEndpoints' {
         ($results | Where-Object Path -EQ 'rulesets/strict.ruleset.json').Attempts | Should-Be 2
         ($results | Where-Object Path -EQ 'rulesets/strict.ci.ruleset.json').Attempts | Should-Be 1
         @($results | ForEach-Object Reason) | Should-BeCollection @('missing', 'missing')
+    }
+
+    It 'reports a redirect as redirect with its target and never follows it' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.Publish -ParameterFilter { $Uri -eq "$baseUrl/rulesets/strict.ruleset.json" } {
+            $headers = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.IEnumerable[string]]]::new()
+            $headers['Location'] = [string[]]@('https://rules.contoso.com/rulesets/strict.ruleset.json')
+            [pscustomobject]@{ StatusCode = 301; Content = ''; Headers = $headers }
+        }
+        $results = @(Test-RulebookEndpoints -Manifest @(New-TestManifest -Bodies $bodies) -WindowSeconds 0)
+        $redirect = $results | Where-Object Path -EQ 'rulesets/strict.ruleset.json'
+        $redirect.Reason | Should-Be 'redirect'
+        $redirect.Status | Should-Be 301
+        $redirect.Detail | Should-Be 'redirects to https://rules.contoso.com/rulesets/strict.ruleset.json'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Publish -Times 4 -Exactly -ParameterFilter { $MaximumRedirection -eq 0 }
     }
 
     It 'runs the last pass that starts when the waits reach the window' {

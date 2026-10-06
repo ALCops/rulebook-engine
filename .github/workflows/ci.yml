@@ -145,9 +145,12 @@ jobs:
           repositoryRoot: template
           deploy: 'false'
 
+      # The failure output names the reason, so a crash or another error does not count as the expected failure.
       - name: Require the empty baseUrl failure
-        if: steps.nobaseurl.outcome != 'failure'
+        if: steps.nobaseurl.outcome != 'failure' || steps.nobaseurl.outputs.failure != 'baseUrl-empty'
         shell: pwsh
+        env:
+          FAILURE: ${{ steps.nobaseurl.outputs.failure }}
         run: |
-          Write-Host '::error::Publish did not fail on template/ with an empty baseUrl'
+          Write-Host "::error::Publish did not fail on template/ with an empty baseUrl (failure output: '$($env:FAILURE)')"
           exit 1

@@ -378,7 +378,6 @@ function Get-SourcePath {
     return $sorted
 }
 
-
 function Get-EndpointDescription {
     param([Parameter(Mandatory)]$Inputs, [Parameter(Mandatory)][string]$Level, [Parameter(Mandatory)][string]$Stage)
     $chainFiles = @($Inputs.ChainFiles[$Level] | ForEach-Object { "base/$_.ruleset.json" }) -join ', '
@@ -863,6 +862,20 @@ function Get-EndpointFileName {
     return "$Level.$Stage.ruleset.json"
 }
 
+function Get-SkeletonFileName {
+    <#
+    .SYNOPSIS
+    The file name of a skeleton in skeletons/: always <level>.<stage>.ruleset.json, the default stage included.
+    .DESCRIPTION
+    -Level and -Stage are slugs. Rulebook.Template writes the skeletons under this name and Rulebook.Publish stages
+    and links them under it.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)][string]$Level, [Parameter(Mandatory)][string]$Stage)
+    return "$Level.$Stage.ruleset.json"
+}
+
 function Get-RulebookEndpoint {
     <#
     .SYNOPSIS
@@ -1187,6 +1200,7 @@ Export-ModuleMember -Function @(
     'Get-EffectiveAction'
     'Get-EndpointFileName'
     'Get-RulebookEndpoint'
+    'Get-SkeletonFileName'
     'Read-Catalog'
     'Read-Overrides'
     'Read-Quarantine'

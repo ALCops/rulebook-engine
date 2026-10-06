@@ -485,7 +485,7 @@ function New-RulebookSkeleton {
     foreach ($level in $levels) {
         foreach ($stage in $stages) {
             $endpoint = Get-EndpointFileName -Level $level.Slug -Stage $stage.Slug
-            $files["$($level.Slug).$($stage.Slug).ruleset.json"] = ConvertTo-SkeletonJson -Name "Rulebook $($level.Name) / $($stage.Name)" -EndpointFile $endpoint
+            $files[(Get-SkeletonFileName -Level $level.Slug -Stage $stage.Slug)] = ConvertTo-SkeletonJson -Name "Rulebook $($level.Name) / $($stage.Name)" -EndpointFile $endpoint
         }
     }
     Sync-GeneratedFolder -Directory $OutputPath -Filter '*.ruleset.json' -Files $files

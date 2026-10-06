@@ -17,6 +17,7 @@
         'Get-EffectiveAction'
         'Get-EndpointFileName'
         'Get-RulebookEndpoint'
+        'Get-SkeletonFileName'
         'Read-Catalog'
         'Read-Overrides'
         'Read-Quarantine'

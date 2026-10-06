@@ -76,7 +76,8 @@ Describe 'actions/Publish/action.yaml' {
         $yaml | Should-MatchString ("(?ms)^  {0}:\n.*?^    default: {1}$" -f $Name, [regex]::Escape($Default))
     }
 
-    It 'declares the outputs stagingPath and pageUrl' {
+    It 'declares the outputs stagingPath, failure and pageUrl' {
+        $yaml | Should-MatchString '(?m)^  failure:\n.*\n    value: \$\{\{ steps\.stage\.outputs\.failure \}\}$'
         $yaml | Should-MatchString '(?m)^  stagingPath:$'
         $yaml | Should-MatchString '(?m)^  pageUrl:$'
     }
@@ -102,8 +103,8 @@ Describe 'template/.github/workflows/Publish.yaml' {
         $script:workflow = Get-Content -LiteralPath (Join-Path $repoRoot 'template' '.github' 'workflows' 'Publish.yaml') -Raw
     }
 
-    It 'runs on pushes to main and on demand' {
-        $workflow | Should-MatchString '(?ms)^on:\n  push:\n    branches: \[ main \]\n  workflow_dispatch:$'
+    It 'runs on pushes to main that change what is published, and on demand' {
+        $workflow | Should-MatchString '(?ms)^on:\n  push:\n    branches: \[ main \]\n.*?    paths:\n      - ''rulesets/\*\*''\n      - ''skeletons/\*\*''\n      - ''\.github/Rulebook-Settings\.json''\n      - ''\.github/workflows/Publish\.yaml''\n  workflow_dispatch:$'
     }
 
     It 'grants pages and id-token write and nothing else that writes (D42)' {
@@ -164,10 +165,18 @@ Describe 'Publish.ps1 -Phase Stage' {
         Get-Content -LiteralPath (Join-Path $run.Result.StagingPath 'skeletons' 'strict.ci.ruleset.json') -Raw | Should-MatchString ([regex]::Escape('https://rules.contoso.com/rulesets/strict.ci.ruleset.json'))
     }
 
-    It 'fails an empty baseUrl with the proposal on the settings file' {
+    It 'fails an empty baseUrl with the proposal on the settings file and the failure output' {
         $root = Copy-Template -EmptyBaseUrl
-        $run = Invoke-Entry @{ RepositoryRoot = $root; WorkspaceRoot = (Split-Path -Parent $root); Repository = 'Contoso/Rulebook' }
+        $outputFile = Join-Path $TestDrive 'failure-output.txt'
+        $env:GITHUB_OUTPUT = $outputFile
+        try {
+            $run = Invoke-Entry @{ RepositoryRoot = $root; WorkspaceRoot = (Split-Path -Parent $root); Repository = 'Contoso/Rulebook' }
+        } finally {
+            $env:GITHUB_OUTPUT = $null
+        }
         $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'baseUrl-empty'
+        Get-Content -LiteralPath $outputFile -Raw | Should-MatchString '(?m)^failure=baseUrl-empty$'
         $leaf = Split-Path -Leaf $root
         $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
         $errors.Count | Should-Be 1
@@ -180,6 +189,7 @@ Describe 'Publish.ps1 -Phase Stage' {
     It 'fails target dist-repo as not implemented' {
         $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template); Target = 'dist-repo' }
         $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'target'
         @($run.Result.Annotations | Where-Object { $_ -like "::error *::Publish target 'dist-repo' is not implemented yet; see https://github.com/ALCops/rulebook-engine/issues/55*" }).Count | Should-Be 1
     }
 
@@ -201,6 +211,7 @@ Describe 'Publish.ps1 -Phase Stage' {
         $errors.Count | Should-Be 2
         foreach ($line in $errors) { $line | Should-BeLikeString '::error title=Publish::*' }
         $errors[1] | Should-BeLikeString '*The baseUrl input ends with a slash*'
+        $run.Result.Failure | Should-Be 'target'
     }
 
     It 'fails a repository root that does not exist with an annotation and a result' {
@@ -216,6 +227,7 @@ Describe 'Publish.ps1 -Phase Stage' {
         Write-FixtureText -Path $file -Text ((Get-Content -LiteralPath $file -Raw).Replace('"name": "Rulebook ', '"name": "Stale '))
         $run = Invoke-Entry @{ RepositoryRoot = $root }
         $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'stage'
         @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::*rulesets/essential.ruleset.json is stale*' }).Count | Should-Be 1
     }
 

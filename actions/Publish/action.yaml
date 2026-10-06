@@ -36,6 +36,9 @@ outputs:
   stagingPath:
     description: The staging folder that was deployed.
     value: ${{ steps.stage.outputs.stagingPath }}
+  failure:
+    description: "Why the stage step failed, empty on success: target, baseUrl-empty, baseUrl-invalid, preflight, stage or error."
+    value: ${{ steps.stage.outputs.failure }}
   pageUrl:
     description: The URL of the published site.
     value: ${{ steps.deploy.outputs.page_url || steps.stage.outputs.pageUrl }}
