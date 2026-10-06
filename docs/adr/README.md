@@ -22,7 +22,7 @@ Every decision that shapes Rulebook, one file per decision, with the alternative
 
 ## Index
 
-D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, and D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions.
+D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, and D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits.
 
 | # | Title | Status | Date |
 |---|---|---|---|
@@ -38,7 +38,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D10](0010-the-diagnostic-scan-runs-in-each-org-repo.md) | The diagnostic scan runs in each org repo | Accepted | 2026-09-29 |
 | [D11](0011-rule-changes-go-through-a-workflow-dispatch-form.md) | Rule changes go through a workflow_dispatch form | Partly superseded by D32 (2026-10-03) | 2026-09-29 |
 | [D12](0012-testing-scope-for-v1-is-pester-unit-tests.md) | Testing scope for v1 is Pester unit tests | Partly superseded by D39 (2026-10-03) | 2026-09-29 |
-| [D13](0013-compiler-format-files-are-the-source-and-are-published-as-is.md) | Compiler-format files are the source and are published as-is | Accepted | 2026-09-29 |
+| [D13](0013-compiler-format-files-are-the-source-and-are-published-as-is.md) | Compiler-format files are the source and are published as-is | Superseded by D18 (2026-09-29) | 2026-09-29 |
 | [D14](0014-the-quarantine-policy-is-configured-per-org-with-no-default.md) | The quarantine policy is configured per org, with no default | Partly superseded by D26 (2026-10-01) | 2026-09-29 |
 | [D15](0015-four-named-content-levels-l0-kept-l5-dropped.md) | Four named content levels, L0 kept, L5 dropped | Superseded by D25, D26 and D28 (2026-10-01) | 2026-09-29 |
 | [D16](0016-level-content-comes-from-a-markdown-matrix-target-and-stage.md) | Level content comes from a Markdown matrix; target and stage layers are generated ancestors | Accepted | 2026-09-29 |
@@ -67,6 +67,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D39](0039-test-framework-is-pester-6.md) | Test framework is Pester 6 | Accepted | 2026-10-03 |
 | [D40](0040-justification-is-optional-in-level-and-stage-files-too.md) | Justification is optional in level and stage files too | Accepted | 2026-10-04 |
 | [D41](0041-quarantine-wins-over-a-stage-entry-for-an-unmentioned-id.md) | Quarantine wins over a stage entry for an id no level file mentions | Accepted | 2026-10-05 |
+| [D42](0042-publish-is-a-gate-and-never-commits.md) | Publish is a gate and never commits | Accepted | 2026-10-06 |
 
 ## Open decisions
 
@@ -85,6 +86,7 @@ Closed: O1 and O2 by D19 (and D17), O5 moot since D21, O6 by D28 (one skeleton f
 - Interview of 2026-10-03 (dashboard on the published site, issue-form write path, change sets, collaborator gate, customizable site files, exposure, optional justification): D31 to D37. Design in [dashboard.md](../dashboard.md).
 - Bootstrap interview of 2026-10-03 for WP00 ([#2](https://github.com/ALCops/rulebook-engine/issues/2)): generated release notes and Pester 6, D38 and D39.
 - WP03 planning interview of 2026-10-05 ([#5](https://github.com/ALCops/rulebook-engine/issues/5), [#42](https://github.com/ALCops/rulebook-engine/issues/42)): D41.
+- WP05 planning interview of 2026-10-06 ([#7](https://github.com/ALCops/rulebook-engine/issues/7)): D42.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
 - [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism behind D2, D3 and O3, O4.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).
