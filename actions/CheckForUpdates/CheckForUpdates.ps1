@@ -18,7 +18,7 @@ the zipball download, or -TemplatePath and -InstalledTemplatePath as local folde
 Writes the outputs updatesAvailable, pullRequestUrl, templateSha and failure (token, template, validation, push,
 pull-request, error; empty on success) to GITHUB_OUTPUT and returns { ExitCode, Mode, Failure, UpdatesAvailable,
 TemplateSha, PullRequestUrl, Plan, Result, Annotations, Summary }. Never calls exit, so tests run it in-process;
-action.yaml exits with ExitCode. -RemoteUrl, -ApiUrl, -GitHubToken and -WorkPath are test seams; a -WorkPath the caller
+action.yaml exits with ExitCode. -RemoteUrl, -ApiUrl, -GitHubToken, -WorkPath, -SummaryLimit (bytes) and -PublishCommand are test seams; a -WorkPath the caller
 passes is left in place, the temporary work folder the script names itself is removed at the end.
 #>
 [CmdletBinding()]
@@ -40,7 +40,11 @@ param(
     [AllowEmptyString()][string]$GitHubToken = $env:GITHUB_TOKEN,
     [string]$WorkPath,
     [string]$SummaryPath = $env:GITHUB_STEP_SUMMARY,
-    [string]$WorkspaceRoot = $env:GITHUB_WORKSPACE
+    [string]$WorkspaceRoot = $env:GITHUB_WORKSPACE,
+    [int]$SummaryLimit = 900KB,
+    # Test seam: runs instead of Publish-RulebookUpdate with the same parameters (the script re-imports the modules,
+    # so a Pester mock of the function does not reach it).
+    [scriptblock]$PublishCommand
 )
 
 Set-StrictMode -Version 3.0
@@ -161,7 +165,9 @@ try {
             # Another template, or no recorded commit: resolve the branch head (AL-Go does the same).
             if (-not $sameTemplate) { $installedSha = '' }
             $latest = $DownloadLatest -or [string]::IsNullOrWhiteSpace($installedSha)
-            $template = Get-RulebookTemplate -TemplateUrl $info.Url -Token $Token -GitHubToken $GitHubToken -DownloadLatest:$latest -InstalledSha $installedSha -WorkPath $WorkPath -ApiUrl $ApiUrl -OnToken $maskToken
+            # Check mode reads with GITHUB_TOKEN only, as Validate does; the write token is for update mode.
+            $readToken = if ($Update) { $Token } else { '' }
+            $template = Get-RulebookTemplate -TemplateUrl $info.Url -Token $readToken -GitHubToken $GitHubToken -DownloadLatest:$latest -InstalledSha $installedSha -WorkPath $WorkPath -ApiUrl $ApiUrl -OnToken $maskToken
         }
         Write-Host "Template: $($template.Repo) at $($template.Sha) ($($template.Source))"
         $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $WorkPath
@@ -198,8 +204,11 @@ try {
             } else {
                 $labels = [string[]]@(& $setting 'commitOptions', 'pullRequestLabels' | Where-Object { $_ -is [string] -and $_ -ne '' })
                 try {
-                    $publish = Publish-RulebookUpdate -Plan $plan -RepositoryRoot $root -Repository $Repository -RemoteUrl $RemoteUrl -Token $access.Token -UpdateBranch $UpdateBranch `
-                        -DirectCommit:$DirectCommit -Actor $Actor -Labels $labels -TemplateRepo $template.Repo -WorkPath (Join-Path $WorkPath 'publish') -ApiUrl $ApiUrl
+                    $publishParameters = @{
+                        Plan = $plan; RepositoryRoot = $root; Repository = $Repository; RemoteUrl = $RemoteUrl; Token = $access.Token; UpdateBranch = $UpdateBranch
+                        DirectCommit = [bool]$DirectCommit; Actor = $Actor; Labels = $labels; TemplateRepo = $template.Repo; WorkPath = (Join-Path $WorkPath 'publish'); ApiUrl = $ApiUrl
+                    }
+                    $publish = if ($null -ne $PublishCommand) { & $PublishCommand @publishParameters } else { Publish-RulebookUpdate @publishParameters }
                 } catch {
                     $stage = [string]$_.Exception.Data['Stage']
                     if ($stage -cnotin 'push', 'pull-request') { $stage = 'push' }
@@ -249,15 +258,9 @@ if ($null -ne $plan) {
     }
 }
 $summary = $summary.Replace("`r`n", "`n")
-# The runner caps a step summary at 1 MiB; stay well below it (as Validate does).
-$summaryLimit = 900KB
-if ([System.Text.Encoding]::UTF8.GetByteCount($summary) -gt $summaryLimit) {
-    $cut = [math]::Min($summary.Length, $summaryLimit)
-    while ([System.Text.Encoding]::UTF8.GetByteCount($summary.Substring(0, $cut)) -gt $summaryLimit) { $cut = [int]($cut * 0.9) }
-    $lineEnd = $summary.LastIndexOf([char]10, [math]::Max(0, $cut - 1))
-    if ($lineEnd -gt 0) { $cut = $lineEnd + 1 }
-    $summary = $summary.Substring(0, $cut) + "`n_The summary was truncated at 900 KiB; the annotations above have the outcome._`n"
-}
+# The runner caps a step summary at 1 MiB; stay well below it (-SummaryLimit, 900 KiB).
+$where = if ($null -ne $publish -and $publish.Body) { 'the pull request body' } else { 'the job log' }
+$summary = Limit-SummaryText -Text $summary -MaxBytes $SummaryLimit -Footer "The summary was cut at $([math]::Floor($SummaryLimit / 1KB)) KiB; the full lists are in $where."
 Write-Text -Path $SummaryPath -Text $summary
 $pullRequestUrl = if ($null -ne $publish -and $publish.PullRequestUrl) { $publish.PullRequestUrl } else { '' }
 $sha = if ($null -ne $template) { $template.Sha } else { '' }

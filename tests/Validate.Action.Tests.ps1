@@ -229,6 +229,15 @@ Describe 'Validate.ps1' {
             Test-Path -LiteralPath (Join-Path $work 'keep.txt') -PathType Leaf | Should-BeTrue
         }
 
+        It 'cuts the update-check section at the cap instead of dropping it' {
+            $plain = Invoke-Entry @{ RepositoryRoot = $org }
+            $limit = [System.Text.Encoding]::UTF8.GetByteCount($plain.Summary) + 400
+            $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v2; InstalledTemplatePath = $v1; SummaryLimit = $limit }
+            $run.Summary | Should-MatchString '(?m)^## Template update check$'
+            $run.Summary | Should-MatchString '_The update check summary was cut at \d+ KiB; the full lists are in the job log\._\n\z'
+            [System.Text.Encoding]::UTF8.GetByteCount($run.Summary) | Should-BeLessThanOrEqual $limit
+        }
+
         It 'runs no update check without -CheckForUpdates' {
             $run = Invoke-Entry @{ RepositoryRoot = $org }
             $run.Result.UpdateCheck | Should-BeNull

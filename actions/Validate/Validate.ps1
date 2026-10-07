@@ -32,7 +32,8 @@ param(
     [AllowEmptyString()][string]$TemplatePath,
     [AllowEmptyString()][string]$InstalledTemplatePath,
     [string]$ApiUrl = $(if ($env:GITHUB_API_URL) { $env:GITHUB_API_URL } else { 'https://api.github.com' }),
-    [string]$UpdateWorkPath
+    [string]$UpdateWorkPath,
+    [int]$SummaryLimit = 900KB
 )
 
 Set-StrictMode -Version 3.0
@@ -183,7 +184,7 @@ if ($null -ne $diffNote) {
 }
 $summaryText = $summary.ToString().Replace("`r`n", "`n")
 # The runner caps a step summary at 1 MiB; stay well below it.
-$summaryLimit = 900KB
+$summaryLimit = $SummaryLimit
 if ([System.Text.Encoding]::UTF8.GetByteCount($summaryText) -gt $summaryLimit) {
     $cut = [math]::Min($summaryText.Length, $summaryLimit)
     while ([System.Text.Encoding]::UTF8.GetByteCount($summaryText.Substring(0, $cut)) -gt $summaryLimit) { $cut = [int]($cut * 0.9) }
@@ -235,10 +236,16 @@ if ($CheckForUpdates) {
     Write-Host $line
     $updateSummary = if ($null -ne $updateCheck.Plan) { ConvertTo-UpdateSummary -Plan $updateCheck.Plan -Mode check -Message $message } else { "## Template update check`n`n$message`n`n" }
     $updateSummary = $updateSummary.Replace("`r`n", "`n")
-    if ([System.Text.Encoding]::UTF8.GetByteCount($summaryText + $updateSummary) -le $summaryLimit) {
-        $summaryText += $updateSummary
-        if ($SummaryPath) { [System.IO.File]::AppendAllText($SummaryPath, $updateSummary, [System.Text.UTF8Encoding]::new($false)) }
+    # Within what the validation summary leaves of the cap: cut at a line boundary, never dropped.
+    $budget = $summaryLimit - [System.Text.Encoding]::UTF8.GetByteCount($summaryText)
+    $footer = "The update check summary was cut at $([math]::Floor($summaryLimit / 1KB)) KiB; the full lists are in the job log."
+    if (Get-Command Limit-SummaryText -ErrorAction SilentlyContinue) {
+        $updateSummary = Limit-SummaryText -Text $updateSummary -MaxBytes ([math]::Max(0, $budget)) -Footer $footer
+    } elseif ([System.Text.Encoding]::UTF8.GetByteCount($updateSummary) -gt $budget) {
+        $updateSummary = "## Template update check`n`n_$($footer)_`n"
     }
+    $summaryText += $updateSummary
+    if ($SummaryPath) { [System.IO.File]::AppendAllText($SummaryPath, $updateSummary, [System.Text.UTF8Encoding]::new($false)) }
 }
 
 # 6. Outputs

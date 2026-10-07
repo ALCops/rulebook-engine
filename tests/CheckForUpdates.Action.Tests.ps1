@@ -214,7 +214,47 @@ Describe 'CheckForUpdates.ps1' {
         $update = $parameters.Clone()
         $update.Update = $true
         $update.Token = 'ghp_test'
-        (Invoke-Entry $update).Result.ExitCode | Should-Be 1
+        $failedRun = (Invoke-Entry $update).Result
+        $failedRun.ExitCode | Should-Be 1
+        # The template was read; the plan failed.
+        $failedRun.Failure | Should-Be 'error'
+    }
+
+    It 'reports failure push with the token hint when the push fails' {
+        $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); Update = $true; Token = 'ghp_x'; DirectCommit = $true; RemoteUrl = (Join-Path (Get-TestFolder) 'missing.git') }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'push'
+        $run.Result.Annotations[-1] | Should-BeLikeString "::error title=CheckForUpdates::Failed to update the Rulebook system files. Make sure that the token in the secret GHTOKENWORKFLOW is not expired*Could not clone branch 'main'*"
+    }
+
+    It 'reports failure pull-request with the pushed branch and its link' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('Could not create the pull request (HTTP 422). Branch update-rulebook-system-files/main/261007123045 was pushed; open the pull request by hand: https://github.com/Contoso/rulebook/tree/update-rulebook-system-files/main/261007123045')
+            $exception.Data['Stage'] = 'pull-request'
+            $exception.Data['Branch'] = 'update-rulebook-system-files/main/261007123045'
+            throw $exception
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); Update = $true; Token = 'ghp_x'; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'pull-request'
+        $run.Result.Annotations[-1] | Should-BeLikeString '*Failed to create the pull request for the Rulebook system files*https://github.com/Contoso/rulebook/tree/update-rulebook-system-files/main/261007123045*'
+    }
+
+    It 'cuts an oversized summary at a line boundary inside a fence, closes it and names where the lists are' {
+        $template = Get-TestFolder
+        Copy-FixtureTree -Source (Join-Path $templates 'v2') -Destination $template
+        $notes = "# Release notes`n`n## v1.1`n`n``````text`n" + (@(1..400 | ForEach-Object { "fenced line $_" }) -join "`n") + "`n```````n`n## v1.0`n`n- First.`n"
+        [System.IO.File]::WriteAllText((Join-Path $template '.github' 'RELEASENOTES.copy.md'), $notes)
+        $full = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = $template; InstalledTemplatePath = (Join-Path $templates 'v1') }
+        $inside = $full.Summary.IndexOf('fenced line 200', [System.StringComparison]::Ordinal)
+        $inside | Should-BeGreaterThan 0
+        $limit = [System.Text.Encoding]::UTF8.GetByteCount($full.Summary.Substring(0, $inside))
+        $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = $template; InstalledTemplatePath = (Join-Path $templates 'v1'); SummaryLimit = $limit }
+        [System.Text.Encoding]::UTF8.GetByteCount($run.Summary) | Should-BeLessThanOrEqual $limit
+        $run.Summary | Should-MatchString '\n```\n\n_The summary was cut at \d+ KiB; the full lists are in the job log\._\n\z'
+        @($run.Summary.Split("`n") | Where-Object { $_ -match '^```' }).Count % 2 | Should-Be 0
     }
 
     It 'masks the write token before any other output' {

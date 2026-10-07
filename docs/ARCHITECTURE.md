@@ -389,6 +389,7 @@ sequenceDiagram
     participant GH as GitHub API
     participant Repo as org repo
     WF->>A: templateUrl (default: setting), token, update = Y
+    A->>GH: exchange the secret for an installation token, mask it
     A->>GH: GET /repos/ALCops/rulebook/branches/main (sha)
     A->>GH: GET zipball/<sha>
     A->>A: candidate tree by class (section 4)
@@ -396,7 +397,7 @@ sequenceDiagram
     A->>A: regenerate skeletons/ and rulesets/ from the new level and stage files + org inputs
     A->>A: Test-Rulebook on the candidate (any error: fail, push nothing)
     A->>A: compare with repo, collect changed files
-    A->>GH: exchange the secret for an installation token, duplicate title guard
+    A->>GH: duplicate title guard (pull request mode)
     A->>Repo: clone, write files, branch update-rulebook-system-files/<branch>/<timestamp>, push
     A->>GH: POST pulls, body = changes + effective diff + skipped site files + release notes, labels
 ```
