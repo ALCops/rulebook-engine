@@ -22,7 +22,7 @@ Every decision that shapes Rulebook, one file per decision, with the alternative
 
 ## Index
 
-D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits, and D43 in the WP06 planning interview of the same day that publishes `rulebook.json` with the levels and stages.
+D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits, D43 in the WP06 planning interview of the same day that publishes `rulebook.json` with the levels and stages, and D44 in the WP07 planning interview of 2026-10-07 that keeps the AL-Go secret `GHTOKENWORKFLOW` and its format for the write token.
 
 | # | Title | Status | Date |
 |---|---|---|---|
@@ -69,15 +69,15 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D41](0041-quarantine-wins-over-a-stage-entry-for-an-unmentioned-id.md) | Quarantine wins over a stage entry for an id no level file mentions | Accepted | 2026-10-05 |
 | [D42](0042-publish-is-a-gate-and-never-commits.md) | Publish is a gate and never commits | Accepted | 2026-10-06 |
 | [D43](0043-rulebook-json-is-published-from-wp06-with-levels-and-stages.md) | `rulebook.json` is published from WP06 with the levels and stages | Accepted | 2026-10-06 |
+| [D44](0044-the-write-token-secret-is-ghtokenworkflow-in-al-go-format.md) | The write token secret is `GHTOKENWORKFLOW` in the AL-Go format | Accepted | 2026-10-07 |
 
 ## Open decisions
 
 | # | Question | Recommendation | Tracked in |
 |---|---|---|---|
 | O3 | How template workflows reference the engine: `@main` in the engine's `template/` source and `@v1` pinned by the deploy step (AL-Go style), or git tags? | Branch `v1` pinned by deploy, tags as convenience. Branches can receive fixes without touching every org repo. | [#27](https://github.com/ALCops/rulebook-engine/issues/27) |
-| O4 | Name of the write token secret: reuse `GHTOKENWORKFLOW` so an AL-Go org needs no second secret, or a Rulebook-specific name? | Reuse `GHTOKENWORKFLOW`, same value format (GitHub App JSON or PAT), configurable through a setting. | [#28](https://github.com/ALCops/rulebook-engine/issues/28) |
 
-Closed: O1 and O2 by D19 (and D17), O5 moot since D21, O6 by D28 (one skeleton file per stage).
+Closed: O1 and O2 by D19 (and D17), O4 by D44 ([#28](https://github.com/ALCops/rulebook-engine/issues/28)), O5 moot since D21, O6 by D28 (one skeleton file per stage).
 
 ## References
 
@@ -89,6 +89,7 @@ Closed: O1 and O2 by D19 (and D17), O5 moot since D21, O6 by D28 (one skeleton f
 - WP03 planning interview of 2026-10-05 ([#5](https://github.com/ALCops/rulebook-engine/issues/5), [#42](https://github.com/ALCops/rulebook-engine/issues/42)): D41.
 - WP05 planning interview of 2026-10-06 ([#7](https://github.com/ALCops/rulebook-engine/issues/7)): D42.
 - WP06 planning interview of 2026-10-06 ([#8](https://github.com/ALCops/rulebook-engine/issues/8)): D43.
+- WP07 planning interview of 2026-10-07 ([#9](https://github.com/ALCops/rulebook-engine/issues/9), [#28](https://github.com/ALCops/rulebook-engine/issues/28)): D44.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
-- [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism behind D2, D3 and O3, O4.
+- [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism behind D2, D3, O3 and D44.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).

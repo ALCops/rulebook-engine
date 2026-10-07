@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook House",
+  "description": "Contoso's house level, basedOn recommended. Test fixture.",
+  "rules": [
+    { "id": "LC0001", "action": "Error", "justification": "House rule" },
+    { "id": "TA0001", "action": "Info" }
+  ]
+}

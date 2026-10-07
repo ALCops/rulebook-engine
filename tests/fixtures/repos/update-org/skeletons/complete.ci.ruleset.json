@@ -1,0 +1,6 @@
+{
+  "name": "Rulebook Complete / CI",
+  "description": "Copy into your AL project and point al.ruleSetPath or the AL-Go rulesetFile at it. Add project exceptions to rules; they override the endpoint.",
+  "includedRuleSets": [ { "action": "Default", "path": "{BASEURL}/rulesets/complete.ci.ruleset.json" } ],
+  "rules": []
+}

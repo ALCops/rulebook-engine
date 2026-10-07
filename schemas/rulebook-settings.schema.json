@@ -53,7 +53,7 @@
       "minLength": 1
     },
     "templateSha": {
-      "description": "The template commit installed last; empty until the first update.",
+      "description": "The template commit installed last, written by the update; empty until the first update.",
       "type": "string",
       "pattern": "^([0-9a-f]{40})?(?![\\s\\S])"
     },
@@ -123,9 +123,9 @@
       }
     },
     "ghTokenWorkflowSecretName": {
-      "description": "Name of the write token secret (O4).",
+      "description": "Name of the write token secret the update workflow reads (D44); GitHub App JSON or a personal access token, AL-Go format. A GitHub secret name: letters, digits and underscores, not starting with a digit or with GITHUB_ (any case).",
       "type": "string",
-      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
+      "pattern": "^(?![Gg][Ii][Tt][Hh][Uu][Bb]_)[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
       "default": "GHTOKENWORKFLOW"
     },
     "commitOptions": {
@@ -146,11 +146,19 @@
       },
       "additionalProperties": false
     },
+    "update": {
+      "description": "The update workflow (WP07): schedule is a five-field cron expression the update writes into UpdateRulebookSystemFiles.yaml as its schedule trigger, or null for none.",
+      "type": "object",
+      "properties": {
+        "schedule": { "type": ["string", "null"], "pattern": "^\\S+( \\S+){4}(?![\\s\\S])" }
+      },
+      "additionalProperties": false
+    },
     "unusedRulebookFiles": {
-      "description": "Shipped level and stage files the update must not re-add (WP07).",
+      "description": "Shipped files the update must not re-add and removes when present (WP07, D29): repository-relative paths with /, such as stages/vnext.json. C9 matches the same paths.",
       "type": "array",
       "uniqueItems": true,
-      "items": { "type": "string" }
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+(?![\\s\\S])" }
     }
   },
   "additionalProperties": false

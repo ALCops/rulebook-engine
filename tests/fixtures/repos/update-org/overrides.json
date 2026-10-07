@@ -1,0 +1,6 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json",
+  "rules": [
+    { "id": "AL0200", "action": "Info", "levels": ["*"], "stages": ["*"], "justification": "Contoso keeps AL0200 advisory" }
+  ]
+}

@@ -1,0 +1,72 @@
+name: Update Rulebook System Files
+
+on:
+  workflow_dispatch:
+    inputs:
+      templateUrl:
+        description: 'Template repository URL (current is {TEMPLATEURL}). Empty uses the setting.'
+        required: false
+        default: ''
+      downloadLatest:
+        description: 'Resolve the latest commit of the template branch (false re-applies templateSha).'
+        type: boolean
+        default: true
+      directCommit:
+        description: 'Push to this branch instead of opening a pull request.'
+        type: boolean
+        default: false
+
+# The workflow token stays read-only: the update writes with the token from the GHTOKENWORKFLOW secret, because
+# GITHUB_TOKEN can never change files under .github/workflows.
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: update-rulebook-system-files-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The secret name comes from ghTokenWorkflowSecretName; a scheduled run has no inputs and follows
+      # commitOptions.createPullRequest instead.
+      - name: Read the settings
+        id: settings
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DOWNLOADLATEST: ${{ inputs.downloadLatest }}
+          INPUT_DIRECTCOMMIT: ${{ inputs.directCommit }}
+        run: |
+          $settings = Get-Content -LiteralPath .github/Rulebook-Settings.json -Raw | ConvertFrom-Json -AsHashtable
+          $name = 'GHTOKENWORKFLOW'
+          if ($settings.Contains('ghTokenWorkflowSecretName') -and $settings['ghTokenWorkflowSecretName']) { $name = [string]$settings['ghTokenWorkflowSecretName'] }
+          if ($name -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$' -or $name -imatch '^GITHUB_') { Write-Host "::error::ghTokenWorkflowSecretName '$name' is not a valid secret name"; exit 1 }
+          if ($env:EVENT_NAME -eq 'schedule') {
+            $createPullRequest = $true
+            $options = $settings['commitOptions']
+            if ($options -is [System.Collections.IDictionary] -and $options.Contains('createPullRequest')) { $createPullRequest = [bool]$options['createPullRequest'] }
+            $directCommit = -not $createPullRequest
+            $downloadLatest = $true
+          } else {
+            $directCommit = $env:INPUT_DIRECTCOMMIT -eq 'true'
+            $downloadLatest = $env:INPUT_DOWNLOADLATEST -ne 'false'
+          }
+          $lines = "secretName=$name", "directCommit=$($directCommit.ToString().ToLowerInvariant())", "downloadLatest=$($downloadLatest.ToString().ToLowerInvariant())"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value $lines
+          Write-Host "Secret: $name, direct commit: $directCommit, download latest: $downloadLatest"
+
+      - name: Update system files
+        uses: ALCops/rulebook-engine/actions/CheckForUpdates@main
+        with:
+          token: ${{ secrets[steps.settings.outputs.secretName] }}
+          update: 'Y'
+          templateUrl: ${{ inputs.templateUrl }}
+          downloadLatest: ${{ steps.settings.outputs.downloadLatest }}
+          directCommit: ${{ steps.settings.outputs.directCommit }}

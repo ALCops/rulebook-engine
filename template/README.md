@@ -9,18 +9,22 @@ The rulebook ships four levels (`Essential`, `Recommended`, `Strict`, `Complete`
 | Path | Content | Class | Written by |
 |---|---|---|---|
 | `.github/Rulebook-Settings.json` | Base URL, publish target, quarantine policy, twins setting, the levels and stages. | settings | you |
-| `.github/workflows/` | The rulebook workflows. `Validate.yaml` checks every pull request and push; `Publish.yaml` publishes the endpoints when a push to `main` changes them, the skeletons or the settings; the update, scan and change workflows arrive with a later version of the template. | system | the update workflow (later version) |
-| `base/<level>.ruleset.json` | The level content: `essential` lists the ids that differ from the analyzer defaults, every other level the ids that differ from the level it is based on. | system | the update workflow (later version) |
-| `base/twins.json` | The PerTenantExtensionCop and AppSourceCop rules that check the same thing. | system | the update workflow (later version) |
-| `stages/<stage>.json` | What the `ci` and `vnext` stages change on top of every level. | system | the update workflow (later version) |
+| `.github/workflows/` | The rulebook workflows. `Validate.yaml` checks every pull request and push; `Publish.yaml` publishes the endpoints when a push to `main` changes them, the skeletons or the settings; `UpdateRulebookSystemFiles.yaml` pulls a new template version into a pull request (by hand, or on the schedule in `update.schedule`); the scan and change workflows arrive with a later version of the template. | system | the update workflow |
+| `base/<level>.ruleset.json` | The level content: `essential` lists the ids that differ from the analyzer defaults, every other level the ids that differ from the level it is based on. | system | the update workflow |
+| `base/twins.json` | The PerTenantExtensionCop and AppSourceCop rules that check the same thing. | system | the update workflow |
+| `stages/<stage>.json` | What the `ci` and `vnext` stages change on top of every level. | system | the update workflow |
 | `overrides.json` | Your organization's rule changes, scoped to levels and stages. | org-owned | you, or the change workflow (later version) |
 | `quarantine.<stage>.json` | New diagnostic ids held at `None` per stage until you adopt them. | org-owned | the scan workflow (later version) |
 | `catalog/diagnostics.json` | Every known diagnostic id with its analyzer default. | org-owned | the scan workflow (later version) |
 | `rulesets/` | The published endpoints: one flat file per level and stage, listing only the ids whose action differs from the analyzer default. | generated | every workflow that changes an input; never edit by hand |
-| `skeletons/` | One file per level and stage to copy into an AL project, and a README that explains them (not published). | system | the update workflow (later version) |
+| `skeletons/` | One file per level and stage to copy into an AL project, and a README that explains them (not published). | generated (the README is system) | the update workflow, from your levels and stages |
 | `README.md` | This file. | yours | you |
 
 System files are replaced when you update from the template; settings are kept; org-owned files are yours and are never overwritten; generated files are rebuilt from the others.
+
+## Updating
+
+The workflow **Update Rulebook System Files** (Actions > Update Rulebook System Files > Run workflow) pulls the newest version of the template into a pull request: the system files, your settings with the new `templateSha`, and `rulesets/` and `skeletons/` regenerated under your overrides and quarantine, with the effective change of every endpoint in the pull request. Your own files are never touched. It needs a secret `GHTOKENWORKFLOW` (a GitHub App or a personal access token, the same secret AL-Go uses), because the workflow token cannot change workflow files. While `checkForUpdates` is on (the default), every Validate run also tells you when an update is available; when the template cannot be read with the workflow token (a private template, or a pull request from a fork) it says "update check skipped" instead. How it works: [docs/updating.md](https://github.com/ALCops/rulebook/blob/main/docs/updating.md); the secret: [docs/ghtokenworkflow.md](https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md).
 
 ## First steps
 
@@ -60,6 +64,7 @@ Never edit `rulesets/`: it is regenerated from the other files, and the Validate
 - `docs/pte-or-appsource.md`
 - `docs/overrides.md`
 - `docs/quarantine.md`
-- `docs/updating.md`
 
-These pages, and the workflows other than Validate and Publish, arrive with a later version of the template. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).
+Updating the rulebook: [docs/updating.md](https://github.com/ALCops/rulebook/blob/main/docs/updating.md). The token the update writes with: [docs/ghtokenworkflow.md](https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md).
+
+The pages in the list above, and the workflows other than Validate, Publish and Update Rulebook System Files, arrive with a later version of the template. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).

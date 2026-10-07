@@ -1,0 +1,47 @@
+name: Change Rule
+
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: 'Diagnostic id, for example LC0001.'
+        required: true
+      action:
+        description: 'The new action.'
+        type: choice
+        options:
+          - Error
+          - Warning
+          - Info
+          - Hidden
+          - None
+      # The level and stage lists are rewritten from the settings by every update (D30).
+      levels:
+        description: 'Level slug, or * for every level.'
+        type: choice
+        default: '*'
+        options:
+          - '*'
+          - essential
+          - recommended
+          - strict
+          - complete
+      stages:
+        description: 'Stage slug, or * for every stage.'
+        type: choice
+        default: '*'
+        options:
+          - '*'
+          - default
+          - ci
+          - vnext
+
+permissions:
+  contents: read
+
+jobs:
+  change:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7

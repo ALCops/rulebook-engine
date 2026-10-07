@@ -40,7 +40,7 @@ AfterAll {
     $env:GITHUB_BASE_REF = $script:savedEvent.Base
     $env:GITHUB_OUTPUT = $script:savedOutput
     $env:GITHUB_STEP_SUMMARY = $script:savedSummary
-    Remove-Module Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/Validate/action.yaml' {
@@ -167,9 +167,82 @@ Describe 'Validate.ps1' {
         $run.Summary | Should-MatchString 'No diff: no reference to compare against'
     }
 
-    It 'prints the update check placeholder with -CheckForUpdates' {
-        $run = Invoke-Entry @{ RepositoryRoot = (Join-Path $fixtures 'valid-minimal'); CheckForUpdates = $true }
-        $run.Lines | Should-ContainCollection @('Update check: not wired yet (WP07, #9).')
+    Context 'update check (WP07)' {
+        BeforeAll {
+            $script:org = Join-Path $fixtures 'update-org'
+            $script:v1 = Join-Path $PSScriptRoot 'fixtures' 'templates' 'v1'
+            $script:v2 = Join-Path $PSScriptRoot 'fixtures' 'templates' 'v2'
+        }
+
+        It 'warns once that updates are available after the template moved, without counting it (AC10)' {
+            $outputFile = Join-Path $TestDrive 'update-output.txt'
+            $env:GITHUB_OUTPUT = $outputFile
+            try {
+                $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v2; InstalledTemplatePath = $v1 }
+            } finally {
+                $env:GITHUB_OUTPUT = $null
+            }
+            $run.Result.ExitCode | Should-Be 0
+            @($run.Result.Annotations | Where-Object { $_ -like '::warning*Updates available*' }).Count | Should-Be 1
+            $run.Result.Annotations[-1] | Should-Be '::warning title=Update check::Updates available: run the Update Rulebook System Files workflow (20 files)'
+            $run.Result.UpdateCheck.Status | Should-Be 'available'
+            $run.Summary | Should-MatchString '(?m)^## Template update check$'
+            $run.Summary | Should-MatchString '(?m)^\| `base/recommended\.ruleset\.json` \| overwrite \| modified \|$'
+            $warnings = @($run.Result.Findings | Where-Object Severity -EQ 'warning').Count
+            (Get-Content -LiteralPath $outputFile -Raw) | Should-Be "errors=0`nwarnings=$warnings`n"
+        }
+
+        It 'gives a notice when nothing but templateSha would change' {
+            $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v1; InstalledTemplatePath = $v1 }
+            $run.Result.UpdateCheck.Status | Should-Be 'sha-only'
+            $run.Result.Annotations[-1] | Should-BeLikeString '::notice title=Update check::template commit * not recorded; run Update Rulebook System Files once'
+        }
+
+        It 'skips with one warning when the template cannot be reached' {
+            $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; ApiUrl = 'http://127.0.0.1:9' }
+            $run.Result.ExitCode | Should-Be 0
+            $run.Result.UpdateCheck.Status | Should-Be 'skipped'
+            @($run.Result.Annotations | Where-Object { $_ -like '::warning title=Update check::update check skipped: *' }).Count | Should-Be 1
+            $run.Summary | Should-MatchString '(?m)^## Template update check\n\nupdate check skipped: '
+        }
+
+        It 'does not fail -FailOnWarning on the update warning alone' {
+            $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v2; InstalledTemplatePath = $v1; FailOnWarning = $true }
+            @($run.Result.Findings | Where-Object Severity -EQ 'warning') | Should-BeCollection @()
+            $run.Result.ExitCode | Should-Be 0
+        }
+
+        It 'turns any failure of the check into the skipped warning (an UpdateWorkPath that cannot be created)' {
+            $file = Join-Path $TestDrive 'not-a-folder.txt'
+            Write-FixtureText -Path $file -Text 'x'
+            $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v2; InstalledTemplatePath = $v1; UpdateWorkPath = (Join-Path $file 'work') }
+            $run.Result.ExitCode | Should-Be 0
+            $run.Result.UpdateCheck.Status | Should-Be 'skipped'
+            $run.Result.Annotations[-1] | Should-BeLikeString '::warning title=Update check::update check skipped: *'
+        }
+
+        It 'leaves an UpdateWorkPath the caller passed in place' {
+            $work = Join-Path $TestDrive 'update-work'
+            $null = New-Item -ItemType Directory -Path $work -Force
+            Write-FixtureText -Path (Join-Path $work 'keep.txt') -Text 'mine'
+            $null = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v2; InstalledTemplatePath = $v1; UpdateWorkPath = $work }
+            Test-Path -LiteralPath (Join-Path $work 'keep.txt') -PathType Leaf | Should-BeTrue
+        }
+
+        It 'cuts the update-check section at the cap instead of dropping it' {
+            $plain = Invoke-Entry @{ RepositoryRoot = $org }
+            $limit = [System.Text.Encoding]::UTF8.GetByteCount($plain.Summary) + 400
+            $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v2; InstalledTemplatePath = $v1; SummaryLimit = $limit }
+            $run.Summary | Should-MatchString '(?m)^## Template update check$'
+            $run.Summary | Should-MatchString '_The update check summary was cut at \d+ KiB; the full lists are in the job log\._\n\z'
+            [System.Text.Encoding]::UTF8.GetByteCount($run.Summary) | Should-BeLessThanOrEqual $limit
+        }
+
+        It 'runs no update check without -CheckForUpdates' {
+            $run = Invoke-Entry @{ RepositoryRoot = $org }
+            $run.Result.UpdateCheck | Should-BeNull
+            $run.Summary | Should-NotMatchString 'Template update check'
+        }
     }
 
     It 'shows the effective diff against -DiffRef HEAD~1' -Skip:$gitMissing {

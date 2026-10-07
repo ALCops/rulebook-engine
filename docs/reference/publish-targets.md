@@ -168,7 +168,7 @@ Side observation: VS Code shows the JSON schema warning "Array has too few items
 
 | Target | Open points | Issue |
 |---|---|---|
-| `dist-repo` | Write token for the second repository (`GHTOKENWORKFLOW`, O4), one commit that replaces the content so removed files disappear, the 300 s raw cache, `index.html` served as `text/plain`. | [#55](https://github.com/ALCops/rulebook-engine/issues/55) |
+| `dist-repo` | Write token for the second repository (`GHTOKENWORKFLOW`, D44), one commit that replaces the content so removed files disappear, the 300 s raw cache, `index.html` served as `text/plain`. | [#55](https://github.com/ALCops/rulebook-engine/issues/55) |
 | `azure-blob` | OIDC login, static website (`$web`) or a container with anonymous read, deleting stale blobs (`upload-batch` does not), content types, the anti-SSRF policy against Azure hosts. | [#56](https://github.com/ALCops/rulebook-engine/issues/56) |
 | `gist` | No folders: `rulesets/strict.ci.ruleset.json` and `skeletons/strict.ci.ruleset.json` collide, so the URL scheme needs a decision before any code. | [#57](https://github.com/ALCops/rulebook-engine/issues/57) |
 

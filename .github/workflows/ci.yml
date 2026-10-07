@@ -70,12 +70,14 @@ jobs:
         uses: ./actions/Validate
         with:
           repositoryRoot: tests/fixtures/repos/valid-minimal
+          checkForUpdates: 'false'
 
       - name: Validate template (must pass, no warnings)
         uses: ./actions/Validate
         with:
           repositoryRoot: template
           failOnWarning: 'true'
+          checkForUpdates: 'false'
 
       - name: Validate stale-endpoints (must fail)
         id: stale
@@ -83,6 +85,7 @@ jobs:
         uses: ./actions/Validate
         with:
           repositoryRoot: tests/fixtures/repos/stale-endpoints
+          checkForUpdates: 'false'
 
       # A crash of the action also fails the step; requiring errors > 0 makes sure the checks themselves failed.
       - name: Require the stale-endpoints failure
@@ -209,4 +212,50 @@ jobs:
           FAILURE: ${{ steps.nobaseurl.outputs.failure }}
         run: |
           Write-Host "::error::Publish did not fail on template/ with an empty baseUrl (failure output: '$($env:FAILURE)')"
+          exit 1
+
+  update-action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Check mode on the fixtures with local templates: no download, no token (tests/fixtures/templates/README.md).
+      - name: Check update-org against v1 (no updates)
+        id: unchanged
+        uses: ./actions/CheckForUpdates
+        with:
+          repositoryRoot: tests/fixtures/repos/update-org
+          templatePath: tests/fixtures/templates/v1
+          installedTemplatePath: tests/fixtures/templates/v1
+
+      - name: Check update-org against v2 (updates available)
+        id: moved
+        uses: ./actions/CheckForUpdates
+        with:
+          repositoryRoot: tests/fixtures/repos/update-org
+          templatePath: tests/fixtures/templates/v2
+          installedTemplatePath: tests/fixtures/templates/v1
+
+      - name: Update without the token (must fail)
+        id: notoken
+        continue-on-error: true
+        uses: ./actions/CheckForUpdates
+        with:
+          repositoryRoot: tests/fixtures/repos/update-org
+          templatePath: tests/fixtures/templates/v2
+          installedTemplatePath: tests/fixtures/templates/v1
+          update: 'Y'
+
+      # The outputs name the outcome, so a crash or another error does not pass.
+      - name: Require the three outcomes
+        if: steps.unchanged.outputs.updatesAvailable != 'false' || steps.moved.outputs.updatesAvailable != 'true' || steps.notoken.outcome != 'failure' || steps.notoken.outputs.failure != 'token'
+        shell: pwsh
+        env:
+          UNCHANGED: ${{ steps.unchanged.outputs.updatesAvailable }}
+          MOVED: ${{ steps.moved.outputs.updatesAvailable }}
+          NOTOKEN: ${{ steps.notoken.outcome }}/${{ steps.notoken.outputs.failure }}
+        run: |
+          Write-Host "::error::CheckForUpdates outcomes: v1 updatesAvailable '$($env:UNCHANGED)' (expected false), v2 '$($env:MOVED)' (expected true), update without token '$($env:NOTOKEN)' (expected failure/token)"
           exit 1

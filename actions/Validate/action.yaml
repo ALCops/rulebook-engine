@@ -12,7 +12,7 @@ inputs:
     required: false
     default: 'false'
   checkForUpdates:
-    description: Run the template update check in check mode. Accepted and ignored until WP07 (#9) wires it.
+    description: "'true' runs the template update check in check mode: one notice or warning, never counted towards warnings or failOnWarning."
     required: false
     default: 'true'
 
@@ -35,6 +35,8 @@ runs:
         INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
         INPUT_FAILONWARNING: ${{ inputs.failOnWarning }}
         INPUT_CHECKFORUPDATES: ${{ inputs.checkForUpdates }}
+        # Read-only: the update check downloads a public template with it, never the write token.
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         $parameters = @{
           RepositoryRoot  = $env:INPUT_REPOSITORYROOT

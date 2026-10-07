@@ -1,0 +1,13 @@
+{
+  "name": "Rulebook House / vNext",
+  "description": "Level house, stage vnext, twins both. Generated from base/essential.ruleset.json, base/recommended.ruleset.json, base/house.ruleset.json plus stages/vnext.json, overrides.json and quarantine.vnext.json; do not edit. Ids at their analyzer default are not listed.",
+  "rules": [
+    { "id": "AL0200", "action": "Info" },
+    { "id": "AL0604", "action": "Error" },
+    { "id": "AW0006", "action": "Error" },
+    { "id": "AC0001", "action": "Warning" },
+    { "id": "LC0001", "action": "Error" },
+    { "id": "LC0029", "action": "Error" },
+    { "id": "TA0001", "action": "Info" }
+  ]
+}

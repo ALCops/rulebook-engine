@@ -1,7 +1,8 @@
 # Helpers for the suites that work on organization rulebook repositories (tests/fixtures/repos/).
-# Dot-source in BeforeAll. Complete fixtures (valid-minimal, stale-endpoints) are full repositories on disk; every
+# Dot-source in BeforeAll. Complete fixtures (valid-minimal, stale-endpoints, update-org) are full repositories on disk; every
 # other folder is an overlay that New-FixtureRepo copies over valid-minimal. Variants that need no folder are
-# mutations in TestDrive with Edit-FixtureJson.
+# mutations in TestDrive with Edit-FixtureJson. The template fixtures (tests/fixtures/templates/v1, v2) are copied with
+# Copy-FixtureTemplate; New-BareFixtureRepo and Add-RejectPushHook stand in for the GitHub side of the update.
 
 $script:FixtureReposRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'fixtures' 'repos'
 
@@ -22,7 +23,7 @@ function New-FixtureRepo {
     # fixture copies just that folder). Returns the destination path.
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
     param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Destination)
-    $complete = @('valid-minimal', 'stale-endpoints')
+    $complete = @('valid-minimal', 'stale-endpoints', 'update-org')
     if (-not (Test-Path -LiteralPath $Destination)) { [void](New-Item -ItemType Directory -Path $Destination -Force) }
     if ($Name -in $complete) {
         Copy-FixtureTree -Source (Join-Path $script:FixtureReposRoot $Name) -Destination $Destination
@@ -133,4 +134,42 @@ function New-SyntheticRulebook {
 '@
     Write-FixtureText -Path (Join-Path $Destination '.github' 'Rulebook-Settings.json') -Text $settings
     return (Resolve-Path -LiteralPath $Destination).ProviderPath
+}
+
+$script:FixtureTemplatesRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'fixtures' 'templates'
+
+function Copy-FixtureTemplate {
+    # Copies the template fixture Name (v1, v2) to Destination. Returns the destination path.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+    param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Destination)
+    $source = Join-Path $script:FixtureTemplatesRoot $Name
+    if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw "Unknown template fixture '$Name'" }
+    if (-not (Test-Path -LiteralPath $Destination)) { [void](New-Item -ItemType Directory -Path $Destination -Force) }
+    Copy-FixtureTree -Source $source -Destination $Destination
+    return (Resolve-Path -LiteralPath $Destination).ProviderPath
+}
+
+function New-BareFixtureRepo {
+    # A bare repository at Destination whose main branch holds the files of Source (one commit), the stand-in for an
+    # organization repository on GitHub. Returns the bare path.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+    param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Destination)
+    $work = "$Destination.work"
+    Copy-FixtureTree -Source $Source -Destination $work
+    $null = New-FixtureGitRepo -Root $work -Message 'initial'
+    $parent = Split-Path -Parent $Destination
+    $null = Invoke-FixtureGit -Root $parent -Arguments @('clone', '-q', '--bare', $work, $Destination)
+    Remove-Item -LiteralPath $work -Recurse -Force
+    return (Resolve-Path -LiteralPath $Destination).ProviderPath
+}
+
+function Add-RejectPushHook {
+    # A pre-receive hook in the bare repository BarePath that refuses every push to refs/heads/<Branch>, the stand-in
+    # for branch protection.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+    param([Parameter(Mandatory)][string]$BarePath, [string]$Branch = 'main')
+    $hook = Join-Path $BarePath 'hooks' 'pre-receive'
+    $script = "#!/bin/sh`nwhile read old new ref; do`n  if [ `"`$ref`" = `"refs/heads/$Branch`" ]; then echo `"$Branch is protected`" >&2; exit 1; fi`ndone`nexit 0`n"
+    [System.IO.File]::WriteAllText($hook, $script, [System.Text.UTF8Encoding]::new($false))
+    if (-not $IsWindows) { [System.IO.File]::SetUnixFileMode($hook, [System.IO.UnixFileMode]'UserRead, UserWrite, UserExecute, GroupRead, GroupExecute, OtherRead, OtherExecute') }
 }
