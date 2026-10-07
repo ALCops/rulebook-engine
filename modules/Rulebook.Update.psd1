@@ -20,6 +20,7 @@
         'Get-RulebookUpdatePlan'
         'Get-RulebookUpdateStatus'
         'Get-TemplateContentSha'
+        'Limit-SummaryText'
         'Publish-RulebookUpdate'
         'Update-RulebookSettingsText'
     )

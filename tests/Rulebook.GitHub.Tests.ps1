@@ -317,6 +317,23 @@ Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
         $script:mainSha = (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/main')).Trim()
     }
 
+    It 'clones an https remote with the token in the git environment only, never in the remote, the config or .git' {
+        # url.<bare>.insteadOf sends the https remote to the bare repository; git runs with the header environment,
+        # but the local transport sends no header, so the test proves that nothing is written, not that it is sent.
+        $remote = 'https://github.com/Contoso/org-repo'
+        $clone = New-GitHubClone -RemoteUrl $remote -Branch 'main' -Path (Get-TestFolder) -Token 'ghs_secret_token' -Actor 'octocat' -ExtraConfig @{ "url.$($bare.Replace('\', '/')).insteadOf" = $remote }
+        $clone.BaseSha | Should-Be $mainSha
+        $clone.Environment['GIT_CONFIG_KEY_0'] | Should-Be 'http.https://github.com/.extraheader'
+        (Get-GitText -Root $clone.Path -Arguments @('remote', 'get-url', 'origin')).Trim() | Should-Be $remote
+        (Get-GitText -Root $clone.Path -Arguments @('remote', '-v')) | Should-NotMatchString 'ghs_secret_token'
+        (Get-GitText -Root $clone.Path -Arguments @('config', '--list', '--show-origin')) | Should-NotMatchString 'ghs_secret_token|extraheader|insteadOf'
+        $basic = [System.Convert]::ToBase64String($utf8.GetBytes('x-access-token:ghs_secret_token'))
+        foreach ($file in Get-ChildItem -LiteralPath (Join-Path $clone.Path '.git') -Recurse -File -Force) {
+            $text = [System.Text.Encoding]::Latin1.GetString([System.IO.File]::ReadAllBytes($file.FullName))
+            ($text.Contains('ghs_secret_token') -or $text.Contains($basic)) | Should-BeFalse -Because $file.FullName
+        }
+    }
+
     It 'clones main, records the base commit and the identity, and keeps the token out of the remote and the config' {
         $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder) -Token 'ghs_secret_token' -Actor 'octocat'
         $clone.BaseSha | Should-Be $mainSha

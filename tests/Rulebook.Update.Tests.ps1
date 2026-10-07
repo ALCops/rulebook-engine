@@ -633,6 +633,29 @@ Describe 'Get-RulebookUpdatePlan: variants' {
         (Get-TemplateContentSha -Path $one) | Should-Be (Get-TemplateContentSha -Path $two)
     }
 
+    It 'does not follow a directory link back to the root' {
+        $root = Copy-Org
+        $link = Join-Path $root 'site' 'loop'
+        $made = $false
+        try {
+            $type = if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }
+            $null = New-Item -ItemType $type -Path $link -Target $root -ErrorAction Stop
+            $made = $true
+        } catch {
+            Set-ItResult -Skipped -Because "no directory link could be created: $($_.Exception.Message)"
+        }
+        if ($made) {
+            try {
+                $files = @(InModuleScope Rulebook.Update -Parameters @{ Root = $root } { param($Root) Get-TreeFile -Root $Root })
+                @($files | Where-Object { $_ -like 'site/loop*' }) | Should-BeCollection @()
+                $files.Count | Should-Be @(Get-ChildItem -LiteralPath $orgFixture -Recurse -File -Force).Count
+            } finally {
+                # Remove the link itself (not its target), or the TestDrive cleanup walks the loop.
+                [System.IO.Directory]::Delete($link, $false)
+            }
+        }
+    }
+
     It 'leaves node_modules out of the candidate and the comparison' {
         $root = Copy-Org
         Write-FixtureText -Path (Join-Path $root 'site' 'node_modules' 'x' 'index.js') -Text 'x'
@@ -670,6 +693,14 @@ Describe 'Get-RulebookTemplate (download)' {
         $noWorkflows = Get-TestFolder
         Write-FixtureText -Path (Join-Path $noWorkflows 'README.md') -Text '# no workflows'
         $script:emptyZip = New-TemplateZip -Source $noWorkflows -RootName 'Contoso-rulebook-template-ccccccc'
+        function Get-AppJson {
+            $rsa = [System.Security.Cryptography.RSA]::Create(2048)
+            try {
+                return @{ GitHubAppClientId = 'Iv23liApp'; PrivateKey = [string]::Join('', $rsa.ExportRSAPrivateKeyPem().Split("`n")) } | ConvertTo-Json -Compress
+            } finally {
+                $rsa.Dispose()
+            }
+        }
     }
 
     BeforeEach {
@@ -715,24 +746,41 @@ Describe 'Get-RulebookTemplate (download)' {
         Assert-ItemPresent -Actual $plan.Notes -Expected @('The template no longer ships .github/workflows/Legacy.yaml; list it in unusedRulebookFiles to remove it.')
     }
 
-    It 'keeps the 404 of the installed commit when the write token cannot be exchanged' {
+    It 'turns any failure of the installed zipball into a note, without an exchange (<Status>)' -ForEach @(
+        @{ Status = 404; Note = '*aaaaaaa*not available (HTTP 404)*' }
+        @{ Status = 502; Note = '*aaaaaaa*was not downloaded (*HTTP 502*' }
+    ) {
+        $code = $Status
         Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$($script:oldSha)" } {
-            [pscustomobject]@{ StatusCode = 404; Body = $null; Text = ''; Headers = $null; RateLimitRemaining = $null }
+            [pscustomobject]@{ StatusCode = $code; Body = $null; Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }.GetNewClosure()
+        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -Token (Get-AppJson) -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder)
+        $template.Sha | Should-Be $headSha
+        $template.InstalledPath | Should-BeNull
+        @($template.Notes | Where-Object { $_ -like $Note }).Count | Should-Be 1
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Path -like '*/installation' -or $Uri -like '*access_tokens*' }
+    }
+
+    It 'reads the installed zipball with the token the new template needed' {
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like '*/branches/main' -and $Token -eq 'gh' } {
+            [pscustomobject]@{ StatusCode = 404; Body = @{ message = 'Not Found' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
+        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -Token 'ghp_write' -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder)
+        $template.InstalledPath | Should-NotBeNull
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like "*/zipball/$($script:oldSha)" -and $Token -eq 'ghp_write' }
+    }
+
+    It 'names the failed exchange together with the original answer of the new template' {
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like '*/branches/main' } {
+            [pscustomobject]@{ StatusCode = 404; Body = @{ message = 'Not Found' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
         }
         Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/installation' } {
             [pscustomobject]@{ StatusCode = 404; Body = @{ message = 'Not Found' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
         }
-        $rsa = [System.Security.Cryptography.RSA]::Create(2048)
-        try {
-            $app = @{ GitHubAppClientId = 'Iv23liApp'; PrivateKey = [string]::Join('', $rsa.ExportRSAPrivateKeyPem().Split("`n")) } | ConvertTo-Json -Compress
-        } finally {
-            $rsa.Dispose()
-        }
-        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -Token $app -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder)
-        $template.Sha | Should-Be $headSha
-        $template.InstalledPath | Should-BeNull
-        @($template.Notes | Where-Object { $_ -like '*could not be used to read Contoso/rulebook-template*Iv23liApp*' }).Count | Should-Be 1
-        @($template.Notes | Where-Object { $_ -like '*aaaaaaa*not available (HTTP 404)*' }).Count | Should-Be 1
+        $caught = $null
+        try { $null = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -Token (Get-AppJson) -GitHubToken 'gh' -DownloadLatest -WorkPath (Get-TestFolder) } catch { $caught = $_ }
+        $caught.Exception.Message | Should-BeLikeString 'Could not get the latest commit of https://github.com/Contoso/rulebook-template@main (HTTP 404: Not Found)*could not be used to read Contoso/rulebook-template*Iv23liApp has no installation*'
+        $caught.Exception.Data['StatusCode'] | Should-Be 404
     }
 
     It 'notes an installed commit that is gone and goes on without it' {
@@ -849,7 +897,10 @@ Describe 'Publish-RulebookUpdate against a bare repository' -Skip:$gitMissing {
         $result = Publish-RulebookUpdate -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -UpdateBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) -Now $now
         $result.Result | Should-Be 'direct-commit'
         (& git -C $bare rev-parse refs/heads/main).Trim() | Should-Be $result.Sha
-        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Method -eq 'POST' }
+        $result.Title | Should-BeLikeString "``[main@$($originSha.Substring(0, 7))``]*"
+        $result.Body | Should-BeNull
+        # No duplicate guard for a direct commit: no API call at all.
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly
     }
 
     It 'falls back to a pull request when the direct push is refused' {
@@ -979,6 +1030,16 @@ Describe 'ConvertTo-UpdatePullRequestBody and ConvertTo-UpdateSummary' {
         $summary = ConvertTo-UpdateSummary -Plan $plan -Result $result -Mode update
         $summary | Should-MatchString '(?m)^## Effective diff\n\nThe effective diff could not be computed: boom$'
         $summary | Should-MatchString '(?m)^## Release notes\n\n### v1\.1$'
+    }
+
+    It 'cuts a summary at a line boundary, closes an open fence and adds the footer' {
+        $text = "## Title`n`nintro`n`n``````powershell`n" + (@(1..200 | ForEach-Object { "line $_" }) -join "`n") + "`n```````n`nafter`n"
+        $cut = Limit-SummaryText -Text $text -MaxBytes 400 -Footer 'The summary was cut at 0 KiB; the full lists are in the job log.'
+        [System.Text.Encoding]::UTF8.GetByteCount($cut) | Should-BeLessThanOrEqual 400
+        $cut | Should-MatchString '(?s)\A## Title\n'
+        $cut | Should-MatchString '\n```\n\n_The summary was cut at 0 KiB; the full lists are in the job log\._\n\z'
+        @($cut.Split("`n") | Where-Object { $_ -match '^```' }).Count % 2 | Should-Be 0
+        Limit-SummaryText -Text $text -MaxBytes 1000000 -Footer 'x' | Should-Be $text
     }
 
     It 'writes the check summary with the change table' {

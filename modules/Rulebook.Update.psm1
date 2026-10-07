@@ -118,7 +118,8 @@ function Test-ExcludedPath {
 
 function Get-TreeFile {
     # Relative paths ('/') of every file under Root, sorted ordinally. The excluded folders (.git, site/data,
-    # node_modules) are pruned during the walk, so their content is never enumerated.
+    # node_modules) are pruned during the walk, so their content is never enumerated; directory symlinks and junctions
+    # are skipped.
     param([Parameter(Mandatory)][string]$Root)
     $full = (Resolve-Path -LiteralPath $Root).ProviderPath
     $paths = [System.Collections.Generic.List[string]]::new()
@@ -129,6 +130,8 @@ function Get-TreeFile {
         foreach ($item in Get-ChildItem -LiteralPath $folder.Path -Force) {
             $relative = if ($folder.Relative) { "$($folder.Relative)/$($item.Name)" } else { $item.Name }
             if ($item.PSIsContainer) {
+                # A directory symlink or junction is not followed (one to the root would loop).
+                if ($item.LinkType -or ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { continue }
                 if (-not (Test-ExcludedPath -Path "$relative/")) { $pending.Push([pscustomobject]@{ Path = $item.FullName; Relative = $relative }) }
             } elseif (-not (Test-ExcludedPath -Path $relative)) {
                 $paths.Add($relative)
@@ -395,11 +398,12 @@ function Get-RulebookTemplate {
     -InstalledSha) and downloads that zipball into -WorkPath. The requests use -GitHubToken (GITHUB_TOKEN) first; on
     HTTP 401, 403 or 404 with a -Token (the GHTOKENWORKFLOW value) the request is repeated with that token (GitHub App
     JSON exchanged for contents read, a personal access token as it is), which is how a private template is read. A
-    failed exchange rethrows the original error, with the exchange error as a note. -OnToken runs with every token
+    failed exchange rethrows the original error (its status kept) with the exchange error added to the message. -OnToken runs with every token
     obtained by an exchange before it is used (the action masks it). Path is the folder of the zip that holds
     .github/workflows (none throws 'no .github/workflows in the template'). The installed template (a second zipball
     at -InstalledSha) is downloaded whenever it differs from Sha: the three-way comparison of site files (D35) and the
-    notes on files the template dropped need it. A 404 there is a note, and InstalledPath is $null.
+    notes on files the template dropped need it, with the token that read the new template; any failure there is a note,
+    and InstalledPath is $null.
     Local: -TemplatePath (and -InstalledTemplatePath) are folders; Sha is -TemplateSha or Get-TemplateContentSha.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Download')]
@@ -462,9 +466,10 @@ function Get-RulebookTemplate {
             try {
                 $exchanged = (Get-GitHubAccessToken -Token $state.WriteToken -Repository $state.Repo -ApiUrl $state.ApiUrl -Permissions ([ordered]@{ contents = 'read'; metadata = 'read' })).Token
             } catch {
-                # The original answer (and its status) is what the caller decides on; the exchange error is a note.
-                $state.Notes.Add("The token could not be used to read $($state.Repo): $($_.Exception.Message)")
-                throw $original
+                # The original answer (and its status) is what the caller decides on; the exchange error joins its message.
+                $wrapped = [System.InvalidOperationException]::new("$($original.Exception.Message). The token could not be used to read $($state.Repo) either: $($_.Exception.Message)", $original.Exception)
+                $wrapped.Data['StatusCode'] = $status
+                throw $wrapped
             }
             if ($null -ne $state.OnToken -and -not [string]::IsNullOrEmpty($exchanged)) { & $state.OnToken $exchanged }
             $state.Token = $exchanged
@@ -485,12 +490,18 @@ function Get-RulebookTemplate {
         if ($installed -ceq $sha) {
             $installedPath = $path
         } else {
+            # With the token that read the new template (exchanged only when that needed it). Any failure here is a
+            # note: the update goes on without the three-way comparison and the notes on dropped files.
             try {
-                $old = & $withToken { param($t) Save-GitHubZipball -Repository $info.Repo -Sha $installed -Token $t -Path (Join-Path $WorkPath 'installed') -ApiUrl $ApiUrl }
+                $old = Save-GitHubZipball -Repository $info.Repo -Sha $installed -Token $state.Token -Path (Join-Path $WorkPath 'installed') -ApiUrl $ApiUrl
                 $installedPath = Find-TemplateRoot -Path $old
             } catch {
-                if ($_.Exception.Data['StatusCode'] -ne 404) { throw }
-                $notes.Add("The installed template commit $(Get-ShortSha $installed) of $($info.Repo) is not available (HTTP 404); site files that differ from the new template are kept and listed, and files the template dropped get no note.")
+                $consequence = 'site files that differ from the new template are kept and listed, and files the template dropped get no note.'
+                if ($_.Exception.Data['StatusCode'] -eq 404) {
+                    $notes.Add("The installed template commit $(Get-ShortSha $installed) of $($info.Repo) is not available (HTTP 404); $consequence")
+                } else {
+                    $notes.Add("The installed template commit $(Get-ShortSha $installed) of $($info.Repo) was not downloaded ($($_.Exception.Message)); $consequence")
+                }
             }
         }
     }
@@ -1202,14 +1213,57 @@ function ConvertTo-UpdateSummary {
     return $text.ToString().Replace("`r`n", "`n")
 }
 
+function Limit-SummaryText {
+    <#
+    .SYNOPSIS
+    Markdown cut below -MaxBytes (UTF-8) at a line boundary, an open code fence closed, and -Footer as an italic line.
+    .DESCRIPTION
+    Text within the limit comes back as it is. Otherwise whole lines are kept from the start (the first line, a
+    heading, always), an open ``` or ~~~ fence in the kept part is closed, and '_<Footer>_' ends the text. Used for
+    the job summaries of the CheckForUpdates and Validate actions.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory)][int]$MaxBytes,
+        [Parameter(Mandatory)][string]$Footer
+    )
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    if ($utf8.GetByteCount($Text) -le $MaxBytes) { return $Text }
+    $footerText = "`n_$($Footer)_`n"
+    $lines = $Text.Split("`n")
+    $kept = [System.Collections.Generic.List[string]]::new()
+    $fence = $null
+    $used = 0
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $line = $lines[$i]
+        # Room for this line, the footer and a fence closer of the current or a newly opened fence.
+        $closer = if ($null -ne $fence) { $fence.Length + 1 } else { $line.Length + 1 }
+        if ($i -gt 0 -and $used + $utf8.GetByteCount($line) + 1 + $closer + $utf8.GetByteCount($footerText) -gt $MaxBytes) { break }
+        $kept.Add($line)
+        $used += $utf8.GetByteCount($line) + 1
+        $marker = [regex]::Match($line, '^[ ]{0,3}(`{3,}|~{3,})')
+        if ($null -ne $fence) {
+            if ($marker.Success -and $marker.Groups[1].Value[0] -ceq $fence[0] -and $marker.Groups[1].Value.Length -ge $fence.Length -and $line.Trim() -ceq $marker.Groups[1].Value) { $fence = $null }
+        } elseif ($marker.Success) {
+            $fence = $marker.Groups[1].Value
+        }
+    }
+    $result = ($kept -join "`n") + "`n"
+    if ($null -ne $fence) { $result += "$fence`n" }
+    return $result + $footerText
+}
+
 function Publish-RulebookUpdate {
     <#
     .SYNOPSIS
     Applies a valid plan to a fresh clone and opens the pull request (or pushes the direct commit).
     .DESCRIPTION
     Refuses an invalid plan. The title is [<branch>@<sha7>] Update Rulebook System Files from <owner>/<repo> -
-    <templateSha7>; an open pull request with that title into -UpdateBranch gives Result exists before anything is
-    cloned. Clones -RemoteUrl (default <GITHUB_SERVER_URL>/<Repository>) at -UpdateBranch, writes the plan's changes,
+    <templateSha7>, <sha7> the branch head; for a pull request an open one with that title into -UpdateBranch gives
+    Result exists before anything is cloned (no guard for -DirectCommit, whose <sha7> is the cloned head). Clones
+    -RemoteUrl (default <GITHUB_SERVER_URL>/<Repository>) at -UpdateBranch, writes the plan's changes,
     commits with the title and pushes update-rulebook-system-files/<branch>/<yyMMddHHmmss UTC> (or -UpdateBranch
     with -DirectCommit, falling back to the branch when the push is refused). Diff is the effective diff of the
     commit against the cloned head. Returns { Result (pull-request, direct-commit, exists, no-changes),
@@ -1253,21 +1307,26 @@ function Publish-RulebookUpdate {
         if ($LASTEXITCODE -eq 0 -and $show) { $prefix = ([string]$show).Trim() }
     }
 
-    # The duplicate guard (branch head for the title, open pull requests) belongs to the pull request stage.
-    try {
-        $branchSha = Get-GitHubBranchSha -Repository $Repository -Branch $UpdateBranch -Token $Token -ApiUrl $ApiUrl
-        $title = "[$UpdateBranch@$(Get-ShortSha $branchSha)] $($script:TitlePrefix) $TemplateRepo - $(Get-ShortSha $Plan.TemplateSha)"
-        $existing = Find-GitHubPullRequest -Repository $Repository -Base $UpdateBranch -Title $title -Token $Token -ApiUrl $ApiUrl
-    } catch {
-        throw (& $stageError 'pull-request' $_)
-    }
-    if ($null -ne $existing) {
-        return [pscustomobject]@{ Result = 'exists'; PullRequestUrl = $existing.Url; Branch = $null; Sha = $null; Fallback = $false; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
+    $newTitle = { param([string]$Sha) "[$UpdateBranch@$(Get-ShortSha $Sha)] $($script:TitlePrefix) $TemplateRepo - $(Get-ShortSha $Plan.TemplateSha)" }
+    $title = $null
+    if (-not $DirectCommit) {
+        # The duplicate guard (branch head for the title, open pull requests) belongs to the pull request stage. A
+        # direct commit has no guard (AL-Go does not dedupe them either); its title takes the cloned head.
+        try {
+            $title = & $newTitle (Get-GitHubBranchSha -Repository $Repository -Branch $UpdateBranch -Token $Token -ApiUrl $ApiUrl)
+            $existing = Find-GitHubPullRequest -Repository $Repository -Base $UpdateBranch -Title $title -Token $Token -ApiUrl $ApiUrl
+        } catch {
+            throw (& $stageError 'pull-request' $_)
+        }
+        if ($null -ne $existing) {
+            return [pscustomobject]@{ Result = 'exists'; PullRequestUrl = $existing.Url; Branch = $null; Sha = $null; Fallback = $false; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
+        }
     }
 
     $newBranch = '{0}/{1}/{2}' -f $script:BranchPrefix, $UpdateBranch, $Now.UtcDateTime.ToString('yyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture)
     try {
         $clone = New-GitHubClone -RemoteUrl $RemoteUrl -Branch $UpdateBranch -Path (Join-Path $WorkPath 'clone') -Token $Token -Actor $Actor
+        if ($null -eq $title) { $title = & $newTitle $clone.BaseSha }
         $rulebookRoot = if ($prefix) { Join-Path $clone.Path $prefix.TrimEnd('/') } else { $clone.Path }
         foreach ($change in $Plan.Changes) {
             $target = Join-Path $rulebookRoot $change.File
@@ -1293,9 +1352,7 @@ function Publish-RulebookUpdate {
         $diffNote = "The effective diff could not be computed: $($_.Exception.Message)"
     }
     if ($pushed.Direct) {
-        $body = $null
-        try { $body = ConvertTo-UpdatePullRequestBody -Plan $Plan -Diff $diff -TemplateRepo $TemplateRepo -Branch $UpdateBranch -DiffNote $diffNote } catch { $body = $null }
-        return [pscustomobject]@{ Result = 'direct-commit'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; Diff = $diff; DiffNote = $diffNote; Body = $body; Title = $title }
+        return [pscustomobject]@{ Result = 'direct-commit'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; Diff = $diff; DiffNote = $diffNote; Body = $null; Title = $title }
     }
     # The branch is pushed from here on: a failure names it, so the pull request can be opened by hand.
     try {
@@ -1328,6 +1385,7 @@ Export-ModuleMember -Function @(
     'Get-RulebookUpdatePlan'
     'Get-RulebookUpdateStatus'
     'Get-TemplateContentSha'
+    'Limit-SummaryText'
     'Publish-RulebookUpdate'
     'Update-RulebookSettingsText'
 )

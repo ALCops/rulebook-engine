@@ -489,13 +489,24 @@ function New-GitHubClone {
         [Parameter(Mandatory)][string]$Branch,
         [Parameter(Mandatory)][string]$Path,
         [AllowNull()][AllowEmptyString()][string]$Token,
-        [AllowNull()][AllowEmptyString()][string]$Actor
+        [AllowNull()][AllowEmptyString()][string]$Actor,
+        # Test seam: more key = value pairs for the GIT_CONFIG_* environment (url.<path>.insteadOf in the suite).
+        [System.Collections.IDictionary]$ExtraConfig
     )
     $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
     $parent = Split-Path -Parent $Path
     if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][System.IO.Directory]::CreateDirectory($parent) }
     if (Test-Path -LiteralPath $Path) { throw "The clone folder exists already: $Path" }
     $environment = Get-GitAuthEnvironment -RemoteUrl $RemoteUrl -Token $Token
+    if ($null -ne $ExtraConfig) {
+        $count = if ($environment.Contains('GIT_CONFIG_COUNT')) { [int]$environment['GIT_CONFIG_COUNT'] } else { 0 }
+        foreach ($key in $ExtraConfig.Keys) {
+            $environment["GIT_CONFIG_KEY_$count"] = [string]$key
+            $environment["GIT_CONFIG_VALUE_$count"] = [string]$ExtraConfig[$key]
+            $count++
+        }
+        $environment['GIT_CONFIG_COUNT'] = [string]$count
+    }
     $clone = Invoke-Git -Root $parent -Arguments @('clone', '--quiet', '--config', 'core.autocrlf=false', '--branch', $Branch, '--single-branch', '--', $RemoteUrl, $Path) -Environment $environment
     if ($clone.ExitCode -ne 0) { throw "Could not clone branch '$Branch' of $RemoteUrl`: $(($clone.Error + $clone.Output).Trim())" }
     $name = if ([string]::IsNullOrWhiteSpace($Actor)) { 'github-actions[bot]' } else { $Actor }
