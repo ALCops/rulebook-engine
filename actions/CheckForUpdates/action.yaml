@@ -1,0 +1,102 @@
+name: Rulebook CheckForUpdates
+description: Checks an organization rulebook repository against its template (update 'N') or pulls the new template version into a pull request with the regenerated endpoints (update 'Y').
+author: ALCops
+
+inputs:
+  templateUrl:
+    description: Template repository URL (owner/repo[@branch] or https://github.com/owner/repo@branch). Empty uses templateUrl of .github/Rulebook-Settings.json.
+    required: false
+    default: ''
+  templatePath:
+    description: A local template folder instead of the download (engine tests and CI).
+    required: false
+    default: ''
+  installedTemplatePath:
+    description: With templatePath, the local folder of the installed template version.
+    required: false
+    default: ''
+  templateSha:
+    description: With templatePath, the sha to record; empty uses a content sha of the folder.
+    required: false
+    default: ''
+  token:
+    description: The GHTOKENWORKFLOW value (a personal access token or GitHub App JSON). Needed for update 'Y'.
+    required: false
+    default: ''
+  update:
+    description: "'Y' writes the update (pull request or direct commit); anything else only checks."
+    required: false
+    default: 'N'
+  downloadLatest:
+    description: "'true' resolves the latest commit of the template branch; 'false' re-applies templateSha."
+    required: false
+    default: 'true'
+  directCommit:
+    description: "'true' pushes to updateBranch instead of opening a pull request (falls back to a pull request when the push is refused)."
+    required: false
+    default: 'false'
+  updateBranch:
+    description: The branch to update.
+    required: false
+    default: ${{ github.ref_name }}
+  repositoryRoot:
+    description: Path of the rulebook repository, relative to the workspace.
+    required: false
+    default: '.'
+  actor:
+    description: The git author name of the update commit.
+    required: false
+    default: ${{ github.actor }}
+
+outputs:
+  updatesAvailable:
+    description: "'true' when the template has changes for this repository (beyond recording templateSha)."
+    value: ${{ steps.update.outputs.updatesAvailable }}
+  pullRequestUrl:
+    description: The URL of the update pull request (new or already open).
+    value: ${{ steps.update.outputs.pullRequestUrl }}
+  templateSha:
+    description: The template commit the run compared against.
+    value: ${{ steps.update.outputs.templateSha }}
+  failure:
+    description: "Why the step failed, empty on success: token, template, validation, push, pull-request or error."
+    value: ${{ steps.update.outputs.failure }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check for updates
+      id: update
+      shell: pwsh
+      # Inputs reach the script through the environment, never interpolated into the script (script injection).
+      env:
+        INPUT_TEMPLATEURL: ${{ inputs.templateUrl }}
+        INPUT_TEMPLATEPATH: ${{ inputs.templatePath }}
+        INPUT_INSTALLEDTEMPLATEPATH: ${{ inputs.installedTemplatePath }}
+        INPUT_TEMPLATESHA: ${{ inputs.templateSha }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_UPDATE: ${{ inputs.update }}
+        INPUT_DOWNLOADLATEST: ${{ inputs.downloadLatest }}
+        INPUT_DIRECTCOMMIT: ${{ inputs.directCommit }}
+        INPUT_UPDATEBRANCH: ${{ inputs.updateBranch }}
+        INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
+        INPUT_ACTOR: ${{ inputs.actor }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        $parameters = @{
+          RepositoryRoot        = $env:INPUT_REPOSITORYROOT
+          TemplateUrl           = $env:INPUT_TEMPLATEURL
+          TemplatePath          = $env:INPUT_TEMPLATEPATH
+          InstalledTemplatePath = $env:INPUT_INSTALLEDTEMPLATEPATH
+          TemplateSha           = $env:INPUT_TEMPLATESHA
+          Token                 = $env:INPUT_TOKEN
+          Update                = $env:INPUT_UPDATE -eq 'Y'
+          DownloadLatest        = $env:INPUT_DOWNLOADLATEST -ne 'false'
+          DirectCommit          = $env:INPUT_DIRECTCOMMIT -eq 'true'
+          UpdateBranch          = $env:INPUT_UPDATEBRANCH
+          Actor                 = $env:INPUT_ACTOR
+        }
+        # The result object is the last pipeline output; anything a module emits before it is ignored.
+        $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'CheckForUpdates.ps1') @parameters)[-1]
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['ExitCode']) { Write-Host '::error::CheckForUpdates.ps1 returned no result'; exit 1 }
+        exit $result.ExitCode
