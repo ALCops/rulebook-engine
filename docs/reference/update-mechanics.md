@@ -89,7 +89,7 @@ Line endings become LF. Keys the engine does not know survive; the schema reject
 
 1. `{TEMPLATEURL}` becomes the template URL, so the dispatch form shows the current template.
 2. Where `on:/workflow_dispatch:/inputs:/levels:/options:` (or `stages:`) exists, its items become `- '*'` and the level (stage) slugs of the organization's settings in settings order (D30). The items must be indented below `options:`. A slug YAML would read as another type (`yes`, `null`, `2026`) is quoted.
-3. In `UpdateRulebookSystemFiles.yaml`: settings `update.schedule` (a five-field cron string) adds or replaces `schedule:` with `- cron: '<cron>'` at the end of `on:`; `null` or absent removes it. The template ships no schedule. A scheduled run has no inputs: the settings step takes `downloadLatest` true and `directCommit` = not `commitOptions.createPullRequest`.
+3. In `UpdateRulebookSystemFiles.yaml` settings `update.schedule`, in `ScanDiagnostics.yaml` (WP08) settings `scan.schedule` (a five-field cron string) adds or replaces `schedule:` with `- cron: '<cron>'` at the end of `on:`; `null` or absent removes it. The two keys never cross files, and any other workflow keeps its triggers. The template ships no update schedule and the scan schedule `17 4 * * *` already in place, so the rewrite of the shipped `ScanDiagnostics.yaml` with the shipped settings changes nothing. A scheduled update has no inputs: the settings step takes `downloadLatest` true and `directCommit` = not `commitOptions.createPullRequest` (the scan's settings step does the same with `includePrerelease` true).
 
 ## 6. Token and secret
 

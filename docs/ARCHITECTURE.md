@@ -96,7 +96,7 @@ Everything an org repo contains after "Use this template". The **class** column 
 | `.github/workflows/Validate.yaml` | On every pull request: schema, catalog coverage, regeneration check, effective diff report. Also runs the update check in check mode. | system |
 | `.github/workflows/Publish.yaml` | On push to the default branch and on demand: validate, refuse stale endpoints, deploy `rulesets/`, the rendered skeletons and `index.html` to the configured target, verify reachability. Never commits (D42). | system |
 | `.github/workflows/UpdateRulebookSystemFiles.yaml` | Manual, or scheduled when `update.schedule` is set (the update writes the `schedule:` trigger): pull the new template version into a PR (or a direct commit) with the regenerated endpoints and skeletons, after validating the result (section 7.3). | system |
-| `.github/workflows/ScanDiagnostics.yaml` | Daily: NuGet scan, catalog diff, quarantine PR with regenerated endpoints. | system |
+| `.github/workflows/ScanDiagnostics.yaml` | Daily (the `schedule:` comes from `scan.schedule`, shipped `17 4 * * *`) and manual: scan the newest stable and prerelease versions of the two analyzer packages on NuGet, record new ids and changed defaults in the catalog, quarantine new ids by the policy, release the ids a level file adopted, regenerate the endpoints and keep one living pull request on `scan-diagnostics/<branch>`, or push a direct commit (section 7.4). | system |
 | `.github/workflows/ChangeRule.yaml` | Manual form: one override entry, regenerate, open a PR. | system |
 | `.github/workflows/ApplyRulebookChange.yaml` | On an issue with the `rulebook-change` label: gate on collaborator association, apply the change set, regenerate, open a PR or commit (section 7.6). | system |
 | `.github/ISSUE_TEMPLATE/rulebook-change.yml`, `config.yml` | The issue form the dashboard prefills; blank issues stay enabled. | system |
@@ -106,9 +106,9 @@ Everything an org repo contains after "Use this template". The **class** column 
 | `stages/<stage>.json` (2 shipped files) | One delta per non-default stage, applied on top of every level's default result: `ci.json`, `vnext.json`. The `default` stage has no file. The shipped files carry the delta profile URL in `$schema`. Org-added stages are org-owned. | system |
 | `base/twins.json` | The PerTenantExtensionCop/AppSourceCop twin pairs the `twins` setting acts on (D23). | system |
 | `overrides.json` | The org's rule changes with scope selectors (D19). | org-owned |
-| `quarantine.<stage>.json` (one per stage, `quarantine.default.json` included) | Ids held back per stage, written by the scan. | org-owned |
-| `catalog/diagnostics.json` | Every known diagnostic id with analyzer, package, default severity, enablement, first-seen version and channel (D24). The template ships a seed with `id`, `analyzer`, `defaultSeverity`, `enabledByDefault`, `title` and `docs` per inventory id; the first scan adds the package, versions and channel (section 5.6). | org-owned |
-| `catalog/scan-state.json` | Reserved for the scan's state; name and schema come with WP08. | org-owned |
+| `quarantine.<stage>.json` (one per stage, `quarantine.default.json` included) | Ids held at `None` per stage while no level file mentions them, written by the scan from the policy; a level file that adopts an id releases it (housekeeping). A file whose `<stage>` is no stage of the settings is C16. | org-owned |
+| `catalog/diagnostics.json` | Every known diagnostic id with analyzer, package, default severity, enablement, first-seen version and channel (D24). The template ships a seed with `id`, `analyzer`, `defaultSeverity`, `enabledByDefault`, `title` and `docs` per inventory id; the scan adds `package`, `firstSeenVersion`, `firstSeenChannel`, `firstStableVersion`, `lastSeenVersion` and the flags `advertised: false`, `deprecated: true` and `defaultChanges` (sections 5.4 and 7.4, D46). | org-owned |
+| `catalog/scan-state.json` | The package version the scan recorded last per package and channel (`{ version, scannedAt }`), so a run without a new version stops after two index requests. Created by the first scan, never shipped; schema `rulebook-scan-state.schema.json`. | org-owned |
 | `rulesets/<level>.ruleset.json` (default stage), `rulesets/<level>.<stage>.ruleset.json` (12 files in the shipped set) | The endpoints: generated from the level chain + stage delta + twins setting + overrides + quarantine, listing the ids whose effective action differs from the analyzer default, no includes. Committed. | generated (regenerated in their pull requests by Update, Scan, ChangeRule and Apply, or by hand with `Update-RulebookEndpoints`; checked by Validate (C12) and Publish, which never regenerate) |
 | `skeletons/<level>.<stage>.ruleset.json` (12 files, the stage suffix always written, `strict.default` included), `skeletons/README.md` | Copy-paste files for AL projects with `{BASEURL}`; one include of the endpoint. The README explains them next to the files; it is not published and is exempt from C11 (WP06). | generated from the settings (regenerated by every update with `New-RulebookSkeleton`); the README is system |
 | `docs/`, `README.md` | The org's own notes; the template ships a README that explains the layout. | never touched after creation |
@@ -116,7 +116,7 @@ Everything an org repo contains after "Use this template". The **class** column 
 
 The `rulesets/` folder is flat and every endpoint is self-contained, so the whole set is relocatable to any host without editing a file.
 
-Every JSON file in this table except `catalog/scan-state.json` (WP08) and the files under `site/` has a schema in the engine under `schemas/`, served from the release branch as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (section 5.4). The `v1` URLs go live with WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)); until then they return 404 and the tests use the local files. The ruleset profile follows the folder: `base/` and `stages/` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. The generator never writes `$schema` into an endpoint or a skeleton; the compiler fetches them and they stay minimal. File names, slugs and the schema list are in [reference/naming.md](reference/naming.md).
+Every JSON file in this table except the files under `site/` has a schema in the engine under `schemas/`, served from the release branch as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (section 5.4). The `v1` URLs go live with WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)); until then they return 404 and the tests use the local files. The ruleset profile follows the folder: `base/` and `stages/` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. The generator never writes `$schema` into an endpoint or a skeleton; the compiler fetches them and they stay minimal. File names, slugs and the schema list are in [reference/naming.md](reference/naming.md).
 
 ## 5. Generation model
 
@@ -178,14 +178,14 @@ The checks are numbered `C1` to `C16` so that WP02 and WP03 can reference them; 
 | C4 | Rule `action` is one of Error, Warning, Info, Hidden, None. Never `Default`. | error | `Default` fails deserialisation. |
 | C5 | Settings: `levels` and `stages` are non-empty ordered arrays; every name lowercases to `^[a-z0-9-]+$`; slugs are unique per array; `stages` contains `default`; every `basedOn` resolves to an existing `base/<slug>.ruleset.json` without a cycle; `twins` is `both`, `appsource` or `pte`; `quarantine.*` is `null` or a list of stage slugs; `baseUrl` has no trailing slash. | error | Every file name and URL is derived from these values. |
 | C6 | Every published level has `base/<slug>.ruleset.json`; every non-default stage has `stages/<slug>.json`; `stages/default.json` does not exist. | error | The default stage is the level result; a file for it would be a second truth. |
-| C7 | Every id in level files, stage files, `base/twins.json`, `overrides.json` and the quarantine files exists in `catalog/diagnostics.json`. | warning while `catalog/scan-state.json` is absent, error once it exists (the first scan writes it, WP08) | Typos never reach an endpoint. |
+| C7 | Every id in level files, stage files, `base/twins.json`, `overrides.json` and the quarantine files exists in `catalog/diagnostics.json`. | warning while `catalog/scan-state.json` is absent (the first scan creates it), error once it exists (WP08) | Typos never reach an endpoint. |
 | C8 | A stage entry whose id no published level enables. | warning | Dead entry; a stage never activates a rule. |
 | C9 | A delta entry equal to what the chain already gives; a file in `base/` or `stages/` that no settings entry references and that `unusedRulebookFiles` does not list by its repository-relative path (`stages/vnext.json`; a bare file name does not count, and the update matches entries the same way, [#49](https://github.com/ALCops/rulebook-engine/issues/49)). | warning | Dead weight, or a level the org forgot to publish or exclude. |
 | C10 | `overrides.json` selectors are lowercase level and stage slugs from the settings or `["*"]`; every entry has an action; a justification is optional (D37, D40). | error | Silent no-ops are the failure mode of a selector typo. |
 | C11 | No endpoint entry equals the catalog default of its id; exactly the `levels x stages` endpoints and skeletons exist, no others. Any file in `rulesets/` or `skeletons/` whose name is not an expected endpoint or skeleton name is C11, except `README.md` (exact name, ordinal), which the template ships in `skeletons/` and which Publish never stages; while C12 runs, a missing or stray `*.ruleset.json` in `rulesets/` is left to C12 ("would be created", "would be deleted"). The skeleton half applies only when `skeletons/` exists; the template ships them since WP04. | error | A listed default is dead weight; the index page and the AL projects rely on the names. |
 | C12 | Regeneration check: `rulesets/` equals the generator's output for the current inputs. Skipped with one warning while an input the generator needs has an error (section 5.5). | error | The committed endpoint is the published endpoint. |
 | C13 | A quarantine id that a level file now mentions. | warning | Housekeeping. |
-| C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id, and `count` equals the number of pairs. | error | The sparse rule and the twins step depend on them. |
+| C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id, and `count` equals the number of pairs; `catalog/scan-state.json`, when present, parses and matches its schema (not blocking: the generator does not read it). | error | The sparse rule and the twins step depend on them. |
 | C15 | A stage entry on an id the same stage's quarantine file lists and no file on the chain of any published level mentions. | warning | Dead while quarantined: quarantine wins over the stage entry until a level file adopts the id (D41). The stage file is a system file, so this is not an error. |
 | C16 | A `quarantine.<x>.json` whose `<x>` is not a stage slug of the settings. | warning | A file nothing reads; its ids silently stop being quarantined. The generator reads `quarantine.<slug>.json` for the settings stages only. The file still feeds C7 and C13, so a C13 "remove the quarantine entry" finding next to C16 on the same file is expected. `unusedRulebookFiles` cannot list a root-level file, so the only remedies are the three the message names: rename the file to a stage slug, remove it, or add the stage. |
 
@@ -211,7 +211,9 @@ A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`,
 
 **Quarantine.** An entry is `id` and an optional `justification`, with no `action`: quarantine always means `None`, and only for ids no file on the level chain mentions.
 
-**Twins, catalog, settings.** `base/twins.json` is `pairs` of one `PTE` and one `AS` id with an optional `title`, plus the generator's `generatedBy`, `setting`, `values` and `count`. The catalog is `version` 1 and `diagnostics[]`; an entry requires `id`, `defaultSeverity` and `enabledByDefault` and may carry more fields. The settings schema is closed (section 8).
+**Twins, catalog, settings.** `base/twins.json` is `pairs` of one `PTE` and one `AS` id with an optional `title`, plus the generator's `generatedBy`, `setting`, `values` and `count`. The catalog is `version` 1 and `diagnostics[]`; an entry requires `id`, `defaultSeverity` and `enabledByDefault`, types the seed and scan fields (`title`, `docs`, `package`, the versions, `firstSeenChannel`, `advertised`, `deprecated`, `defaultChanges` as closed `{ version, field, from, to }` elements) and may carry more. The settings schema is closed (section 8).
+
+**Scan state.** `catalog/scan-state.json` is `version` 1 and `packages`, an object keyed by the lowercase package id whose `stable` and `prerelease` are `null` or `{ version, scannedAt }` (UTC, seconds); the schema is closed. The first scan creates it, the template never ships it, and its presence turns C7 into an error: from then on every id must be in the catalog.
 
 ### 5.5 Generate and Validate modules
 
@@ -258,12 +260,24 @@ A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`,
 |---|---|
 | `Build-RulebookBase -RulebookDir -OutputPath` | One `<slug>.ruleset.json` per entry of `matrix/levels.json`: a root lists the ids whose default-stage cell in `resolved.json` differs from the analyzer default, every other level the ids whose cell differs from its `basedOn` level. Writes `base/twins.json` from `matrix/twins.json` with the twins schema URL, pairs sorted by the PTE side. |
 | `Build-RulebookStages -RulebookDir -OutputPath` | One `<slug>.json` per non-default entry of `matrix/stages.json`: the ids whose `matrix.json` column named after the stage is not `=`. |
-| `Build-RulebookCatalog -RulebookDir -OutputPath` | The seed `catalog/diagnostics.json`: one entry per inventory id with `id`, `analyzer`, `defaultSeverity`, `enabledByDefault`, `title`, `docs`. |
+| `Build-RulebookCatalog -RulebookDir -OutputPath` | The seed `catalog/diagnostics.json`: one entry per inventory id with `id`, `analyzer`, `defaultSeverity`, `enabledByDefault`, `title`, `docs`, written by `ConvertTo-CatalogJson` of `Rulebook.Catalog`, the writer the scan uses, so the seed and a scanned catalog share one layout. |
 | `New-RulebookSkeleton -SettingsPath -OutputPath` | One `<level>.<stage>.ruleset.json` per level and stage of the settings, including `{BASEURL}/rulesets/<endpoint>` with action `Default`. |
 
 Common to all four: entries in inventory order with the matrix row justification; the level and stage files carry the delta profile URL in `$schema`; UTF-8 without BOM, LF; a file is written only when its bytes differ, files of the folder that no input produces are deleted first; one `{ File, Path, Change }` object per change (`created`, `modified`, `deleted`); `-WhatIf` writes nothing and returns the same list. The functions throw, as engine tools, on matrix input they cannot use (rows out of inventory order, an id without resolved cells, a level that is not a slug, an unresolved `basedOn` or a cycle, no `default` stage, a stage without a matrix column, a value that is not an action).
 
-`tools/rulebook/Build-Template.ps1 [-RulebookDir] [-TemplateDir] [-WhatIf]` runs the four functions and then `Update-RulebookEndpoints` on `template/`, prints one line per change or `template: current`, and returns the change objects. `tests/Rulebook.Template.Tests.ps1` regenerates `template/` from its 9 hand-written files and compares the bytes, so a matrix change without a template regeneration fails CI.
+`tools/rulebook/Build-Template.ps1 [-RulebookDir] [-TemplateDir] [-WhatIf]` runs the four functions and then `Update-RulebookEndpoints` on `template/`, prints one line per change or `template: current`, and returns the change objects. `tests/Rulebook.Template.Tests.ps1` regenerates `template/` from its 11 hand-written files and compares the bytes, so a matrix change without a template regeneration fails CI.
+
+### 5.7 Scan modules
+
+The scan of section 7.4 (WP08) is five modules, each a `.psm1` with a `.psd1` manifest; the contract is [reference/scan-mechanics.md](reference/scan-mechanics.md).
+
+| Module | Functions | Role |
+|---|---|---|
+| `Rulebook.NuGet` | `Compare-NuGetVersion`, `Select-NuGetChannelVersion`, `Get-NuGetVersionIndex`, `Get-NuGetPackageUrl`, `Save-NuGetPackage` | NuGet semantic versioning, the newest stable and (newer) prerelease version, the flat-container index and the download of one version. No engine imports; a folder `-Source` is the offline seam. |
+| `Rulebook.Extract` | `Resolve-AnalyzerFolder`, `Get-AnalyzerDescriptor`, `Invoke-DescriptorExtraction`, `ConvertTo-DiagnosticRecord`, `Get-ExpectedAssembly` | The analyzer folder for the running .NET, the descriptors by reflection in a child pwsh per package version (fails loudly on a load error or a missing expected assembly), one record per id of one package. |
+| `Rulebook.Catalog` | `Read-CatalogFile`, `ConvertTo-CatalogJson`, `Write-CatalogFile`, `Get-CatalogDocsUrl`, `Update-CatalogFromScan`, `Read-ScanState`, `Write-ScanState`, `Get-NewPackageVersion` | The catalog with every scan field and unknown keys kept, the docs URL rule, one scanned version applied to the catalog (pure), the scan state. |
+| `Rulebook.Quarantine` | `Get-QuarantinePolicy`, `Read-QuarantineFile`, `Write-QuarantineFile`, `New-QuarantineJustification`, `Add-QuarantineEntry`, `Invoke-QuarantineHousekeeping`, `Update-QuarantineFromScan` | The policy (no default, D14), the quarantine files in the template layout, new ids into the policy stages, housekeeping by the rule of C13. |
+| `Rulebook.Scan` | `Get-RulebookScanPlan`, `Get-ScanTitle`, `ConvertTo-ScanPullRequestBody`, `ConvertTo-ScanSummary`, `Publish-RulebookScan` | The run of section 7.4 on a candidate tree, its title and body, and the living pull request (D45). |
 
 ## 6. Endpoints and skeletons
 
@@ -407,25 +421,32 @@ The shipped level files in `base/`, the shipped stage files in `stages/` and `ba
 
 ### 7.4 Scan diagnostics (R9)
 
-Trigger: daily schedule, `workflow_dispatch`.
+Trigger: a daily `schedule:` (the update writes it from `scan.schedule`; the template ships `17 4 * * *`, `null` removes it) and `workflow_dispatch` with the inputs `includePrerelease` (default true) and `directCommit` (default false). A `Read the settings` step takes the secret name from `ghTokenWorkflowSecretName`; a scheduled run scans prereleases and takes `directCommit` = not `commitOptions.createPullRequest`. The action `actions/ScanDiagnostics` runs the modules of section 5.7; every detail is in [reference/scan-mechanics.md](reference/scan-mechanics.md).
 
 ```mermaid
 flowchart LR
-    idx[NuGet flat-container index<br/>both packages, stable + prerelease] --> dl[download latest nupkg per package per channel<br/>neutral tools package only, prerelease only if newer than stable]
-    dl --> ex[extract diagnostic ids, default severity, enablement<br/>reflection in pwsh, WP01 spike b]
-    ex --> diff[diff with catalog/diagnostics.json]
-    diff -->|new ids| q[add to quarantine.stage.json<br/>per policy in settings]
-    diff -->|changed defaults| dd[update catalog, list in PR]
-    diff -->|ids now in base| hk[remove from quarantine]
-    q & dd & hk --> gen[regenerate rulesets/]
-    gen --> pr[PR: catalog + quarantine + endpoints + summary table]
+    pol[policy set?<br/>else fail before any request] --> idx[NuGet index of both packages<br/>stable, and prerelease when newer]
+    idx --> st{new version<br/>vs scan-state.json?}
+    st -->|no, nothing adopted| stop[nothing-new: stop]
+    st -->|no, an adopted id| hk[housekeeping only]
+    st -->|yes| ex[download, extract in a child pwsh<br/>per version and channel]
+    ex --> cat[catalog: new ids, package fields,<br/>stable default changes, text refresh, flags]
+    cat --> q[quarantine new ids by the policy]
+    q --> hk
+    hk --> gen[regenerate rulesets/, validate]
+    gen --> pr[rebuild scan-diagnostics/branch,<br/>lease push, create or PATCH the pull request]
 ```
 
-Extraction loads the analyzer DLLs by reflection in pwsh: `Microsoft.Dynamics.Nav.CodeAnalysis.dll` and the four Microsoft cops from `tools/<tfm>/any/` of the tools package, the ALCops cops from `lib/<tfm>/` of `ALCops.Analyzers`, with `<tfm>` the highest folder not newer than the pwsh runtime (`net10.0` on `ubuntu-latest` today) and never `netstandard2.1`, one pwsh process per package version and channel. Only the platform-neutral tools package is downloaded, and a prerelease counts only when it sorts after the stable version; see [spike (b)](reference/spikes/b-analyzer-dll-extraction.md).
-
-Policy from settings: `quarantine.stages` receives ids first seen in a stable package, `quarantine.prereleaseStages` receives ids first seen in a prerelease package. Both are mandatory (D14). Values are stage slugs from `settings.stages`. A typical choice: stable ids to `default` and `ci`, prerelease ids to `default` and `ci` as well, so `vnext` shows everything at default severity. A stage the org adds gets its own `quarantine.<slug>.json` the first time the scan writes to it. Ids never leave the catalog; the catalog records `firstSeenVersion`, `firstSeenChannel` and `lastSeenVersion`, so a rule that disappears from a package is visible too.
-
-The catalog also records `defaultSeverity` and `enabledByDefault` per id (D24). When a package changes one, the scan updates the catalog, lists the change in the PR body ("LC0015: default Info -> Warning"), and regenerates the endpoints: an id whose level action now equals the new default drops out of the endpoint, an id whose default moved away from the level action is written. The reviewer sees the effective change per endpoint.
+- **Fast path.** The policy is read first: both `quarantine` keys `null` (as shipped) or absent fail the run with the message that tells the organization what to set, before any request (D14). Then the two indexes are read and compared with `catalog/scan-state.json`; with no new version and no quarantined id a level file mentions, the run ends as `nothing-new` after two requests. With no new version but such an id, the run does housekeeping only.
+- **Extraction.** Only the platform-neutral tools package and `alcops.analyzers` are downloaded. Each new version is extracted in its own pwsh process (an ALCops version is hosted by the tools version of the same channel), from `tools/<tfm>/any/` and `lib/<tfm>/` with `<tfm>` the highest folder not newer than the pwsh runtime (`net10.0` on `ubuntu-latest`) and never `netstandard2.1` ([spike (b)](reference/spikes/b-analyzer-dll-extraction.md)). An assembly that does not load, an analyzer that cannot be instantiated or a missing expected cop fails the run; nothing is pushed.
+- **Catalog.** Stable before prerelease per package, tools before ALCops. A new id gets a full entry. The 628 seeded ids are known: the first scan fills their package fields and never quarantines them (D46). A stable version overwrites changed defaults and appends one `defaultChanges` element (D24), refreshes `title` and `docs` and sets the flags `advertised: false` (a descriptor no analyzer returns, cataloged, never quarantined) and `deprecated: true`; an id a stable version no longer carries keeps its entry and its `lastSeenVersion`. A prerelease never changes a default or a text; its default changes are listed in the pull request only.
+- **Quarantine.** `quarantine.stages` receives ids new in a stable version and ids promoted from prerelease, `quarantine.prereleaseStages` ids new in a prerelease; both are mandatory, `[]` is valid. A stage the org added gets its `quarantine.<slug>.json` the first time the scan writes to it; a slug that is not a stage never gets a file (C16). Every entry carries `New in <package> <version> (<channel>), quarantined <date>. Review and adopt.`
+- **Housekeeping.** A quarantined id that a file on a published level chain mentions is removed from every quarantine file (the rule of C13); the pull request lists it with the files that mention it.
+- **Regenerate and validate.** The endpoints are regenerated on the candidate and `Test-Rulebook` runs on it; since the candidate carries `catalog/scan-state.json`, C7 is an error there. Any error fails the run and nothing is pushed.
+- **One living pull request (D45).** Every run rebuilds the branch `scan-diagnostics/<branch>` from the base head as one commit with the full current result, pushes it with `--force-with-lease` (a push someone made in between is rejected, never overwritten) and updates the title and body of the open pull request from that branch, or opens one with `commitOptions.pullRequestLabels`. A new package version without new ids or default changes still produces the pull request (a record run: `lastSeenVersion` and the scan state move).
+- **Direct commit.** With `directCommit` (or `commitOptions.createPullRequest: false` on a schedule) the commit goes to the branch itself; a refused push falls back to the scan branch and the pull request.
+- **Title.** `Scan diagnostics: 3 new ids quarantined, 1 default changed (alcops 1.4.0)`: the counts first, then the newly scanned versions with the labels `alcops` and `tools`; `Scan diagnostics: alcops 1.3.2 recorded, no new diagnostics` for a record run, `Scan diagnostics: 1 quarantine entry released, no new package version` for housekeeping.
+- **Dry run.** The action input `dryRun` builds and validates everything without a token and pushes nothing; the CI job `scan-action` runs it against nuget.org.
 
 ### 7.5 Change rule (R10)
 
@@ -488,17 +509,18 @@ A change set is `{ version, note?, changes[] }` with `set` (write an override en
   "commitOptions": { "createPullRequest": true, "pullRequestLabels": ["rulebook"] },
   "site": { "enabled": true, "includeJustifications": false, "updateMode": "skip" },
   "update": { "schedule": null },
+  "scan": { "schedule": "17 4 * * *" },
   "unusedRulebookFiles": []
 }
 ```
 
-`publish.target` selects one of `pages`, `dist-repo` (with `repository`, `branch`), `azure-blob` (with `storageAccount`, `container`, OIDC login) or `gist` (with `gistId`); v1 implements `pages` only, the other three are backlog (section 9). `baseUrl` ships empty in the template (`""`, the example above shows a set value); Publish fails with a proposal until the organization sets it (WP05). `quarantine` ships **without** values in the template; the scan fails until the org sets them. `twins` is `both` (default; the only valid choice when projects run just one of the two Microsoft cops), `appsource` or `pte` (D23).
+`publish.target` selects one of `pages`, `dist-repo` (with `repository`, `branch`), `azure-blob` (with `storageAccount`, `container`, OIDC login) or `gist` (with `gistId`); v1 implements `pages` only, the other three are backlog (section 9). `baseUrl` ships empty in the template (`""`, the example above shows a set value); Publish fails with a proposal until the organization sets it (WP05). `quarantine` ships **without** values in the template; the scan fails until the org sets both keys (`[]` is valid and quarantines nowhere). `twins` is `both` (default; the only valid choice when projects run just one of the two Microsoft cops), `appsource` or `pte` (D23).
 
 `site` (D31, D35, D36): `enabled` builds and publishes the dashboard (default true; ignored with a warning for `dist-repo` and `gist`); `includeJustifications` publishes the organization's override and quarantine justification text (default false); `updateMode` is `skip` (keep locally changed site files on update) or `overwrite`.
 
-`update` (WP07): `schedule` is a five-field cron string (for example `"0 6 * * 1"`) that the update writes into `UpdateRulebookSystemFiles.yaml` as its `schedule:` trigger, or `null` (shipped) for none. `unusedRulebookFiles` lists shipped files the update must not re-add and removes when present, by their repository-relative path with `/` (`stages/vnext.json`); the schema rejects a bare file name, a backslash and a leading slash. `templateSha` is written by every update; `templateUrl` is the template the next update pulls from.
+`update` (WP07) and `scan` (WP08): `schedule` is a five-field cron string that the update writes into `UpdateRulebookSystemFiles.yaml` (`update.schedule`, shipped `null`: no schedule) or `ScanDiagnostics.yaml` (`scan.schedule`, shipped `"17 4 * * *"`: daily at 04:17 UTC) as its `schedule:` trigger, or `null` for none. `unusedRulebookFiles` lists shipped files the update must not re-add and removes when present, by their repository-relative path with `/` (`stages/vnext.json`); the schema rejects a bare file name, a backslash and a leading slash. `templateSha` is written by every update; `templateUrl` is the template the next update pulls from.
 
-The schema is closed: an unknown key at the top level or in `publish`, `quarantine`, `commitOptions`, `site` or `update` is an error, and a work package that needs a new key adds it to the schema in its own pull request. Required are `templateUrl`, `baseUrl` (empty, or `https://` with a DNS host name and an optional numeric port, no user info, and without a query, a fragment, `.` or `..` segments, quotes, backslashes, control characters or a trailing slash), `publish`, `quarantine` with both keys, `levels` and `stages`. `publish.target` requires its own fields: `dist-repo` needs `repository` (`owner/name`) and `branch`, `azure-blob` needs `storageAccount` and `container`, `gist` needs `gistId`; fields of another target are allowed and ignored. `templateSha` is empty or a 40-character commit sha. A level or stage entry has a `name` matching `^[A-Za-z0-9-]+$` and an optional `description`; a level may have `basedOn` with the same pattern. Beyond the schema, C5 checks that slugs are unique per array after lowercasing, that every `basedOn` resolves to an existing `base/<slug>.ruleset.json` without a cycle, and that quarantine values are stage slugs from the settings.
+The schema is closed: an unknown key at the top level or in `publish`, `quarantine`, `commitOptions`, `site`, `update` or `scan` is an error, and a work package that needs a new key adds it to the schema in its own pull request. Required are `templateUrl`, `baseUrl` (empty, or `https://` with a DNS host name and an optional numeric port, no user info, and without a query, a fragment, `.` or `..` segments, quotes, backslashes, control characters or a trailing slash), `publish`, `quarantine` with both keys, `levels` and `stages`. `publish.target` requires its own fields: `dist-repo` needs `repository` (`owner/name`) and `branch`, `azure-blob` needs `storageAccount` and `container`, `gist` needs `gistId`; fields of another target are allowed and ignored. `templateSha` is empty or a 40-character commit sha. A level or stage entry has a `name` matching `^[A-Za-z0-9-]+$` and an optional `description`; a level may have `basedOn` with the same pattern. Beyond the schema, C5 checks that slugs are unique per array after lowercasing, that every `basedOn` resolves to an existing `base/<slug>.ruleset.json` without a cycle, and that quarantine values are stage slugs from the settings.
 
 `levels` and `stages` (D26, D28, D29):
 
@@ -533,7 +555,10 @@ Every target ends with the same reachability check: `GET` each endpoint, skeleto
 | Endpoint committed but stale (inputs changed, not regenerated) | Consumers get yesterday's decision. | Regeneration check in Validate; Publish refuses to deploy stale endpoints and keeps the last good site (D42); every writing workflow regenerates in its pull request. |
 | Override selector typo | Silent no-op. | Selector validation; the ChangeRule PR body shows before and after per endpoint. |
 | Update PR overwrites an org edit in a system file | Edit lost. | File classes; org decisions live only in `overrides.json`; docs say which files are system files. |
-| Scan adds an id the org wanted to see | Rule hidden until adopted. | Policy is explicit per org; the PR lists every new id with its default severity and docs link. |
+| Scan adds an id the org wanted to see | Rule hidden until adopted. | Policy is explicit per org; the PR lists every new id with its default severity and docs link; adopting it in a level file releases it on the next run. |
+| Someone pushes to the scan branch by hand | The push is replaced by the next run. | The branch is rebuilt from the base on every run with a lease push (D45): a push between the lease read and the push is rejected, a push before the run is replaced; the PR body says not to push to the branch. |
+| A new package version does not load (a breaking analyzer build) | None: nothing is pushed. | Extraction fails loudly (`failure=extract`); the catalog and the endpoints stay at the last good scan until a fixed engine reads the package. |
+| An id the catalog does not know after the first scan | The scan, an update and Validate fail (C7 is an error once `catalog/scan-state.json` exists). | Fix the typo or wait for the package that ships the id; C7 names the file and the id. |
 | VS Code does not re-fetch a changed remote file | Developers see stale rules until reload. | Documented in WP11: Developer: Reload Window (or saving a change to `app.json`) re-reads the ruleset once the CDN cache has expired (raw 5 minutes, measured; on Pages the WP05 live run saw a changed endpoint and a removed one within about 10 s of the deploy, measured from outside the runner, although Pages sends `max-age=600`, see [reference/publish-targets.md](reference/publish-targets.md)); see [spike e](reference/spikes/e-vscode-refetch.md) for every trigger. |
 | Token missing or expired | Update, scan and change-rule PRs fail. | Same message pattern as AL-Go; GitHub App recommended. |
 | A stranger opens a `rulebook-change` issue on a public repository | None at compile time; a workflow run. | Collaborator gate before parsing (D34); the issue is closed with a comment. |
@@ -575,13 +600,15 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | AL project root | `.rulebook/<stage>.ruleset.json`, written by the init script or by hand | `.rulebook/ci.ruleset.json`, `.rulebook/default.ruleset.json` |
 | Published manifest | `<baseUrl>/rulebook.json`: levels and stages since WP06 (D43), extended by WP14 | `https://contoso.github.io/rulebook/rulebook.json` |
 | Init script | `scripts/Get-RulebookSkeletons.ps1` in the engine, served from `raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/` (`v1` with WP13) | `./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level strict` |
-| Catalog | `catalog/diagnostics.json`; `catalog/scan-state.json` reserved for WP08 | |
+| Catalog | `catalog/diagnostics.json`; `catalog/scan-state.json` (created by the first scan, schema `rulebook-scan-state.schema.json`) | |
 | Slug | lowercased `name`, `^[a-z0-9-]+$` | `vNext` becomes `vnext` |
 | Schema file | `schemas/<name>.schema.json` in the engine, served as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (live with WP13, #15; 404 until then) | `schemas/rulebook-settings.schema.json` |
 | Ruleset schema profile | by folder: `base/`, `stages/` delta; `rulesets/` endpoint; `skeletons/` skeleton | `schemas/ruleset.delta.schema.json` |
 | Change set schema | `schemas/rulebook-changeset.schema.json`, name reserved for WP15 | |
 | Update branch | `update-rulebook-system-files/<branch>/<yyMMddHHmmss>` | |
 | Update PR title | `[<branch>@<sha7>] Update Rulebook System Files from ALCops/rulebook - <templateSha7>` | |
+| Scan branch | `scan-diagnostics/<branch>`, rebuilt by every run (D45) | `scan-diagnostics/main` |
+| Scan PR title | `Scan diagnostics: <counts> (<label> <version>, ...)` | `Scan diagnostics: 3 new ids quarantined, 1 default changed (alcops 1.4.0)` |
 | Change branch | `rulebook-change/<issue>/<yyMMddHHmmss>` | |
 | Dashboard | `<baseUrl>/`, `<baseUrl>/rules/<id>/`, `<baseUrl>/rulebook.json` | `https://contoso.github.io/rulebook/rules/AL0432/` |
 
@@ -592,7 +619,7 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | system | workflows, the shipped level files in `base/`, the shipped stage files in `stages/`, `base/twins.json`, `skeletons/README.md`, release notes copy | Overwritten with template content; the ChangeRule choice lists, `{TEMPLATEURL}` and the schedule rewritten from the settings. |
 | settings | `Rulebook-Settings.json` | Content kept, `$schema` refreshed, `templateSha` written. |
 | generated | `rulesets/`, `skeletons/*.ruleset.json` | Regenerated after every update from the new level and stage files and the org's inputs (the skeletons from the settings). |
-| org-owned | `overrides.json`, quarantine files, catalog, level and stage files the org added, the org's own workflows and docs | Never touched. |
+| org-owned | `overrides.json`, quarantine files, catalog (with `catalog/scan-state.json`), level and stage files the org added, the org's own workflows and docs | Never touched by the update; the scan writes the quarantine files and the catalog. |
 | customizable | `site/**` | Overwritten only when unchanged since the installed template version; otherwise kept and listed in the PR (D35). |
 
 ### Actions in the engine
@@ -602,6 +629,6 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | `Validate` | Validate.yaml, Publish.yaml | Section 5.3 rules, effective diff report, update check mode. |
 | `Publish` | Publish.yaml | Gate on stale endpoints, Pages preflight, stage the endpoints with the rendered skeletons and index, deploy, verify (section 7.2). |
 | `CheckForUpdates` | UpdateRulebookSystemFiles.yaml (the Validate action runs the same check in check mode) | Section 7.3; implemented (WP07), [reference/update-mechanics.md](reference/update-mechanics.md). |
-| `ScanDiagnostics` | ScanDiagnostics.yaml | Section 7.4. |
+| `ScanDiagnostics` | ScanDiagnostics.yaml | Section 7.4; implemented (WP08), [reference/scan-mechanics.md](reference/scan-mechanics.md). |
 | `ChangeRule` | ChangeRule.yaml | Section 7.5; one-item client of the change-set module. |
 | `ApplyChangeSet` | ApplyRulebookChange.yaml | Section 7.6. |

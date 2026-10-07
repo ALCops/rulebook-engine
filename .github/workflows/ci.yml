@@ -259,3 +259,126 @@ jobs:
         run: |
           Write-Host "::error::CheckForUpdates outcomes: v1 updatesAvailable '$($env:UNCHANGED)' (expected false), v2 '$($env:MOVED)' (expected true), update without token '$($env:NOTOKEN)' (expected failure/token)"
           exit 1
+
+  # The scan against the real packages on nuget.org (the unit suites use stub packages). Every run is a dry run: no
+  # token, nothing pushed. nuget.org moves, so the checks are lower bounds and the log prints the numbers.
+  scan-action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Prepare the fixtures
+        id: fixtures
+        shell: pwsh
+        run: |
+          . ./tests/Helpers/RepoFixture.ps1
+          $scanOrg = New-FixtureRepo -Name 'scan-org' -Destination (Join-Path $env:RUNNER_TEMP 'scan-org')
+          $template = Join-Path $env:RUNNER_TEMP 'template-policy'
+          Copy-FixtureTree -Source template -Destination $template
+          Edit-FixtureJson -Path (Join-Path $template '.github' 'Rulebook-Settings.json') -Script { $_['quarantine'] = [ordered]@{ stages = @('default', 'ci'); prereleaseStages = @('default', 'ci') } }
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "scanOrg=$scanOrg", "template=$template"
+
+      - name: Scan template/ without a policy (must fail)
+        id: nopolicy
+        continue-on-error: true
+        uses: ./actions/ScanDiagnostics
+        with:
+          repositoryRoot: template
+          dryRun: 'true'
+
+      - name: Require the policy failure
+        if: steps.nopolicy.outcome != 'failure' || steps.nopolicy.outputs.failure != 'policy'
+        shell: pwsh
+        env:
+          FAILURE: ${{ steps.nopolicy.outputs.failure }}
+        run: |
+          Write-Host "::error::ScanDiagnostics did not stop on template/ without a policy (failure output: '$($env:FAILURE)')"
+          exit 1
+
+      - name: Dry run on the template with a policy
+        id: template
+        uses: ./actions/ScanDiagnostics
+        with:
+          repositoryRoot: ${{ steps.fixtures.outputs.template }}
+          dryRun: 'true'
+
+      - name: Check the template scan
+        shell: pwsh
+        env:
+          CANDIDATE: ${{ steps.template.outputs.candidatePath }}
+          SCANNED: ${{ steps.template.outputs.scannedVersions }}
+          NEW_IDS: ${{ steps.template.outputs.newIds }}
+          FAILURE: ${{ steps.template.outputs.failure }}
+        run: |
+          Import-Module ./modules/Rulebook.Catalog.psd1, ./modules/Rulebook.Validate.psd1
+          $failures = [System.Collections.Generic.List[string]]::new()
+          if ($env:FAILURE) { $failures.Add("failure '$($env:FAILURE)'") }
+          foreach ($package in 'microsoft.dynamics.businesscentral.development.tools@', 'alcops.analyzers@') {
+            if (-not ($env:SCANNED.Split(',') | Where-Object { $_.StartsWith($package) -and $_.EndsWith(':stable') })) { $failures.Add("scannedVersions '$($env:SCANNED)' has no stable $package") }
+          }
+          $state = Join-Path $env:CANDIDATE 'catalog' 'scan-state.json'
+          if (-not (Test-Json -Path $state -SchemaFile schemas/rulebook-scan-state.schema.json -ErrorAction SilentlyContinue)) { $failures.Add('catalog/scan-state.json does not match its schema') }
+          $catalog = Read-CatalogFile -Path (Join-Path $env:CANDIDATE 'catalog' 'diagnostics.json')
+          $withPackage = @($catalog.Entries.Values | Where-Object Package)
+          if ($withPackage.Count -lt 600) { $failures.Add("only $($withPackage.Count) catalog entries have a package") }
+          $errors = @(Test-Rulebook -RepositoryRoot $env:CANDIDATE | Where-Object Severity -EQ 'error')
+          foreach ($finding in $errors) { $failures.Add("$($finding.Rule) $($finding.File) $($finding.Id): $($finding.Message)") }
+          $unseen = @($catalog.Entries.Values | Where-Object { -not $_.Package } | ForEach-Object Id)
+          $hidden = @($catalog.Entries.Values | Where-Object { -not $_.Advertised } | ForEach-Object Id)
+          $seed = Read-CatalogFile -Path template/catalog/diagnostics.json
+          $titles = @($catalog.Entries.Values | Where-Object { $seed.Entries.Contains($_.Id) -and $seed.Entries[$_.Id].Title -cne $_.Title }).Count
+          $docs = @($catalog.Entries.Values | Where-Object { $seed.Entries.Contains($_.Id) -and $seed.Entries[$_.Id].Docs -cne $_.Docs } | ForEach-Object Id)
+          Write-Host "Scanned: $($env:SCANNED)"
+          Write-Host "New ids: $($env:NEW_IDS); entries with a package: $($withPackage.Count) of $($catalog.Entries.Count)"
+          Write-Host "Refreshed from the seed: $titles titles, $($docs.Count) docs links ($($docs -join ', '))"
+          Write-Host "Not advertised: $($hidden -join ', ')"
+          Write-Host "Without a package: $($unseen -join ', ')"
+          foreach ($failure in $failures) { Write-Host "::error::$failure" }
+          if ($failures.Count -gt 0) { exit 1 }
+
+      - name: Dry run on scan-org (30 catalog ids)
+        id: org
+        uses: ./actions/ScanDiagnostics
+        with:
+          repositoryRoot: ${{ steps.fixtures.outputs.scanOrg }}
+          dryRun: 'true'
+
+      - name: Check the scan-org scan
+        shell: pwsh
+        env:
+          CANDIDATE: ${{ steps.org.outputs.candidatePath }}
+          ORG: ${{ steps.fixtures.outputs.scanOrg }}
+          NEW_IDS: ${{ steps.org.outputs.newIds }}
+          FAILURE: ${{ steps.org.outputs.failure }}
+        run: |
+          Import-Module ./modules/Rulebook.Quarantine.psd1
+          $failures = [System.Collections.Generic.List[string]]::new()
+          if ($env:FAILURE) { $failures.Add("failure '$($env:FAILURE)'") }
+          if ([int]$env:NEW_IDS -lt 500) { $failures.Add("only $($env:NEW_IDS) new ids") }
+          foreach ($stage in 'default', 'ci') {
+            $count = (Read-QuarantineFile -Path (Join-Path $env:CANDIDATE "quarantine.$stage.json")).Rules.Count
+            Write-Host "quarantine.$stage.json: $count rules"
+            if ($count -lt 500) { $failures.Add("quarantine.$stage.json has $count rules") }
+          }
+          if ((Get-FileHash (Join-Path $env:CANDIDATE 'quarantine.vnext.json')).Hash -ne (Get-FileHash (Join-Path $env:ORG 'quarantine.vnext.json')).Hash) { $failures.Add('quarantine.vnext.json changed') }
+          foreach ($failure in $failures) { Write-Host "::error::$failure" }
+          if ($failures.Count -gt 0) { exit 1 }
+
+      - name: Dry run on the scanned template (nothing new)
+        id: again
+        uses: ./actions/ScanDiagnostics
+        with:
+          repositoryRoot: ${{ steps.template.outputs.candidatePath }}
+          dryRun: 'true'
+
+      - name: Require nothing-new within a minute
+        if: steps.again.outputs.result != 'nothing-new' || fromJSON(steps.again.outputs.elapsedSeconds || '999') >= 60
+        shell: pwsh
+        env:
+          RESULT: ${{ steps.again.outputs.result }}
+          ELAPSED: ${{ steps.again.outputs.elapsedSeconds }}
+        run: |
+          Write-Host "::error::The second scan gave '$($env:RESULT)' in $($env:ELAPSED) s (expected nothing-new in under 60 s)"
+          exit 1

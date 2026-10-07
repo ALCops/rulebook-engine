@@ -22,7 +22,7 @@ Every decision that shapes Rulebook, one file per decision, with the alternative
 
 ## Index
 
-D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits, D43 in the WP06 planning interview of the same day that publishes `rulebook.json` with the levels and stages, and D44 in the WP07 planning interview of 2026-10-07 that keeps the AL-Go secret `GHTOKENWORKFLOW` and its format for the write token.
+D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits, D43 in the WP06 planning interview of the same day that publishes `rulebook.json` with the levels and stages, D44 in the WP07 planning interview of 2026-10-07 that keeps the AL-Go secret `GHTOKENWORKFLOW` and its format for the write token, and D45 and D46 in the WP08 planning interview of the same day that made the scan keep one living pull request and treat seeded, unadvertised, deprecated and vanished ids as catalog facts.
 
 | # | Title | Status | Date |
 |---|---|---|---|
@@ -70,6 +70,8 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D42](0042-publish-is-a-gate-and-never-commits.md) | Publish is a gate and never commits | Accepted | 2026-10-06 |
 | [D43](0043-rulebook-json-is-published-from-wp06-with-levels-and-stages.md) | `rulebook.json` is published from WP06 with the levels and stages | Accepted | 2026-10-06 |
 | [D44](0044-the-write-token-secret-is-ghtokenworkflow-in-al-go-format.md) | The write token secret is `GHTOKENWORKFLOW` in the AL-Go format | Accepted | 2026-10-07 |
+| [D45](0045-the-scan-keeps-one-living-pull-request-and-records-every-package-version.md) | The scan keeps one living pull request and records every package version | Accepted | 2026-10-07 |
+| [D46](0046-seeded-catalog-ids-are-known-unadvertised-deprecated-and-vanished-ids-are-catalog-flags.md) | Seeded catalog ids are known; unadvertised, deprecated and vanished ids are catalog flags | Accepted | 2026-10-07 |
 
 ## Open decisions
 
