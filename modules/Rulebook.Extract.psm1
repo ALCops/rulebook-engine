@@ -356,12 +356,15 @@ function Invoke-DescriptorExtraction {
     $outFile = Join-Path $WorkPath ('descriptors-' + [guid]::NewGuid().ToString('n') + '.json')
     $quote = { param([string]$Value) "'" + $Value.Replace("'", "''") + "'" }
     $command = [System.Text.StringBuilder]::new()
-    [void]$command.Append("`$ErrorActionPreference = 'Stop'; `$PSStyle.OutputRendering = 'PlainText'; ")
+    # The failure goes to stderr as one line: the error view of pwsh wraps at the console width, which would cut the
+    # message the scan reports in the middle of a name.
+    [void]$command.Append("`$ErrorActionPreference = 'Stop'; `$PSStyle.OutputRendering = 'PlainText'; try { ")
     [void]$command.Append("Import-Module $(& $quote (Join-Path $PSScriptRoot 'Rulebook.Extract.psd1')); ")
     [void]$command.Append("`$null = Get-AnalyzerDescriptor -ToolsDir $(& $quote $ToolsDir) -OutFile $(& $quote $outFile)")
     if ($AlcopsDir) { [void]$command.Append(" -AlcopsDir $(& $quote $AlcopsDir)") }
     $expected = @($ExpectedAssembly | Where-Object { $_ })
     if ($expected.Count -gt 0) { [void]$command.Append(' -ExpectedAssembly @(' + (@($expected | ForEach-Object { & $quote $_ }) -join ', ') + ')') }
+    [void]$command.Append(" } catch { [Console]::Error.WriteLine(`$_.Exception.Message); exit 1 }")
     $encoded = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command.ToString()))
 
     $info = New-ExtractionStartInfo -PwshPath $PwshPath -EncodedCommand $encoded

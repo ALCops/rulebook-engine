@@ -174,7 +174,7 @@ Describe 'Invoke-DescriptorExtraction failures' {
         $root = Get-FaultyToolsFolder -Fault ThrowingConstructor -Destination (Join-Path $TestDrive 'throwing-constructor')
         $caught = $null
         try { $null = Invoke-DescriptorExtraction -ToolsDir (Resolve-AnalyzerFolder -PackageRoot $root -Kind tools) -WorkPath $work } catch { $caught = $_ }
-        $caught.Exception.Message | Should-BeLikeString '*Could not instantiate Microsoft.Dynamics.Nav.ThrowingCop.ThrowingAnalyzer of Microsoft.Dynamics.Nav.ThrowingCop.dll:*stub constructor failure*'
+        $caught.Exception.Message | Should-BeLikeString '*: Could not instantiate Microsoft.Dynamics.Nav.ThrowingCop.ThrowingAnalyzer of Microsoft.Dynamics.Nav.ThrowingCop.dll: stub constructor failure'
     }
 
     It 'starts the child without the tokens and action inputs of the parent' {
