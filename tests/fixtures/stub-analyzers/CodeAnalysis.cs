@@ -13,7 +13,7 @@ namespace Microsoft.Dynamics.Nav.CodeAnalysis
         ERR_BelowHundred = 42,
         WRN_StubWarning = 200,
         ERR_StubError = 1003,
-        INF_StubInfo = 1026,
+        INF_StubInfo = 1027,
         HDN_StubHidden = 1030
     }
 }

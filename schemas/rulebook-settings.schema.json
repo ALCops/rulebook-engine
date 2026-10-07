@@ -154,6 +154,14 @@
       },
       "additionalProperties": false
     },
+    "scan": {
+      "description": "The diagnostic scan (WP08): schedule is a five-field cron expression the update writes into ScanDiagnostics.yaml as its schedule trigger, or null for none.",
+      "type": "object",
+      "properties": {
+        "schedule": { "type": ["string", "null"], "pattern": "^\\S+( \\S+){4}(?![\\s\\S])" }
+      },
+      "additionalProperties": false
+    },
     "unusedRulebookFiles": {
       "description": "Shipped files the update must not re-add and removes when present (WP07, D29): repository-relative paths with /, such as stages/vnext.json. C9 matches the same paths.",
       "type": "array",

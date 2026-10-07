@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-settings.schema.json",
   "templateUrl": "https://github.com/ALCops/rulebook@main",
   "templateSha": "",
-  "baseUrl": "",
+  "baseUrl": "https://contoso.github.io/rulebook",
   "publish": { "target": "pages" },
   "twins": "both",
   "quarantine": { "stages": null, "prereleaseStages": null },
@@ -21,6 +21,6 @@
   "commitOptions": { "createPullRequest": true, "pullRequestLabels": ["rulebook"] },
   "site": { "enabled": true, "includeJustifications": false, "updateMode": "skip" },
   "update": { "schedule": null },
-  "scan": { "schedule": "17 4 * * *" },
+  "scan": { "schedule": "17 4 * *" },
   "unusedRulebookFiles": []
 }

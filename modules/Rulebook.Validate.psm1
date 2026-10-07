@@ -270,6 +270,19 @@ function Test-CatalogFile {
     }
 }
 
+function Test-ScanStateFile {
+    # C14 for catalog/scan-state.json (WP08): absent is fine (the first scan creates it); present, it parses and
+    # matches its schema. Not blocking: the generator does not read it.
+    param([Parameter(Mandatory)]$Context)
+    $path = $script:ScanStatePath
+    if (-not (Test-RepoFile $Context $path)) { return }
+    if ($null -eq (Read-JsonOrNull $Context $path)) {
+        Add-Finding -Context $Context -Rule C14 -Severity error -File $path -Message "$path is not valid JSON"
+        return
+    }
+    $null = Test-SchemaFile -Context $Context -Path $path -Schema 'rulebook-scan-state.schema.json' -Rule C14
+}
+
 function Test-TwinsFile {
     # C14 and C2 for base/twins.json. Returns the twin ids for C7.
     param([Parameter(Mandatory)]$Context, [Parameter(Mandatory)][string]$TwinsSetting)
@@ -464,6 +477,7 @@ function Invoke-RulebookChecks {
 
     # C14: catalog and twins
     $catalog = Test-CatalogFile -Context $Context
+    Test-ScanStateFile -Context $Context
     $twinIds = Test-TwinsFile -Context $Context -TwinsSetting $Settings.TwinsSetting
 
     # C1 to C4: every ruleset file; quarantine files; C10 and C4: overrides
@@ -548,7 +562,7 @@ function Invoke-RulebookChecks {
             $reported = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
             foreach ($id in $source.Ids) {
                 if (-not $catalog.ContainsKey($id) -and $reported.Add($id)) {
-                    $hint = if ($severity -eq 'warning') { 'a warning until the first scan writes catalog/scan-state.json' } else { 'catalog/scan-state.json exists' }
+                    $hint = if ($severity -eq 'warning') { 'a warning while catalog/scan-state.json is absent (the first scan creates it)' } else { 'catalog/scan-state.json exists' }
                     Add-Finding -Context $Context -Rule C7 -Severity $severity -File $source.Path -Id $id -Message "$id is not in $($script:CatalogPath) ($hint)"
                 }
             }

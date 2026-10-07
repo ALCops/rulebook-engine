@@ -2,7 +2,8 @@
 # Rulebook.GitHub: the GitHub plumbing of the update workflow (WP07). One REST wrapper (Invoke-GitHubApi, the single
 # mock point of the suites), the GHTOKENWORKFLOW exchange (a personal access token passes through, GitHub App JSON
 # becomes a short-lived installation token, D44), the template download as a zipball, the pull request helpers,
-# and the clone, commit and push of the update. No engine imports. The token never enters a git URL or git config:
+# and the clone, commit and push of the update and of the scan (WP08: the living pull request, a lease push). No
+# engine imports. The token never enters a git URL or git config:
 # git receives it as an http.<server>/.extraheader through GIT_CONFIG_COUNT in the environment of each git call.
 # Contract: docs/reference/update-mechanics.md section 6 and 8. Ported from AL-Go (Github-Helper.psm1,
 # AL-Go-Helper.ps1), behaviour only: docs/reference/al-go-template-mechanics.md sections 5.5 and 8.
@@ -177,7 +178,7 @@ function Invoke-GitHubApi {
     [CmdletBinding(DefaultParameterSetName = 'Path')]
     [OutputType([pscustomobject])]
     param(
-        [ValidateSet('GET', 'POST', 'HEAD')][string]$Method = 'GET',
+        [ValidateSet('GET', 'POST', 'PATCH', 'HEAD')][string]$Method = 'GET',
         [Parameter(Mandatory, ParameterSetName = 'Path')][string]$Path,
         [Parameter(Mandatory, ParameterSetName = 'Uri')][string]$Uri,
         [AllowNull()][AllowEmptyString()][string]$Token,
@@ -423,6 +424,60 @@ function Find-GitHubPullRequest {
     return $null
 }
 
+function Find-GitHubPullRequestByHead {
+    <#
+    .SYNOPSIS
+    The open pull request from branch -Head of -Repository into -Base, or $null: { Number, Url, Title }.
+    .DESCRIPTION
+    GET /repos/{r}/pulls?state=open&head=<owner>:<head>&base=<base>; the first item wins. Used by the scan, whose
+    living pull request is found by its fixed branch, not by its title.
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][string]$Head,
+        [Parameter(Mandatory)][string]$Base,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $owner = $Repository.Substring(0, $Repository.IndexOf([char]'/'))
+    $query = 'state=open&head={0}&base={1}&per_page=100' -f [System.Uri]::EscapeDataString("$($owner):$Head"), [System.Uri]::EscapeDataString($Base)
+    $response = Invoke-GitHubApi -Method GET -Path ((Join-ApiPath -Part 'repos', $Repository, 'pulls') + "?$query") -Token $Token -ApiUrl $ApiUrl
+    if ($response.StatusCode -ne 200) { throw "Could not list the pull requests of $Repository (HTTP $($response.StatusCode): $(Get-ApiMessage $response))" }
+    foreach ($pull in @($response.Body)) {
+        if ($pull -is [System.Collections.IDictionary]) {
+            return [pscustomobject]@{ Number = [int]$pull['number']; Url = [string]$pull['html_url']; Title = [string]$pull['title'] }
+        }
+    }
+    return $null
+}
+
+function Update-GitHubPullRequest {
+    <#
+    .SYNOPSIS
+    Replaces the title and body of pull request -Number: { Number, Url }.
+    .DESCRIPTION
+    PATCH /repos/{r}/pulls/{n} with { title, body }; an answer other than 200 throws with the status and the message.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Called only by a scan that validated and pushed; a dry run never calls it')]
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][int]$Number,
+        [Parameter(Mandatory)][string]$Title,
+        [AllowNull()][AllowEmptyString()][string]$Body,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $request = [ordered]@{ title = $Title; body = $(if ($null -eq $Body) { '' } else { $Body }) }
+    $response = Invoke-GitHubApi -Method PATCH -Path (Join-ApiPath -Part 'repos', $Repository, 'pulls', ([string]$Number)) -Token $Token -ApiUrl $ApiUrl -Body $request
+    if ($response.StatusCode -ne 200) { throw "Could not update pull request #$Number of $Repository (HTTP $($response.StatusCode): $(Get-ApiMessage $response))" }
+    $url = if ($response.Body -is [System.Collections.IDictionary]) { [string]$response.Body['html_url'] } else { '' }
+    return [pscustomobject]@{ Number = $Number; Url = $url }
+}
+
 function New-GitHubPullRequest {
     <#
     .SYNOPSIS
@@ -532,7 +587,10 @@ function Publish-GitHubChange {
     git add -A; nothing to commit gives Pushed $false and Reason no-changes. -DirectCommit commits on the cloned
     branch and pushes it; a rejected push (branch protection) moves the commit to -NewBranch (reset --soft HEAD~,
     checkout -b, commit) and pushes that instead, Fallback $true. Otherwise the commit goes to -NewBranch, pushed
-    with -u. AL-Go behaviour (CommitFromNewFolder).
+    with -u. AL-Go behaviour (CommitFromNewFolder). -Force rebuilds -NewBranch from the cloned head instead (the scan's
+    living branch, also after a refused direct push): the remote head of -NewBranch is read with git ls-remote, the
+    branch is created with checkout -B and pushed with --force-with-lease against that head (absent: the branch must
+    not exist), so a push someone made in between is rejected, never overwritten.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -540,7 +598,8 @@ function Publish-GitHubChange {
         [Parameter(Mandatory)]$Clone,
         [Parameter(Mandatory)][string]$Message,
         [Parameter(Mandatory)][string]$NewBranch,
-        [switch]$DirectCommit
+        [switch]$DirectCommit,
+        [switch]$Force
     )
     $root = $Clone.Path
     $environment = $Clone.Environment
@@ -561,9 +620,21 @@ function Publish-GitHubChange {
         $null = Assert-Git -Root $root -Arguments @('reset', '--soft', 'HEAD~') -Environment $environment -What 'git reset'
         $fallback = $true
     }
-    $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-b', $NewBranch) -Environment $environment -What 'git checkout -b'
-    $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
-    $null = Assert-Git -Root $root -Arguments @('push', '--quiet', '-u', 'origin', $NewBranch) -Environment $environment -What "git push $NewBranch"
+    if ($Force) {
+        $remote = Assert-Git -Root $root -Arguments @('ls-remote', '--heads', 'origin', "refs/heads/$NewBranch") -Environment $environment -What 'git ls-remote'
+        $lease = ''
+        foreach ($line in $remote.Output.Split("`n")) {
+            $parts = @($line.Trim() -split '\s+')
+            if ($parts.Count -ge 2 -and $parts[1] -ceq "refs/heads/$NewBranch") { $lease = $parts[0] }
+        }
+        $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-B', $NewBranch) -Environment $environment -What 'git checkout -B'
+        $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
+        $null = Assert-Git -Root $root -Arguments @('push', '--quiet', "--force-with-lease=refs/heads/$($NewBranch):$lease", 'origin', "HEAD:refs/heads/$NewBranch") -Environment $environment -What "git push --force-with-lease $NewBranch"
+    } else {
+        $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-b', $NewBranch) -Environment $environment -What 'git checkout -b'
+        $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
+        $null = Assert-Git -Root $root -Arguments @('push', '--quiet', '-u', 'origin', $NewBranch) -Environment $environment -What "git push $NewBranch"
+    }
     $sha = (Assert-Git -Root $root -Arguments @('rev-parse', 'HEAD') -What 'git rev-parse').Output.Trim()
     return [pscustomobject]@{ Pushed = $true; Branch = $NewBranch; Direct = $false; Fallback = $fallback; Sha = $sha; Reason = 'branch' }
 }
@@ -572,6 +643,7 @@ function Publish-GitHubChange {
 
 Export-ModuleMember -Function @(
     'Find-GitHubPullRequest'
+    'Find-GitHubPullRequestByHead'
     'Get-GitHubAccessToken'
     'Get-GitHubBranchSha'
     'Invoke-GitHubApi'
@@ -580,4 +652,5 @@ Export-ModuleMember -Function @(
     'New-GitHubPullRequest'
     'Publish-GitHubChange'
     'Save-GitHubZipball'
+    'Update-GitHubPullRequest'
 )

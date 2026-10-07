@@ -1,0 +1,102 @@
+name: Rulebook ScanDiagnostics
+description: Scans the newest Business Central compiler and ALCops packages for diagnostic ids, quarantines new ids by the organization's policy, records changed analyzer defaults and publishes the result as one living pull request (or a direct commit).
+author: ALCops
+
+inputs:
+  token:
+    description: The GHTOKENWORKFLOW value (a personal access token or GitHub App JSON). Needed unless dryRun is 'true'.
+    required: false
+    default: ''
+  includePrerelease:
+    description: "'true' also scans the newest prerelease of each package when it is newer than the stable one."
+    required: false
+    default: 'true'
+  directCommit:
+    description: "'true' pushes to baseBranch instead of opening a pull request (falls back to the scan branch when the push is refused)."
+    required: false
+    default: 'false'
+  dryRun:
+    description: "'true' builds and validates the scan without a token and pushes nothing; the candidatePath output names the result."
+    required: false
+    default: 'false'
+  baseBranch:
+    description: The branch the scan starts from and the pull request targets.
+    required: false
+    default: ${{ github.ref_name }}
+  repositoryRoot:
+    description: Path of the rulebook repository, relative to the workspace.
+    required: false
+    default: '.'
+  actor:
+    description: The git author name of the scan commit.
+    required: false
+    default: ${{ github.actor }}
+  packageSource:
+    description: A NuGet flat container (URL or folder) instead of https://api.nuget.org/v3-flatcontainer (engine tests).
+    required: false
+    default: ''
+
+outputs:
+  result:
+    description: "pull-request, pull-request-updated, direct-commit, no-changes, nothing-new or dry-run; empty on failure."
+    value: ${{ steps.scan.outputs.result }}
+  newIds:
+    description: The number of new advertised diagnostic ids.
+    value: ${{ steps.scan.outputs.newIds }}
+  quarantined:
+    description: The number of new ids added to a quarantine file.
+    value: ${{ steps.scan.outputs.quarantined }}
+  changedDefaults:
+    description: The number of analyzer defaults a stable version changed.
+    value: ${{ steps.scan.outputs.changedDefaults }}
+  released:
+    description: The number of quarantine entries released because a level file mentions the id.
+    value: ${{ steps.scan.outputs.released }}
+  scannedVersions:
+    description: The scanned versions as <package>@<version>:<channel>, comma separated.
+    value: ${{ steps.scan.outputs.scannedVersions }}
+  pullRequestUrl:
+    description: The URL of the scan pull request (new or updated).
+    value: ${{ steps.scan.outputs.pullRequestUrl }}
+  candidatePath:
+    description: After a dry run, the folder holding the scanned repository.
+    value: ${{ steps.scan.outputs.candidatePath }}
+  elapsedSeconds:
+    description: The run time of the step in seconds.
+    value: ${{ steps.scan.outputs.elapsedSeconds }}
+  failure:
+    description: "Why the step failed, empty on success: policy, token, nuget, extract, validation, push, pull-request or error."
+    value: ${{ steps.scan.outputs.failure }}
+
+runs:
+  using: composite
+  steps:
+    - name: Scan diagnostics
+      id: scan
+      shell: pwsh
+      # Inputs reach the script through the environment, never interpolated into the script (script injection).
+      env:
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_INCLUDEPRERELEASE: ${{ inputs.includePrerelease }}
+        INPUT_DIRECTCOMMIT: ${{ inputs.directCommit }}
+        INPUT_DRYRUN: ${{ inputs.dryRun }}
+        INPUT_BASEBRANCH: ${{ inputs.baseBranch }}
+        INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
+        INPUT_ACTOR: ${{ inputs.actor }}
+        INPUT_PACKAGESOURCE: ${{ inputs.packageSource }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        $parameters = @{
+          RepositoryRoot    = $env:INPUT_REPOSITORYROOT
+          Token             = $env:INPUT_TOKEN
+          IncludePrerelease = $env:INPUT_INCLUDEPRERELEASE -ne 'false'
+          DirectCommit      = $env:INPUT_DIRECTCOMMIT -eq 'true'
+          DryRun            = $env:INPUT_DRYRUN -eq 'true'
+          BaseBranch        = $env:INPUT_BASEBRANCH
+          Actor             = $env:INPUT_ACTOR
+          PackageSource     = $env:INPUT_PACKAGESOURCE
+        }
+        # The result object is the last pipeline output; anything a module emits before it is ignored.
+        $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'ScanDiagnostics.ps1') @parameters)[-1]
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['ExitCode']) { Write-Host '::error::ScanDiagnostics.ps1 returned no result'; exit 1 }
+        exit $result.ExitCode

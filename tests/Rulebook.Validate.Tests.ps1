@@ -250,12 +250,14 @@ Describe 'C6 files the settings name' {
 
 Describe 'C7 catalog coverage' {
     It 'is a warning while catalog/scan-state.json is absent (unknown-id)' {
-        (Get-FindingText (Test-Rulebook -RepositoryRoot (Copy-Fixture 'unknown-id'))) | Should-BeCollection @('C7 warning base/complete.ruleset.json LC0999')
+        $findings = @(Test-Rulebook -RepositoryRoot (Copy-Fixture 'unknown-id'))
+        (Get-FindingText $findings) | Should-BeCollection @('C7 warning base/complete.ruleset.json LC0999')
+        $findings[0].Message | Should-Be 'LC0999 is not in catalog/diagnostics.json (a warning while catalog/scan-state.json is absent (the first scan creates it))'
     }
 
     It 'is an error once catalog/scan-state.json exists' {
         $root = Copy-Fixture 'unknown-id'
-        Write-FixtureText -Path (Join-Path $root 'catalog' 'scan-state.json') -Text '{}'
+        Write-FixtureText -Path (Join-Path $root 'catalog' 'scan-state.json') -Text '{ "version": 1, "packages": {} }'
         (Get-FindingText (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @('C7 error base/complete.ruleset.json LC0999')
     }
 
@@ -439,6 +441,23 @@ Describe 'C14 catalog and twins' {
         $root = Copy-Fixture
         Edit-FixtureJson -Path (Join-Path $root 'base' 'twins.json') -Script { $_.pairs = @($_.pairs[0]); $_.count = 1 }
         $null = Update-RulebookEndpoints -RepositoryRoot $root
+        @(Test-Rulebook -RepositoryRoot $root).Count | Should-Be 0
+    }
+
+    It 'reports a scan state that <Case>, not blocking' -ForEach @(
+        @{ Case = 'is not JSON'; Text = '{ "version": 1,'; Message = 'catalog/scan-state.json is not valid JSON' }
+        @{ Case = 'fails its schema'; Text = '{ "version": 1, "packages": { "alcops.analyzers": { "stable": { "version": "1.3.1" }, "prerelease": null } } }'; Message = '*rulebook-scan-state.schema.json*' }
+    ) {
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root 'catalog' 'scan-state.json') -Text $Text
+        $findings = @(Test-Rulebook -RepositoryRoot $root)
+        (Get-FindingText $findings) | Should-BeCollection @('C14 error catalog/scan-state.json -')
+        $findings[0].Message | Should-BeLikeString $Message
+    }
+
+    It 'accepts a scan state the first scan writes' {
+        $root = Copy-Fixture
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'tests' 'fixtures' 'schemas' 'valid' 'rulebook-scan-state' 'two-packages.json') -Destination (Join-Path $root 'catalog' 'scan-state.json')
         @(Test-Rulebook -RepositoryRoot $root).Count | Should-Be 0
     }
 

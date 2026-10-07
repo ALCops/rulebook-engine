@@ -15,6 +15,7 @@
         'ConvertTo-UpdatePullRequestBody'
         'ConvertTo-UpdateSummary'
         'Get-ReleaseNotesDelta'
+        'Get-EffectiveDiffBlock'
         'Get-RulebookFileClass'
         'Get-RulebookTemplate'
         'Get-RulebookUpdatePlan'

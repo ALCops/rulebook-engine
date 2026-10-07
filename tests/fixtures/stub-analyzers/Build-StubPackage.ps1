@@ -3,8 +3,10 @@
 .SYNOPSIS
 Builds one stub analyzer package variant into a NuGet flat container folder for the Extract and Scan suites.
 .DESCRIPTION
-Compiles the C# stubs next to this script with Add-Type -OutputAssembly (Microsoft.Dynamics.Nav.CodeAnalysis.dll
-first, then every cop referencing it), lays them out like the real package (tools/<tfm>/any/ for the
+Compiles the C# stubs next to this script with the Roslyn compiler that ships with pwsh (the one Add-Type uses;
+Add-Type -OutputAssembly gives the assembly a random name, and the cops must reference the compiler stub by its real
+name Microsoft.Dynamics.Nav.CodeAnalysis): the compiler stub first, then every cop referencing it. Lays them out
+like the real package (tools/<tfm>/any/ for the
 Development.Tools package, lib/<tfm>/ for ALCops.Analyzers), writes a minimal nuspec, zips the result to
 <OutputPath>/<id>/<version>/<id>.<version>.nupkg and adds the version to <OutputPath>/<id>/index.json.
 A variant selects the package, the version and the sources; '#define STUB_<VARIANT>' is prepended to every source
@@ -14,19 +16,43 @@ compiled types must not be loaded into the test session. -ExtraTfm adds folders 
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidateSet('tools-stable', 'tools-prerelease')][string]$Variant,
+    [Parameter(Mandatory)][ValidateSet('tools-stable', 'tools-prerelease', 'alcops-v1', 'alcops-v2', 'alcops-v3')][string]$Variant,
     [Parameter(Mandatory)][string]$OutputPath,
     [string[]]$Tfm = @('net8.0', 'net10.0'),
-    [switch]$ExtraTfm
+    [switch]$ExtraTfm,
+    # Versions added to index.json without a package (the alcops index lists 1.3.0-beta.1, never requested).
+    [string[]]$IndexOnly = @(),
+    # An assembly name whose DLL is written as a text file: the extraction must fail loudly on it.
+    [string]$BreakAssembly
 )
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
 $toolsId = 'microsoft.dynamics.businesscentral.development.tools'
-$toolsCops = [ordered]@{ 'Microsoft.Dynamics.Nav.CodeCop' = 'CodeCop.cs' }
+$alcopsId = 'alcops.analyzers'
+$learn = 'https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/analyzers/'
+# Assembly name -> a source file, or the parameters of OneIdCop.cs.
+$toolsCops = [ordered]@{
+    'Microsoft.Dynamics.Nav.CodeCop'               = 'CodeCop.cs'
+    'Microsoft.Dynamics.Nav.UICop'                 = @{ Id = 'AW0006'; Severity = 'Warning'; Enabled = $true; Title = 'Use the Caption property'; Link = "$($learn)uicop-aw0006?wt.mc_id=stub" }
+    'Microsoft.Dynamics.Nav.AppSourceCop'          = @{ Id = 'AS0001'; Severity = 'Error'; Enabled = $true; Title = 'Tables cannot be deleted'; Link = "$($learn)appsourcecop-as0001?wt.mc_id=stub" }
+    'Microsoft.Dynamics.Nav.PerTenantExtensionCop' = @{ Id = 'PTE0001'; Severity = 'Error'; Enabled = $true; Title = 'Object ID must be in free range'; Link = "$($learn)pertenantextensioncop-pte0001?wt.mc_id=stub" }
+}
+$alcopsCops = [ordered]@{
+    'ALCops.ApplicationCop'    = @{ Id = 'AC0001'; Severity = 'Info'; Enabled = $true; Title = 'Application rule'; Link = 'https://alcops.dev/docs/analyzers/applicationcop/ac0001/' }
+    'ALCops.Common'            = 'Common.cs'
+    'ALCops.DocumentationCop'  = @{ Id = 'DC0001'; Severity = 'Warning'; Enabled = $true; Title = 'Documentation rule'; Link = 'https://alcops.dev/docs/analyzers/documentationcop/dc0001/' }
+    'ALCops.FormattingCop'     = @{ Id = 'FC0001'; Severity = 'Hidden'; Enabled = $true; Title = 'Formatting rule'; Link = 'https://alcops.dev/docs/analyzers/formattingcop/fc0001/' }
+    'ALCops.LinterCop'         = 'LinterCop.cs'
+    'ALCops.PlatformCop'       = @{ Id = 'PC0001'; Severity = 'Warning'; Enabled = $true; Title = 'Platform rule'; Link = 'https://alcops.dev/docs/analyzers/platformcop/pc0001/' }
+    'ALCops.TestAutomationCop' = 'TestAutomationCop.cs'
+}
 $variants = @{
-    'tools-stable'     = @{ Id = $toolsId; Version = '18.0.43.1464'; Layout = 'tools'; WithCodeAnalysis = $true; Cops = $toolsCops }
-    'tools-prerelease' = @{ Id = $toolsId; Version = '30.0.42.60748-beta'; Layout = 'tools'; WithCodeAnalysis = $true; Cops = $toolsCops }
+    'tools-stable'     = @{ Id = $toolsId; Version = '18.0.43.1464'; Layout = 'tools'; Cops = $toolsCops }
+    'tools-prerelease' = @{ Id = $toolsId; Version = '30.0.42.60748-beta'; Layout = 'tools'; Cops = $toolsCops }
+    'alcops-v1'        = @{ Id = $alcopsId; Version = '1.3.1'; Layout = 'lib'; Cops = $alcopsCops }
+    'alcops-v2'        = @{ Id = $alcopsId; Version = '1.4.0-beta.1'; Layout = 'lib'; Cops = $alcopsCops }
+    'alcops-v3'        = @{ Id = $alcopsId; Version = '1.4.0'; Layout = 'lib'; Cops = $alcopsCops }
 }
 $spec = $variants[$Variant]
 $define = "#define STUB_$(($Variant -replace '[^A-Za-z0-9]', '_').ToUpperInvariant())`n"
@@ -38,18 +64,41 @@ $bin = Join-Path $work 'bin'
 $pkg = Join-Path $work 'pkg'
 [void](New-Item -ItemType Directory -Path $bin, $pkg -Force)
 try {
+    $roslyn = Join-Path $PSHOME 'Microsoft.CodeAnalysis.CSharp.dll'
+    if (Test-Path -LiteralPath $roslyn -PathType Leaf) { Add-Type -Path $roslyn } else { Add-Type -AssemblyName Microsoft.CodeAnalysis.CSharp }
+    $runtimeDir = [System.Runtime.InteropServices.RuntimeEnvironment]::GetRuntimeDirectory()
     $compile = {
-        param([string]$Source, [string]$AssemblyName, [string[]]$References)
-        $text = $define + [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot $Source))
+        param($Source, [string]$AssemblyName, [string[]]$References)
+        if ($Source -is [System.Collections.IDictionary]) {
+            $link = if ($Source.Link) { '"' + $Source.Link + '"' } else { 'null' }
+            $text = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'OneIdCop.cs')).Replace('__NAMESPACE__', $AssemblyName).Replace('__ID__', $Source.Id).Replace('__SEVERITY__', $Source.Severity).Replace('__ENABLED__', $Source.Enabled.ToString().ToLowerInvariant()).Replace('__TITLE__', $Source.Title).Replace('__LINK__', $link)
+        } else {
+            $text = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot $Source))
+        }
         $out = Join-Path $bin "$AssemblyName.dll"
-        Add-Type -TypeDefinition $text -OutputAssembly $out -OutputType Library -ReferencedAssemblies (@('System.Runtime', 'System.Collections.Immutable') + $References)
+        $tree = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText($define + $text)
+        $metadata = [System.Collections.Generic.List[Microsoft.CodeAnalysis.MetadataReference]]::new()
+        foreach ($name in 'System.Private.CoreLib.dll', 'System.Runtime.dll', 'System.Collections.Immutable.dll', 'netstandard.dll') {
+            $metadata.Add([Microsoft.CodeAnalysis.MetadataReference]::CreateFromFile((Join-Path $runtimeDir $name)))
+        }
+        foreach ($reference in $References) { $metadata.Add([Microsoft.CodeAnalysis.MetadataReference]::CreateFromFile($reference)) }
+        $options = [Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions]::new([Microsoft.CodeAnalysis.OutputKind]::DynamicallyLinkedLibrary)
+        $compilation = [Microsoft.CodeAnalysis.CSharp.CSharpCompilation]::Create($AssemblyName, [Microsoft.CodeAnalysis.SyntaxTree[]]@($tree), $metadata, $options)
+        $stream = [System.IO.File]::Create($out)
+        try { $emitted = $compilation.Emit($stream) } finally { $stream.Dispose() }
+        if (-not $emitted.Success) { throw "$AssemblyName does not compile: $(@($emitted.Diagnostics | Where-Object { $_.Severity -eq 'Error' } | ForEach-Object { $_.ToString() }) -join '; ')" }
         return $out
     }
-    # The ALCops variants reference the CodeAnalysis stub but do not ship it (the tools package hosts it).
+    # The ALCops package references the CodeAnalysis stub but does not ship it (the tools package hosts it).
     $codeAnalysis = & $compile 'CodeAnalysis.cs' 'Microsoft.Dynamics.Nav.CodeAnalysis' @()
     $built = [System.Collections.Generic.List[string]]::new()
-    if ($spec.WithCodeAnalysis) { $built.Add($codeAnalysis) }
+    if ($spec.Layout -eq 'tools') { $built.Add($codeAnalysis) }
     foreach ($cop in $spec.Cops.GetEnumerator()) { $built.Add((& $compile $cop.Value $cop.Key @($codeAnalysis))) }
+    if ($BreakAssembly) {
+        $broken = Join-Path $bin "$BreakAssembly.dll"
+        if (-not (Test-Path -LiteralPath $broken)) { throw "BreakAssembly $BreakAssembly is not part of $Variant" }
+        [System.IO.File]::WriteAllText($broken, "not an assembly`n")
+    }
 
     $folderOf = { param([string]$Framework) if ($spec.Layout -eq 'tools') { Join-Path $pkg 'tools' $Framework 'any' } else { Join-Path $pkg 'lib' $Framework } }
     foreach ($framework in $Tfm) {
@@ -90,7 +139,7 @@ try {
     if (Test-Path -LiteralPath $indexPath) {
         foreach ($v in (Get-Content -Raw -LiteralPath $indexPath | ConvertFrom-Json).versions) { $versions.Add([string]$v) }
     }
-    if ($versionLower -notin $versions) { $versions.Add($versionLower) }
+    foreach ($v in @($versionLower) + @($IndexOnly | ForEach-Object { $_.ToLowerInvariant() })) { if ($v -notin $versions) { $versions.Add($v) } }
     $index = ConvertTo-Json -InputObject ([ordered]@{ versions = $versions.ToArray() }) -Depth 3
     [System.IO.File]::WriteAllText($indexPath, ($index -replace "`r`n", "`n") + "`n", [System.Text.UTF8Encoding]::new($false))
     return $nupkg
