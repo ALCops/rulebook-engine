@@ -192,6 +192,15 @@ Describe 'CheckForUpdates.ps1' {
         $run.Result.Annotations[0] | Should-BeLikeString '*The RULEBOOK_TOKEN secret is needed*'
     }
 
+    It 'fails update mode on an invalid ghTokenWorkflowSecretName instead of falling back to the default' {
+        $root = New-FixtureRepo -Name 'update-org' -Destination (Get-TestFolder)
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.ghTokenWorkflowSecretName = 'github_token' }
+        $run = Invoke-Entry @{ RepositoryRoot = $root; Update = $true; Token = 'ghp_x' }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'token'
+        $run.Result.Annotations[0] | Should-BeLikeString "*ghTokenWorkflowSecretName 'github_token'*is not a valid secret name*"
+    }
+
     It 'skips the check with one warning when the template cannot be reached' {
         $run = Invoke-Entry @{ RepositoryRoot = $org; ApiUrl = 'http://127.0.0.1:9' }
         $run.Result.ExitCode | Should-Be 0

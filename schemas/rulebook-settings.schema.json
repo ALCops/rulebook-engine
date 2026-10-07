@@ -123,9 +123,9 @@
       }
     },
     "ghTokenWorkflowSecretName": {
-      "description": "Name of the write token secret the update workflow reads (D44); GitHub App JSON or a personal access token, AL-Go format.",
+      "description": "Name of the write token secret the update workflow reads (D44); GitHub App JSON or a personal access token, AL-Go format. A GitHub secret name: letters, digits and underscores, not starting with a digit or with GITHUB_ (any case).",
       "type": "string",
-      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
+      "pattern": "^(?![Gg][Ii][Tt][Hh][Uu][Bb]_)[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
       "default": "GHTOKENWORKFLOW"
     },
     "commitOptions": {

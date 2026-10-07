@@ -125,11 +125,17 @@ try {
         try { $settings = Get-Content -LiteralPath $settingsFile -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop } catch { $settings = $null }
     }
     $setting = { param([string[]]$Path) $value = $settings; foreach ($key in $Path) { if ($value -isnot [System.Collections.IDictionary] -or -not $value.Contains($key)) { return $null }; $value = $value[$key] }; return $value }
+    # The secret name: the setting when present (an invalid one is an error in update mode, never a silent default).
     $name = [string](& $setting 'ghTokenWorkflowSecretName')
-    if ($name -cmatch '^[A-Za-z_][A-Za-z0-9_]*$') { $secretName = $name }
+    $nameValid = $name -cmatch '^[A-Za-z_][A-Za-z0-9_]*$' -and $name -inotmatch '^GITHUB_'
+    if (-not [string]::IsNullOrEmpty($name) -and $nameValid) { $secretName = $name }
 
     # 1. Template URL and the token guard (before any request).
     $requested = if (-not [string]::IsNullOrWhiteSpace($TemplateUrl)) { $TemplateUrl } else { [string](& $setting 'templateUrl') }
+    if ($Update -and -not [string]::IsNullOrEmpty($name) -and -not $nameValid) {
+        Add-Failure 'token'
+        throw "ghTokenWorkflowSecretName '$name' in .github/Rulebook-Settings.json is not a valid secret name (letters, digits and underscores, not starting with a digit or GITHUB_). Read $docsUrl"
+    }
     if ($Update -and [string]::IsNullOrWhiteSpace($Token)) {
         Add-Failure 'token'
         throw "The $secretName secret is needed to update system files. Read $docsUrl"

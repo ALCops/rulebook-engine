@@ -47,7 +47,7 @@ jobs:
           $settings = Get-Content -LiteralPath .github/Rulebook-Settings.json -Raw | ConvertFrom-Json -AsHashtable
           $name = 'GHTOKENWORKFLOW'
           if ($settings.Contains('ghTokenWorkflowSecretName') -and $settings['ghTokenWorkflowSecretName']) { $name = [string]$settings['ghTokenWorkflowSecretName'] }
-          if ($name -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$') { Write-Host "::error::ghTokenWorkflowSecretName '$name' is not a valid secret name"; exit 1 }
+          if ($name -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$' -or $name -imatch '^GITHUB_') { Write-Host "::error::ghTokenWorkflowSecretName '$name' is not a valid secret name"; exit 1 }
           if ($env:EVENT_NAME -eq 'schedule') {
             $createPullRequest = $true
             $options = $settings['commitOptions']
