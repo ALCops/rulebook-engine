@@ -5,7 +5,7 @@
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook validator: checks C1 to C15 on an organization rulebook repository, including the regeneration check C12. See docs/ARCHITECTURE.md section 5.3.'
+    Description          = 'Rulebook validator: checks C1 to C16 on an organization rulebook repository, including the regeneration check C12. See docs/ARCHITECTURE.md section 5.3.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @('Test-Rulebook')

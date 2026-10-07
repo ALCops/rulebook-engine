@@ -1,5 +1,5 @@
 name: Rulebook Validate
-description: Runs the Rulebook checks C1 to C15 on an organization rulebook repository, annotates the findings and writes the effective diff to the job summary.
+description: Runs the Rulebook checks C1 to C16 on an organization rulebook repository, annotates the findings and writes the effective diff to the job summary.
 author: ALCops
 
 inputs:

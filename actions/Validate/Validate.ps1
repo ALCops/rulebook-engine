@@ -1,7 +1,7 @@
 #requires -Version 7.4
 <#
 .SYNOPSIS
-Entry script of the Validate action: checks C1 to C15, GitHub annotations, the job summary with the effective diff.
+Entry script of the Validate action: checks C1 to C16, GitHub annotations, the job summary with the effective diff.
 .DESCRIPTION
 Runs Test-Rulebook on -RepositoryRoot, prints one annotation per finding (file paths relative to -WorkspaceRoot),
 appends a Markdown summary to -SummaryPath, writes the errors and warnings outputs to GITHUB_OUTPUT and returns

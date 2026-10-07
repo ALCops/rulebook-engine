@@ -168,7 +168,7 @@ Consequences: with one flat file per endpoint there is one fetch (1) and no laye
 
 Enforced by the `Validate` action on every PR and before every publish:
 
-The checks are numbered `C1` to `C15` so that WP02 and WP03 can reference them; the engine's own matrix checks keep their `V` numbers.
+The checks are numbered `C1` to `C16` so that WP02 and WP03 can reference them; the engine's own matrix checks keep their `V` numbers.
 
 | # | Rule | Severity | Why |
 |---|---|---|---|
@@ -187,6 +187,7 @@ The checks are numbered `C1` to `C15` so that WP02 and WP03 can reference them; 
 | C13 | A quarantine id that a level file now mentions. | warning | Housekeeping. |
 | C14 | Every catalog entry has `defaultSeverity` and `enabledByDefault`; every pair in `base/twins.json` is one PTE id and one AS id, and `count` equals the number of pairs. | error | The sparse rule and the twins step depend on them. |
 | C15 | A stage entry on an id the same stage's quarantine file lists and no file on the chain of any published level mentions. | warning | Dead while quarantined: quarantine wins over the stage entry until a level file adopts the id (D41). The stage file is a system file, so this is not an error. |
+| C16 | A `quarantine.<x>.json` whose `<x>` is not a stage slug of the settings. | warning | A file nothing reads; its ids silently stop being quarantined. The generator reads `quarantine.<slug>.json` for the settings stages only; the file still counts for C7 and C13. |
 
 The effective diff per endpoint is printed as a report on every PR. The Validate action picks the ref (the pull request's base branch on a pull request (fetched when absent); on a push, the commit before the push from the event payload, else the last commit (`HEAD~1`)) and prints "no diff" when it does not resolve; `Compare-RulebookEndpoints` itself takes `-Ref` and throws on a ref that does not resolve. Reviewers see what changes in terms of rules, not JSON lines. There is no check that a level is at least as strict as the level it is based on: a team that sets a rule to `None` at a higher level has made a decision, not an error (D26), and the effective diff is where a reviewer sees it.
 
@@ -235,7 +236,7 @@ A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`,
 
 - **One finding per cause.** A rules file (level, stage, endpoint, skeleton, quarantine) that is not JSON is one C1 finding and is left out of every later check; one that parses gets its C1 schema finding plus C2 to C4, which name the cause precisely. `overrides.json` is C10 when it is not JSON or fails its schema, and only then; with a valid schema, C4 never fires on it and C10 reports unknown selectors. A chain failure (unresolved `basedOn`, cycle) is one C5 finding; a base file on the chain that is not JSON is C1 only, and a published level without its file is C6 only. The settings schema is reported only when the explicit C5 checks found nothing. For the C11 and C12 split, see C11 in section 5.3.
 - **C12 prerequisites.** An error in C1 to C4 on an input file (level, stage, quarantine), in C5, C6, C14, or a schema or JSON failure of `overrides.json` (C10) means the generator cannot run. C12 is then skipped with one warning naming those rules; otherwise it is `Update-RulebookEndpoints -WhatIf`, one error per file that would change.
-- **Order.** A missing or unparseable settings file stops everything: it is the only finding. C1 to C4, C14, the C10 schema check, C7 and the default part of C11 run whatever C5 says (C7 and C11 need the catalog). C6, the C10 selector check and the C11 file set need settings without C5 findings; C8, C9, C13 and C15 need the resolved chains. C12 needs no blocking error.
+- **Order.** A missing or unparseable settings file stops everything: it is the only finding. C1 to C4, C14, the C10 schema check, C7 and the default part of C11 run whatever C5 says (C7 and C11 need the catalog). C6, the C10 selector check, the C11 file set and C16 need settings without C5 findings; C8, C9, C13 and C15 need the resolved chains. C12 needs no blocking error.
 
 **Validate action**
 
@@ -361,7 +362,7 @@ Trigger: a push to the default branch that changes `rulesets/**`, `skeletons/**`
 
 ```mermaid
 flowchart LR
-    push[push to main on the<br/>published paths, or dispatch] --> val[Validate action<br/>C1 to C15]
+    push[push to main on the<br/>published paths, or dispatch] --> val[Validate action<br/>C1 to C16]
     val --> res[resolve target<br/>and baseUrl]
     res --> pre[Pages preflight<br/>GET /pages]
     pre --> stage[stage: committed endpoints,<br/>rendered skeletons, rulebook.json, index.html]

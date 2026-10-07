@@ -1,4 +1,4 @@
-# Validate suite for WP03 (#5): Test-Rulebook checks C1 to C15 (docs/ARCHITECTURE.md section 5.3) against the
+# Validate suite for WP03 (#5): Test-Rulebook checks C1 to C16 (docs/ARCHITECTURE.md section 5.3) against the
 # repository fixtures under tests/fixtures/repos/ and mutations of valid-minimal in TestDrive.
 
 BeforeAll {
@@ -461,5 +461,46 @@ Describe 'C15 stage entry dead while quarantined' {
         Edit-FixtureJson -Path (Join-Path $root 'base' 'complete.ruleset.json') -Script { $_.rules += @{ id = 'LC0099'; action = 'Error' } }
         $null = Update-RulebookEndpoints -RepositoryRoot $root
         (Get-RuleList (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @('C13')
+    }
+}
+
+Describe 'C16 quarantine file that names no stage' {
+    It 'reports the file once as a warning (unknown-quarantine-stage)' {
+        $findings = @(Test-Rulebook -RepositoryRoot (Copy-Fixture 'unknown-quarantine-stage'))
+        (Get-FindingText $findings) | Should-BeCollection @('C16 warning quarantine.staging.json -')
+        $findings[0].Message | Should-Be 'quarantine.staging.json names no stage of the settings, so its ids are not quarantined anywhere; rename it to a stage slug, remove it, or add the stage'
+    }
+
+    It 'still feeds C7 and C13 with the ids of the file' {
+        $root = Copy-Fixture 'unknown-quarantine-stage'
+        Edit-FixtureJson -Path (Join-Path $root 'quarantine.staging.json') -Script { $_.rules += @{ id = 'AL0200' }; $_.rules += @{ id = 'CM0999' } }
+        (Get-FindingText (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @('C7 warning quarantine.staging.json CM0999', 'C13 warning quarantine.staging.json AL0200', 'C16 warning quarantine.staging.json -')
+    }
+
+    It 'reports quarantine.ci.json next to the other effects once the settings drop stage CI' {
+        $root = Copy-Fixture
+        Edit-SettingsFile -Root $root -Script { $_.stages = @($_.stages | Where-Object { $_.name -ne 'CI' }) }
+        (Get-FindingText (Test-Rulebook -RepositoryRoot $root)) | Should-BeCollection @(
+            'C9 warning stages/ci.json -'
+            'C10 error overrides.json LC0029'
+            'C12 error rulesets/complete.ci.ruleset.json -'
+            'C12 error rulesets/essential.ci.ruleset.json -'
+            'C12 error rulesets/recommended.ci.ruleset.json -'
+            'C12 error rulesets/strict.ci.ruleset.json -'
+            'C16 warning quarantine.ci.json -'
+        )
+    }
+
+    It 'is not reported while the settings have C5 errors' {
+        $root = Copy-Fixture 'unknown-quarantine-stage'
+        Edit-SettingsFile -Root $root -Script { $_.baseUrl = 'https://contoso.github.io/rulebook/' }
+        @(Test-Rulebook -RepositoryRoot $root | Where-Object Rule -EQ 'C16').Count | Should-Be 0
+    }
+
+    It 'reports nothing on valid-minimal and on the template' {
+        @(Test-Rulebook -RepositoryRoot (Copy-Fixture) | Where-Object Rule -EQ 'C16').Count | Should-Be 0
+        $root = Join-Path $TestDrive 'c16-template'
+        Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
+        @(Test-Rulebook -RepositoryRoot $root | Where-Object Rule -EQ 'C16').Count | Should-Be 0
     }
 }

@@ -1,5 +1,5 @@
 #requires -Version 7.4
-# Rulebook.Validate: checks C1 to C15 of docs/ARCHITECTURE.md section 5.3 on an organization rulebook repository.
+# Rulebook.Validate: checks C1 to C16 of docs/ARCHITECTURE.md section 5.3 on an organization rulebook repository.
 # Each check reads the files on its own and never throws on bad input: a problem is a finding. The readers and the
 # precedence come from Rulebook.Generate; the regeneration check C12 is Update-RulebookEndpoints -WhatIf, run only
 # when the generator's prerequisites have no error findings.
@@ -360,9 +360,10 @@ function Test-RulesFileStructure {
 }
 
 function Test-QuarantineFiles {
-    # C1 and C2 for quarantine.<stage>.json. Returns stage slug -> parsed file.
+    # C1, C2 and C16 for quarantine.<stage>.json. Returns stage slug -> parsed file; a file whose slug names no
+    # stage stays in the result, so C7 and C13 still see its ids.
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Checks every quarantine file')]
-    param([Parameter(Mandatory)]$Context)
+    param([Parameter(Mandatory)]$Context, [Parameter(Mandatory)]$Settings)
     $result = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
     $names = [string[]]@(Get-ChildItem -LiteralPath $Context.Root -File -Filter 'quarantine.*.json' | Where-Object { $_.Name -like 'quarantine.*.json' } | ForEach-Object Name)
     [System.Array]::Sort($names, [System.StringComparer]::Ordinal)
@@ -377,7 +378,12 @@ function Test-QuarantineFiles {
         foreach ($id in Get-RuleIdList $json) {
             if (-not $seen.Add($id)) { Add-Finding -Context $Context -Rule C2 -Severity error -File $name -Id $id -Message "$id is listed more than once" -Blocking }
         }
-        $result[($name -replace '^quarantine\.', '' -replace '\.json$', '')] = $json
+        $slug = $name -replace '^quarantine\.', '' -replace '\.json$', ''
+        # C16: the generator reads quarantine.<slug>.json for the settings stages only; needs settings without C5 errors.
+        if ($Settings.Valid -and $slug -cnotin $Settings.StageSlugs) {
+            Add-Finding -Context $Context -Rule C16 -Severity warning -File $name -Message "$name names no stage of the settings, so its ids are not quarantined anywhere; rename it to a stage slug, remove it, or add the stage"
+        }
+        $result[$slug] = $json
     }
     return , $result
 }
@@ -421,7 +427,7 @@ function Test-OverridesFile {
 function Test-Rulebook {
     <#
     .SYNOPSIS
-    Runs checks C1 to C15 (docs/ARCHITECTURE.md section 5.3) on an organization rulebook repository.
+    Runs checks C1 to C16 (docs/ARCHITECTURE.md section 5.3) on an organization rulebook repository.
     .DESCRIPTION
     Returns findings { Rule, Severity ('error' or 'warning'), File (repository-relative with '/', $null for the
     repository), Id ($null when the finding is not about one id), Message }, ordered by rule, file and id. With
@@ -466,7 +472,7 @@ function Invoke-RulebookChecks {
         $json = Test-RulesFileStructure -Context $Context -File $file
         if ($null -ne $json) { $parsed[$file.Path] = $json }
     }
-    $quarantineFiles = Test-QuarantineFiles -Context $Context
+    $quarantineFiles = Test-QuarantineFiles -Context $Context -Settings $Settings
     $overrides = Test-OverridesFile -Context $Context -Settings $Settings
 
     # C6: files the settings name; stages/default.json

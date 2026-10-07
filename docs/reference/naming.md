@@ -159,6 +159,7 @@ What the schemas cannot check, and the validation check that does (ARCHITECTURE.
 | Override selectors name slugs from the settings (the schema checks only their shape) | C10 |
 | No endpoint entry equals the catalog default; exactly `levels x stages` endpoints and skeletons, and no other file in `rulesets/` or `skeletons/` except `README.md` | C11 |
 | `count` in `base/twins.json` equals the number of pairs | C14 |
+| Every `quarantine.<x>.json` names a stage of the settings | C16 |
 
 The settings schema is closed: an unknown key at the top level or in `publish`, `quarantine`, `commitOptions` or `site` is an error, and a work package that needs a new key adds it to the schema in its own pull request. `publish.target` requires its own fields (`dist-repo`: `repository`, `branch`; `azure-blob`: `storageAccount`, `container`; `gist`: `gistId`); the fields of another target are allowed and ignored. The catalog schema is minimal: `id`, `defaultSeverity` and `enabledByDefault` are required per entry, the other known fields are typed, and the scan may add more.
 
