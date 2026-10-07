@@ -761,7 +761,7 @@ function Publish-RulebookScan {
             if ($null -eq $open) { return }
             $date = $Plan.Now.UtcDateTime.ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
             # A pull request reopened by hand and closed again carries the line once.
-            $previous = [regex]::Replace([string]$open.Body, '^(Closed by the scan of [^\n]*\n\n)+', '')
+            $previous = [regex]::Replace([string]$open.Body, '^(Closed by the scan of [^\r\n]*\r?\n\r?\n)+', '')
             $closedBody = "Closed by the scan of $($date): $Reason`n`n$previous"
             $closed = Update-GitHubPullRequest -Repository $Repository -Number $open.Number -Title $open.Title -Body $closedBody -State closed -Token $Token -ApiUrl $ApiUrl
             $result.ClosedPullRequestUrl = if ($closed.Url) { $closed.Url } else { $open.Url }

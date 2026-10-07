@@ -359,6 +359,9 @@ function Invoke-DescriptorExtraction {
     )
     if ([string]::IsNullOrEmpty($PwshPath)) { $PwshPath = Get-DefaultPwshPath }
     $WorkPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($WorkPath)
+    # The child runs in the work folder, so a relative folder must be resolved here.
+    $ToolsDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ToolsDir)
+    if ($AlcopsDir) { $AlcopsDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($AlcopsDir) }
     [void][System.IO.Directory]::CreateDirectory($WorkPath)
     $outFile = Join-Path $WorkPath ('descriptors-' + [guid]::NewGuid().ToString('n') + '.json')
     $quote = { param([string]$Value) "'" + $Value.Replace("'", "''") + "'" }
