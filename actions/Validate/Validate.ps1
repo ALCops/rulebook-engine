@@ -12,7 +12,8 @@ warnings with -FailOnWarning. The script never calls exit, so tests run it in-pr
 head of its branch, downloaded with GITHUB_TOKEN (never the write token), or -TemplatePath and -InstalledTemplatePath
 as local folders. One notice (no updates, templateSha not recorded) or warning (updates available, check skipped) and
 the section '## Template update check' in the summary. Neither counts towards warnings= or -FailOnWarning, and the
-check never fails the step. UpdateCheck is { Status (none, sha-only, available, skipped), Reason, Plan }.
+check never fails the step. UpdateCheck is { Status (none, sha-only, available, skipped), Reason, Plan }. The check works
+in -UpdateWorkPath when given (left in place afterwards), else in a temporary folder it removes.
 
 The effective diff compares against -DiffRef. Without -DiffRef it is origin/<GITHUB_BASE_REF> on a pull_request or
 pull_request_target event (fetched when absent); on a push, the commit before the push from the event payload
@@ -193,13 +194,21 @@ if ($SummaryPath) { [System.IO.File]::AppendAllText($SummaryPath, $summaryText, 
 # 5. Update check (WP07): check mode only, never counted, never failing.
 $updateCheck = $null
 if ($CheckForUpdates) {
-    Import-Module (Join-Path $modules 'Rulebook.GitHub.psd1') -Force
-    Import-Module (Join-Path $modules 'Rulebook.Update.psd1') -Force
-    $work = if ($UpdateWorkPath) { & $resolvePath $UpdateWorkPath } else { Join-Path $(if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }) ('rulebook-update-check-' + [guid]::NewGuid().ToString('n').Substring(0, 8)) }
     $updateCheck = [pscustomobject]@{ Status = 'skipped'; Reason = $null; Plan = $null }
     $command = 'warning'
     $message = $null
+    # Only a work folder this script names itself is removed afterwards; a caller's -UpdateWorkPath is left alone.
+    $work = $null
+    $ownWork = $false
     try {
+        Import-Module (Join-Path $modules 'Rulebook.GitHub.psd1') -Force
+        Import-Module (Join-Path $modules 'Rulebook.Update.psd1') -Force
+        if ($UpdateWorkPath) {
+            $work = & $resolvePath $UpdateWorkPath
+        } else {
+            $work = Join-Path $(if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }) ('rulebook-update-check-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
+            $ownWork = $true
+        }
         $settingsFile = Join-Path $root '.github' 'Rulebook-Settings.json'
         if (-not (Test-Path -LiteralPath $settingsFile -PathType Leaf)) { throw 'Settings missing: .github/Rulebook-Settings.json' }
         $settings = Get-Content -LiteralPath $settingsFile -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop
@@ -220,7 +229,7 @@ if ($CheckForUpdates) {
         $message = "update check skipped: $($_.Exception.Message)"
         $updateCheck.Reason = $message
     } finally {
-        if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
+        if ($ownWork -and (Test-Path -LiteralPath $work)) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
     }
     $line = "::$command title=Update check::$(Format-AnnotationText $message)"
     $annotations.Add($line)

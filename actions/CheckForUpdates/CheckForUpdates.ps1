@@ -18,8 +18,8 @@ the zipball download, or -TemplatePath and -InstalledTemplatePath as local folde
 Writes the outputs updatesAvailable, pullRequestUrl, templateSha and failure (token, template, validation, push,
 pull-request, error; empty on success) to GITHUB_OUTPUT and returns { ExitCode, Mode, Failure, UpdatesAvailable,
 TemplateSha, PullRequestUrl, Plan, Result, Annotations, Summary }. Never calls exit, so tests run it in-process;
-action.yaml exits with ExitCode. -RemoteUrl, -ApiUrl, -GitHubToken and -WorkPath are test seams; -WorkPath is
-removed at the end.
+action.yaml exits with ExitCode. -RemoteUrl, -ApiUrl, -GitHubToken and -WorkPath are test seams; a -WorkPath the caller
+passes is left in place, the temporary work folder the script names itself is removed at the end.
 #>
 [CmdletBinding()]
 param(
@@ -86,7 +86,8 @@ function Write-Text {
 # [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
 $resolvePath = { param($Path) if ([string]::IsNullOrEmpty($Path)) { $Path } else { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) } }
 $SummaryPath = & $resolvePath $SummaryPath
-if ([string]::IsNullOrEmpty($WorkPath)) {
+$ownWork = [string]::IsNullOrEmpty($WorkPath)
+if ($ownWork) {
     $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
     $WorkPath = Join-Path $tempRoot ('rulebook-update-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
 }
@@ -230,7 +231,7 @@ try {
     $summaryMessage = $_.Exception.Message
     $failed = $true
 } finally {
-    if ($WorkPath -and (Test-Path -LiteralPath $WorkPath)) { Remove-Item -LiteralPath $WorkPath -Recurse -Force -ErrorAction SilentlyContinue }
+    if ($ownWork -and (Test-Path -LiteralPath $WorkPath)) { Remove-Item -LiteralPath $WorkPath -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 # 5. Summary and outputs.

@@ -212,6 +212,23 @@ Describe 'Validate.ps1' {
             $run.Result.ExitCode | Should-Be 0
         }
 
+        It 'turns any failure of the check into the skipped warning (an UpdateWorkPath that cannot be created)' {
+            $file = Join-Path $TestDrive 'not-a-folder.txt'
+            Write-FixtureText -Path $file -Text 'x'
+            $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v2; InstalledTemplatePath = $v1; UpdateWorkPath = (Join-Path $file 'work') }
+            $run.Result.ExitCode | Should-Be 0
+            $run.Result.UpdateCheck.Status | Should-Be 'skipped'
+            $run.Result.Annotations[-1] | Should-BeLikeString '::warning title=Update check::update check skipped: *'
+        }
+
+        It 'leaves an UpdateWorkPath the caller passed in place' {
+            $work = Join-Path $TestDrive 'update-work'
+            $null = New-Item -ItemType Directory -Path $work -Force
+            Write-FixtureText -Path (Join-Path $work 'keep.txt') -Text 'mine'
+            $null = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true; TemplatePath = $v2; InstalledTemplatePath = $v1; UpdateWorkPath = $work }
+            Test-Path -LiteralPath (Join-Path $work 'keep.txt') -PathType Leaf | Should-BeTrue
+        }
+
         It 'runs no update check without -CheckForUpdates' {
             $run = Invoke-Entry @{ RepositoryRoot = $org }
             $run.Result.UpdateCheck | Should-BeNull

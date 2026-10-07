@@ -225,9 +225,25 @@ Describe 'CheckForUpdates.ps1' {
         $run.Summary | Should-MatchString 'nothing was pushed'
     }
 
-    It 'removes its work folder' {
+    It 'leaves a work folder the caller passed in place' {
         $work = Join-Path (Get-TestFolder) 'work'
+        $null = New-Item -ItemType Directory -Path $work
+        Write-FixtureText -Path (Join-Path $work 'keep.txt') -Text 'mine'
         $null = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); WorkPath = $work }
-        Test-Path -LiteralPath $work | Should-BeFalse
+        Test-Path -LiteralPath (Join-Path $work 'keep.txt') -PathType Leaf | Should-BeTrue
+    }
+
+    It 'removes the work folder it names itself' {
+        $runnerTemp = Get-TestFolder
+        $null = New-Item -ItemType Directory -Path $runnerTemp
+        $saved = $env:RUNNER_TEMP
+        $env:RUNNER_TEMP = $runnerTemp
+        try {
+            $summary = "$(Get-TestFolder).summary.md"
+            $null = & $script:entry -RepositoryRoot $org -TemplatePath (Join-Path $templates 'v2') -InstalledTemplatePath (Join-Path $templates 'v1') -SummaryPath $summary 6>$null
+        } finally {
+            $env:RUNNER_TEMP = $saved
+        }
+        @(Get-ChildItem -LiteralPath $runnerTemp -Force) | Should-BeCollection @()
     }
 }
