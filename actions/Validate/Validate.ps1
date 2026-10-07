@@ -217,8 +217,7 @@ if ($CheckForUpdates) {
         if ($TemplatePath) {
             $template = Get-RulebookTemplate -TemplatePath $TemplatePath -InstalledTemplatePath $InstalledTemplatePath -TemplateUrl $templateUrl
         } else {
-            $template = Get-RulebookTemplate -TemplateUrl $templateUrl -GitHubToken $env:GITHUB_TOKEN -DownloadLatest -InstalledSha ([string](& $value 'templateSha')) -WorkPath $work -ApiUrl $ApiUrl `
-                -UpdateMode ([string](& $value 'site', 'updateMode')) -UnusedFiles ([string[]]@(& $value 'unusedRulebookFiles'))
+            $template = Get-RulebookTemplate -TemplateUrl $templateUrl -GitHubToken $env:GITHUB_TOKEN -DownloadLatest -InstalledSha ([string](& $value 'templateSha')) -WorkPath $work -ApiUrl $ApiUrl
         }
         $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $work
         $status = Get-RulebookUpdateStatus -Plan $plan

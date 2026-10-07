@@ -100,6 +100,8 @@ function Add-Failure {
     if ($null -eq $script:failure) { $script:failure = $Kind }
 }
 
+# Every token obtained by an exchange is masked before anything can print it.
+$maskToken = { param([string]$Value) if (-not [string]::IsNullOrEmpty($Value)) { Write-Host "::add-mask::$Value" } }
 $mode = if ($Update) { 'update' } else { 'check' }
 $plan = $null
 $publish = $null
@@ -129,7 +131,22 @@ try {
         throw "The $secretName secret is needed to update system files. Read $docsUrl"
     }
 
-    # 2. The template.
+    # 2. Update mode: the write token, exchanged and masked before anything else runs.
+    $access = $null
+    if ($Update) {
+        if ([string]::IsNullOrEmpty($Repository)) { throw 'The update needs the repository (GITHUB_REPOSITORY) as owner/name.' }
+        if ([string]::IsNullOrEmpty($UpdateBranch)) { throw 'The update needs updateBranch.' }
+        try {
+            $access = Get-GitHubAccessToken -Token $Token -Repository $Repository -ApiUrl $ApiUrl
+        } catch {
+            Add-Failure 'token'
+            throw "The $secretName secret could not be used: $($_.Exception.Message)"
+        }
+        if (-not [string]::IsNullOrEmpty($access.Token)) { & $maskToken $access.Token }
+        Write-Host "Write token: $($access.Kind)"
+    }
+
+    # 3. The template and the plan. Check mode never fails Validate: any failure here is one warning.
     try {
         if (-not [string]::IsNullOrWhiteSpace($TemplatePath)) {
             $template = Get-RulebookTemplate -TemplatePath $TemplatePath -InstalledTemplatePath $InstalledTemplatePath -TemplateSha $TemplateSha -TemplateUrl $requested
@@ -144,23 +161,20 @@ try {
             # Another template, or no recorded commit: resolve the branch head (AL-Go does the same).
             if (-not $sameTemplate) { $installedSha = '' }
             $latest = $DownloadLatest -or [string]::IsNullOrWhiteSpace($installedSha)
-            $template = Get-RulebookTemplate -TemplateUrl $info.Url -Token $Token -GitHubToken $GitHubToken -DownloadLatest:$latest -InstalledSha $installedSha -WorkPath $WorkPath -ApiUrl $ApiUrl `
-                -UpdateMode ([string](& $setting 'site', 'updateMode')) -UnusedFiles ([string[]]@(& $setting 'unusedRulebookFiles'))
+            $template = Get-RulebookTemplate -TemplateUrl $info.Url -Token $Token -GitHubToken $GitHubToken -DownloadLatest:$latest -InstalledSha $installedSha -WorkPath $WorkPath -ApiUrl $ApiUrl -OnToken $maskToken
         }
         Write-Host "Template: $($template.Repo) at $($template.Sha) ($($template.Source))"
+        $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $WorkPath
     } catch {
         if ($Update) {
-            Add-Failure 'template'
+            if ($null -eq $template) { Add-Failure 'template' }
             throw
         }
-        # Check mode never fails Validate: an unreachable template is one warning.
         Add-Annotation -Command warning -Message "update check skipped: $($_.Exception.Message)"
         $summaryMessage = "update check skipped: $($_.Exception.Message)"
-        $template = $null
+        $plan = $null
     }
 
-    # 3. The plan.
-    if ($null -ne $template) { $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $WorkPath }
     if ($null -ne $plan) {
         foreach ($note in $plan.Notes) { Write-Host "Note: $note" }
         foreach ($change in $plan.Changes) { Write-Host "$($change.Change): $($change.File) ($($change.Class))" }
@@ -182,16 +196,6 @@ try {
                 $summaryMessage = 'The updated rulebook does not validate; nothing was pushed. The findings come from the repository after the update.'
                 $failed = $true
             } else {
-                if ([string]::IsNullOrEmpty($Repository)) { throw 'The update needs the repository (GITHUB_REPOSITORY) as owner/name.' }
-                if ([string]::IsNullOrEmpty($UpdateBranch)) { throw 'The update needs updateBranch.' }
-                try {
-                    $access = Get-GitHubAccessToken -Token $Token -Repository $Repository -ApiUrl $ApiUrl
-                } catch {
-                    Add-Failure 'token'
-                    throw "The $secretName secret could not be used: $($_.Exception.Message)"
-                }
-                if (-not [string]::IsNullOrEmpty($access.Token)) { Write-Host "::add-mask::$($access.Token)" }
-                Write-Host "Write token: $($access.Kind)"
                 $labels = [string[]]@(& $setting 'commitOptions', 'pullRequestLabels' | Where-Object { $_ -is [string] -and $_ -ne '' })
                 try {
                     $publish = Publish-RulebookUpdate -Plan $plan -RepositoryRoot $root -Repository $Repository -RemoteUrl $RemoteUrl -Token $access.Token -UpdateBranch $UpdateBranch `
@@ -235,11 +239,24 @@ try {
 }
 
 # 5. Summary and outputs.
-$summary = if ($null -ne $plan) {
-    ConvertTo-UpdateSummary -Plan $plan -Result $publish -Mode $mode -Message $summaryMessage
-} else {
-    $title = if ($mode -eq 'check') { '## Template update check' } else { '## Rulebook system files update' }
-    "$title`n`n$(ConvertTo-SingleLine $summaryMessage)`n`n"
+$title = if ($mode -eq 'check') { '## Template update check' } else { '## Rulebook system files update' }
+$summary = "$title`n`n$(ConvertTo-SingleLine $summaryMessage)`n`n"
+if ($null -ne $plan) {
+    try {
+        $summary = ConvertTo-UpdateSummary -Plan $plan -Result $publish -Mode $mode -Message $summaryMessage
+    } catch {
+        Write-Host "The summary could not be written in full: $($_.Exception.Message)"
+    }
+}
+$summary = $summary.Replace("`r`n", "`n")
+# The runner caps a step summary at 1 MiB; stay well below it (as Validate does).
+$summaryLimit = 900KB
+if ([System.Text.Encoding]::UTF8.GetByteCount($summary) -gt $summaryLimit) {
+    $cut = [math]::Min($summary.Length, $summaryLimit)
+    while ([System.Text.Encoding]::UTF8.GetByteCount($summary.Substring(0, $cut)) -gt $summaryLimit) { $cut = [int]($cut * 0.9) }
+    $lineEnd = $summary.LastIndexOf([char]10, [math]::Max(0, $cut - 1))
+    if ($lineEnd -gt 0) { $cut = $lineEnd + 1 }
+    $summary = $summary.Substring(0, $cut) + "`n_The summary was truncated at 900 KiB; the annotations above have the outcome._`n"
 }
 Write-Text -Path $SummaryPath -Text $summary
 $pullRequestUrl = if ($null -ne $publish -and $publish.PullRequestUrl) { $publish.PullRequestUrl } else { '' }

@@ -201,6 +201,28 @@ Describe 'CheckForUpdates.ps1' {
         $run.Result.Annotations[0] | Should-BeLikeString '::warning title=CheckForUpdates::update check skipped: *'
     }
 
+    It 'skips the check when the plan itself fails, and fails update mode the same way' {
+        $file = Join-Path $TestDrive 'not-a-folder.txt'
+        Write-FixtureText -Path $file -Text 'x'
+        $parameters = @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); WorkPath = (Join-Path $file 'work') }
+        $run = Invoke-Entry $parameters.Clone()
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.Failure | Should-BeNull
+        $run.Result.UpdatesAvailable | Should-BeFalse
+        @($run.Result.Annotations).Count | Should-Be 1
+        $run.Result.Annotations[0] | Should-BeLikeString '::warning title=CheckForUpdates::update check skipped: *'
+        $update = $parameters.Clone()
+        $update.Update = $true
+        $update.Token = 'ghp_test'
+        (Invoke-Entry $update).Result.ExitCode | Should-Be 1
+    }
+
+    It 'masks the write token before any other output' {
+        $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); Update = $true; Token = 'ghp_secret_value'; RemoteUrl = (Join-Path (Get-TestFolder) 'never.git'); ApiUrl = 'http://127.0.0.1:9' }
+        $run.Lines[0] | Should-Be '::add-mask::ghp_secret_value'
+        @($run.Lines | Where-Object { $_ -like '*ghp_secret_value*' }) | Should-BeCollection @('::add-mask::ghp_secret_value')
+    }
+
     It 'skips the check when the updated rulebook would not validate' {
         $template = Get-TestFolder
         Copy-FixtureTree -Source (Join-Path $templates 'v2') -Destination $template
