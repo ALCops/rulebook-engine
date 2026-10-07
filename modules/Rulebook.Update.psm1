@@ -1367,8 +1367,10 @@ function Publish-RulebookUpdate {
     } catch {
         $segments = @(foreach ($part in @($Repository.Split('/')) + @('tree') + @($pushed.Branch.Split('/'))) { [System.Uri]::EscapeDataString($part) })
         $link = "$server/$($segments -join '/')"
-        $message = $_.Exception.Message
-        if (-not $message.Contains($link)) { $message += " Branch $($pushed.Branch) was pushed; open the pull request by hand: $link" }
+        # Always say that the branch is pushed; the link to open the pull request by hand is added unless the API
+        # message (New-GitHubPullRequest) carries it already.
+        $message = "Branch $($pushed.Branch) was pushed. $($_.Exception.Message)"
+        if (-not $message.Contains($link)) { $message += " Open the pull request by hand: $link" }
         $exception = [System.InvalidOperationException]::new($message, $_.Exception)
         $exception.Data['Stage'] = 'pull-request'
         $exception.Data['Branch'] = $pushed.Branch

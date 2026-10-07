@@ -135,7 +135,7 @@ Neither annotation counts towards `warnings=` or `failOnWarning`, and the check 
    | `failure` | Steps |
    |---|---|
    | `push` | clone, write, commit, push |
-   | `pull-request` | duplicate guard (branch head, open pull requests), the body, opening the pull request and its labels; after the push the message names the pushed branch and its `tree/<branch>` link, so the pull request can be opened by hand |
+   | `pull-request` | duplicate guard (branch head, open pull requests), the body, opening the pull request and its labels; after the push the message starts with "Branch `<name>` was pushed." and carries its `tree/<branch>` link once, so the pull request can be opened by hand; before the push (guard, branch lookup) nothing was pushed |
 
 No auto-merge and no `includeBranches` in v1.
 

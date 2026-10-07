@@ -938,7 +938,8 @@ Describe 'Publish-RulebookUpdate against a bare repository' -Skip:$gitMissing {
         }
         $caught.Exception.Data['Stage'] | Should-Be 'pull-request'
         $caught.Exception.Data['Branch'] | Should-Be 'update-rulebook-system-files/main/261007123045'
-        $caught.Exception.Message | Should-BeLikeString '*HTTP 422*https://github.com/Contoso/rulebook/tree/update-rulebook-system-files/main/261007123045*'
+        $caught.Exception.Message | Should-BeLikeString 'Branch update-rulebook-system-files/main/261007123045 was pushed. *HTTP 422*https://github.com/Contoso/rulebook/tree/update-rulebook-system-files/main/261007123045*'
+        ([regex]::Matches($caught.Exception.Message, [regex]::Escape('https://github.com/Contoso/rulebook/tree/'))).Count | Should-Be 1
         (& git -C $bare rev-parse --verify --quiet refs/heads/update-rulebook-system-files/main/261007123045) | Should-NotBeNull
     }
 
