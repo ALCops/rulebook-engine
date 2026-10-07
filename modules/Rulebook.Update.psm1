@@ -117,15 +117,27 @@ function Test-ExcludedPath {
 }
 
 function Get-TreeFile {
-    # Relative paths ('/') of every file under Root, sorted ordinally; the excluded folders are left out.
+    # Relative paths ('/') of every file under Root, sorted ordinally. The excluded folders (.git, site/data,
+    # node_modules) are pruned during the walk, so their content is never enumerated.
     param([Parameter(Mandatory)][string]$Root)
     $full = (Resolve-Path -LiteralPath $Root).ProviderPath
-    $separator = [System.IO.Path]::DirectorySeparatorChar
-    [string[]]$paths = @(Get-ChildItem -LiteralPath $full -Recurse -File -Force | ForEach-Object {
-            [System.IO.Path]::GetRelativePath($full, $_.FullName).Replace($separator, '/')
-        } | Where-Object { -not (Test-ExcludedPath -Path $_) })
-    [System.Array]::Sort($paths, [System.StringComparer]::Ordinal)
-    return $paths
+    $paths = [System.Collections.Generic.List[string]]::new()
+    $pending = [System.Collections.Generic.Stack[object]]::new()
+    $pending.Push([pscustomobject]@{ Path = $full; Relative = '' })
+    while ($pending.Count -gt 0) {
+        $folder = $pending.Pop()
+        foreach ($item in Get-ChildItem -LiteralPath $folder.Path -Force) {
+            $relative = if ($folder.Relative) { "$($folder.Relative)/$($item.Name)" } else { $item.Name }
+            if ($item.PSIsContainer) {
+                if (-not (Test-ExcludedPath -Path "$relative/")) { $pending.Push([pscustomobject]@{ Path = $item.FullName; Relative = $relative }) }
+            } elseif (-not (Test-ExcludedPath -Path $relative)) {
+                $paths.Add($relative)
+            }
+        }
+    }
+    [string[]]$sorted = $paths.ToArray()
+    [System.Array]::Sort($sorted, [System.StringComparer]::Ordinal)
+    return $sorted
 }
 
 function Copy-UpdateTree {
@@ -381,12 +393,13 @@ function Get-RulebookTemplate {
     .DESCRIPTION
     Download: resolves the branch head of -TemplateUrl when -DownloadLatest or -InstalledSha is empty (else uses
     -InstalledSha) and downloads that zipball into -WorkPath. The requests use -GitHubToken (GITHUB_TOKEN) first; on
-    HTTP 401, 403 or 404 with a -Token (the GHTOKENWORKFLOW value) that token is exchanged for contents read and the
-    request repeated, which is how a private template is read. Path is the folder of the zip that holds
-    .github/workflows (none throws 'no .github/workflows in the template'). The installed template (a second
-    zipball at -InstalledSha) is downloaded only when it differs from Sha and is needed: the new template ships
-    site/** and -UpdateMode is not overwrite (the three-way comparison, D35), or -UnusedFiles lists a path the new
-    template does not ship (removal of a file the template dropped). A 404 there is a note, and InstalledPath is $null.
+    HTTP 401, 403 or 404 with a -Token (the GHTOKENWORKFLOW value) the request is repeated with that token (GitHub App
+    JSON exchanged for contents read, a personal access token as it is), which is how a private template is read. A
+    failed exchange rethrows the original error, with the exchange error as a note. -OnToken runs with every token
+    obtained by an exchange before it is used (the action masks it). Path is the folder of the zip that holds
+    .github/workflows (none throws 'no .github/workflows in the template'). The installed template (a second zipball
+    at -InstalledSha) is downloaded whenever it differs from Sha: the three-way comparison of site files (D35) and the
+    notes on files the template dropped need it. A 404 there is a note, and InstalledPath is $null.
     Local: -TemplatePath (and -InstalledTemplatePath) are folders; Sha is -TemplateSha or Get-TemplateContentSha.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Download')]
@@ -401,8 +414,7 @@ function Get-RulebookTemplate {
         [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyString()][string]$InstalledSha,
         [Parameter(ParameterSetName = 'Download')][string]$WorkPath,
         [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyString()][string]$ApiUrl,
-        [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyString()][string]$UpdateMode,
-        [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyCollection()][string[]]$UnusedFiles,
+        [Parameter(ParameterSetName = 'Download')][scriptblock]$OnToken,
         [Parameter(Mandatory, ParameterSetName = 'Local')][string]$TemplatePath,
         [Parameter(ParameterSetName = 'Local')][AllowNull()][AllowEmptyString()][string]$InstalledTemplatePath,
         [Parameter(ParameterSetName = 'Local')][AllowNull()][AllowEmptyString()][string]$TemplateSha
@@ -437,16 +449,25 @@ function Get-RulebookTemplate {
     $info = ConvertTo-TemplateUrl -Url $TemplateUrl
     if ([string]::IsNullOrEmpty($WorkPath)) { $WorkPath = Get-DefaultWorkPath }
     # Runs Action with the read token; on 401, 403 or 404 exchanges -Token once and keeps using the result.
-    $state = @{ Token = $GitHubToken; Exchanged = $false; WriteToken = $Token; ApiUrl = $ApiUrl; Repo = $info.Repo }
+    $state = @{ Token = $GitHubToken; Exchanged = $false; WriteToken = $Token; ApiUrl = $ApiUrl; Repo = $info.Repo; OnToken = $OnToken; Notes = $notes }
     $withToken = {
         param([scriptblock]$Action)
         try {
             return & $Action $state.Token
         } catch {
-            $status = $_.Exception.Data['StatusCode']
+            $original = $_
+            $status = $original.Exception.Data['StatusCode']
             if ($state.Exchanged -or [string]::IsNullOrWhiteSpace($state.WriteToken) -or $status -notin 401, 403, 404) { throw }
             $state.Exchanged = $true
-            $state.Token = (Get-GitHubAccessToken -Token $state.WriteToken -Repository $state.Repo -ApiUrl $state.ApiUrl -Permissions ([ordered]@{ contents = 'read'; metadata = 'read' })).Token
+            try {
+                $exchanged = (Get-GitHubAccessToken -Token $state.WriteToken -Repository $state.Repo -ApiUrl $state.ApiUrl -Permissions ([ordered]@{ contents = 'read'; metadata = 'read' })).Token
+            } catch {
+                # The original answer (and its status) is what the caller decides on; the exchange error is a note.
+                $state.Notes.Add("The token could not be used to read $($state.Repo): $($_.Exception.Message)")
+                throw $original
+            }
+            if ($null -ne $state.OnToken -and -not [string]::IsNullOrEmpty($exchanged)) { & $state.OnToken $exchanged }
+            $state.Token = $exchanged
             return & $Action $state.Token
         }
     }
@@ -464,17 +485,12 @@ function Get-RulebookTemplate {
         if ($installed -ceq $sha) {
             $installedPath = $path
         } else {
-            $files = Get-OrdinalSet -Items (Get-TreeFile -Root $path)
-            $shipsSite = @($files | Where-Object { $_.StartsWith('site/', [System.StringComparison]::Ordinal) -and -not $_.StartsWith('site/data/', [System.StringComparison]::Ordinal) }).Count -gt 0
-            $listedDropped = @($UnusedFiles | Where-Object { -not [string]::IsNullOrEmpty($_) -and -not $files.Contains($_) }).Count -gt 0
-            if (($shipsSite -and $UpdateMode -cne 'overwrite') -or $listedDropped) {
-                try {
-                    $old = & $withToken { param($t) Save-GitHubZipball -Repository $info.Repo -Sha $installed -Token $t -Path (Join-Path $WorkPath 'installed') -ApiUrl $ApiUrl }
-                    $installedPath = Find-TemplateRoot -Path $old
-                } catch {
-                    if ($_.Exception.Data['StatusCode'] -ne 404) { throw }
-                    $notes.Add("The installed template commit $(Get-ShortSha $installed) of $($info.Repo) is not available (HTTP 404); site files that differ from the new template are kept and listed.")
-                }
+            try {
+                $old = & $withToken { param($t) Save-GitHubZipball -Repository $info.Repo -Sha $installed -Token $t -Path (Join-Path $WorkPath 'installed') -ApiUrl $ApiUrl }
+                $installedPath = Find-TemplateRoot -Path $old
+            } catch {
+                if ($_.Exception.Data['StatusCode'] -ne 404) { throw }
+                $notes.Add("The installed template commit $(Get-ShortSha $installed) of $($info.Repo) is not available (HTTP 404); site files that differ from the new template are kept and listed, and files the template dropped get no note.")
             }
         }
     }
@@ -907,10 +923,12 @@ function Get-RulebookUpdatePlan {
     $bookkeeping = $changes.Count -gt 0
     foreach ($change in $changes) {
         if ($change.Change -cne 'modified') { $bookkeeping = $false; break }
-        $candidateText = Read-UpdateText -Path (Join-Path $candidate $change.File)
+        # Text is read only for the two bookkeeping kinds; anything else (a binary included) is a real change.
         if ($change.File -ceq $script:SettingsPath) {
+            $candidateText = Read-UpdateText -Path (Join-Path $candidate $change.File)
             if ((Get-TextWithoutSha -Text $orgSettingsText) -cne (Get-TextWithoutSha -Text $candidateText)) { $bookkeeping = $false; break }
-        } elseif ($change.Kind -ceq 'workflow' -and $templateUrlValue) {
+        } elseif ($change.Kind -ceq 'workflow' -and $templateUrlValue -and -not (Test-BinaryFile -Path (Join-Path $candidate $change.File))) {
+            $candidateText = Read-UpdateText -Path (Join-Path $candidate $change.File)
             if ((Read-UpdateText -Path (Join-Path $root $change.File)).Replace('{TEMPLATEURL}', $templateUrlValue) -cne $candidateText) { $bookkeeping = $false; break }
         } else {
             $bookkeeping = $false
@@ -1131,6 +1149,10 @@ function ConvertTo-UpdateSummary {
     <#
     .SYNOPSIS
     The job summary of an update run: '## Template update check' (-Mode check) or '## Rulebook system files update'.
+    .DESCRIPTION
+    The message and result line, the change table, skipped site files, notes, validation warnings and errors, the
+    effective diff (or why it could not be computed) when -Result carries one, and the new release notes. The
+    entry script caps it below the step summary limit.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -1167,9 +1189,15 @@ function ConvertTo-UpdateSummary {
         }
         [void]$text.AppendLine()
     }
-    if ($null -ne $Result -and @($Result.Diff).Count -gt 0) {
+    $diffNote = if ($null -ne $Result -and $Result.PSObject.Properties['DiffNote']) { [string]$Result.DiffNote } else { '' }
+    if ($diffNote) {
+        [void]$text.AppendLine('## Effective diff').AppendLine().AppendLine($diffNote).AppendLine()
+    } elseif ($null -ne $Result -and @($Result.Diff).Count -gt 0) {
         [void]$text.AppendLine('## Effective diff').AppendLine()
         [void]$text.Append((@(Get-EffectiveDiffBlock -Diff @($Result.Diff)) -join ''))
+    }
+    if ($Plan.ReleaseNotesShipped -and -not [string]::IsNullOrWhiteSpace($Plan.ReleaseNotes)) {
+        [void]$text.AppendLine('## Release notes').AppendLine().AppendLine((ConvertTo-ReleaseNotesMarkdown -Text $Plan.ReleaseNotes)).AppendLine()
     }
     return $text.ToString().Replace("`r`n", "`n")
 }
@@ -1185,8 +1213,9 @@ function Publish-RulebookUpdate {
     commits with the title and pushes update-rulebook-system-files/<branch>/<yyMMddHHmmss UTC> (or -UpdateBranch
     with -DirectCommit, falling back to the branch when the push is refused). Diff is the effective diff of the
     commit against the cloned head. Returns { Result (pull-request, direct-commit, exists, no-changes),
-    PullRequestUrl, Branch, Sha, Fallback, Diff, Body, Title }. A failure throws with Data['Stage'] push or
-    pull-request.
+    PullRequestUrl, Branch, Sha, Fallback, Diff, DiffNote, Body, Title }. A failure throws with Data['Stage']: push for
+    the clone, commit and push; pull-request for the duplicate guard, the body and the opening (then naming the
+    pushed branch and its tree link).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -1224,19 +1253,16 @@ function Publish-RulebookUpdate {
         if ($LASTEXITCODE -eq 0 -and $show) { $prefix = ([string]$show).Trim() }
     }
 
+    # The duplicate guard (branch head for the title, open pull requests) belongs to the pull request stage.
     try {
         $branchSha = Get-GitHubBranchSha -Repository $Repository -Branch $UpdateBranch -Token $Token -ApiUrl $ApiUrl
-    } catch {
-        throw (& $stageError 'push' $_)
-    }
-    $title = "[$UpdateBranch@$(Get-ShortSha $branchSha)] $($script:TitlePrefix) $TemplateRepo - $(Get-ShortSha $Plan.TemplateSha)"
-    try {
+        $title = "[$UpdateBranch@$(Get-ShortSha $branchSha)] $($script:TitlePrefix) $TemplateRepo - $(Get-ShortSha $Plan.TemplateSha)"
         $existing = Find-GitHubPullRequest -Repository $Repository -Base $UpdateBranch -Title $title -Token $Token -ApiUrl $ApiUrl
     } catch {
         throw (& $stageError 'pull-request' $_)
     }
     if ($null -ne $existing) {
-        return [pscustomobject]@{ Result = 'exists'; PullRequestUrl = $existing.Url; Branch = $null; Sha = $null; Fallback = $false; Diff = @(); Body = $null; Title = $title }
+        return [pscustomobject]@{ Result = 'exists'; PullRequestUrl = $existing.Url; Branch = $null; Sha = $null; Fallback = $false; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
     }
 
     $newBranch = '{0}/{1}/{2}' -f $script:BranchPrefix, $UpdateBranch, $Now.UtcDateTime.ToString('yyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture)
@@ -1256,7 +1282,7 @@ function Publish-RulebookUpdate {
         throw (& $stageError 'push' $_)
     }
     if (-not $pushed.Pushed) {
-        return [pscustomobject]@{ Result = 'no-changes'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; Diff = @(); Body = $null; Title = $title }
+        return [pscustomobject]@{ Result = 'no-changes'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
     }
 
     $diff = @()
@@ -1266,16 +1292,26 @@ function Publish-RulebookUpdate {
     } catch {
         $diffNote = "The effective diff could not be computed: $($_.Exception.Message)"
     }
-    $body = ConvertTo-UpdatePullRequestBody -Plan $Plan -Diff $diff -TemplateRepo $TemplateRepo -Branch $UpdateBranch -DiffNote $diffNote
     if ($pushed.Direct) {
-        return [pscustomobject]@{ Result = 'direct-commit'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; Diff = $diff; Body = $body; Title = $title }
+        $body = $null
+        try { $body = ConvertTo-UpdatePullRequestBody -Plan $Plan -Diff $diff -TemplateRepo $TemplateRepo -Branch $UpdateBranch -DiffNote $diffNote } catch { $body = $null }
+        return [pscustomobject]@{ Result = 'direct-commit'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; Diff = $diff; DiffNote = $diffNote; Body = $body; Title = $title }
     }
+    # The branch is pushed from here on: a failure names it, so the pull request can be opened by hand.
     try {
+        $body = ConvertTo-UpdatePullRequestBody -Plan $Plan -Diff $diff -TemplateRepo $TemplateRepo -Branch $UpdateBranch -DiffNote $diffNote
         $pull = New-GitHubPullRequest -Repository $Repository -Token $Token -Title $title -Body $body -Head $pushed.Branch -Base $UpdateBranch -Labels $Labels -ApiUrl $ApiUrl -ServerUrl $server
     } catch {
-        throw (& $stageError 'pull-request' $_)
+        $segments = @(foreach ($part in @($Repository.Split('/')) + @('tree') + @($pushed.Branch.Split('/'))) { [System.Uri]::EscapeDataString($part) })
+        $link = "$server/$($segments -join '/')"
+        $message = $_.Exception.Message
+        if (-not $message.Contains($link)) { $message += " Branch $($pushed.Branch) was pushed; open the pull request by hand: $link" }
+        $exception = [System.InvalidOperationException]::new($message, $_.Exception)
+        $exception.Data['Stage'] = 'pull-request'
+        $exception.Data['Branch'] = $pushed.Branch
+        throw $exception
     }
-    return [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = $pull.Url; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $pushed.Fallback; Diff = $diff; Body = $body; Title = $title }
+    return [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = $pull.Url; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $pushed.Fallback; Diff = $diff; DiffNote = $diffNote; Body = $body; Title = $title }
 }
 
 #endregion

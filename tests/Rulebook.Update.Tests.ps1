@@ -633,6 +633,16 @@ Describe 'Get-RulebookUpdatePlan: variants' {
         (Get-TemplateContentSha -Path $one) | Should-Be (Get-TemplateContentSha -Path $two)
     }
 
+    It 'leaves node_modules out of the candidate and the comparison' {
+        $root = Copy-Org
+        Write-FixtureText -Path (Join-Path $root 'site' 'node_modules' 'x' 'index.js') -Text 'x'
+        Write-FixtureText -Path (Join-Path $root 'node_modules' 'y.js') -Text 'y'
+        $plan = Get-Plan -Org $root
+        Test-Path -LiteralPath (Join-Path $plan.CandidatePath 'node_modules') | Should-BeFalse
+        Test-Path -LiteralPath (Join-Path $plan.CandidatePath 'site' 'node_modules') | Should-BeFalse
+        @($plan.Changes | Where-Object { $_.File -like '*node_modules*' }) | Should-BeCollection @()
+    }
+
     It 'leaves site/data out of the candidate and the comparison' {
         $root = Copy-Org
         Write-FixtureText -Path (Join-Path $root 'site' 'data' 'rules.json') -Text '{}'
@@ -677,7 +687,7 @@ Describe 'Get-RulebookTemplate (download)' {
     }
 
     It 'downloads the branch head and the installed commit and finds the folder with .github/workflows' {
-        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder) -UpdateMode 'skip'
+        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder)
         $template.Sha | Should-Be $headSha
         $template.Url | Should-Be 'https://github.com/Contoso/rulebook-template@main'
         Split-Path -Leaf $template.Path | Should-Be 'Contoso-rulebook-template-bbbbbbb'
@@ -695,17 +705,41 @@ Describe 'Get-RulebookTemplate (download)' {
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly
     }
 
-    It 'skips the installed download when nothing needs it' {
-        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder) -UpdateMode 'overwrite'
+    It 'downloads the installed commit whenever it differs, so dropped files get their note' {
+        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder)
+        $template.InstalledPath | Should-NotBeNull
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like "*/zipball/$($script:oldSha)" }
+        $root = Copy-Org -WithLegacy
+        Edit-OrgSetting -Root $root -Script { $_.unusedRulebookFiles = @(); $_.site.updateMode = 'overwrite' }
+        $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath (Get-TestFolder)
+        Assert-ItemPresent -Actual $plan.Notes -Expected @('The template no longer ships .github/workflows/Legacy.yaml; list it in unusedRulebookFiles to remove it.')
+    }
+
+    It 'keeps the 404 of the installed commit when the write token cannot be exchanged' {
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$($script:oldSha)" } {
+            [pscustomobject]@{ StatusCode = 404; Body = $null; Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/installation' } {
+            [pscustomobject]@{ StatusCode = 404; Body = @{ message = 'Not Found' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
+        $rsa = [System.Security.Cryptography.RSA]::Create(2048)
+        try {
+            $app = @{ GitHubAppClientId = 'Iv23liApp'; PrivateKey = [string]::Join('', $rsa.ExportRSAPrivateKeyPem().Split("`n")) } | ConvertTo-Json -Compress
+        } finally {
+            $rsa.Dispose()
+        }
+        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -Token $app -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder)
+        $template.Sha | Should-Be $headSha
         $template.InstalledPath | Should-BeNull
-        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Path -like "*/zipball/$($script:oldSha)" }
+        @($template.Notes | Where-Object { $_ -like '*could not be used to read Contoso/rulebook-template*Iv23liApp*' }).Count | Should-Be 1
+        @($template.Notes | Where-Object { $_ -like '*aaaaaaa*not available (HTTP 404)*' }).Count | Should-Be 1
     }
 
     It 'notes an installed commit that is gone and goes on without it' {
         Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$($script:oldSha)" } {
             [pscustomobject]@{ StatusCode = 404; Body = $null; Text = ''; Headers = $null; RateLimitRemaining = $null }
         }
-        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder) -UpdateMode 'skip'
+        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -InstalledSha $oldSha -WorkPath (Get-TestFolder)
         $template.InstalledPath | Should-BeNull
         $template.Notes[0] | Should-BeLikeString '*aaaaaaa*not available (HTTP 404)*'
     }
@@ -722,8 +756,10 @@ Describe 'Get-RulebookTemplate (download)' {
         Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like '*/branches/main' -and $Token -eq 'gh' } {
             [pscustomobject]@{ StatusCode = 404; Body = @{ message = 'Not Found' }; Text = '{"message":"Not Found"}'; Headers = $null; RateLimitRemaining = $null }
         }
-        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -Token 'ghp_write' -GitHubToken 'gh' -DownloadLatest -WorkPath (Get-TestFolder)
+        $masked = [System.Collections.Generic.List[string]]::new()
+        $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -Token 'ghp_write' -GitHubToken 'gh' -DownloadLatest -WorkPath (Get-TestFolder) -OnToken { param($Value) $masked.Add($Value) }.GetNewClosure()
         $template.Sha | Should-Be $headSha
+        @($masked) | Should-BeCollection @('ghp_write')
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/branches/main' -and $Token -eq 'ghp_write' }
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/zipball/*' -and $Token -eq 'ghp_write' }
     }
@@ -834,6 +870,32 @@ Describe 'Publish-RulebookUpdate against a bare repository' -Skip:$gitMissing {
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly
     }
 
+    It 'names the pushed branch when the pull request cannot be opened' {
+        $bare = New-Origin
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Path -eq 'repos/Contoso/rulebook/pulls' } {
+            [pscustomobject]@{ StatusCode = 422; Body = @{ message = 'Validation Failed' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
+        $caught = $null
+        try {
+            Publish-RulebookUpdate -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -UpdateBranch 'main' -WorkPath (Get-TestFolder) -Now $now
+        } catch {
+            $caught = $_
+        }
+        $caught.Exception.Data['Stage'] | Should-Be 'pull-request'
+        $caught.Exception.Data['Branch'] | Should-Be 'update-rulebook-system-files/main/261007123045'
+        $caught.Exception.Message | Should-BeLikeString '*HTTP 422*https://github.com/Contoso/rulebook/tree/update-rulebook-system-files/main/261007123045*'
+        (& git -C $bare rev-parse --verify --quiet refs/heads/update-rulebook-system-files/main/261007123045) | Should-NotBeNull
+    }
+
+    It 'tags the duplicate guard as the pull request stage' {
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' -and $Path -eq 'repos/Contoso/rulebook/branches/main' } {
+            [pscustomobject]@{ StatusCode = 500; Body = @{ message = 'boom' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
+        $caught = $null
+        try { Publish-RulebookUpdate -Plan $plan -Repository 'Contoso/rulebook' -Token 'ghs_x' -UpdateBranch 'main' -WorkPath (Get-TestFolder) } catch { $caught = $_ }
+        $caught.Exception.Data['Stage'] | Should-Be 'pull-request'
+    }
+
     It 'names the stage when the push fails' {
         $caught = $null
         try {
@@ -910,6 +972,13 @@ Describe 'ConvertTo-UpdatePullRequestBody and ConvertTo-UpdateSummary' {
         $full = ConvertTo-UpdatePullRequestBody -Plan $copy -Diff @() -Branch 'main'
         $kept.EndsWith("`n", [System.StringComparison]::Ordinal) | Should-BeTrue
         $full.StartsWith($kept, [System.StringComparison]::Ordinal) | Should-BeTrue
+    }
+
+    It 'writes why the effective diff is missing and the release notes into the summary' {
+        $result = [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/3'; Fallback = $false; Diff = @(); DiffNote = 'The effective diff could not be computed: boom' }
+        $summary = ConvertTo-UpdateSummary -Plan $plan -Result $result -Mode update
+        $summary | Should-MatchString '(?m)^## Effective diff\n\nThe effective diff could not be computed: boom$'
+        $summary | Should-MatchString '(?m)^## Release notes\n\n### v1\.1$'
     }
 
     It 'writes the check summary with the change table' {
