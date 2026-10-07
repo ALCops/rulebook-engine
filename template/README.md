@@ -24,7 +24,7 @@ System files are replaced when you update from the template; settings are kept; 
 
 ## Updating
 
-The workflow **Update Rulebook System Files** (Actions > Update Rulebook System Files > Run workflow) pulls the newest version of the template into a pull request: the system files, your settings with the new `templateSha`, and `rulesets/` and `skeletons/` regenerated under your overrides and quarantine, with the effective change of every endpoint in the pull request. Your own files are never touched. It needs a secret `GHTOKENWORKFLOW` (a GitHub App or a personal access token, the same secret AL-Go uses), because the workflow token cannot change workflow files. Every Validate run tells you when an update is available. How it works: [docs/updating.md](https://github.com/ALCops/rulebook/blob/main/docs/updating.md); the secret: [docs/ghtokenworkflow.md](https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md).
+The workflow **Update Rulebook System Files** (Actions > Update Rulebook System Files > Run workflow) pulls the newest version of the template into a pull request: the system files, your settings with the new `templateSha`, and `rulesets/` and `skeletons/` regenerated under your overrides and quarantine, with the effective change of every endpoint in the pull request. Your own files are never touched. It needs a secret `GHTOKENWORKFLOW` (a GitHub App or a personal access token, the same secret AL-Go uses), because the workflow token cannot change workflow files. While `checkForUpdates` is on (the default), every Validate run also tells you when an update is available; when the template cannot be read with the workflow token (a private template, or a pull request from a fork) it says "update check skipped" instead. How it works: [docs/updating.md](https://github.com/ALCops/rulebook/blob/main/docs/updating.md); the secret: [docs/ghtokenworkflow.md](https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md).
 
 ## First steps
 
@@ -64,7 +64,7 @@ Never edit `rulesets/`: it is regenerated from the other files, and the Validate
 - `docs/pte-or-appsource.md`
 - `docs/overrides.md`
 - `docs/quarantine.md`
-- `docs/updating.md`
-- `docs/ghtokenworkflow.md`
 
-These pages, and the workflows other than Validate, Publish and Update Rulebook System Files, arrive with a later version of the template; `docs/updating.md` and `docs/ghtokenworkflow.md` come first. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).
+Updating the rulebook: [docs/updating.md](https://github.com/ALCops/rulebook/blob/main/docs/updating.md). The token the update writes with: [docs/ghtokenworkflow.md](https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md).
+
+The pages in the list above, and the workflows other than Validate, Publish and Update Rulebook System Files, arrive with a later version of the template. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).

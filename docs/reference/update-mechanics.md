@@ -39,7 +39,7 @@ The skeletons are **generated**, not overwrite as the issue table had it: their 
 
 **`unusedRulebookFiles`** entries are repository-relative paths with `/` (`stages/vnext.json`, not `vnext.json`; the schema rejects a bare name, [#49](https://github.com/ALCops/rulebook-engine/issues/49)). C9 matches them the same way. A listed path is never written; when it is present, matches an overwrite or customizable pattern and the new or the installed template ships it, the update deletes it. A listed path that is absent and that the new template does not ship gets the note "listed in unusedRulebookFiles but the template does not ship it; the entry can be removed". A listed path the template does not manage (an organization's own unpublished level file, listed to silence C9) is left alone with a note.
 
-A file the installed template shipped and the new one does not, present and not listed, stays and gets the note "The template no longer ships <path>; list it in unusedRulebookFiles to remove it". Removing a dropped file therefore needs the installed template (section 6 on when it is downloaded).
+A file the installed template shipped and the new one does not, present and not listed, stays and gets the note "The template no longer ships <path>; list it in unusedRulebookFiles to remove it". The installed template is downloaded on every run whose recorded commit differs from the new one (section 6), so every dropped managed file gets the note or, when listed, is removed; only when that commit is gone (HTTP 404) are there no such notes.
 
 ## 2. The candidate tree and the change list
 
@@ -95,29 +95,29 @@ Line endings become LF. Keys the engine does not know survive; the schema reject
 
 | Step | Token |
 |---|---|
-| Template download (check and update mode) | `GITHUB_TOKEN` of the run (read-only). On HTTP 401, 403 or 404 with a write token given, that token is exchanged for `contents: read` and the request repeated: a private template is read with the GitHub App or PAT, which must then reach the template repository. |
+| Template download (check and update mode) | `GITHUB_TOKEN` of the run (read-only). On HTTP 401, 403 or 404 with a write token given (update mode only; Validate never has one), the request is repeated with that token: GitHub App JSON is exchanged for an installation token with `contents: read` on the template repository (the App must be installed there), a personal access token is used as it is. If the exchange fails, the original answer stands and the exchange error is a note. |
 | Duplicate guard, clone, push, pull request | The write token from the secret. |
 
 **Secret lookup.** The workflow step `Read the settings` reads `ghTokenWorkflowSecretName` (default `GHTOKENWORKFLOW`, must match `^[A-Za-z_][A-Za-z0-9_]*$`) and outputs it; the action receives `${{ secrets[steps.settings.outputs.secretName] }}`. The name and the value format are AL-Go's, so an organization that runs AL-Go reuses its organization secret and GitHub App (D44).
 
-**Exchange.** `Get-GitHubAccessToken`: an empty value is no token; a value that does not start with `{` is a personal access token, used as it is; compressed JSON `{"GitHubAppClientId":"...","PrivateKey":"..."}` is exchanged: an RS256 JWT (`iat` now-60 s, `exp` now+600 s, `iss` the client id; a PEM whose lines were joined is accepted), `GET /repos/{repo}/installation`, then `POST <access_tokens_url>` for this repository only with `contents`, `pull_requests`, `workflows` write and `actions`, `metadata` read. The installation token lives one hour. The action prints `::add-mask::<token>` before any other output after the exchange.
+**Exchange.** `Get-GitHubAccessToken`: an empty value is no token; a value that does not start with `{` is a personal access token, used as it is; compressed JSON `{"GitHubAppClientId":"...","PrivateKey":"..."}` is exchanged: an RS256 JWT (`iat` now-60 s, `exp` now+600 s, `iss` the client id; a PEM whose lines were joined is accepted), `GET /repos/{repo}/installation`, then `POST <access_tokens_url>` for this repository only with `contents`, `pull_requests`, `workflows` write and `actions`, `metadata` read. The installation token lives one hour. Every token an exchange returns is masked (`::add-mask::<token>`) the moment it is obtained, before anything else runs: the write token right after the token guard, before the template download and the plan, and the read token of a private template inside `Get-RulebookTemplate` through its `-OnToken` callback.
 
 **Git.** The token never enters a URL or git config: every git call gets `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=http.<server>/.extraheader` and `GIT_CONFIG_VALUE_0=AUTHORIZATION: basic <base64(x-access-token:<token>)>` in its process environment (git 2.31 or later). The clone's local config holds only `user.name` (the actor), `user.email` (`<actor>@users.noreply.github.com`), `core.autocrlf false` and `commit.gpgsign false`.
 
 **Why not `GITHUB_TOKEN`.** It can never get the `workflows` permission, so a push that changes `.github/workflows/` is refused; a pull request it opens starts no workflow, so Validate would not run on the update; and organizations can forbid Actions to open pull requests ([al-go-template-mechanics.md](al-go-template-mechanics.md) section 8.1).
 
-**Installed template.** The second zipball (at the recorded `templateSha`) is downloaded only when it differs from the new commit and is needed: the new template ships `site/**` and `site.updateMode` is not `overwrite`, or `unusedRulebookFiles` lists a path the new template does not ship. A 404 there is a note, and the site files that differ are skipped.
+**Installed template.** The second zipball (at the recorded `templateSha`) is downloaded whenever that commit differs from the new one: the three-way comparison of site files and the notes on dropped files need it. A 404 there is a note; the site files that differ are then skipped and dropped files get no note.
 
 ## 7. Check mode
 
-The Validate action runs the check when `checkForUpdates` is `'true'` (the default); CheckForUpdates runs it with `update` other than `'Y'`. Validate downloads the template of the settings at the head of its branch, always with `GITHUB_TOKEN`.
+The Validate action runs the check when `checkForUpdates` is `'true'` (the default); CheckForUpdates runs it with `update` other than `'Y'`. Validate downloads the template of the settings at the head of its branch, always with `GITHUB_TOKEN`; a template that token cannot read (a private template, or a pull request from a fork with a restricted token) gives "update check skipped".
 
 | Outcome | Annotation |
 |---|---|
 | No change | notice `No updates available` |
 | Sha-only | notice `template commit <sha7> not recorded; run Update Rulebook System Files once` |
 | Changes | warning `Updates available: run the Update Rulebook System Files workflow (<n> files)` |
-| Template unreachable, no `.github/workflows` in the zip, rate limit, settings missing | warning `update check skipped: <reason>` |
+| Template unreachable, no `.github/workflows` in the zip, rate limit, settings missing, any other failure of the plan | warning `update check skipped: <reason>` |
 | The candidate would not validate | warning `update check skipped: the updated rulebook would not validate (<first error>)` |
 
 Neither annotation counts towards `warnings=` or `failOnWarning`, and the check never fails the step. The engine CI passes `checkForUpdates: 'false'` on its fixture steps.
@@ -125,12 +125,17 @@ Neither annotation counts towards `warnings=` or `failOnWarning`, and the check 
 ## 8. Update mode
 
 1. No token: `failure=token`, error `The <secretName> secret is needed to update system files. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md`, before any request.
-2. The template: with `downloadLatest` the branch head, else the recorded `templateSha`; an empty `templateSha` or another template URL than the recorded one always resolves the head. Failure: `failure=template`.
-3. The plan. Not valid: one error annotation per error finding ("The updated rulebook would not validate: ..."), `failure=validation`, nothing pushed. The findings come from the repository after the update, so an error the repository already has fails the update too.
-4. The write token (exchange failure: `failure=token`), masked.
+2. The write token, exchanged and masked before anything else (exchange failure: `failure=token`).
+3. The template: with `downloadLatest` the branch head, else the recorded `templateSha`; an empty `templateSha` or another template URL than the recorded one always resolves the head. Failure: `failure=template`.
+4. The plan. Not valid: one error annotation per error finding ("The updated rulebook would not validate: ..."), `failure=validation`, nothing pushed. The findings come from the repository after the update, so an error the repository already has fails the update too.
 5. Title `[<branch>@<sha7>] Update Rulebook System Files from <owner>/<repo> - <templateSha7>`, `<sha7>` the branch head from the API. An open pull request into the branch with exactly this title: warning `Pull request already exists: <url>`, exit 0, nothing cloned. **Known limitation (AL-Go behaviour, accepted):** the title carries the branch head, so a push to the branch while the update pull request is open changes `<sha7>`, the guard no longer matches, and the next run opens a second update pull request; close the older one.
 6. Clone the branch (`--single-branch`), write the plan's changes, commit with the title. Pull request: push `update-rulebook-system-files/<branch>/<yyMMddHHmmss UTC>`, open the pull request with the body of section 9 and add `commitOptions.pullRequestLabels`. Direct commit: push the branch; a refused push (branch protection) moves the commit to the timestamped branch and opens the pull request instead. Nothing to commit: notice `No updates available`.
-7. A failure while cloning or pushing is `failure=push`, while listing or opening the pull request `failure=pull-request`, both with the hint "Make sure that the token in the secret <name> is not expired and may write contents, pull requests and workflows of <repo>".
+7. Failure stages, both with the hint "Make sure that the token in the secret <name> is not expired and may write contents, pull requests and workflows of <repo>":
+
+   | `failure` | Steps |
+   |---|---|
+   | `push` | clone, write, commit, push |
+   | `pull-request` | duplicate guard (branch head, open pull requests), the body, opening the pull request and its labels; after the push the message names the pushed branch and its `tree/<branch>` link, so the pull request can be opened by hand |
 
 No auto-merge and no `includeBranches` in v1.
 
@@ -146,7 +151,7 @@ The body, in this order:
 - `## Validation warnings` when the candidate has warnings.
 - `## Release notes`: the part of the template's `.github/RELEASENOTES.copy.md` above the first `## v*.*` heading of the installed copy, its title line dropped and the other headings moved one level down (lines inside ``` or ~~~ fences stay as they are); "No release notes available" when nothing is new; left out when the template ships no release notes.
 
-The body stays below the 65536-character limit (60000 characters): when it is longer, the release notes go first (a line points at `.github/RELEASENOTES.copy.md` of the pull request), then endpoint tables of the effective diff from the end (a line says how many are left out); only when that is not enough is the body cut at a line boundary, with a closing note. The job summary always has the full lists. The job summary is `## Template update check` (check mode) or `## Rulebook system files update`, the result line and the same tables, plus the validation errors of an invalid candidate.
+The body stays below the 65536-character limit (60000 characters): when it is longer, the release notes go first (a line points at `.github/RELEASENOTES.copy.md` of the pull request), then endpoint tables of the effective diff from the end (a line says how many are left out); only when that is not enough is the body cut at a line boundary, with a closing note. The job summary is `## Template update check` (check mode) or `## Rulebook system files update`: the message and result line, the same tables, the validation errors of an invalid candidate, the effective diff (or why it could not be computed) when a commit was pushed, and the new release notes. There is no effective diff for an existing pull request or nothing to commit, and the summary is capped at 900 KiB with a closing note (as Validate's is).
 
 ## 10. Action reference
 
