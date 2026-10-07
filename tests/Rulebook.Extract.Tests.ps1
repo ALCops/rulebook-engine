@@ -5,7 +5,9 @@
 BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:stubRoot = Join-Path $PSScriptRoot 'fixtures' 'stub-analyzers'
-    $script:pwsh = (Get-Process -Id $PID).Path
+    # The process path is dotnet when pwsh runs as a .NET global tool (the WSL check); prefer the pwsh in $PSHOME.
+    $script:pwsh = @((Join-Path $PSHOME 'pwsh.exe'), (Join-Path $PSHOME 'pwsh')) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    if (-not $pwsh) { $script:pwsh = (Get-Command pwsh -CommandType Application | Select-Object -First 1).Source }
     $script:feed = Join-Path $TestDrive 'feed'
     $build = & $pwsh -NoProfile -NonInteractive -File (Join-Path $stubRoot 'Build-StubPackage.ps1') -Variant tools-stable -OutputPath $feed 2>&1
     if ($LASTEXITCODE -ne 0) { throw "Build-StubPackage failed: $($build -join "`n")" }
