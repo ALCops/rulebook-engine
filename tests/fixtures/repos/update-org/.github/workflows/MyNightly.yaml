@@ -1,0 +1,14 @@
+name: My Nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'An organization workflow the template does not know.'

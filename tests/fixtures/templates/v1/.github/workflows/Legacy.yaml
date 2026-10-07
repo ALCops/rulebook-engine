@@ -1,0 +1,13 @@
+name: Legacy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  legacy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'A workflow the template drops in v2.'

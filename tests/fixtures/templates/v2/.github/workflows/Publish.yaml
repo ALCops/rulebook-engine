@@ -1,0 +1,42 @@
+name: Publish
+
+on:
+  push:
+    branches: [ main ]
+    # Only what is published, how it is addressed, and this workflow; run it by hand for anything else.
+    paths:
+      - 'rulesets/**'
+      - 'skeletons/**'
+      - '.github/Rulebook-Settings.json'
+      - '.github/workflows/Publish.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: publish-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.publish.outputs.pageUrl }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Publish is a gate (D42): stale endpoints or any other error stop the run before anything is deployed.
+      - name: Validate
+        uses: ALCops/rulebook-engine/actions/Validate@main
+
+      - name: Publish
+        id: publish
+        uses: ALCops/rulebook-engine/actions/Publish@main

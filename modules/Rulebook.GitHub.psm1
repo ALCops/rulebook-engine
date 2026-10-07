@@ -337,7 +337,10 @@ function Get-GitHubBranchSha {
         if ($commit -is [System.Collections.IDictionary]) { $sha = [string]$commit['sha'] }
     }
     if ($response.StatusCode -ne 200 -or $sha -notmatch '^[0-9a-f]{40}$') {
-        throw "Could not get the latest commit of $(Get-DefaultServerUrl)/$Repository@$Branch (HTTP $($response.StatusCode): $(Get-ApiMessage $response))"
+        # The status travels in Data, so the caller can retry a private template with another token.
+        $exception = [System.InvalidOperationException]::new("Could not get the latest commit of $(Get-DefaultServerUrl)/$Repository@$Branch (HTTP $($response.StatusCode): $(Get-ApiMessage $response))")
+        $exception.Data['StatusCode'] = $response.StatusCode
+        throw $exception
     }
     return $sha
 }

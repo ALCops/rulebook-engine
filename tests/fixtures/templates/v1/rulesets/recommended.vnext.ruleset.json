@@ -1,0 +1,10 @@
+{
+  "name": "Rulebook Recommended / vNext",
+  "description": "Level recommended, stage vnext, twins both. Generated from base/essential.ruleset.json, base/recommended.ruleset.json plus stages/vnext.json, overrides.json and quarantine.vnext.json; do not edit. Ids at their analyzer default are not listed.",
+  "rules": [
+    { "id": "AL0604", "action": "Error" },
+    { "id": "AW0006", "action": "Error" },
+    { "id": "AC0001", "action": "Warning" },
+    { "id": "LC0029", "action": "Error" }
+  ]
+}

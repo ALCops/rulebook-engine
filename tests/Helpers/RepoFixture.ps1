@@ -1,7 +1,8 @@
 # Helpers for the suites that work on organization rulebook repositories (tests/fixtures/repos/).
-# Dot-source in BeforeAll. Complete fixtures (valid-minimal, stale-endpoints) are full repositories on disk; every
+# Dot-source in BeforeAll. Complete fixtures (valid-minimal, stale-endpoints, update-org) are full repositories on disk; every
 # other folder is an overlay that New-FixtureRepo copies over valid-minimal. Variants that need no folder are
-# mutations in TestDrive with Edit-FixtureJson.
+# mutations in TestDrive with Edit-FixtureJson. The template fixtures (tests/fixtures/templates/v1, v2) are copied with
+# Copy-FixtureTemplate; New-BareFixtureRepo and Add-RejectPushHook stand in for the GitHub side of the update.
 
 $script:FixtureReposRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'fixtures' 'repos'
 
@@ -22,7 +23,7 @@ function New-FixtureRepo {
     # fixture copies just that folder). Returns the destination path.
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
     param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Destination)
-    $complete = @('valid-minimal', 'stale-endpoints')
+    $complete = @('valid-minimal', 'stale-endpoints', 'update-org')
     if (-not (Test-Path -LiteralPath $Destination)) { [void](New-Item -ItemType Directory -Path $Destination -Force) }
     if ($Name -in $complete) {
         Copy-FixtureTree -Source (Join-Path $script:FixtureReposRoot $Name) -Destination $Destination
