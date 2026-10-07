@@ -310,7 +310,7 @@ Rules:
 | absent | new | add |
 | any | removed | remove only when listed in `unusedRulebookFiles`, as for system files |
 
-The old template is one extra zipball download at `templateSha`; when `templateSha` is empty (first run) every differing file counts as a local change and is skipped with a note. `site.updateMode: "overwrite"` turns the class into plain system files for organizations that never customise. Workflows, the issue form and the schemas stay in the overwrite class, so the choice-list rewrite of D30 and the apply workflow are always current.
+The old template is one extra zipball download at `templateSha`; when `templateSha` is empty (first run) every differing file counts as a local change and is skipped with a note. `site.updateMode: "overwrite"` turns the class into plain system files for organizations that never customise. Workflows, the issue form and the schemas stay in the overwrite class, so the choice-list rewrite of D30 and the apply workflow are always current. Implemented in WP07: the decision table as coded, with the empty-`templateSha` row and `updateMode`, is [reference/update-mechanics.md](reference/update-mechanics.md) section 3.
 
 ## 10. Exposure
 

@@ -19,13 +19,14 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 
 ## 1. Files
 
-41 files: 9 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
+42 files: 10 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
 
 | Path | Class | Origin |
 |---|---|---|
 | `.github/Rulebook-Settings.json` | settings | Hand-written: the `template-default.json` settings fixture with `"baseUrl": ""` |
 | `.github/workflows/Validate.yaml` | system | Hand-written (WP03) |
-| `.github/workflows/Publish.yaml` | system | Hand-written (WP05); the later workflows come with their work packages |
+| `.github/workflows/Publish.yaml` | system | Hand-written (WP05) |
+| `.github/workflows/UpdateRulebookSystemFiles.yaml` | system | Hand-written (WP07): the update workflow with `{TEMPLATEURL}` and no `schedule:`; the later workflows come with their work packages |
 | `README.md` | never touched after creation | Hand-written, organization-facing |
 | `overrides.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `quarantine.default.json`, `quarantine.ci.json`, `quarantine.vnext.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
@@ -33,11 +34,11 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 | `base/twins.json` | system | `Build-RulebookBase` |
 | `stages/ci.json`, `stages/vnext.json` | system | `Build-RulebookStages` |
 | `catalog/diagnostics.json` | org-owned | `Build-RulebookCatalog` (the seed, section 5) |
-| `skeletons/<level>.<stage>.ruleset.json` (12) | system | `New-RulebookSkeleton`, from the settings |
+| `skeletons/<level>.<stage>.ruleset.json` (12) | generated | `New-RulebookSkeleton`, from the settings (the update regenerates them from the organization's settings) |
 | `skeletons/README.md` | system | Hand-written (WP06): what the skeletons are, the init script, the settings and the exceptions; not published, exempt from C11. `New-RulebookSkeleton` deletes only `*.ruleset.json`, so it survives a regeneration |
 | `rulesets/<level>[.<stage>].ruleset.json` (12) | generated | `Update-RulebookEndpoints` (Rulebook.Generate, WP03) |
 
-There is no placeholder for files that later work packages own: no workflows besides Validate and Publish, no `.github/RELEASENOTES.copy.md` (the deploy step writes it, D38), no `docs/` (WP11), no `site/` (WP14). The deploy workflow (WP13) must keep `docs/` in its keep list until WP11 decides where the organization documentation lives.
+There is no placeholder for files that later work packages own: no workflows besides Validate, Publish and UpdateRulebookSystemFiles, no `.github/RELEASENOTES.copy.md` (the deploy step writes it, D38), no `docs/` (WP11), no `site/` (WP14). The deploy workflow (WP13) must keep `docs/` in its keep list until WP11 decides where the organization documentation lives.
 
 Every generated file is UTF-8 without BOM, LF, with a trailing LF, and its text depends on the inputs only (no date, commit or machine path), so regenerating unchanged inputs gives the same bytes.
 

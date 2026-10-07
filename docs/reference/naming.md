@@ -34,7 +34,7 @@ Paths in an organization rulebook repository. Class is what the update workflow 
 
 | Path | Content | Class | Schema |
 |---|---|---|---|
-| `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, `levels`, `stages`, commit options, site, `unusedRulebookFiles`. | settings | `rulebook-settings.schema.json` |
+| `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, `levels`, `stages`, the write token secret name, commit options, site, `update.schedule`, `unusedRulebookFiles` (repository-relative paths with `/`, such as `stages/vnext.json`; a bare file name is rejected, [#49](https://github.com/ALCops/rulebook-engine/issues/49)). | settings | `rulebook-settings.schema.json` |
 | `base/<level>.ruleset.json` | One per level: the ids the level changes relative to its `basedOn` level, a root level relative to the analyzer defaults. Shipped: `essential`, `recommended`, `strict`, `complete`. | system (shipped), org-owned (custom) | `ruleset.delta.schema.json` |
 | `base/twins.json` | The PerTenantExtensionCop/AppSourceCop twin pairs (D23). | system | `rulebook-twins.schema.json` |
 | `stages/<stage>.json` | One per non-default stage: the ids the stage changes. Shipped: `ci`, `vnext`. `stages/default.json` must not exist (C6). | system (shipped), org-owned (custom) | `ruleset.delta.schema.json` |
@@ -43,8 +43,9 @@ Paths in an organization rulebook repository. Class is what the update workflow 
 | `catalog/diagnostics.json` | Every known id with its analyzer default (D24). | org-owned | `rulebook-catalog.schema.json` |
 | `catalog/scan-state.json` | Scan state. Reserved for WP08 (section 8). | org-owned | none yet |
 | `rulesets/<level>.ruleset.json`, `rulesets/<level>.<stage>.ruleset.json` | The generated endpoints, written by `Update-RulebookEndpoints` (WP03) in id order. `levels x stages` files. | generated | `ruleset.endpoint.schema.json` |
-| `skeletons/<level>.<stage>.ruleset.json` | One include of the endpoint with `{BASEURL}`; project exceptions go into `rules`. `levels x stages` files. | system (regenerated from the settings) | `ruleset.skeleton.schema.json` |
+| `skeletons/<level>.<stage>.ruleset.json` | One include of the endpoint with `{BASEURL}`; project exceptions go into `rules`. `levels x stages` files. | generated (from the settings, by every update) | `ruleset.skeleton.schema.json` |
 | `skeletons/README.md` | Explains the skeletons next to them (WP06). Not published; exempt from C11 by its exact name, as `README.md` in `rulesets/` is. | system | none |
+| `.github/workflows/UpdateRulebookSystemFiles.yaml` | The update workflow (WP07): dispatch inputs `templateUrl`, `downloadLatest`, `directCommit`; `schedule:` written by the update from `update.schedule`. Update branch `update-rulebook-system-files/<branch>/<yyMMddHHmmss>`. | system | none |
 | `.rulebook/<stage>.ruleset.json` in an AL project | A published skeleton with `{BASEURL}` resolved, written by the init script `scripts/Get-RulebookSkeletons.ps1` or downloaded by hand. One per stage. Not part of the rulebook repository. | not managed | `ruleset.skeleton.schema.json` |
 
 The **profile follows the folder**: `base/*.ruleset.json` and `stages/*.json` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. `base/`, `stages/`, `rulesets/` and `skeletons/` are flat. A file in `base/` or `stages/` that the template does not ship is org-owned by that fact.

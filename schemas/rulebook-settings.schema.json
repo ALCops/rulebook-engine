@@ -123,7 +123,7 @@
       }
     },
     "ghTokenWorkflowSecretName": {
-      "description": "Name of the write token secret (O4).",
+      "description": "Name of the write token secret the update workflow reads (D44); GitHub App JSON or a personal access token, AL-Go format.",
       "type": "string",
       "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
       "default": "GHTOKENWORKFLOW"
