@@ -229,6 +229,19 @@ Describe 'Get-GitHubBranchSha and Save-GitHubZipball' {
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ALCops/rulebook/branches/main' }
     }
 
+    It 'escapes each segment of the branch and the repository and keeps the slashes' {
+        $sha = 'c' * 40
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json @{ commit = @{ sha = $sha } } }
+        Get-GitHubBranchSha -Repository 'Contoso/rule%book' -Branch 'feature/x#1?y' | Should-Be $sha
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rule%25book/branches/feature/x%231%3Fy' }
+    }
+
+    It 'escapes the commit segment of the zipball path' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 404 }
+        { Save-GitHubZipball -Repository 'Contoso/rulebook' -Sha 'v1#x' -Path (Get-TestFolder) } | Should-Throw -ExceptionMessage '*HTTP 404*'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rulebook/zipball/v1%23x' }
+    }
+
     It 'throws naming the template branch when the branch is missing' {
         Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 404 -Json @{ message = 'Branch not found' } }
         { Get-GitHubBranchSha -Repository 'ALCops/rulebook' -Branch 'v9' } | Should-Throw -ExceptionMessage 'Could not get the latest commit of https://github.com/ALCops/rulebook@v9 (HTTP 404: Branch not found)'

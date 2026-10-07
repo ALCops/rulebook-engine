@@ -85,6 +85,14 @@ function Get-DictionaryValue {
     return $null
 }
 
+function Join-ApiPath {
+    # A REST path from parts; each part is split at '/' and every segment escaped (EscapeDataString), so a branch such
+    # as feature/x#1 or a name with '?' or '%' cannot end the path early or change the query.
+    param([Parameter(Mandatory)][string[]]$Part)
+    $segments = foreach ($item in $Part) { foreach ($segment in $item.Split('/')) { [System.Uri]::EscapeDataString($segment) } }
+    return ($segments -join '/')
+}
+
 function Get-NextLink {
     # The rel="next" URL of a Link header, $null when there is none.
     param([AllowNull()][string]$Link)
@@ -298,7 +306,7 @@ function Get-GitHubAccessToken {
         throw "The GitHub App JSON in the token secret needs GitHubAppClientId and PrivateKey; see $script:TokenDocsUrl"
     }
     $jwt = New-GitHubAppJwt -ClientId $clientId -PrivateKey $privateKey
-    $installation = Invoke-GitHubApi -Method GET -Path "repos/$Repository/installation" -Token $jwt -ApiUrl $ApiUrl
+    $installation = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'installation') -Token $jwt -ApiUrl $ApiUrl
     if ($installation.StatusCode -ne 200 -or $installation.Body -isnot [System.Collections.IDictionary] -or -not $installation.Body.Contains('access_tokens_url')) {
         throw "The GitHub App $clientId has no installation on $Repository (HTTP $($installation.StatusCode): $(Get-ApiMessage $installation)). Install the app on the repository; see $script:TokenDocsUrl"
     }
@@ -330,7 +338,7 @@ function Get-GitHubBranchSha {
         [AllowNull()][AllowEmptyString()][string]$Token,
         [AllowNull()][AllowEmptyString()][string]$ApiUrl
     )
-    $response = Invoke-GitHubApi -Method GET -Path "repos/$Repository/branches/$Branch" -Token $Token -ApiUrl $ApiUrl
+    $response = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'branches', $Branch) -Token $Token -ApiUrl $ApiUrl
     $sha = $null
     if ($response.StatusCode -eq 200 -and $response.Body -is [System.Collections.IDictionary]) {
         $commit = $response.Body['commit']
@@ -368,7 +376,7 @@ function Save-GitHubZipball {
     $parent = Split-Path -Parent $zip
     if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][System.IO.Directory]::CreateDirectory($parent) }
     try {
-        $response = Invoke-GitHubApi -Method GET -Path "repos/$Repository/zipball/$Sha" -Token $Token -ApiUrl $ApiUrl -OutFile $zip -TimeoutSec 120
+        $response = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'zipball', $Sha) -Token $Token -ApiUrl $ApiUrl -OutFile $zip -TimeoutSec 120
         if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 300) {
             $exception = [System.InvalidOperationException]::new("Could not download $Repository at $Sha (HTTP $($response.StatusCode))")
             $exception.Data['StatusCode'] = $response.StatusCode
@@ -405,7 +413,7 @@ function Find-GitHubPullRequest {
         [AllowNull()][AllowEmptyString()][string]$ApiUrl
     )
     $query = 'base={0}&state=open&per_page=100' -f [System.Uri]::EscapeDataString($Base)
-    $response = Invoke-GitHubApi -Method GET -Path "repos/$Repository/pulls?$query" -Token $Token -ApiUrl $ApiUrl -Paginate
+    $response = Invoke-GitHubApi -Method GET -Path ((Join-ApiPath -Part 'repos', $Repository, 'pulls') + "?$query") -Token $Token -ApiUrl $ApiUrl -Paginate
     if ($response.StatusCode -ne 200) { throw "Could not list the pull requests of $Repository (HTTP $($response.StatusCode): $(Get-ApiMessage $response))" }
     foreach ($pull in @($response.Body)) {
         if ($pull -is [System.Collections.IDictionary] -and [string]::Equals([string]$pull['title'], $Title, [System.StringComparison]::Ordinal)) {
@@ -439,9 +447,9 @@ function New-GitHubPullRequest {
         [AllowNull()][AllowEmptyString()][string]$ServerUrl
     )
     $request = [ordered]@{ title = $Title; head = $Head; base = $Base; body = $(if ($null -eq $Body) { '' } else { $Body }) }
-    $response = Invoke-GitHubApi -Method POST -Path "repos/$Repository/pulls" -Token $Token -ApiUrl $ApiUrl -Body $request
+    $response = Invoke-GitHubApi -Method POST -Path (Join-ApiPath -Part 'repos', $Repository, 'pulls') -Token $Token -ApiUrl $ApiUrl -Body $request
     if ($response.StatusCode -ne 201) {
-        $manual = "$(Get-DefaultServerUrl -ServerUrl $ServerUrl)/$Repository/tree/$Head"
+        $manual = "$(Get-DefaultServerUrl -ServerUrl $ServerUrl)/$(Join-ApiPath -Part $Repository, 'tree', $Head)"
         if ($response.StatusCode -eq 403) {
             throw "The token is not allowed to create pull requests in $Repository (HTTP 403: $(Get-ApiMessage $response)). Check that it has pull_requests write, or that GitHub Actions may create pull requests (organization and repository Settings > Actions > General). You can create the pull request by hand from $manual"
         }
@@ -451,7 +459,7 @@ function New-GitHubPullRequest {
     $url = [string]$response.Body['html_url']
     $labelList = @($Labels | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($labelList.Count -gt 0) {
-        $labelResponse = Invoke-GitHubApi -Method POST -Path "repos/$Repository/issues/$number/labels" -Token $Token -ApiUrl $ApiUrl -Body ([ordered]@{ labels = $labelList })
+        $labelResponse = Invoke-GitHubApi -Method POST -Path (Join-ApiPath -Part 'repos', $Repository, 'issues', ([string]$number), 'labels') -Token $Token -ApiUrl $ApiUrl -Body ([ordered]@{ labels = $labelList })
         if ($labelResponse.StatusCode -lt 200 -or $labelResponse.StatusCode -ge 300) {
             Write-Warning "Pull request $url was created, but the labels $($labelList -join ', ') were not added (HTTP $($labelResponse.StatusCode): $(Get-ApiMessage $labelResponse))."
         }
