@@ -712,7 +712,7 @@ function Get-RulebookUpdatePlan {
     runs Test-Rulebook on the candidate and compares it with the working tree (LF-normalised text, bytes for
     binaries). Returns { TemplateUrl, TemplateRepo, TemplateSha, InstalledSha, CandidatePath, Changes { File, Class,
     Kind, Change, Bytes }, Skipped { File, Reason }, Notes, Findings, Valid, ReleaseNotes, ReleaseNotesShipped,
-    ShaOnly, UpdatesAvailable }. Never throws on repository content: a settings or generator failure is a Finding with
+    ShaOnly (only templateSha and the {TEMPLATEURL} placeholder change), UpdatesAvailable }. Never throws on repository content: a settings or generator failure is a Finding with
     Rule 'update' and Severity error.
     #>
     [CmdletBinding()]
@@ -891,10 +891,22 @@ function Get-RulebookUpdatePlan {
         $bytes = if ($change -ceq 'deleted') { $null } else { [System.IO.File]::ReadAllBytes((Join-Path $candidate $path)) }
         $changes.Add([pscustomobject]@{ File = $path; Class = $class.Class; Kind = $class.Kind; Change = $change; Bytes = $bytes })
     }
-    if ($changes.Count -eq 1 -and $changes[0].File -ceq $script:SettingsPath -and $changes[0].Change -ceq 'modified') {
-        $candidateSettingsText = Read-UpdateText -Path (Join-Path $candidate $script:SettingsPath)
-        $plan.ShaOnly = (Get-TextWithoutSha -Text $orgSettingsText) -ceq (Get-TextWithoutSha -Text $candidateSettingsText)
+    # Sha-only: nothing but the bookkeeping of a first run changes, that is templateSha in the settings and the
+    # {TEMPLATEURL} placeholder of a workflow (a repository fresh from the template has both).
+    $bookkeeping = $changes.Count -gt 0
+    foreach ($change in $changes) {
+        if ($change.Change -cne 'modified') { $bookkeeping = $false; break }
+        $candidateText = Read-UpdateText -Path (Join-Path $candidate $change.File)
+        if ($change.File -ceq $script:SettingsPath) {
+            if ((Get-TextWithoutSha -Text $orgSettingsText) -cne (Get-TextWithoutSha -Text $candidateText)) { $bookkeeping = $false; break }
+        } elseif ($change.Kind -ceq 'workflow' -and $templateUrlValue) {
+            if ((Read-UpdateText -Path (Join-Path $root $change.File)).Replace('{TEMPLATEURL}', $templateUrlValue) -cne $candidateText) { $bookkeeping = $false; break }
+        } else {
+            $bookkeeping = $false
+            break
+        }
     }
+    $plan.ShaOnly = $bookkeeping
     $plan.UpdatesAvailable = $changes.Count -gt 0 -and -not $plan.ShaOnly
 
     # 8. Release notes

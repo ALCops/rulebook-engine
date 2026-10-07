@@ -484,6 +484,8 @@ Describe 'Get-RulebookUpdatePlan: variants' {
         # The first run records the sha and replaces {TEMPLATEURL} in the update workflow (AL-Go does the same).
         $first = Get-Plan -Org $root -Template $v1 -Installed '' -TemplateSha $fakeSha
         Get-ChangeList $first | Should-BeCollection @('modified .github/Rulebook-Settings.json', 'modified .github/workflows/UpdateRulebookSystemFiles.yaml')
+        $first.ShaOnly | Should-BeTrue
+        (Get-RulebookUpdateStatus -Plan $first).Status | Should-Be 'sha-only'
         foreach ($change in $first.Changes) { [System.IO.File]::WriteAllBytes((Join-Path $root $change.File), $change.Bytes) }
         (Get-Content -LiteralPath (Join-Path $root '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json).templateSha | Should-Be $fakeSha
         $second = Get-Plan -Org $root -Template $v1 -Installed $v1 -TemplateSha $fakeSha

@@ -5,8 +5,14 @@ Entry script of the Validate action: checks C1 to C15, GitHub annotations, the j
 .DESCRIPTION
 Runs Test-Rulebook on -RepositoryRoot, prints one annotation per finding (file paths relative to -WorkspaceRoot),
 appends a Markdown summary to -SummaryPath, writes the errors and warnings outputs to GITHUB_OUTPUT and returns
-{ ExitCode, Findings, Diff, Summary, Annotations, DiffRef }. ExitCode is 1 when there are errors, or warnings with
--FailOnWarning. The script never calls exit, so tests run it in-process; action.yaml exits with ExitCode.
+{ ExitCode, Findings, Diff, Summary, Annotations, DiffRef, UpdateCheck }. ExitCode is 1 when there are errors, or
+warnings with -FailOnWarning. The script never calls exit, so tests run it in-process; action.yaml exits with ExitCode.
+
+-CheckForUpdates runs the template update check in check mode (Rulebook.Update): the template of the settings at the
+head of its branch, downloaded with GITHUB_TOKEN (never the write token), or -TemplatePath and -InstalledTemplatePath
+as local folders. One notice (no updates, templateSha not recorded) or warning (updates available, check skipped) and
+the section '## Template update check' in the summary. Neither counts towards warnings= or -FailOnWarning, and the
+check never fails the step. UpdateCheck is { Status (none, sha-only, available, skipped), Reason, Plan }.
 
 The effective diff compares against -DiffRef. Without -DiffRef it is origin/<GITHUB_BASE_REF> on a pull_request or
 pull_request_target event (fetched when absent); on a push, the commit before the push from the event payload
@@ -21,7 +27,11 @@ param(
     [AllowEmptyString()][string]$DiffRef,
     [string]$SummaryPath = $env:GITHUB_STEP_SUMMARY,
     [string]$JsonPath,
-    [string]$WorkspaceRoot = $env:GITHUB_WORKSPACE
+    [string]$WorkspaceRoot = $env:GITHUB_WORKSPACE,
+    [AllowEmptyString()][string]$TemplatePath,
+    [AllowEmptyString()][string]$InstalledTemplatePath,
+    [string]$ApiUrl = $(if ($env:GITHUB_API_URL) { $env:GITHUB_API_URL } else { 'https://api.github.com' }),
+    [string]$UpdateWorkPath
 )
 
 Set-StrictMode -Version 3.0
@@ -180,8 +190,48 @@ if ([System.Text.Encoding]::UTF8.GetByteCount($summaryText) -gt $summaryLimit) {
 }
 if ($SummaryPath) { [System.IO.File]::AppendAllText($SummaryPath, $summaryText, [System.Text.UTF8Encoding]::new($false)) }
 
-# 5. Update check (WP07)
-if ($CheckForUpdates) { Write-Host 'Update check: not wired yet (WP07, #9).' }
+# 5. Update check (WP07): check mode only, never counted, never failing.
+$updateCheck = $null
+if ($CheckForUpdates) {
+    Import-Module (Join-Path $modules 'Rulebook.GitHub.psd1') -Force
+    Import-Module (Join-Path $modules 'Rulebook.Update.psd1') -Force
+    $work = if ($UpdateWorkPath) { & $resolvePath $UpdateWorkPath } else { Join-Path $(if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }) ('rulebook-update-check-' + [guid]::NewGuid().ToString('n').Substring(0, 8)) }
+    $updateCheck = [pscustomobject]@{ Status = 'skipped'; Reason = $null; Plan = $null }
+    $command = 'warning'
+    $message = $null
+    try {
+        $settingsFile = Join-Path $root '.github' 'Rulebook-Settings.json'
+        if (-not (Test-Path -LiteralPath $settingsFile -PathType Leaf)) { throw 'Settings missing: .github/Rulebook-Settings.json' }
+        $settings = Get-Content -LiteralPath $settingsFile -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+        $value = { param([string[]]$Path) $item = $settings; foreach ($key in $Path) { if ($item -isnot [System.Collections.IDictionary] -or -not $item.Contains($key)) { return $null }; $item = $item[$key] }; return $item }
+        $templateUrl = [string](& $value 'templateUrl')
+        if ($TemplatePath) {
+            $template = Get-RulebookTemplate -TemplatePath $TemplatePath -InstalledTemplatePath $InstalledTemplatePath -TemplateUrl $templateUrl
+        } else {
+            $template = Get-RulebookTemplate -TemplateUrl $templateUrl -GitHubToken $env:GITHUB_TOKEN -DownloadLatest -InstalledSha ([string](& $value 'templateSha')) -WorkPath $work -ApiUrl $ApiUrl `
+                -UpdateMode ([string](& $value 'site', 'updateMode')) -UnusedFiles ([string[]]@(& $value 'unusedRulebookFiles'))
+        }
+        $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $work
+        $status = Get-RulebookUpdateStatus -Plan $plan
+        $updateCheck = [pscustomobject]@{ Status = $status.Status; Reason = $(if ($status.Status -eq 'skipped') { $status.Message }); Plan = $plan }
+        $command = $status.Command
+        $message = $status.Message
+    } catch {
+        $message = "update check skipped: $($_.Exception.Message)"
+        $updateCheck.Reason = $message
+    } finally {
+        if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    $line = "::$command title=Update check::$(Format-AnnotationText $message)"
+    $annotations.Add($line)
+    Write-Host $line
+    $updateSummary = if ($null -ne $updateCheck.Plan) { ConvertTo-UpdateSummary -Plan $updateCheck.Plan -Mode check -Message $message } else { "## Template update check`n`n$message`n`n" }
+    $updateSummary = $updateSummary.Replace("`r`n", "`n")
+    if ([System.Text.Encoding]::UTF8.GetByteCount($summaryText + $updateSummary) -le $summaryLimit) {
+        $summaryText += $updateSummary
+        if ($SummaryPath) { [System.IO.File]::AppendAllText($SummaryPath, $updateSummary, [System.Text.UTF8Encoding]::new($false)) }
+    }
+}
 
 # 6. Outputs
 if ($env:GITHUB_OUTPUT) {
@@ -196,4 +246,5 @@ $exitCode = if ($errorCount -gt 0 -or ($FailOnWarning -and $warningCount -gt 0))
     Summary     = $summaryText
     Annotations = $annotations.ToArray()
     DiffRef     = $DiffRef
+    UpdateCheck = $updateCheck
 }
