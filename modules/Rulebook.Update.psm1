@@ -992,7 +992,13 @@ function Get-EffectiveDiffBlock {
     # Validate.ps1.
     param([AllowNull()][AllowEmptyCollection()][object[]]$Diff, [string]$Heading = '###')
     $blocks = [System.Collections.Generic.List[string]]::new()
-    foreach ($group in (@($Diff) | Group-Object Endpoint)) {
+    # Endpoints in the order of the diff (settings order); Group-Object would sort them by name.
+    $groups = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
+    foreach ($row in @($Diff)) {
+        if (-not $groups.Contains([string]$row.Endpoint)) { $groups[[string]$row.Endpoint] = [System.Collections.Generic.List[object]]::new() }
+        $groups[[string]$row.Endpoint].Add($row)
+    }
+    foreach ($group in @($groups.Values | ForEach-Object { [pscustomobject]@{ Group = $_.ToArray() } })) {
         $first = $group.Group[0]
         $text = [System.Text.StringBuilder]::new()
         [void]$text.AppendLine(('{0} `{1}` (`{2}`)' -f $Heading, $first.Endpoint, $first.File)).AppendLine()

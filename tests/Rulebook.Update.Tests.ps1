@@ -873,6 +873,10 @@ Describe 'Publish-RulebookUpdate against a bare repository' -Skip:$gitMissing {
 
         Assert-ItemPresent -Actual @($result.Diff | ForEach-Object Endpoint) -Expected @('recommended.default', 'recommended.ci', 'house.default', 'strict.default', 'complete.default')
         @($result.Diff | Where-Object { $_.Endpoint -like 'essential.*' }) | Should-BeCollection @()
+        # Endpoint tables in settings order (recommended before house before strict before complete), not by name.
+        $tables = @([regex]::Matches($result.Body, '(?m)^### `([^`]+)`') | ForEach-Object { $_.Groups[1].Value })
+        $tables | Should-BeCollection @($result.Diff | ForEach-Object Endpoint | Select-Object -Unique)
+        [array]::IndexOf($tables, 'recommended.default') | Should-BeLessThan ([array]::IndexOf($tables, 'complete.default'))
         $headings = @([regex]::Matches($result.Body, '(?m)^## (.+)$') | ForEach-Object { $_.Groups[1].Value })
         $headings | Should-BeCollection @('Changes', 'Effective diff', 'Skipped: local changes in site/', 'Notes', 'Release notes')
         $result.Body | Should-MatchString '(?m)^\| AC0001 \| Warning \| Error \| level:recommended \|$'

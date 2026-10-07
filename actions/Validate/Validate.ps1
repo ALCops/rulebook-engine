@@ -166,7 +166,13 @@ if ($null -ne $diffNote) {
 } elseif ($diff.Count -eq 0) {
     [void]$summary.AppendLine('No effective change.').AppendLine()
 } else {
-    foreach ($group in ($diff | Group-Object Endpoint)) {
+    # Endpoints in the order of the diff (settings order); Group-Object would sort them by name.
+    $groups = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
+    foreach ($row in $diff) {
+        if (-not $groups.Contains([string]$row.Endpoint)) { $groups[[string]$row.Endpoint] = [System.Collections.Generic.List[object]]::new() }
+        $groups[[string]$row.Endpoint].Add($row)
+    }
+    foreach ($group in @($groups.Values | ForEach-Object { [pscustomobject]@{ Group = $_.ToArray() } })) {
         $first = $group.Group[0]
         [void]$summary.AppendLine(('### `{0}` (`{1}`)' -f $first.Endpoint, $first.File)).AppendLine()
         [void]$summary.AppendLine('| Id | Before | After | Decided by |').AppendLine('|---|---|---|---|')
