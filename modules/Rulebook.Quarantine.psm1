@@ -191,7 +191,7 @@ function Add-QuarantineEntry {
         $rules[$Id] = if ([string]::IsNullOrEmpty($Justification)) { $null } else { $Justification }
         [pscustomobject]@{ Stage = $stage; Id = $Id }
     }
-    return , @($added)
+    return @($added)
 }
 
 function Invoke-QuarantineHousekeeping {
@@ -220,7 +220,7 @@ function Invoke-QuarantineHousekeeping {
             [pscustomobject]@{ Stage = $stage; Id = $id; Justification = $justification; MentionedBy = [string[]]@($mentionedBy) }
         }
     }
-    return , @($removed)
+    return @($removed)
 }
 
 function Update-QuarantineFromScan {

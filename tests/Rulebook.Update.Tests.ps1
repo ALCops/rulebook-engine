@@ -276,6 +276,7 @@ Describe 'ConvertTo-UpdatedWorkflowText' {
     BeforeAll {
         $script:orgSettings = Get-Content -LiteralPath (Join-Path $orgFixture '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json -AsHashtable
         $script:updateText = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'template' '.github' 'workflows' 'UpdateRulebookSystemFiles.yaml'))
+        $script:scanText = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'template' '.github' 'workflows' 'ScanDiagnostics.yaml')).Replace("`r`n", "`n")
         $script:withoutSchedule = @{ levels = $orgSettings.levels; stages = $orgSettings.stages; update = @{ schedule = $null } }
         $script:url = 'https://github.com/Contoso/rulebook-template@main'
     }
@@ -328,6 +329,36 @@ Describe 'ConvertTo-UpdatedWorkflowText' {
     It 'leaves a workflow without inputs or placeholder unchanged' {
         $text = [System.IO.File]::ReadAllText((Join-Path $v2 '.github' 'workflows' 'Validate.yaml'))
         ConvertTo-UpdatedWorkflowText -Text $text -FileName 'Validate.yaml' -Settings $orgSettings -TemplateUrl $url | Should-Be $text
+    }
+
+    It 'leaves the template ScanDiagnostics.yaml unchanged with the template settings (WP08)' {
+        $templateSettings = Get-Content -LiteralPath (Join-Path $repoRoot 'template' '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json -AsHashtable
+        ConvertTo-UpdatedWorkflowText -Text $scanText -FileName 'ScanDiagnostics.yaml' -Settings $templateSettings -TemplateUrl $url | Should-Be $scanText
+    }
+
+    It 'replaces the scan schedule from scan.schedule' {
+        $result = ConvertTo-UpdatedWorkflowText -Text $scanText -FileName 'ScanDiagnostics.yaml' -Settings @{ scan = @{ schedule = '5 3 * * 1-5' } } -TemplateUrl $url
+        $result | Should-Be $scanText.Replace("- cron: '17 4 * * *'", "- cron: '5 3 * * 1-5'")
+    }
+
+    It 'removes the scan schedule byte for byte when scan.schedule is <Case>' -ForEach @(
+        @{ Case = 'null'; Settings = @{ scan = @{ schedule = $null } } }
+        @{ Case = 'absent'; Settings = @{} }
+    ) {
+        $result = ConvertTo-UpdatedWorkflowText -Text $scanText -FileName 'ScanDiagnostics.yaml' -Settings $Settings -TemplateUrl $url
+        $result | Should-Be $scanText.Replace("  schedule:`n    - cron: '17 4 * * *'`n", '')
+        ConvertTo-UpdatedWorkflowText -Text $result -FileName 'ScanDiagnostics.yaml' -Settings @{ scan = @{ schedule = '17 4 * * *' } } -TemplateUrl $url | Should-Be $scanText
+    }
+
+    It 'never crosses the two schedule keys' {
+        $settings = @{ update = @{ schedule = '0 6 * * 1' }; scan = @{ schedule = $null } }
+        ConvertTo-UpdatedWorkflowText -Text $scanText -FileName 'ScanDiagnostics.yaml' -Settings $settings -TemplateUrl $url | Should-NotMatchString 'cron'
+        ConvertTo-UpdatedWorkflowText -Text $updateText -FileName 'UpdateRulebookSystemFiles.yaml' -Settings @{ update = @{ schedule = $null }; scan = @{ schedule = '17 4 * * *' } } -TemplateUrl $url | Should-NotMatchString 'cron'
+    }
+
+    It 'leaves an unknown workflow with a schedule untouched by scan.schedule' {
+        $text = [System.IO.File]::ReadAllText((Join-Path $orgFixture '.github' 'workflows' 'MyNightly.yaml'))
+        ConvertTo-UpdatedWorkflowText -Text $text -FileName 'MyNightly.yaml' -Settings @{ scan = @{ schedule = $null } } -TemplateUrl $url | Should-Be $text
     }
 }
 

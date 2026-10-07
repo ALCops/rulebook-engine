@@ -592,7 +592,8 @@ function Get-ScanSection {
     $sections.DiffEmpty = if ($DiffNote) { "$DiffNote`n`n" } elseif (@($Diff).Count -eq 0) { "No effective change.`n`n" } else { '' }
     # Assigned in two steps: an if expression would unroll an empty array into $null.
     [string[]]$blocks = @()
-    if (-not $DiffNote -and $Diff.Count -gt 0) { $blocks = @(Get-EffectiveDiffBlock -Diff $Diff) }
+    # Get-EffectiveDiffBlock returns its array with a comma; @() around it would nest it.
+    if (-not $DiffNote -and $Diff.Count -gt 0) { $blocks = Get-EffectiveDiffBlock -Diff $Diff }
     $sections.DiffBlocks = $blocks
 
     $text = [System.Text.StringBuilder]::new()

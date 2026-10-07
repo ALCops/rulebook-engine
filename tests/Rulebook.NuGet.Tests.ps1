@@ -7,6 +7,8 @@ BeforeAll {
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.NuGet.psd1') -Force
 
     function New-ZipPackage {
+
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; builds an object or writes only to TestDrive')]
         # A nupkg-shaped zip at Path holding tools/net8.0/any/readme.txt.
         param([Parameter(Mandatory)][string]$Path)
         $content = Join-Path $TestDrive ([guid]::NewGuid().ToString('n'))

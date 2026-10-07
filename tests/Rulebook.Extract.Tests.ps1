@@ -21,6 +21,8 @@ BeforeAll {
     $script:v1Records = ConvertTo-DiagnosticRecord -Result $v1Result -PackageId $alcops
 
     function New-Row {
+
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; builds an object or writes only to TestDrive')]
         # A row of an extraction result, for the ConvertTo-DiagnosticRecord cases.
         param([string]$Id, [string]$Assembly, [string]$Severity = 'Warning', [bool]$Enabled = $true, [string]$Title = 'Title', [string]$Link, [bool]$Advertised = $true)
         return [ordered]@{ id = $Id; assembly = $Assembly; analyzerType = 'X'; defaultSeverity = $Severity; enabledByDefault = $Enabled; title = $Title; helpLinkUri = $(if ($Link) { $Link } else { $null }); isDeprecated = $false; advertised = $Advertised }

@@ -11,11 +11,15 @@ BeforeAll {
     $script:alcops = 'alcops.analyzers'
 
     function New-Record {
+
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; builds an object or writes only to TestDrive')]
         param([string]$Id, [string]$Severity = 'Warning', [bool]$Enabled = $true, [string]$Title = 'A rule', [string]$Docs, [bool]$Advertised = $true, [bool]$Deprecated = $false, [string]$Analyzer = 'LinterCop')
         return [pscustomobject]@{ Id = $Id; Analyzer = $Analyzer; DefaultSeverity = $Severity; EnabledByDefault = $Enabled; Title = $Title; Docs = $(if ($Docs) { $Docs } else { $null }); Advertised = $Advertised; Deprecated = $Deprecated }
     }
 
     function New-Records {
+
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; builds an object or writes only to TestDrive')]
         [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Test helper; builds a map of records')]
         param([object[]]$Items)
         $map = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
@@ -24,6 +28,8 @@ BeforeAll {
     }
 
     function New-TestCatalog {
+
+        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; builds an object or writes only to TestDrive')]
         param([string]$Text)
         return ConvertFrom-CatalogFileText -Text $Text -Path 'catalog/diagnostics.json'
     }
