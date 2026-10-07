@@ -155,7 +155,7 @@
       "additionalProperties": false
     },
     "scan": {
-      "description": "The diagnostic scan (WP08): schedule is a five-field cron expression the update writes into ScanDiagnostics.yaml as its schedule trigger, or null for none.",
+      "description": "The diagnostic scan (WP08): schedule is a five-field cron expression the update writes into ScanDiagnostics.yaml as its schedule trigger, or null for none. An absent scan key or schedule keeps the schedule the template ships.",
       "type": "object",
       "properties": {
         "schedule": { "type": ["string", "null"], "pattern": "^\\S+( \\S+){4}(?![\\s\\S])" }

@@ -427,7 +427,7 @@ function Find-GitHubPullRequest {
 function Find-GitHubPullRequestByHead {
     <#
     .SYNOPSIS
-    The open pull request from branch -Head of -Repository into -Base, or $null: { Number, Url, Title }.
+    The open pull request from branch -Head of -Repository into -Base, or $null: { Number, Url, Title, Body }.
     .DESCRIPTION
     GET /repos/{r}/pulls?state=open&head=<owner>:<head>&base=<base>; the first item wins. Used by the scan, whose
     living pull request is found by its fixed branch, not by its title.
@@ -447,7 +447,7 @@ function Find-GitHubPullRequestByHead {
     if ($response.StatusCode -ne 200) { throw "Could not list the pull requests of $Repository (HTTP $($response.StatusCode): $(Get-ApiMessage $response))" }
     foreach ($pull in @($response.Body)) {
         if ($pull -is [System.Collections.IDictionary]) {
-            return [pscustomobject]@{ Number = [int]$pull['number']; Url = [string]$pull['html_url']; Title = [string]$pull['title'] }
+            return [pscustomobject]@{ Number = [int]$pull['number']; Url = [string]$pull['html_url']; Title = [string]$pull['title']; Body = [string]$pull['body'] }
         }
     }
     return $null
@@ -456,9 +456,10 @@ function Find-GitHubPullRequestByHead {
 function Update-GitHubPullRequest {
     <#
     .SYNOPSIS
-    Replaces the title and body of pull request -Number: { Number, Url }.
+    Replaces the title and body of pull request -Number, and with -State opens or closes it: { Number, Url }.
     .DESCRIPTION
-    PATCH /repos/{r}/pulls/{n} with { title, body }; an answer other than 200 throws with the status and the message.
+    PATCH /repos/{r}/pulls/{n} with { title, body[, state] }; an answer other than 200 throws with the status and the
+    message.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Called only by a scan that validated and pushed; a dry run never calls it')]
     [CmdletBinding()]
@@ -468,10 +469,12 @@ function Update-GitHubPullRequest {
         [Parameter(Mandatory)][int]$Number,
         [Parameter(Mandatory)][string]$Title,
         [AllowNull()][AllowEmptyString()][string]$Body,
+        [ValidateSet('open', 'closed')][string]$State,
         [AllowNull()][AllowEmptyString()][string]$Token,
         [AllowNull()][AllowEmptyString()][string]$ApiUrl
     )
     $request = [ordered]@{ title = $Title; body = $(if ($null -eq $Body) { '' } else { $Body }) }
+    if ($State) { $request.state = $State }
     $response = Invoke-GitHubApi -Method PATCH -Path (Join-ApiPath -Part 'repos', $Repository, 'pulls', ([string]$Number)) -Token $Token -ApiUrl $ApiUrl -Body $request
     if ($response.StatusCode -ne 200) { throw "Could not update pull request #$Number of $Repository (HTTP $($response.StatusCode): $(Get-ApiMessage $response))" }
     $url = if ($response.Body -is [System.Collections.IDictionary]) { [string]$response.Body['html_url'] } else { '' }

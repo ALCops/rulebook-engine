@@ -262,8 +262,16 @@ Describe 'ConvertTo-ScanPullRequestBody' {
         @([regex]::Matches($body, '(?m)^## (.+)$') | ForEach-Object { $_.Groups[1].Value }) | Should-BeCollection @('Scanned versions', 'New diagnostics', 'Prerelease default changes (not applied)', 'Catalog notes', 'Changes', 'Effective diff')
         $body | Should-MatchString 'on branch `scan-diagnostics/main`: do not push to that branch'
         $body | Should-MatchString '(?m)^\| AA0002 \| CodeCop \| Info \(disabled\) \| Field-only descriptor \|  \| microsoft\.dynamics\.businesscentral\.development\.tools 18\.0\.43\.1464 \(stable\) \| nowhere \(not advertised\) \|$'
-        $body | Should-MatchString '(?m)^\| LC0100 \| LinterCop \| Info \| A rule new in 1\.4\.0 \| \[docs\]\(https://alcops\.dev/docs/analyzers/lintercop/lc0100/\) \| alcops\.analyzers 1\.4\.0-beta\.1 \(prerelease\) \| ci \|$'
+        $body | Should-MatchString '(?m)^\| LC0100 \| LinterCop \| Info \| A rule new in 1\.4\.0 \| \[docs\]\(<https://alcops\.dev/docs/analyzers/lintercop/lc0100/>\) \| alcops\.analyzers 1\.4\.0-beta\.1 \(prerelease\) \| ci \|$'
         $body.StartsWith('Diagnostic scan of 2026-10-08 on `main` at 0123456. Scanned ', [System.StringComparison]::Ordinal) | Should-BeTrue
+    }
+
+    It 'neutralises a mention in a package title' {
+        $plan = Get-Plan -Root $org
+        $plan.CatalogAfter.Entries['LC0100'].Title = 'Ping @octocat and @ALCops/team'
+        $body = ConvertTo-ScanPullRequestBody -Plan $plan -Base 'main'
+        $body | Should-MatchString ('Ping @{0}octocat and @{0}ALCops/team' -f [char]0x200B)
+        $body | Should-NotMatchString '(?<!\u200B)@octocat'.Replace('\u200B', [string][char]0x200B)
     }
 
     It 'names the endpoints a changed default joins or leaves' {
@@ -361,6 +369,50 @@ Describe 'Publish-RulebookScan against a bare repository' -Skip:$gitMissing {
         try { $null = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -WorkPath (Get-TestFolder) } catch { $caught = $_ }
         $caught.Exception.Data['Stage'] | Should-Be 'pull-request'
         $caught.Exception.Message | Should-BeLikeString 'Branch scan-diagnostics/main was pushed.*https://github.com/Contoso/rulebook/tree/scan-diagnostics/main*'
+    }
+
+    It 'closes the open scan pull request after a direct commit' {
+        $bare = New-BareFixtureRepo -Source $org -Destination (Join-Path (Get-TestFolder) 'direct-close.git')
+        $script:openPulls = @(@{ number = 21; title = 'Scan diagnostics: old'; html_url = 'https://github.com/Contoso/rulebook/pull/21'; body = 'old body' })
+        $result = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -DirectCommit -WorkPath (Get-TestFolder)
+        $result.Result | Should-Be 'direct-commit'
+        $result.ClosedPullRequestUrl | Should-Be 'https://github.com/Contoso/rulebook/pull/21'
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'PATCH' -and $Body.state -eq 'closed' -and $Body.title -eq 'Scan diagnostics: old' -and $Body.body -like "Closed by the scan of 2026-10-08: its result is on main already (direct commit *).`n`nold body" }
+    }
+
+    It 'closes the open scan pull request when the base already contains the result' {
+        $bare = New-BareFixtureRepo -Source (Copy-Candidate $plan) -Destination (Join-Path (Get-TestFolder) 'merged.git')
+        $script:openPulls = @(@{ number = 21; title = 'Scan diagnostics: old'; html_url = 'https://github.com/Contoso/rulebook/pull/21'; body = 'old body' })
+        $result = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -WorkPath (Get-TestFolder)
+        $result.Result | Should-Be 'no-changes'
+        $result.ClosedPullRequestUrl | Should-Be 'https://github.com/Contoso/rulebook/pull/21'
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'PATCH' -and $Body.state -eq 'closed' -and $Body.body -like 'Closed by the scan of 2026-10-08: the base branch main already contains its result.*' }
+    }
+
+    It 'closes nothing when no scan pull request is open' {
+        $bare = New-BareFixtureRepo -Source (Copy-Candidate $plan) -Destination (Join-Path (Get-TestFolder) 'merged-none.git')
+        $result = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -WorkPath (Get-TestFolder)
+        $result.ClosedPullRequestUrl | Should-BeNull
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Method -eq 'PATCH' }
+    }
+
+    It 'refuses to push when the base branch moved after the plan' {
+        $work = Get-TestFolder
+        Copy-FixtureTree -Source $org -Destination $work
+        $sha = New-FixtureGitRepo -Root $work -Message 'initial'
+        $bare = Join-Path (Get-TestFolder) 'moving.git'
+        [void](New-Item -ItemType Directory -Path (Split-Path -Parent $bare) -Force)
+        $null = Invoke-FixtureGit -Root (Split-Path -Parent $bare) -Arguments @('clone', '-q', '--bare', $work, $bare)
+        $moving = Get-Plan -Root $work
+        $moving.HeadSha | Should-Be $sha
+        Write-FixtureText -Path (Join-Path $work 'README.md') -Text 'moved'
+        $moved = New-FixtureGitRepo -Root $work -Message 'moved'
+        $null = Invoke-FixtureGit -Root $work -Arguments @('push', '-q', $bare, 'HEAD:refs/heads/main')
+        $caught = $null
+        try { $null = Publish-RulebookScan -Plan $moving -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -WorkPath (Get-TestFolder) } catch { $caught = $_ }
+        $caught.Exception.Data['Stage'] | Should-Be 'push'
+        $caught.Exception.Message | Should-BeLikeString "The base branch moved during the scan (main was at $($sha.Substring(0, 7)) when the scan started and is at $($moved.Substring(0, 7)) now)*the next run will pick it up."
+        (& git -C $bare branch --list 'scan-diagnostics/*') | Should-BeNull
     }
 
     It 'refuses an invalid or nothing-new plan' {

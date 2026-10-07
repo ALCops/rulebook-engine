@@ -10,6 +10,12 @@
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
         'Compare-CustomizableFile'
+        'Copy-UpdateTree'
+        'Format-TableCell'
+        'Get-ComparableContent'
+        'Get-DefaultWorkPath'
+        'Get-TreeFile'
+        'Test-BinaryFile'
         'ConvertTo-TemplateUrl'
         'ConvertTo-UpdatedWorkflowText'
         'ConvertTo-UpdatePullRequestBody'

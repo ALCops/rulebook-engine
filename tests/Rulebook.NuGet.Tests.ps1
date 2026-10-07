@@ -5,6 +5,8 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.NuGet.psd1') -Force
+    # No waiting between retries in the suite.
+    & (Get-Module Rulebook.NuGet) { $script:RetryDelaySeconds = @(0, 0, 0) }
 
     function New-ZipPackage {
 
@@ -73,6 +75,16 @@ Describe 'Select-NuGetChannelVersion' {
         $selected.Prerelease | Should-Be '30.0.42.60748-beta'
     }
 
+    It 'skips and lists entries that are not versions, a sole one included' {
+        $selected = Select-NuGetChannelVersion -Versions @('../../evil', '', '1.3.1', '1.4.0-beta.1/../x') -IncludePrerelease
+        $selected.Stable | Should-Be '1.3.1'
+        $selected.Prerelease | Should-BeNull
+        $selected.Invalid | Should-BeCollection @('../../evil', '', '1.4.0-beta.1/../x')
+        $sole = Select-NuGetChannelVersion -Versions @('../../evil')
+        $sole.Stable | Should-BeNull
+        $sole.Invalid | Should-BeCollection @('../../evil')
+    }
+
     It 'has no stable version for an index of prereleases' {
         $selected = Select-NuGetChannelVersion -Versions @('1.0.0-beta.1') -IncludePrerelease
         $selected.Stable | Should-BeNull
@@ -139,10 +151,66 @@ Describe 'Save-NuGetPackage' {
         Test-Path -LiteralPath (Join-Path $path 'alcops.analyzers.9.9.9.nupkg') | Should-BeFalse
     }
 
+    It 'refuses a version that is not a NuGet version before writing anything' {
+        $path = Join-Path $TestDrive 'packages-evil'
+        { Save-NuGetPackage -PackageId 'alcops.analyzers' -Version '../../evil' -Path $path } | Should-Throw -ExceptionMessage "'../../evil' is not a NuGet version*"
+        Test-Path -LiteralPath $path | Should-BeFalse
+    }
+
+    It 'refuses a package with an entry outside its folder and writes nothing outside' {
+        $feed = Join-Path $TestDrive 'slip-feed'
+        $nupkg = Join-Path $feed 'alcops.analyzers' '1.4.0' 'alcops.analyzers.1.4.0.nupkg'
+        [void](New-Item -ItemType Directory -Path (Split-Path -Parent $nupkg) -Force)
+        $zip = [System.IO.Compression.ZipFile]::Open($nupkg, 'Create')
+        try {
+            $writer = [System.IO.StreamWriter]::new($zip.CreateEntry('../escape.txt').Open())
+            try { $writer.Write('escaped') } finally { $writer.Dispose() }
+        } finally {
+            $zip.Dispose()
+        }
+        $path = Join-Path $TestDrive 'slip' 'packages'
+        { Save-NuGetPackage -PackageId 'alcops.analyzers' -Version '1.4.0' -Path $path -Source $feed } | Should-Throw -ExceptionMessage 'alcops.analyzers 1.4.0 is not a readable package*'
+        Test-Path -LiteralPath (Join-Path $path 'escape.txt') | Should-BeFalse
+        Test-Path -LiteralPath (Join-Path $TestDrive 'slip' 'escape.txt') | Should-BeFalse
+        Test-Path -LiteralPath (Join-Path $path 'alcops.analyzers.1.4.0') | Should-BeFalse
+    }
+
     It 'copies from a folder source' {
         $feed = Join-Path $TestDrive 'folder-feed'
         New-ZipPackage -Path (Join-Path $feed 'alcops.analyzers' '1.4.0' 'alcops.analyzers.1.4.0.nupkg')
         $saved = Save-NuGetPackage -PackageId 'alcops.analyzers' -Version '1.4.0' -Path (Join-Path $TestDrive 'from-folder') -Source $feed
         Test-Path -LiteralPath (Join-Path $saved.ExtractPath 'tools' 'net8.0' 'any' 'readme.txt') | Should-BeTrue
+    }
+}
+
+Describe 'Invoke-NuGetRequest retries' {
+    It 'retries a 503 and a 429 and returns the first good answer' {
+        $script:answers = [System.Collections.Generic.Queue[int]]::new([int[]]@(503, 429, 200))
+        Mock Invoke-WebRequest -ModuleName Rulebook.NuGet { [pscustomobject]@{ StatusCode = $script:answers.Dequeue(); Content = '{ "versions": ["1.3.1"] }' } }
+        (Get-NuGetVersionIndex -PackageId 'alcops.analyzers').Versions | Should-BeCollection @('1.3.1')
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.NuGet -Times 3 -Exactly
+    }
+
+    It 'retries a request without an answer' {
+        $script:calls = 0
+        Mock Invoke-WebRequest -ModuleName Rulebook.NuGet {
+            $script:calls++
+            if ($script:calls -eq 1) { throw [System.Net.Http.HttpRequestException]::new('timed out') }
+            [pscustomobject]@{ StatusCode = 200; Content = '{ "versions": ["1.3.1"] }' }
+        }
+        (Get-NuGetVersionIndex -PackageId 'alcops.analyzers').Versions | Should-BeCollection @('1.3.1')
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.NuGet -Times 2 -Exactly
+    }
+
+    It 'does not retry a 404' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.NuGet { [pscustomobject]@{ StatusCode = 404; Content = '' } }
+        { Get-NuGetVersionIndex -PackageId 'alcops.analyzers' } | Should-Throw -ExceptionMessage '*(HTTP 404)'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.NuGet -Times 1 -Exactly
+    }
+
+    It 'gives up after four attempts' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.NuGet { [pscustomobject]@{ StatusCode = 502; Content = '' } }
+        { Get-NuGetVersionIndex -PackageId 'alcops.analyzers' } | Should-Throw -ExceptionMessage '*(HTTP 502)'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.NuGet -Times 4 -Exactly
     }
 }

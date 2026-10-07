@@ -80,6 +80,19 @@ function New-StubFeed {
     return (Resolve-Path -LiteralPath $Destination).ProviderPath
 }
 
+function Get-FaultyToolsFolder {
+    # The tools/net<N>.0/any folder of tools-stable built with one -Fault of Build-StubPackage.ps1 (not cached; a few
+    # seconds per build). Returns the extracted package root.
+    param([Parameter(Mandatory)][ValidateSet('MissingDependency', 'ThrowingConstructor')][string]$Fault, [Parameter(Mandatory)][string]$Destination)
+    $feed = Join-Path $Destination 'feed'
+    $output = & (Get-TestPwshPath) -NoProfile -NonInteractive -File (Join-Path $script:StubRoot 'Build-StubPackage.ps1') -Variant 'tools-stable' -OutputPath $feed -Fault $Fault 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Build-StubPackage.ps1 -Fault $Fault failed: $($output -join "`n")" }
+    $id, $version = $script:StubPackageIds['tools-stable']
+    $root = Join-Path $Destination "$id.$version"
+    [System.IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $feed $id $version "$id.$version.nupkg"), $root)
+    return $root
+}
+
 function Expand-StubPackage {
     # The extracted folder of one variant's nupkg under Destination; returns { Root, ToolsDir or AlcopsDir }.
     param([Parameter(Mandatory)][string]$Variant, [Parameter(Mandatory)][string]$Destination)

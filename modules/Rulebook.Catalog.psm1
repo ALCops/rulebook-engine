@@ -301,7 +301,8 @@ function Update-CatalogFromScan {
       this version, firstStableVersion when stable, advertised false when no analyzer returns it): NewIds.
     - A catalog id without package (a seeded id) gets the package fields: Recorded, never NewIds.
     - Stable: firstStableVersion is set once; Promoted when the id was first seen in a prerelease and -QuarantinedIds
-      lists it (quarantined by an earlier scan). Defaults that differ are overwritten and one defaultChanges element
+      lists it (quarantined by an earlier scan). An existing entry with advertised false that an analyzer returns now:
+      NewlyAdvertised. Defaults that differ are overwritten and one defaultChanges element
       per field and version is appended: ChangedDefaults. Title and docs are refreshed: Refreshed. advertised and
       deprecated follow the descriptor. Catalog ids of this package that the version does not carry: Vanished (kept).
     - Prerelease: differing defaults are listed in PrereleaseDefaultChanges only; text is never changed.
@@ -323,7 +324,7 @@ function Update-CatalogFromScan {
     $entries = Get-OrdinalMap
     foreach ($key in $Catalog.Entries.Keys) { $entries[$key] = Copy-CatalogEntry -Entry $Catalog.Entries[$key] }
     $lists = @{}
-    foreach ($name in 'NewIds', 'Promoted', 'ChangedDefaults', 'PrereleaseDefaultChanges', 'Refreshed', 'Vanished', 'Unadvertised', 'Deprecated', 'Recorded') { $lists[$name] = [System.Collections.Generic.List[object]]::new() }
+    foreach ($name in 'NewIds', 'NewlyAdvertised', 'Promoted', 'ChangedDefaults', 'PrereleaseDefaultChanges', 'Refreshed', 'Vanished', 'Unadvertised', 'Deprecated', 'Recorded') { $lists[$name] = [System.Collections.Generic.List[object]]::new() }
 
     foreach ($id in $Records.Keys) {
         $record = $Records[$id]
@@ -382,6 +383,9 @@ function Update-CatalogFromScan {
             $lists.Refreshed.Add([pscustomobject]@{ Id = $id; Field = $text.Field; From = $entry.($text.Property); To = $text.Value })
             $entry.($text.Property) = $text.Value
         }
+        # An id that was only a field and is returned by an analyzer now goes live at its default: NewlyAdvertised, which
+        # the quarantine treats like a promoted id (seed or not; D46 covers the first scan).
+        if ($entry.Advertised -eq $false -and [bool]$record.Advertised) { $lists.NewlyAdvertised.Add($id) }
         $entry.Advertised = [bool]$record.Advertised
         $entry.Deprecated = [bool]$record.Deprecated
     }
@@ -397,6 +401,7 @@ function Update-CatalogFromScan {
         Version                  = $Version
         Channel                  = $Channel
         NewIds                   = [string[]]@($lists.NewIds)
+        NewlyAdvertised          = [string[]]@($lists.NewlyAdvertised)
         Promoted                 = [string[]]@($lists.Promoted)
         ChangedDefaults          = $lists.ChangedDefaults.ToArray()
         PrereleaseDefaultChanges = $lists.PrereleaseDefaultChanges.ToArray()
@@ -518,12 +523,14 @@ function Get-NewPackageVersion {
     The package versions the scan has not recorded yet: { PackageId, Channel, Version }[].
     .DESCRIPTION
     -Channels holds { PackageId, Stable, Prerelease } (Select-NuGetChannelVersion per package). A channel whose
-    version differs from the state is new; a $null version (no prerelease, or prerelease not included) is skipped.
-    Ordered tools before alcops.analyzers, stable before prerelease.
+    version sorts after the recorded one (Compare-NuGetVersion) is new; an equal or older version (an index behind the
+    state) is skipped and, with -Skipped, added there as '<package> <channel> <version> (recorded <version>)'; a
+    $null version (no prerelease, or prerelease not included) is skipped. A recorded version that does not parse counts
+    as older. Ordered tools before alcops.analyzers, stable before prerelease.
     #>
     [CmdletBinding()]
     [OutputType([object[]])]
-    param([Parameter(Mandatory)]$State, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Channels)
+    param([Parameter(Mandatory)]$State, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Channels, [AllowNull()][System.Collections.Generic.List[string]]$Skipped)
     $sorted = @($Channels | Sort-Object { Get-PackageRank $_.PackageId }, { $_.PackageId })
     $result = foreach ($item in $sorted) {
         $recorded = if ($State.Packages.Contains($item.PackageId)) { $State.Packages[$item.PackageId] } else { $null }
@@ -531,7 +538,13 @@ function Get-NewPackageVersion {
             $version = if ($channel -eq 'stable') { $item.Stable } else { $item.Prerelease }
             if ([string]::IsNullOrEmpty($version)) { continue }
             $last = if ($null -eq $recorded) { $null } elseif ($channel -eq 'stable') { $recorded.Stable } else { $recorded.Prerelease }
-            if ($null -ne $last -and $last.Version -ceq $version) { continue }
+            if ($null -ne $last -and -not [string]::IsNullOrEmpty($last.Version)) {
+                $newer = try { (Compare-NuGetVersion -Reference $version -Difference $last.Version) -gt 0 } catch { $true }
+                if (-not $newer) {
+                    if ($null -ne $Skipped -and $last.Version -cne $version) { $Skipped.Add("$($item.PackageId) $channel $version (recorded $($last.Version))") }
+                    continue
+                }
+            }
             [pscustomobject]@{ PackageId = $item.PackageId; Channel = $channel; Version = $version }
         }
     }

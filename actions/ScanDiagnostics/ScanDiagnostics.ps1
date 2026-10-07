@@ -182,6 +182,10 @@ try {
         # 6. The candidate does not validate.
         foreach ($finding in @($plan.Findings | Where-Object Severity -EQ 'error')) {
             $message = if ($finding.Id) { "$($finding.Id): $($finding.Message)" } else { $finding.Message }
+            # C7 is a warning before the first scan and an error after it; name the remedy.
+            if ($finding.Rule -ceq 'C7' -and $finding.Id) {
+                $message += "; add $($finding.Id) to catalog/diagnostics.json or remove it from $($finding.File); the scan writes catalog/scan-state.json, which turns the C7 warning into an error"
+            }
             $file = if ($finding.File) { [System.IO.Path]::GetRelativePath($workspace, (Join-Path $root $finding.File)).Replace($separator, '/') } else { $null }
             Add-Annotation -File $file -Title $finding.Rule -Message "The scanned rulebook would not validate: $message"
         }
@@ -217,6 +221,7 @@ try {
             default { $summaryMessage = "Pull request: $($publish.PullRequestUrl)" + $(if ($publish.Fallback) { ' (the direct commit was refused)' } else { '' }) }
         }
         Add-Annotation -Command notice -Message $summaryMessage
+        if ($publish.PSObject.Properties['ClosedPullRequestUrl'] -and $publish.ClosedPullRequestUrl) { Add-Annotation -Command notice -Message "Pull request closed: $($publish.ClosedPullRequestUrl)" }
     }
 } catch {
     Add-Annotation -Message $_.Exception.Message
@@ -249,7 +254,7 @@ $outputs = [ordered]@{
     changedDefaults = $(if ($counts) { $counts.ChangedDefaults } else { 0 })
     released        = $(if ($counts) { $counts.Released } else { 0 })
     scannedVersions = $(if ($null -ne $plan) { @($plan.Scanned | ForEach-Object { "$($_.PackageId)@$($_.Version):$($_.Channel)" }) -join ',' } else { '' })
-    pullRequestUrl  = $(if ($null -ne $publish -and $publish.PullRequestUrl) { $publish.PullRequestUrl } else { '' })
+    pullRequestUrl  = $(if ($null -ne $publish -and $publish.PullRequestUrl) { $publish.PullRequestUrl } elseif ($null -ne $publish -and $publish.PSObject.Properties['ClosedPullRequestUrl'] -and $publish.ClosedPullRequestUrl) { $publish.ClosedPullRequestUrl } else { '' })
     candidatePath   = $(if ($null -ne $plan -and $plan.CandidatePath -and $result -eq 'dry-run') { $plan.CandidatePath } else { '' })
     elapsedSeconds  = [math]::Round($watch.Elapsed.TotalSeconds, 1).ToString([System.Globalization.CultureInfo]::InvariantCulture)
     failure         = $script:failure

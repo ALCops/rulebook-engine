@@ -198,6 +198,18 @@ Describe 'Update-CatalogFromScan' {
         (ConvertTo-CatalogJson -Entries @($shown.Catalog.Entries['LC0000'])) | Should-NotMatchString 'advertised'
     }
 
+    It 'lists an id that only a field defined and an analyzer returns now as newly advertised (stable only)' {
+        $v1 = Update-CatalogFromScan -Catalog $catalog -Records (New-Records @((New-Record -Id 'LC0000' -Advertised $false))) -PackageId $alcops -Version '1.3.1' -Channel stable
+        $v1.NewlyAdvertised | Should-BeCollection @()
+        $pre = Update-CatalogFromScan -Catalog $v1.Catalog -Records (New-Records @((New-Record -Id 'LC0000'))) -PackageId $alcops -Version '1.4.0-beta.1' -Channel prerelease
+        $pre.NewlyAdvertised | Should-BeCollection @()
+        $v3 = Update-CatalogFromScan -Catalog $pre.Catalog -Records (New-Records @((New-Record -Id 'LC0000'))) -PackageId $alcops -Version '1.4.0' -Channel stable
+        $v3.NewlyAdvertised | Should-BeCollection @('LC0000')
+        $v3.NewIds | Should-BeCollection @()
+        $v3.Catalog.Entries['LC0000'].Advertised | Should-BeTrue
+        (Update-CatalogFromScan -Catalog $v3.Catalog -Records (New-Records @((New-Record -Id 'LC0000'))) -PackageId $alcops -Version '1.4.1' -Channel stable).NewlyAdvertised | Should-BeCollection @()
+    }
+
     It 'sets deprecated from the stable descriptor' {
         $diff = Update-CatalogFromScan -Catalog $catalog -Records (New-Records @((New-Record -Id 'LC0001' -Deprecated $true))) -PackageId $alcops -Version '1.4.0' -Channel stable
         $diff.Deprecated | Should-BeCollection @('LC0001')
@@ -257,6 +269,17 @@ Describe 'Scan state' {
             'microsoft.dynamics.businesscentral.development.tools prerelease 30.0.42.60748-beta'
             'alcops.analyzers prerelease 1.4.0-beta.1'
         )
+    }
+
+    It 'skips a version that is not newer than the recorded one and lists it' {
+        $state = Read-ScanState -Path (Join-Path $validDir 'two-packages.json')
+        $channels = @(
+            [pscustomobject]@{ PackageId = 'microsoft.dynamics.businesscentral.development.tools'; Stable = '18.0.41.1'; Prerelease = '30.0.42.60748-beta' }
+            [pscustomobject]@{ PackageId = 'alcops.analyzers'; Stable = '1.3.2'; Prerelease = $null }
+        )
+        $skipped = [System.Collections.Generic.List[string]]::new()
+        @(Get-NewPackageVersion -State $state -Channels $channels -Skipped $skipped | ForEach-Object { "$($_.PackageId) $($_.Channel) $($_.Version)" }) | Should-BeCollection @('alcops.analyzers stable 1.3.2')
+        @($skipped) | Should-BeCollection @('microsoft.dynamics.businesscentral.development.tools stable 18.0.41.1 (recorded 18.0.43.1464)')
     }
 
     It 'skips a channel without a version' {

@@ -22,8 +22,8 @@ BeforeAll {
     function New-Diff {
 
         [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; builds an object or writes only to TestDrive')]
-        param([string]$Version = '1.4.0', [string]$Channel = 'stable', [string[]]$NewIds = @(), [string[]]$Promoted = @(), [string[]]$Unadvertised = @())
-        return [pscustomobject]@{ PackageId = 'alcops.analyzers'; Version = $Version; Channel = $Channel; NewIds = $NewIds; Promoted = $Promoted; Unadvertised = $Unadvertised }
+        param([string]$Version = '1.4.0', [string]$Channel = 'stable', [string[]]$NewIds = @(), [string[]]$Promoted = @(), [string[]]$Unadvertised = @(), [string[]]$NewlyAdvertised = @())
+        return [pscustomobject]@{ PackageId = 'alcops.analyzers'; Version = $Version; Channel = $Channel; NewIds = $NewIds; Promoted = $Promoted; Unadvertised = $Unadvertised; NewlyAdvertised = $NewlyAdvertised }
     }
 
     function Get-Rules {
@@ -143,6 +143,12 @@ Describe 'Update-QuarantineFromScan' {
         @($result.Added | ForEach-Object { "$($_.Stage) $($_.Id)" }) | Should-BeCollection @('default LC0100')
         (Read-QuarantineFile -Path (Join-Path $root 'quarantine.ci.json')).Rules['LC0100'] | Should-BeLikeString '*1.4.0-beta.1 (prerelease), quarantined 2026-10-08*'
         (Read-QuarantineFile -Path (Join-Path $root 'quarantine.default.json')).Rules['LC0100'] | Should-BeLikeString '*1.4.0 (stable), quarantined 2026-10-11*'
+    }
+
+    It 'quarantines a newly advertised id in stages, seed or not' {
+        $result = Update-QuarantineFromScan -RepositoryRoot $root -Settings $settings -Policy $policy -Diffs @(New-Diff -NewlyAdvertised 'LC0000', 'AL0200') -Chains $chains -Now $now
+        @($result.Added | ForEach-Object { "$($_.Stage) $($_.Id)" }) | Should-BeCollection @('default LC0000', 'ci LC0000')
+        (Read-QuarantineFile -Path (Join-Path $root 'quarantine.default.json')).Rules['LC0000'] | Should-Be 'New in alcops.analyzers 1.4.0 (stable), quarantined 2026-10-08. Review and adopt.'
     }
 
     It 'never quarantines an unadvertised id or one a level file mentions' {

@@ -12,15 +12,33 @@ $script:VersionPattern = '^(?<numbers>\d+(\.\d+){0,3})(-(?<label>[0-9A-Za-z-]+(\
 
 #region Internal helpers
 
+# Seconds to wait before the second, third and fourth attempt of a request (a test sets them to 0).
+$script:RetryDelaySeconds = @(2, 5, 10)
+
 function Invoke-NuGetRequest {
-    # The single Invoke-WebRequest of the module: a non-2xx answer is returned, not thrown.
+    # The single Invoke-WebRequest of the module: a non-2xx answer is returned, not thrown. A 5xx or 429 answer and a
+    # request without an answer (timeout, connection) are retried three times with a short backoff; a 404 is not.
     param([Parameter(Mandatory)][string]$Uri, [string]$OutFile, [int]$TimeoutSec = 120)
     $request = @{ Uri = $Uri; TimeoutSec = $TimeoutSec; SkipHttpErrorCheck = $true; ErrorAction = 'Stop' }
     if ($OutFile) {
         $request.OutFile = $OutFile
         $request.PassThru = $true
     }
-    return Invoke-WebRequest @request
+    for ($attempt = 0; ; $attempt++) {
+        $last = $attempt -ge $script:RetryDelaySeconds.Count
+        try {
+            $response = Invoke-WebRequest @request
+        } catch {
+            if ($last) { throw }
+            Write-Verbose "NuGet request $Uri failed ($($_.Exception.Message)); retrying"
+            Start-Sleep -Seconds $script:RetryDelaySeconds[$attempt]
+            continue
+        }
+        $status = [int]$response.StatusCode
+        if ($last -or ($status -lt 500 -and $status -ne 429)) { return $response }
+        Write-Verbose "NuGet request $Uri answered HTTP $status; retrying"
+        Start-Sleep -Seconds $script:RetryDelaySeconds[$attempt]
+    }
 }
 
 function Get-SourceRoot {
@@ -41,6 +59,13 @@ function New-NuGetException {
     $exception.Data['Stage'] = 'nuget'
     if ($StatusCode) { $exception.Data['StatusCode'] = $StatusCode }
     return $exception
+}
+
+function Test-NuGetVersion {
+    # True when Version parses as a NuGet version (the parser of Compare-NuGetVersion).
+    param([AllowNull()][AllowEmptyString()][string]$Version)
+    if ([string]::IsNullOrWhiteSpace($Version)) { return $false }
+    return [regex]::IsMatch($Version.Trim(), $script:VersionPattern)
 }
 
 function ConvertTo-VersionPart {
@@ -102,19 +127,25 @@ function Compare-NuGetVersion {
 function Select-NuGetChannelVersion {
     <#
     .SYNOPSIS
-    The newest stable and prerelease version of a version list: { Stable, Prerelease }.
+    The newest stable and prerelease version of a version list: { Stable, Prerelease, Invalid }.
     .DESCRIPTION
-    Stable is the highest version without a release label. Prerelease is the highest version with one, only with
+    Every entry goes through the parser of Compare-NuGetVersion first; an entry that is not a NuGet version (an empty
+    string, '../x') is skipped and listed in Invalid, so a sole entry is validated too. Stable is the highest version
+    without a release label. Prerelease is the highest version with one, only with
     -IncludePrerelease and only when it sorts after Stable (an ALCops prerelease older than the stable release is
     not current); else $null. The order of -Versions does not matter.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
-    param([Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Versions, [switch]$IncludePrerelease)
+    param([Parameter(Mandatory)][AllowEmptyCollection()][AllowEmptyString()][string[]]$Versions, [switch]$IncludePrerelease)
     $stable = $null
     $prerelease = $null
+    $invalid = [System.Collections.Generic.List[string]]::new()
     foreach ($version in $Versions) {
-        if ([string]::IsNullOrWhiteSpace($version)) { continue }
+        if (-not (Test-NuGetVersion -Version $version)) {
+            $invalid.Add([string]$version)
+            continue
+        }
         if (($version -split '\+')[0].Contains('-')) {
             if ($null -eq $prerelease -or (Compare-NuGetVersion -Reference $version -Difference $prerelease) -gt 0) { $prerelease = $version }
         } elseif ($null -eq $stable -or (Compare-NuGetVersion -Reference $version -Difference $stable) -gt 0) {
@@ -123,7 +154,7 @@ function Select-NuGetChannelVersion {
     }
     if (-not $IncludePrerelease) { $prerelease = $null }
     if ($null -ne $prerelease -and $null -ne $stable -and (Compare-NuGetVersion -Reference $prerelease -Difference $stable) -le 0) { $prerelease = $null }
-    return [pscustomobject]@{ Stable = $stable; Prerelease = $prerelease }
+    return [pscustomobject]@{ Stable = $stable; Prerelease = $prerelease; Invalid = $invalid.ToArray() }
 }
 
 function Get-NuGetVersionIndex {
@@ -179,7 +210,8 @@ function Save-NuGetPackage {
     .DESCRIPTION
     The nupkg goes to <Path>/<id>.<version>.nupkg and is extracted into <Path>/<id>.<version>/, which is deleted
     first when present. A folder -Source is copied from disk. A missing package or a non-200 answer throws with
-    Data['Stage'] = 'nuget'.
+    Data['Stage'] = 'nuget'. A version that is not a NuGet version, a nupkg or extract path outside -Path, or a zip
+    entry that would land outside the extract folder throws before anything is written there.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -191,11 +223,16 @@ function Save-NuGetPackage {
     )
     $id = $PackageId.ToLowerInvariant()
     $v = $Version.ToLowerInvariant()
+    if (-not (Test-NuGetVersion -Version $v)) { throw (New-NuGetException -Message "'$Version' is not a NuGet version; $id is not downloaded") }
     # [System.IO] resolves a relative path against the process directory, not the PowerShell location.
-    $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    $Path = [System.IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path))
+    $nupkg = [System.IO.Path]::GetFullPath((Join-Path $Path "$id.$v.nupkg"))
+    $extract = [System.IO.Path]::GetFullPath((Join-Path $Path "$id.$v"))
+    $prefix = $Path.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    foreach ($target in $nupkg, $extract) {
+        if (-not $target.StartsWith($prefix, [System.StringComparison]::Ordinal)) { throw (New-NuGetException -Message "$id $Version would be written outside $Path ($target)") }
+    }
     [void][System.IO.Directory]::CreateDirectory($Path)
-    $nupkg = Join-Path $Path "$id.$v.nupkg"
-    $extract = Join-Path $Path "$id.$v"
     $url = Get-NuGetPackageUrl -PackageId $id -Version $v -Source $Source
     if (Test-FolderSource -Source (Get-SourceRoot -Source $Source)) {
         if (-not (Test-Path -LiteralPath $url -PathType Leaf)) { throw (New-NuGetException -Message "Could not download $id $v (HTTP 404)" -StatusCode 404) }
@@ -209,9 +246,11 @@ function Save-NuGetPackage {
         }
     }
     if (Test-Path -LiteralPath $extract) { Remove-Item -LiteralPath $extract -Recurse -Force }
+    # ExtractToDirectory refuses an entry that would land outside the folder (a '../' name); the folder is removed then.
     try {
         [System.IO.Compression.ZipFile]::ExtractToDirectory($nupkg, $extract)
     } catch {
+        if (Test-Path -LiteralPath $extract) { Remove-Item -LiteralPath $extract -Recurse -Force }
         throw (New-NuGetException -Message "$id $v is not a readable package: $($_.Exception.Message)")
     }
     return [pscustomobject]@{ PackageId = $id; Version = $Version; NupkgPath = $nupkg; ExtractPath = $extract; Bytes = (Get-Item -LiteralPath $nupkg).Length }

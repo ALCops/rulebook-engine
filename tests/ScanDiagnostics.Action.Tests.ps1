@@ -97,7 +97,8 @@ Describe 'actions/ScanDiagnostics/action.yaml' {
         foreach ($name in 'TOKEN', 'INCLUDEPRERELEASE', 'DIRECTCOMMIT', 'DRYRUN', 'BASEBRANCH', 'REPOSITORYROOT', 'ACTOR', 'PACKAGESOURCE') {
             $yaml | Should-MatchString "(?m)^        INPUT_$($name): \`$\{\{ inputs\.\w+ \}\}$"
         }
-        $yaml | Should-MatchString '(?m)^        GITHUB_TOKEN: \$\{\{ github\.token \}\}$'
+        # The scan needs no workflow token; the extraction child must not inherit one either.
+        $yaml | Should-NotMatchString 'GITHUB_TOKEN'
         $run | Should-MatchString 'GITHUB_ACTION_PATH'
         $run | Should-MatchString 'exit \$result\.ExitCode'
     }
@@ -215,7 +216,7 @@ Describe 'ScanDiagnostics.ps1' {
         $run.Result.ExitCode | Should-Be 1
         $run.Result.Failure | Should-Be 'validation'
         $leaf = Split-Path -Leaf $root
-        @($run.Result.Annotations) | Should-ContainCollection @("::error file=$leaf/base/complete.ruleset.json,title=C7::The scanned rulebook would not validate: LC0999: LC0999 is not in catalog/diagnostics.json (catalog/scan-state.json exists)")
+        @($run.Result.Annotations) | Should-ContainCollection @("::error file=$leaf/base/complete.ruleset.json,title=C7::The scanned rulebook would not validate: LC0999: LC0999 is not in catalog/diagnostics.json (catalog/scan-state.json exists); add LC0999 to catalog/diagnostics.json or remove it from base/complete.ruleset.json; the scan writes catalog/scan-state.json, which turns the C7 warning into an error")
     }
 
     It 'fails with failure nuget when the package source has no index' {

@@ -67,6 +67,29 @@ function Get-DefaultPwshPath {
     return $command.Source
 }
 
+function Test-SecretVariable {
+    # A variable the extraction child must not see: the action inputs and every token.
+    param([Parameter(Mandatory)][string]$Name)
+    return $Name -like 'INPUT_*' -or $Name -like '*TOKEN' -or $Name -in 'GITHUB_TOKEN', 'GH_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN'
+}
+
+function New-ExtractionStartInfo {
+    # The start info of the extraction child, its environment without secrets (Test-SecretVariable).
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object; changes no state')]
+    param([Parameter(Mandatory)][string]$PwshPath, [Parameter(Mandatory)][string]$EncodedCommand)
+    $info = [System.Diagnostics.ProcessStartInfo]::new($PwshPath)
+    foreach ($argument in '-NoProfile', '-NonInteractive', '-OutputFormat', 'Text', '-EncodedCommand', $EncodedCommand) { $info.ArgumentList.Add($argument) }
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $info.UseShellExecute = $false
+    $info.StandardOutputEncoding = $script:Utf8NoBom
+    $info.StandardErrorEncoding = $script:Utf8NoBom
+    foreach ($name in @($info.Environment.Keys)) {
+        if (Test-SecretVariable -Name ([string]$name)) { [void]$info.Environment.Remove($name) }
+    }
+    return $info
+}
+
 function ConvertTo-DescriptorRow {
     param($Descriptor, [Parameter(Mandatory)][string]$Assembly, [Parameter(Mandatory)][string]$Source, [bool]$Advertised)
     $link = Get-PropertyValue $Descriptor 'HelpLinkUri'
@@ -227,6 +250,7 @@ function Get-AnalyzerDescriptor {
             if (-not $found.Contains($expected)) { throw (New-ExtractException -Message "Expected assembly $expected.dll is missing (searched $($script:ResolveDirs -join ', '))") }
         }
         $fieldRows = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
+        $fieldErrors = [System.Collections.Generic.List[string]]::new()
         $flags = [System.Reflection.BindingFlags]'Static, Public, NonPublic, DeclaredOnly'
         foreach ($dll in $dlls) {
             try {
@@ -265,7 +289,14 @@ function Get-AnalyzerDescriptor {
                 if ($type.ContainsGenericParameters) { continue }
                 $members = @($type.GetFields($flags) | Where-Object { $_.FieldType -eq $descriptorType }) + @($type.GetProperties($flags) | Where-Object { $_.PropertyType -eq $descriptorType -and $_.GetIndexParameters().Count -eq 0 })
                 foreach ($member in $members) {
-                    try { $descriptor = $member.GetValue($null) } catch { continue }
+                    # A getter that throws does not fail the run (the descriptor is not needed for the advertised
+                    # ones), but it is reported.
+                    try {
+                        $descriptor = $member.GetValue($null)
+                    } catch {
+                        $fieldErrors.Add("$($type.FullName).$($member.Name): $($_.Exception.GetBaseException().Message)")
+                        continue
+                    }
                     if ($null -eq $descriptor -or $fieldRows.Contains([string]$descriptor.Id)) { continue }
                     $fieldRows[[string]$descriptor.Id] = ConvertTo-DescriptorRow -Descriptor $descriptor -Assembly $assemblyName -Source "$($type.FullName).$($member.Name)" -Advertised $false
                 }
@@ -282,6 +313,7 @@ function Get-AnalyzerDescriptor {
             assemblies            = $assemblies.ToArray()
             rows                  = $rows.ToArray()
             fieldOnly             = $fieldOnly
+            fieldErrors           = $fieldErrors.ToArray()
             compilerTitlesMissing = $titlesMissing
             elapsedSeconds        = [math]::Round($watch.Elapsed.TotalSeconds, 2)
         }
@@ -303,7 +335,10 @@ function Invoke-DescriptorExtraction {
     pwsh -NoProfile -NonInteractive -EncodedCommand imports this module and writes the result to
     <WorkPath>/descriptors-<guid>.json. -PwshPath defaults to the pwsh in $PSHOME (Get-Command pwsh as the fallback).
     A non-zero exit, a timeout (-TimeoutSeconds, default 300; the child is killed) or a missing result file throws
-    'Extraction failed for <ToolsDir>: <the last 20 output lines>' with Data['Stage'] = 'extract'.
+    'Extraction failed for <ToolsDir>: <the last 20 output lines>' with Data['Stage'] = 'extract' (and Data['ProcessId']).
+    The child gets no token: every INPUT_* variable, GITHUB_TOKEN, GH_TOKEN, ACTIONS_RUNTIME_TOKEN,
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN and any variable whose name ends in TOKEN is removed from its environment, because
+    it loads the downloaded DLLs and runs their analyzer constructors.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.IDictionary])]
@@ -329,13 +364,7 @@ function Invoke-DescriptorExtraction {
     if ($expected.Count -gt 0) { [void]$command.Append(' -ExpectedAssembly @(' + (@($expected | ForEach-Object { & $quote $_ }) -join ', ') + ')') }
     $encoded = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command.ToString()))
 
-    $info = [System.Diagnostics.ProcessStartInfo]::new($PwshPath)
-    foreach ($argument in '-NoProfile', '-NonInteractive', '-OutputFormat', 'Text', '-EncodedCommand', $encoded) { $info.ArgumentList.Add($argument) }
-    $info.RedirectStandardOutput = $true
-    $info.RedirectStandardError = $true
-    $info.UseShellExecute = $false
-    $info.StandardOutputEncoding = $script:Utf8NoBom
-    $info.StandardErrorEncoding = $script:Utf8NoBom
+    $info = New-ExtractionStartInfo -PwshPath $PwshPath -EncodedCommand $encoded
     $process = [System.Diagnostics.Process]::Start($info)
     $outputTask = $process.StandardOutput.ReadToEndAsync()
     $errorTask = $process.StandardError.ReadToEndAsync()
@@ -346,7 +375,9 @@ function Invoke-DescriptorExtraction {
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         try { $process.Kill($true) } catch { Write-Verbose "The extraction process could not be killed: $($_.Exception.Message)" }
         $process.WaitForExit()
-        throw (New-ExtractException -Message "Extraction failed for $ToolsDir`: no result after $TimeoutSeconds s (the process was stopped)")
+        $exception = New-ExtractException -Message "Extraction failed for $ToolsDir`: no result after $TimeoutSeconds s (the process was stopped)"
+        $exception.Data['ProcessId'] = $process.Id
+        throw $exception
     }
     $process.WaitForExit()
     if ($process.ExitCode -ne 0) { throw (New-ExtractException -Message "Extraction failed for $ToolsDir`: $(& $tail)") }
@@ -421,6 +452,7 @@ function ConvertTo-DiagnosticRecord {
         Conflicts             = $conflicts.ToArray()
         UnknownPrefixes       = $unknown.ToArray()
         CompilerTitlesMissing = [bool]$Result['compilerTitlesMissing']
+        FieldErrors           = [string[]]@($Result['fieldErrors'] | Where-Object { $_ })
     }
 }
 

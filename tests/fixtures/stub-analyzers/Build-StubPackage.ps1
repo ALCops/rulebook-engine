@@ -23,7 +23,10 @@ param(
     # Versions added to index.json without a package (the alcops index lists 1.3.0-beta.1, never requested).
     [string[]]$IndexOnly = @(),
     # An assembly name whose DLL is written as a text file: the extraction must fail loudly on it.
-    [string]$BreakAssembly
+    [string]$BreakAssembly,
+    # Extra tools cops that make the extraction fail: MissingDependency (Microsoft.Dynamics.Nav.BrokenCop references
+    # an assembly the package does not ship) and ThrowingConstructor (Microsoft.Dynamics.Nav.ThrowingCop).
+    [ValidateSet('MissingDependency', 'ThrowingConstructor')][string[]]$Fault = @()
 )
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
@@ -94,6 +97,15 @@ try {
     $built = [System.Collections.Generic.List[string]]::new()
     if ($spec.Layout -eq 'tools') { $built.Add($codeAnalysis) }
     foreach ($cop in $spec.Cops.GetEnumerator()) { $built.Add((& $compile $cop.Value $cop.Key @($codeAnalysis))) }
+    if ('MissingDependency' -in $Fault) {
+        # Compiled into a folder of its own so it is not shipped.
+        $missingBin = Join-Path $work 'missing'
+        [void](New-Item -ItemType Directory -Path $missingBin -Force)
+        $missing = & $compile 'MissingDependency.cs' 'Stub.Missing' @()
+        Move-Item -LiteralPath $missing -Destination (Join-Path $missingBin 'Stub.Missing.dll')
+        $built.Add((& $compile 'BrokenCop.cs' 'Microsoft.Dynamics.Nav.BrokenCop' @($codeAnalysis, (Join-Path $missingBin 'Stub.Missing.dll'))))
+    }
+    if ('ThrowingConstructor' -in $Fault) { $built.Add((& $compile 'ThrowingCop.cs' 'Microsoft.Dynamics.Nav.ThrowingCop' @($codeAnalysis))) }
     if ($BreakAssembly) {
         $broken = Join-Path $bin "$BreakAssembly.dll"
         if (-not (Test-Path -LiteralPath $broken)) { throw "BreakAssembly $BreakAssembly is not part of $Variant" }

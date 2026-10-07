@@ -341,13 +341,22 @@ Describe 'ConvertTo-UpdatedWorkflowText' {
         $result | Should-Be $scanText.Replace("- cron: '17 4 * * *'", "- cron: '5 3 * * 1-5'")
     }
 
-    It 'removes the scan schedule byte for byte when scan.schedule is <Case>' -ForEach @(
-        @{ Case = 'null'; Settings = @{ scan = @{ schedule = $null } } }
-        @{ Case = 'absent'; Settings = @{} }
-    ) {
-        $result = ConvertTo-UpdatedWorkflowText -Text $scanText -FileName 'ScanDiagnostics.yaml' -Settings $Settings -TemplateUrl $url
+    It 'removes the scan schedule byte for byte when scan.schedule is null' {
+        $result = ConvertTo-UpdatedWorkflowText -Text $scanText -FileName 'ScanDiagnostics.yaml' -Settings @{ scan = @{ schedule = $null } } -TemplateUrl $url
         $result | Should-Be $scanText.Replace("  schedule:`n    - cron: '17 4 * * *'`n", '')
         ConvertTo-UpdatedWorkflowText -Text $result -FileName 'ScanDiagnostics.yaml' -Settings @{ scan = @{ schedule = '17 4 * * *' } } -TemplateUrl $url | Should-Be $scanText
+    }
+
+    It 'keeps the shipped scan schedule when the settings have <Case> (an organization from before WP08)' -ForEach @(
+        @{ Case = 'no scan key'; Settings = @{ update = @{ schedule = $null } } }
+        @{ Case = 'a scan key without schedule'; Settings = @{ scan = @{} } }
+    ) {
+        ConvertTo-UpdatedWorkflowText -Text $scanText -FileName 'ScanDiagnostics.yaml' -Settings $Settings -TemplateUrl $url | Should-Be $scanText
+    }
+
+    It 'still removes the update schedule when update.schedule is absent' {
+        $added = ConvertTo-UpdatedWorkflowText -Text $updateText -FileName 'UpdateRulebookSystemFiles.yaml' -Settings @{ update = @{ schedule = '0 6 * * 1' } } -TemplateUrl $url
+        ConvertTo-UpdatedWorkflowText -Text $added -FileName 'UpdateRulebookSystemFiles.yaml' -Settings @{} -TemplateUrl $url | Should-Be $updateText.Replace('{TEMPLATEURL}', $url)
     }
 
     It 'never crosses the two schedule keys' {

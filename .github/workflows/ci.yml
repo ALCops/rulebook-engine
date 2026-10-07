@@ -278,6 +278,8 @@ jobs:
           $template = Join-Path $env:RUNNER_TEMP 'template-policy'
           Copy-FixtureTree -Source template -Destination $template
           Edit-FixtureJson -Path (Join-Path $template '.github' 'Rulebook-Settings.json') -Script { $_['quarantine'] = [ordered]@{ stages = @('default', 'ci'); prereleaseStages = @('default', 'ci') } }
+          # Without the seed titles of the compiler ids the scan must read them from CompilerDiagnosticsResources.
+          Edit-FixtureJson -Path (Join-Path $template 'catalog' 'diagnostics.json') -Script { foreach ($entry in @($_['diagnostics'] | Where-Object { $_['analyzer'] -eq 'Compiler' })) { $entry.Remove('title') } }
           Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "scanOrg=$scanOrg", "template=$template"
 
       - name: Scan template/ without a policy (must fail)
@@ -323,6 +325,8 @@ jobs:
           $catalog = Read-CatalogFile -Path (Join-Path $env:CANDIDATE 'catalog' 'diagnostics.json')
           $withPackage = @($catalog.Entries.Values | Where-Object Package)
           if ($withPackage.Count -lt 600) { $failures.Add("only $($withPackage.Count) catalog entries have a package") }
+          $untitled = @($catalog.Entries.Values | Where-Object { $_.Analyzer -eq 'Compiler' -and [string]::IsNullOrWhiteSpace($_.Title) } | ForEach-Object Id)
+          if ($untitled.Count -gt 0) { $failures.Add("$($untitled.Count) compiler ids have no title after the scan (the CompilerDiagnosticsResources path): $(@($untitled | Select-Object -First 10) -join ', ')") }
           $errors = @(Test-Rulebook -RepositoryRoot $env:CANDIDATE | Where-Object Severity -EQ 'error')
           foreach ($finding in $errors) { $failures.Add("$($finding.Rule) $($finding.File) $($finding.Id): $($finding.Message)") }
           $unseen = @($catalog.Entries.Values | Where-Object { -not $_.Package } | ForEach-Object Id)

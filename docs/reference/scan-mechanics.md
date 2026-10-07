@@ -28,23 +28,23 @@ Two packages from `https://api.nuget.org/v3-flatcontainer`: `microsoft.dynamics.
 
 | Function | Rule |
 |---|---|
-| `Get-NuGetVersionIndex -PackageId [-Source]` | `GET <Source>/<id>/index.json`, the id lowercased. A `-Source` that is an existing folder is read from disk (the stub feeds of the suites). A non-200 answer or a missing index throws `Could not read the NuGet index of <id> (HTTP <status>)`, stage `nuget`. |
+| `Get-NuGetVersionIndex -PackageId [-Source]` | `GET <Source>/<id>/index.json`, the id lowercased. A `-Source` that is an existing folder is read from disk (the stub feeds of the suites). A non-200 answer or a missing index throws `Could not read the NuGet index of <id> (HTTP <status>)`, stage `nuget`. Every web request (`Invoke-NuGetRequest`) is retried three times with a short backoff on a 5xx or 429 answer and on a request without an answer; a 404 is not retried. |
 | `Compare-NuGetVersion -Reference -Difference` | NuGet semantic versioning: up to four numeric parts (missing parts are 0, so `1.0` equals `1.0.0.0`); a version without a release label sorts after the same numbers with one; labels compare identifier by identifier (numeric by value, numeric before alphanumeric, else ordinal ignoring case, a shorter prefix first); build metadata is ignored. `1.4.0-beta.2` sorts before `1.4.0-beta.10`. |
-| `Select-NuGetChannelVersion -Versions [-IncludePrerelease]` | Stable is the highest version without a label. Prerelease is the highest version with one, only with `-IncludePrerelease` and only when it sorts after Stable: ALCops `1.3.0-beta.1` after `1.3.1` is no prerelease channel. The index order is never trusted. |
-| `Save-NuGetPackage -PackageId -Version -Path [-Source]` | Downloads `<id>/<version>/<id>.<version>.nupkg` (lowercase) and extracts it into `<Path>/<id>.<version>/` (deleted first). |
+| `Select-NuGetChannelVersion -Versions [-IncludePrerelease]` | Every entry goes through the version parser first; an entry that is not a version (an empty string, `../x`) is skipped, listed in `Invalid` and noted in the pull request, so a sole entry is validated too. Stable is the highest version without a label. Prerelease is the highest version with one, only with `-IncludePrerelease` and only when it sorts after Stable: ALCops `1.3.0-beta.1` after `1.3.1` is no prerelease channel. The index order is never trusted. |
+| `Save-NuGetPackage -PackageId -Version -Path [-Source]` | Downloads `<id>/<version>/<id>.<version>.nupkg` (lowercase) and extracts it into `<Path>/<id>.<version>/` (deleted first). A version that is not a NuGet version, a nupkg or extract path outside `-Path`, or a zip entry that would land outside the extract folder throws before anything is written outside. |
 
-`catalog/scan-state.json` records the version scanned last per package and channel. A channel whose version differs from the state is new (`Get-NewPackageVersion`), ordered tools before alcops and stable before prerelease. A prerelease that is not newer than the stable version is skipped; `includePrerelease: false` leaves the prerelease entries of the state untouched.
+`catalog/scan-state.json` records the version scanned last per package and channel. A channel whose version sorts after the recorded one is new (`Get-NewPackageVersion`), ordered tools before alcops and stable before prerelease; an index that names an equal or older version than the state (a package unlisted on nuget.org) is skipped and noted, so the scan never goes back. A prerelease that is not newer than the stable version is skipped; `includePrerelease: false` leaves the prerelease entries of the state untouched.
 
 ## 2. Extraction
 
 Reflection in pwsh (spike (b), method 1), one child process per package version and channel, so two versions of `Microsoft.Dynamics.Nav.CodeAnalysis` never meet in one process.
 
-- **Folder.** `Resolve-AnalyzerFolder` picks, among the subfolders `net<N>.0` of `tools/` (with `any/` below) or `lib/`, the highest `N` not newer than the running .NET (`net10.0` on `ubuntu-latest` with pwsh 7.6); `netstandard2.1` is never chosen (its LinterCop build drops LC0091). No folder for the runtime throws and names the folders found.
+- **Folder.** `Resolve-AnalyzerFolder` picks, among the subfolders `net<N>.0` of `tools/` (with `any/` below) or `lib/`, the highest `N` not newer than the running .NET (`net10.0` with pwsh 7.6.6 on .NET 10.0.12, observed in spike (b) on runner image 20260927.320.1); `netstandard2.1` is never chosen (its LinterCop build drops LC0091). No folder for the runtime throws and names the folders found.
 - **Host.** A tools version is extracted from its own folder. An ALCops version needs the compiler: it is hosted by the tools version of the same channel from the index (the prerelease tools for an ALCops prerelease, downloaded if this run has not yet), else by the stable tools version.
-- **Child process.** `Invoke-DescriptorExtraction` starts the pwsh of `$PSHOME` (`Get-Command pwsh` as the fallback; under a .NET global tool install the process path is `dotnet`) with `-NoProfile -NonInteractive -OutputFormat Text -EncodedCommand`. The child imports `Rulebook.Extract` and runs `Get-AnalyzerDescriptor`, which writes its result to `<work>/descriptors-<guid>.json`. A non-zero exit, no result after 300 s (the child is killed) or no result file throws `Extraction failed for <ToolsDir>: <the last 20 output lines>`, stage `extract`.
+- **Child process.** `Invoke-DescriptorExtraction` starts the pwsh of `$PSHOME` (`Get-Command pwsh` as the fallback; under a .NET global tool install the process path is `dotnet`) with `-NoProfile -NonInteractive -OutputFormat Text -EncodedCommand`. The child imports `Rulebook.Extract` and runs `Get-AnalyzerDescriptor`, which writes its result to `<work>/descriptors-<guid>.json`. The child gets no token: every `INPUT_*` variable, `GITHUB_TOKEN`, `GH_TOKEN`, `ACTIONS_RUNTIME_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_TOKEN` and any variable whose name ends in `TOKEN` is removed from its environment, because it loads the downloaded DLLs and runs their analyzer constructors. A non-zero exit, no result after 300 s (the child is killed) or no result file throws `Extraction failed for <ToolsDir>: <the last 20 output lines>`, stage `extract`.
 - **Loading.** `LoadFrom` on `Microsoft.Dynamics.Nav.CodeAnalysis.dll`, then every `Microsoft.Dynamics.Nav.*Cop.dll` of the tools folder and every `ALCops.*.dll` of the ALCops folder, with an `AssemblyResolve` handler that probes the ALCops folder, then the tools folder (ALCops.LinterCop references `Microsoft.Dynamics.Nav.CodeAnalysis.Workspaces`). The handler reads its folders from a module variable and makes .NET calls only: a handler built with `GetNewClosure()` that called `Join-Path` and `Test-Path` overflowed the stack of the child (observed while building the stub fixture).
 - **Compiler ids.** The internal enum `Microsoft.Dynamics.Nav.CodeAnalysis.ErrorCode`: members of 100 and up named `WRN_` (Warning), `INF_` (Info) or `HDN_` (Hidden), id `AL<n:0000>`, enabled; titles from the resource `CompilerDiagnosticsResources` (a missing resource leaves the titles empty and notes it).
-- **Cop ids.** Every non-abstract `DiagnosticAnalyzer` with a parameterless constructor is instantiated and its `SupportedDiagnostics` enumerated (an `ImmutableArray` or an array). A second pass reads the static fields and properties of type `DiagnosticDescriptor`; an id found only there is *field-only* (`advertised: false`).
+- **Cop ids.** Every non-abstract `DiagnosticAnalyzer` with a parameterless constructor is instantiated and its `SupportedDiagnostics` enumerated (an `ImmutableArray` or an array). A second pass reads the static fields and properties of type `DiagnosticDescriptor`; an id found only there is *field-only* (`advertised: false`). A static member whose getter throws does not fail the run; it is listed (`fieldErrors`) and noted in the pull request and the job summary.
 - **Loud failure.** An assembly that does not load, a `ReflectionTypeLoadException`, an analyzer that cannot be instantiated or a missing expected assembly (the five tools assemblies, plus the seven ALCops ones for an ALCops version; further cop DLLs are scanned by the pattern) fails the extraction. The spike accepted a partial load silently; the scan never does.
 
 `ConvertTo-DiagnosticRecord -Result -PackageId` turns the rows into one record per id of that package (`ALCops.*` assemblies for `alcops.analyzers`, `Microsoft.Dynamics.Nav.*` for the tools): analyzer `Compiler`, or `<X>` of `Microsoft.Dynamics.Nav.<X>` and `ALCops.<X>` (the seed's names); white space in a title folded to one space; duplicates merged (62 ids come from several analyzers), disagreeing duplicates listed as a conflict note with the first one kept; ids with a prefix the engine does not know kept and noted.
@@ -66,6 +66,7 @@ The docs URL (`Get-CatalogDocsUrl`): a compiler id gets `https://learn.microsoft
 | New id | A full entry: analyzer, defaults, title, docs, `package`, `firstSeenVersion` and `firstSeenChannel` of this version, `firstStableVersion` when stable, `lastSeenVersion`, `advertised: false` when field-only. | `NewIds` (field-only ones also `Unadvertised`) |
 | Seeded id (no `package` yet) | The package fields are filled from the first scanned version that carries it; never quarantined (D46). | `Recorded` |
 | Promotion | A stable version sets `firstStableVersion` once. An id first seen in a prerelease and still in a quarantine file is promoted. | `Promoted` |
+| Newly advertised | A stable version whose analyzers return an id the catalog has as `advertised: false` (seeded or not): the id goes live at its default, so it is quarantined like a new id. | `NewlyAdvertised` |
 | Default change, stable | The default is overwritten and one `defaultChanges` element per field and version is appended once (D24). | `ChangedDefaults` |
 | Default change, prerelease | Nothing changes. | `PrereleaseDefaultChanges` |
 | Text | `title` and `docs` follow the stable descriptor (normalised); a prerelease never changes text. | `Refreshed` |
@@ -108,7 +109,8 @@ Its presence turns C7 into an error: after the first scan every id in a level fi
 
 - the new ids of a stable version to every stage of `quarantine.stages`;
 - the new ids of a prerelease to every stage of `quarantine.prereleaseStages` (an id new in both channels of one run lands in `stages`, because the stable version is applied first);
-- the promoted ids to every stage of `quarantine.stages`, next to their prerelease entries, which keep their text.
+- the promoted ids to every stage of `quarantine.stages`, next to their prerelease entries, which keep their text;
+- the newly advertised ids (an id an analyzer returns for the first time) to every stage of `quarantine.stages`. The rule that seeded ids are never quarantined covers the first scan only: a seeded field-only id that an analyzer starts to return later is quarantined like any new id.
 
 Never quarantined: an id no analyzer advertises, and an id a level file already mentions. Each addition carries `New in <package> <version> (<channel>), quarantined <yyyy-MM-dd>. Review and adopt.` (UTC). Only files whose rules changed are written, in the template layout (`$schema`, one `{ "id", "justification" }` per line, `"rules": []` when empty); a policy stage without a file gets one. A slug that is not a stage of the settings never gets a file (#48, C16).
 
@@ -131,7 +133,7 @@ Never quarantined: an id no analyzer advertises, and an id a level file already 
 | 7 | Per new version: download, extraction (section 2), `Update-CatalogFromScan`. | `nuget`, `extract` |
 | 8 | Quarantine and housekeeping (sections 4 and 5). | |
 | 9 | `Write-CatalogFile`, `Write-ScanState` (`scannedAt` = the run time; not in housekeeping mode), `Update-RulebookEndpoints`. | |
-| 10 | `Test-Rulebook` on the candidate; any error: one annotation per finding, nothing pushed. | `validation` |
+| 10 | `Test-Rulebook` on the candidate; any error: one annotation per finding, nothing pushed. A C7 finding names the remedy: add the id to `catalog/diagnostics.json` or remove it from the file; the scan writes `catalog/scan-state.json`, which turns the C7 warning into an error. | `validation` |
 | 11 | The candidate compared with the repository (text with LF, bytes for binaries): the change list. | |
 | 12 | `dryRun`: summary and outputs, the candidate kept (`candidatePath`). Else `Publish-RulebookScan` (section 7). | `push`, `pull-request` |
 
@@ -141,10 +143,12 @@ Never quarantined: an id no analyzer advertises, and an id a level file already 
 
 One pull request per base branch, on the fixed branch `scan-diagnostics/<base>` (D45). `Publish-RulebookScan`:
 
-1. Clones the base branch (`New-GitHubClone`, the token in the git environment only), writes the change list.
-2. `Publish-GitHubChange -Force`: reads the remote head of `scan-diagnostics/<base>` with `git ls-remote`, creates the branch from the base head with `checkout -B`, commits once with the title, and pushes with `--force-with-lease=refs/heads/<branch>:<head>` (an absent branch must stay absent). A push someone made between the read and the push is rejected and the run fails (`push`); a push made before the run is replaced, which is why the body says not to push to the branch.
+1. Clones the base branch (`New-GitHubClone`, the token in the git environment only). The plan recorded the head of its checkout (`git rev-parse HEAD`, `HeadSha`); when the clone's head differs, the base moved during the scan and the run fails (`push`, both shas named) without pushing: the next run picks it up. Then the change list is written.
+2. `Publish-GitHubChange -Force`: reads the remote head of `scan-diagnostics/<base>` with `git ls-remote`, creates the branch from the base head with `checkout -B`, commits once with the title, and pushes with `--force-with-lease=refs/heads/<branch>:<head>` (an absent branch must stay absent). The lease covers only the window between `ls-remote` and the push: a push someone made in that window is rejected and the run fails (`push`); a push made earlier is replaced, which is why the body says not to push to the branch. A base that moved while the scan was planning is caught by step 1.
 3. The effective diff of the commit against the base head (`Compare-RulebookEndpoints`).
 4. `GET /repos/{r}/pulls?state=open&head=<owner>:scan-diagnostics/<base>&base=<base>`: an open pull request gets its title and body replaced (`PATCH /repos/{r}/pulls/{n}`, result `pull-request-updated`), else one is opened with `commitOptions.pullRequestLabels` (`pull-request`). A failure after the push names the pushed branch and its tree link (`pull-request`).
+
+**A stale pull request is closed.** When the base already holds the result (`no-changes`) or the result went in as a direct commit, an open pull request from `scan-diagnostics/<base>` is closed (`PATCH` with `state: closed`) and its body starts with `Closed by the scan of <date>: the base branch <base> already contains its result.` or `... its result is on <base> already (direct commit <sha7>).`; the run annotates `Pull request closed: <url>` and sets the `pullRequestUrl` output to it.
 
 There is no title guard: the branch, not the title, identifies the pull request. A new package version with no new id and no default change still produces it (a record run), because `lastSeenVersion` and the scan state move.
 
@@ -158,12 +162,12 @@ There is no title guard: the branch, not the title, identifies the pull request.
 
 1. The intro: date, base and its sha, the scanned versions, and that the branch is rebuilt on every run.
 2. `## Scanned versions`: `| Package | Channel | Version | Previously recorded | Ids | New | Changed defaults |`.
-3. `## New diagnostics`: `| Id | Analyzer | Default | Title | Docs | Seen in | Quarantined in |`; `Quarantined in` is the stages, or `nowhere (not advertised)`, `nowhere (policy [])`, `nowhere (a level file mentions it)`.
+3. `## New diagnostics`: `| Id | Analyzer | Default | Title | Docs | Seen in | Quarantined in |` (a newly advertised id says `now advertised` in `Seen in`; a title is written with a zero-width space after every `@` so it mentions nobody, and the docs link as `[docs](<url>)`); `Quarantined in` is the stages, or `nowhere (not advertised)`, `nowhere (policy [])`, `nowhere (a level file mentions it)`.
 4. `## Promoted to stable`.
 5. `## Changed defaults`: `| Id | Field | From | To | Version | Effect |`, the effect from the effective diff (`now listed at Info in strict.ci; now unlisted in strict.default`): endpoints list only deviations (D22), so a moved default can add or remove an id from an endpoint.
 6. `## Prerelease default changes (not applied)`.
 7. `## Released from quarantine`: `| Stage | Id | Mentioned by |`.
-8. `## Catalog notes`: unadvertised ids (new and known), deprecated ids, vanished ids, the number of seeded ids that got package fields, the refreshed titles and docs links, descriptor conflicts, unknown prefixes, ids no package carries.
+8. `## Catalog notes`: unadvertised ids (new and known), deprecated ids, vanished ids, the number of seeded ids that got package fields, the refreshed titles and docs links, descriptor conflicts, unknown prefixes, static descriptor members that could not be read, skipped index entries and versions, ids no package carries.
 9. `## Changes`: `| File | Change |`.
 10. `## Effective diff`: one table per endpoint (`Get-EffectiveDiffBlock` of `Rulebook.Update`).
 11. `## Validation warnings`.
@@ -190,7 +194,8 @@ Above 60000 characters (GitHub allows 65536) the effective diff tables go first,
 | `result` | `pull-request`, `pull-request-updated`, `direct-commit`, `no-changes`, `nothing-new`, `dry-run`; empty on failure |
 | `newIds`, `quarantined`, `changedDefaults`, `released` | counts |
 | `scannedVersions` | `<package>@<version>:<channel>`, comma separated |
-| `pullRequestUrl`, `candidatePath`, `elapsedSeconds` | |
+| `pullRequestUrl` | the new or updated pull request, or the one closed as stale |
+| `candidatePath`, `elapsedSeconds` | |
 | `failure` | `policy`, `token`, `nuget`, `extract`, `validation`, `push`, `pull-request`, `error` |
 
 The template workflow `ScanDiagnostics.yaml`: dispatch inputs `includePrerelease` (default true) and `directCommit` (default false), `schedule:` as the last key under `on:` (written by the update from `scan.schedule`), permissions `contents: read` and `actions: read` (the writes use the secret's token, so the pull request runs Validate), concurrency `scan-diagnostics-${{ github.ref }}` without cancel, the settings step of the update workflow, and `uses: ALCops/rulebook-engine/actions/ScanDiagnostics@main`.

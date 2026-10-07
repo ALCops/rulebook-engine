@@ -230,7 +230,8 @@ function Update-QuarantineFromScan {
     Changes }.
     .DESCRIPTION
     Reads quarantine.<slug>.json for every stage of -Settings. NewIds of a stable diff go to Policy.Stages, of a
-    prerelease diff to Policy.PrereleaseStages, Promoted ids to Policy.Stages; an id no analyzer advertises
+    prerelease diff to Policy.PrereleaseStages, Promoted and NewlyAdvertised ids (an id an analyzer returns for the first
+    time) to Policy.Stages; an id no analyzer advertises
     (Unadvertised) and an id a chain mentions already are never quarantined. Each addition carries
     New-QuarantineJustification of its diff; an existing entry keeps its text. Then housekeeping
     (Invoke-QuarantineHousekeeping). Only files whose rules changed are written (a policy stage without a file gets
@@ -260,7 +261,8 @@ function Update-QuarantineFromScan {
         $justification = New-QuarantineJustification -PackageId $diff.PackageId -Version $diff.Version -Channel $diff.Channel -Date $Now
         $unadvertised = [System.Collections.Generic.HashSet[string]]::new([string[]]@($diff.Unadvertised), [System.StringComparer]::Ordinal)
         $newStages = if ($diff.Channel -eq 'stable') { $Policy.Stages } else { $Policy.PrereleaseStages }
-        $targets = @(@($diff.NewIds | ForEach-Object { @{ Id = $_; Stages = $newStages } }) + @($diff.Promoted | ForEach-Object { @{ Id = $_; Stages = $Policy.Stages } }))
+        $newlyAdvertised = if ($diff.PSObject.Properties['NewlyAdvertised']) { @($diff.NewlyAdvertised) } else { @() }
+        $targets = @(@($diff.NewIds | ForEach-Object { @{ Id = $_; Stages = $newStages } }) + @($diff.Promoted | ForEach-Object { @{ Id = $_; Stages = $Policy.Stages } }) + @($newlyAdvertised | ForEach-Object { @{ Id = $_; Stages = $Policy.Stages } }))
         foreach ($target in $targets) {
             if ($unadvertised.Contains($target.Id) -or $mentioned.Contains($target.Id)) { continue }
             $additions = Add-QuarantineEntry -Files $files -Stages ([string[]]@($target.Stages)) -Id $target.Id -Justification $justification

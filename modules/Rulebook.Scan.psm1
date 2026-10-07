@@ -28,8 +28,6 @@ $script:BranchPrefix = 'scan-diagnostics'
 $script:BodyLimit = 60000
 $script:NewRowLimit = 200
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-$script:ExcludedPrefixes = @('.git/', 'site/data/')
-$script:ExcludedSegment = 'node_modules'
 
 #region Internal helpers
 
@@ -45,10 +43,11 @@ function Get-ShortSha {
     return $Sha.Substring(0, [math]::Min(7, $Sha.Length))
 }
 
-function Format-Cell {
-    param([AllowNull()]$Text)
-    if ($null -eq $Text) { return '' }
-    return ([string]$Text).Replace('|', '\|').Replace("`r", ' ').Replace("`n", ' ')
+function Format-PackageText {
+    # Text a package supplies (a title), for a Markdown table cell: Format-TableCell, and a zero-width space after every
+    # '@' so a title cannot mention a GitHub user or team.
+    param([AllowNull()][string]$Text)
+    return (Format-TableCell $Text).Replace('@', "@$([char]0x200B)")
 }
 
 function Format-Count {
@@ -62,68 +61,6 @@ function Join-AndList {
     param([AllowEmptyCollection()][string[]]$Items)
     if ($Items.Count -le 1) { return ($Items -join '') }
     return (($Items | Select-Object -First ($Items.Count - 1)) -join ', ') + ' and ' + $Items[-1]
-}
-
-function Test-ExcludedPath {
-    param([Parameter(Mandatory)][string]$Path)
-    foreach ($prefix in $script:ExcludedPrefixes) {
-        if ($Path.StartsWith($prefix, [System.StringComparison]::Ordinal) -or $Path -ceq $prefix.TrimEnd('/')) { return $true }
-    }
-    return $Path -cmatch "(^|/)$($script:ExcludedSegment)(/|$)"
-}
-
-function Get-TreeFile {
-    # Relative paths ('/') of every file under Root, sorted ordinally, without .git, site/data and node_modules (the
-    # walk of Rulebook.Update); directory links are not followed.
-    param([Parameter(Mandatory)][string]$Root)
-    $full = (Resolve-Path -LiteralPath $Root).ProviderPath
-    $paths = [System.Collections.Generic.List[string]]::new()
-    $pending = [System.Collections.Generic.Stack[object]]::new()
-    $pending.Push([pscustomobject]@{ Path = $full; Relative = '' })
-    while ($pending.Count -gt 0) {
-        $folder = $pending.Pop()
-        foreach ($item in Get-ChildItem -LiteralPath $folder.Path -Force) {
-            $relative = if ($folder.Relative) { "$($folder.Relative)/$($item.Name)" } else { $item.Name }
-            if ($item.PSIsContainer) {
-                if ($item.LinkType -or ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { continue }
-                if (-not (Test-ExcludedPath -Path "$relative/")) { $pending.Push([pscustomobject]@{ Path = $item.FullName; Relative = $relative }) }
-            } elseif (-not (Test-ExcludedPath -Path $relative)) {
-                $paths.Add($relative)
-            }
-        }
-    }
-    [string[]]$sorted = $paths.ToArray()
-    [System.Array]::Sort($sorted, [System.StringComparer]::Ordinal)
-    return $sorted
-}
-
-function Copy-ScanTree {
-    # Copies the files of Source to Destination (the walk of Get-TreeFile).
-    param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Destination)
-    $full = (Resolve-Path -LiteralPath $Source).ProviderPath
-    [void][System.IO.Directory]::CreateDirectory($Destination)
-    [string[]]$files = @(Get-TreeFile -Root $full)
-    foreach ($path in $files) {
-        $target = Join-Path $Destination $path
-        $parent = Split-Path -Parent $target
-        if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][System.IO.Directory]::CreateDirectory($parent) }
-        [System.IO.File]::Copy((Join-Path $full $path), $target, $true)
-    }
-}
-
-function Get-ComparableContent {
-    # What the comparison looks at: the text with LF line ends (a CRLF checkout compares equal), or base64 of the
-    # bytes when the first 8 KB hold a NUL byte; $null when the file is absent.
-    param([Parameter(Mandatory)][string]$Path)
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
-    $bytes = [System.IO.File]::ReadAllBytes($Path)
-    if ([System.Array]::IndexOf($bytes, [byte]0, 0, [math]::Min($bytes.Length, 8192)) -ge 0) { return [System.Convert]::ToBase64String($bytes) }
-    return $script:Utf8NoBom.GetString($bytes).TrimStart([char]0xFEFF).Replace("`r`n", "`n")
-}
-
-function Get-DefaultWorkPath {
-    $temp = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
-    return Join-Path $temp ('rulebook-scan-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
 }
 
 function Get-Distinct {
@@ -148,12 +85,15 @@ function Get-ScanFacts {
     $unadvertisedIds = Get-Distinct ($diffs | ForEach-Object { $_.Unadvertised })
     $unadvertised = [System.Collections.Generic.HashSet[string]]::new($unadvertisedIds, [System.StringComparer]::Ordinal)
     $newAll = Get-Distinct ($diffs | ForEach-Object { $_.NewIds })
-    $newIds = [string[]]@($newAll | Where-Object { -not $unadvertised.Contains($_) })
+    $newlyAdvertised = Get-Distinct ($diffs | ForEach-Object { if ($_.PSObject.Properties['NewlyAdvertised']) { $_.NewlyAdvertised } })
+    # An id an analyzer advertises for the first time goes live like a new id and counts as one.
+    $newIds = [string[]]@(@($newAll | Where-Object { -not $unadvertised.Contains($_) }) + @($newlyAdvertised | Where-Object { $_ -cnotin $newAll }))
     $added = Get-Distinct ($Plan.Quarantine.Added | ForEach-Object { $_.Id })
     $addedSet = [System.Collections.Generic.HashSet[string]]::new([string[]]$added, [System.StringComparer]::Ordinal)
     return [pscustomobject]@{
         NewIds             = $newIds
         NewUnadvertised    = [string[]]@($newAll | Where-Object { $unadvertised.Contains($_) })
+        NewlyAdvertised    = $newlyAdvertised
         QuarantinedNew     = [string[]]@($newIds | Where-Object { $addedSet.Contains($_) })
         RecordedNew        = [string[]]@($newIds | Where-Object { -not $addedSet.Contains($_) })
         Quarantined        = $added
@@ -208,7 +148,7 @@ function Get-RulebookScanPlan {
         [int]$ExtractionTimeoutSeconds = 300
     )
     $root = (Resolve-Path -LiteralPath $RepositoryRoot -ErrorAction Stop).ProviderPath
-    if ([string]::IsNullOrEmpty($WorkPath)) { $WorkPath = Get-DefaultWorkPath }
+    if ([string]::IsNullOrEmpty($WorkPath)) { $WorkPath = Get-DefaultWorkPath -Prefix 'rulebook-scan' }
     $WorkPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($WorkPath)
     $notes = [System.Collections.Generic.List[string]]::new()
     $plan = [pscustomobject]@{
@@ -234,6 +174,7 @@ function Get-RulebookScanPlan {
         Failure        = $null
         FailureMessage = $null
         Now            = $Now
+        HeadSha        = $null
     }
 
     # 1. Settings and policy.
@@ -247,6 +188,11 @@ function Get-RulebookScanPlan {
     $plan.Settings = $settings
     $plan.Policy = Get-QuarantinePolicy -Settings $settings
 
+    # The checkout the plan reads; Publish-RulebookScan refuses a base branch that moved since (plan section 2).
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $head = & git -C $root rev-parse HEAD 2>$null
+        if ($LASTEXITCODE -eq 0 -and ([string]$head).Trim() -match '^[0-9a-f]{40}$') { $plan.HeadSha = ([string]$head).Trim() }
+    }
     $stage = 'error'
     try {
         # 2. State.
@@ -258,11 +204,14 @@ function Get-RulebookScanPlan {
         $channels = foreach ($packageId in $script:Packages) {
             $index = Get-NuGetVersionIndex -PackageId $packageId -Source $Source
             $selected = Select-NuGetChannelVersion -Versions $index.Versions -IncludePrerelease:$IncludePrerelease
+            if (@($selected.Invalid).Count -gt 0) { $notes.Add("The NuGet index of $packageId lists $(@($selected.Invalid).Count) entries that are not versions; they were skipped.") }
             if ($null -eq $selected.Stable) { throw "The NuGet index of $packageId lists no stable version" }
             [pscustomobject]@{ PackageId = $packageId; Label = Get-PackageLabel $packageId; Stable = $selected.Stable; Prerelease = $selected.Prerelease }
         }
         $plan.Channels = @($channels)
-        $plan.NewVersions = @(Get-NewPackageVersion -State $state -Channels $plan.Channels)
+        $skipped = [System.Collections.Generic.List[string]]::new()
+        $plan.NewVersions = @(Get-NewPackageVersion -State $state -Channels $plan.Channels -Skipped $skipped)
+        foreach ($item in $skipped) { $notes.Add("The NuGet index names $item, not newer than the recorded version; skipped.") }
         $stage = 'error'
 
         # 4. Housekeeping pre-check.
@@ -289,7 +238,7 @@ function Get-RulebookScanPlan {
         # 5. Candidate tree.
         $candidate = Join-Path $WorkPath 'candidate'
         if (Test-Path -LiteralPath $candidate) { Remove-Item -LiteralPath $candidate -Recurse -Force }
-        Copy-ScanTree -Source $root -Destination $candidate
+        Copy-UpdateTree -Source $root -Destination $candidate
         $plan.CandidatePath = $candidate
 
         # 6. and 7. Download, extraction and catalog, version by version.
@@ -332,6 +281,7 @@ function Get-RulebookScanPlan {
             $catalog = $diff.Catalog
             $label = "$($version.PackageId) $($version.Version) ($($version.Channel))"
             foreach ($conflict in $records.Conflicts) { $notes.Add("$label`: the descriptors of $($conflict.Id) disagree ($($conflict.Variants -join ', ')); the first one was used.") }
+            foreach ($fieldError in $records.FieldErrors) { $notes.Add("$label`: a static descriptor member could not be read ($fieldError).") }
             if ($records.UnknownPrefixes.Count -gt 0) { $notes.Add("$label`: ids with a prefix the engine does not know: $($records.UnknownPrefixes -join ', ').") }
             if ($records.CompilerTitlesMissing -and $version.PackageId -ceq $script:ToolsPackageId) { $notes.Add("$label`: the compiler message resources were not found; AL titles were left as they are.") }
             $scanned.Add([pscustomobject]@{
@@ -390,7 +340,7 @@ function Get-RulebookScanPlan {
             $change = $null
             if (-not $orgSet.Contains($path)) { $change = 'created' }
             elseif (-not $candidateSet.Contains($path)) { $change = 'deleted' }
-            elseif ((Get-ComparableContent -Path (Join-Path $root $path)) -cne (Get-ComparableContent -Path (Join-Path $candidate $path))) { $change = 'modified' }
+            elseif ((Get-ComparableContent -Root $root -Path $path) -cne (Get-ComparableContent -Root $candidate -Path $path)) { $change = 'modified' }
             if ($null -eq $change) { continue }
             $bytes = if ($change -eq 'deleted') { $null } else { [System.IO.File]::ReadAllBytes((Join-Path $candidate $path)) }
             [pscustomobject]@{ File = $path; Change = $change; Bytes = $bytes }
@@ -503,8 +453,17 @@ function Get-ScanSection {
             elseif ($policy.Count -eq 0) { 'nowhere (policy [])' }
             else { 'nowhere (a level file mentions it)' }
             $default = if ($null -eq $entry) { '' } elseif ($entry.EnabledByDefault) { $entry.DefaultSeverity } else { "$($entry.DefaultSeverity) (disabled)" }
-            $docs = if ($null -ne $entry -and $entry.Docs) { "[docs]($($entry.Docs))" } else { '' }
-            $rows.Add(('| {0} | {1} | {2} | {3} | {4} | {5} {6} ({7}) | {8} |' -f $id, (Format-Cell $entry.Analyzer), $default, (Format-Cell $entry.Title), $docs, $item.PackageId, $item.Version, $item.Channel, $where))
+            $docs = if ($null -ne $entry -and $entry.Docs) { "[docs](<$($entry.Docs)>)" } else { '' }
+            $rows.Add(('| {0} | {1} | {2} | {3} | {4} | {5} {6} ({7}) | {8} |' -f $id, (Format-TableCell $entry.Analyzer), $default, (Format-PackageText $entry.Title), $docs, $item.PackageId, $item.Version, $item.Channel, $where))
+        }
+        # Ids an analyzer advertises for the first time: they go live at their default like a new id.
+        foreach ($id in @(if ($item.Diff.PSObject.Properties['NewlyAdvertised']) { $item.Diff.NewlyAdvertised })) {
+            $entry = & $entryOf $id
+            $stages = @($Plan.Quarantine.Added | Where-Object Id -CEQ $id | ForEach-Object Stage)
+            $where = if ($stages.Count -gt 0) { $stages -join ', ' } elseif (@($Plan.Policy.Stages).Count -eq 0) { 'nowhere (policy [])' } else { 'nowhere (a level file mentions it)' }
+            $default = if ($null -eq $entry) { '' } elseif ($entry.EnabledByDefault) { $entry.DefaultSeverity } else { "$($entry.DefaultSeverity) (disabled)" }
+            $docs = if ($null -ne $entry -and $entry.Docs) { "[docs](<$($entry.Docs)>)" } else { '' }
+            $rows.Add(('| {0} | {1} | {2} | {3} | {4} | {5} {6} ({7}, now advertised) | {8} |' -f $id, (Format-TableCell $entry.Analyzer), $default, (Format-PackageText $entry.Title), $docs, $item.PackageId, $item.Version, $item.Channel, $where))
         }
     }
     $sections.NewHead = if ($rows.Count -gt 0) { "## New diagnostics`n`n| Id | Analyzer | Default | Title | Docs | Seen in | Quarantined in |`n|---|---|---|---|---|---|---|`n" } else { '' }
@@ -603,7 +562,7 @@ function Get-ScanSection {
         [void]$text.AppendLine('| Rule | File | Id | Message |').AppendLine('|---|---|---|---|')
         foreach ($finding in $warnings) {
             $file = if ($finding.File) { '`' + $finding.File + '`' } else { '' }
-            [void]$text.AppendLine(('| {0} | {1} | {2} | {3} |' -f $finding.Rule, $file, (Format-Cell $finding.Id), (Format-Cell $finding.Message)))
+            [void]$text.AppendLine(('| {0} | {1} | {2} | {3} |' -f $finding.Rule, $file, (Format-TableCell $finding.Id), (Format-TableCell $finding.Message)))
         }
         [void]$text.AppendLine()
     }
@@ -695,6 +654,7 @@ function ConvertTo-ScanSummary {
             default { [string]$Result.Result }
         }
         [void]$text.AppendLine($line).AppendLine()
+        if ($Result.PSObject.Properties['ClosedPullRequestUrl'] -and $Result.ClosedPullRequestUrl) { [void]$text.AppendLine("Pull request closed: $($Result.ClosedPullRequestUrl)").AppendLine() }
     }
     if ($Plan.Mode -eq 'nothing-new') { return $text.ToString().Replace("`r`n", "`n") }
     $diff = if ($null -ne $Result -and $Result.PSObject.Properties['Diff']) { @($Result.Diff) } else { @() }
@@ -710,7 +670,7 @@ function ConvertTo-ScanSummary {
         [void]$text.AppendLine('| Rule | File | Id | Message |').AppendLine('|---|---|---|---|')
         foreach ($finding in $errors) {
             $file = if ($finding.File) { '`' + $finding.File + '`' } else { '' }
-            [void]$text.AppendLine(('| {0} | {1} | {2} | {3} |' -f $finding.Rule, $file, (Format-Cell $finding.Id), (Format-Cell $finding.Message)))
+            [void]$text.AppendLine(('| {0} | {1} | {2} | {3} |' -f $finding.Rule, $file, (Format-TableCell $finding.Id), (Format-TableCell $finding.Message)))
         }
         [void]$text.AppendLine()
     }
@@ -730,7 +690,9 @@ function Publish-RulebookScan {
     -BaseBranch, writes the plan's changes, commits with the title (Get-ScanTitle) and pushes
     scan-diagnostics/<base>, rebuilt from the base head with a lease push (Publish-GitHubChange -Force); with
     -DirectCommit it pushes to the base branch (a refused push falls back to the scan branch). The effective diff is
-    computed against the cloned head. Then the open pull request from that branch is updated (PATCH title and body,
+    computed against the cloned head. A plan that recorded the head of its checkout (HeadSha) refuses a base branch that
+    moved since (stage push). With no changes or a direct commit an open scan pull request is closed
+    (ClosedPullRequestUrl). Then the open pull request from that branch is updated (PATCH title and body,
     pull-request-updated) or a new one is opened with -Labels (pull-request). Returns { Result (pull-request,
     pull-request-updated, direct-commit, no-changes), PullRequestUrl, Number, Branch, Sha, Fallback, Diff, DiffNote,
     Body, Title }. A failure throws with Data['Stage']: push for the clone, commit and push; pull-request after the
@@ -753,7 +715,7 @@ function Publish-RulebookScan {
     )
     if (-not $Plan.Valid -or $Plan.Failure) { throw 'The scan plan does not validate; nothing is pushed.' }
     if ($Plan.Mode -eq 'nothing-new') { throw 'The scan found nothing new; nothing is pushed.' }
-    if ([string]::IsNullOrEmpty($WorkPath)) { $WorkPath = Get-DefaultWorkPath }
+    if ([string]::IsNullOrEmpty($WorkPath)) { $WorkPath = Get-DefaultWorkPath -Prefix 'rulebook-scan' }
     $server = if ($env:GITHUB_SERVER_URL) { $env:GITHUB_SERVER_URL.TrimEnd('/') } else { 'https://github.com' }
     if ([string]::IsNullOrEmpty($RemoteUrl)) { $RemoteUrl = "$server/$Repository" }
     $title = Get-ScanTitle -Plan $Plan
@@ -767,6 +729,10 @@ function Publish-RulebookScan {
     }
     try {
         $clone = New-GitHubClone -RemoteUrl $RemoteUrl -Branch $BaseBranch -Path (Join-Path $WorkPath 'clone') -Token $Token -Actor $Actor
+        $planned = if ($Plan.PSObject.Properties['HeadSha']) { [string]$Plan.HeadSha } else { '' }
+        if ($planned -and $planned -cne $clone.BaseSha) {
+            throw "The base branch moved during the scan ($BaseBranch was at $(Get-ShortSha $planned) when the scan started and is at $(Get-ShortSha $clone.BaseSha) now); nothing was pushed, the next run will pick it up."
+        }
         $rulebookRoot = if ($prefix) { Join-Path $clone.Path $prefix.TrimEnd('/') } else { $clone.Path }
         foreach ($change in $Plan.Changes) {
             $target = Join-Path $rulebookRoot $change.File
@@ -784,9 +750,26 @@ function Publish-RulebookScan {
         $exception.Data['Stage'] = 'push'
         throw $exception
     }
-    $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
+    $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; Diff = @(); DiffNote = $null; Body = $null; Title = $title; ClosedPullRequestUrl = $null }
+    # An open scan pull request is stale once the base holds the result (no changes, or a direct commit): close it.
+    $closeStale = {
+        param([string]$Reason)
+        try {
+            $open = Find-GitHubPullRequestByHead -Repository $Repository -Head $branch -Base $BaseBranch -Token $Token -ApiUrl $ApiUrl
+            if ($null -eq $open) { return }
+            $date = $Plan.Now.UtcDateTime.ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
+            $closedBody = "Closed by the scan of $($date): $Reason`n`n$($open.Body)"
+            $closed = Update-GitHubPullRequest -Repository $Repository -Number $open.Number -Title $open.Title -Body $closedBody -State closed -Token $Token -ApiUrl $ApiUrl
+            $result.ClosedPullRequestUrl = if ($closed.Url) { $closed.Url } else { $open.Url }
+        } catch {
+            $exception = [System.InvalidOperationException]::new("The open scan pull request could not be closed: $($_.Exception.Message)", $_.Exception)
+            $exception.Data['Stage'] = 'pull-request'
+            throw $exception
+        }
+    }
     if (-not $pushed.Pushed) {
         $result.Result = 'no-changes'
+        & $closeStale "the base branch $BaseBranch already contains its result."
         return $result
     }
     try {
@@ -796,6 +779,7 @@ function Publish-RulebookScan {
     }
     if ($pushed.Direct) {
         $result.Result = 'direct-commit'
+        & $closeStale "its result is on $BaseBranch already (direct commit $(Get-ShortSha $pushed.Sha))."
         return $result
     }
     try {

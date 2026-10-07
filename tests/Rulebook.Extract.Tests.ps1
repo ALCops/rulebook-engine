@@ -100,6 +100,11 @@ Describe 'Invoke-DescriptorExtraction on the tools package' {
         $toolsRecords.Records['AA0001'].Deprecated | Should-BeFalse
     }
 
+    It 'reports a static descriptor getter that throws without failing' {
+        @($toolsResult['fieldErrors']) | Should-BeCollection @('Microsoft.Dynamics.Nav.CodeCop.Descriptors.Broken: stub getter failure')
+        @($toolsRecords.FieldErrors) | Should-BeCollection @('Microsoft.Dynamics.Nav.CodeCop.Descriptors.Broken: stub getter failure')
+    }
+
     It 'skips abstract analyzers and analyzers without a parameterless constructor' {
         $codeCop = @($toolsResult['assemblies'] | Where-Object { $_['name'] -eq 'Microsoft.Dynamics.Nav.CodeCop' })[0]
         $codeCop['analyzers'] | Should-Be 2
@@ -151,7 +156,44 @@ Describe 'Invoke-DescriptorExtraction failures' {
     }
 
     It 'stops a child process that does not finish in time' {
-        { Invoke-DescriptorExtraction -ToolsDir $toolsStable -WorkPath $work -TimeoutSeconds 0 } | Should-Throw -ExceptionMessage '*no result after 0 s (the process was stopped)'
+        $caught = $null
+        try { $null = Invoke-DescriptorExtraction -ToolsDir $toolsStable -WorkPath $work -TimeoutSeconds 0 } catch { $caught = $_ }
+        $caught.Exception.Message | Should-BeLikeString '*no result after 0 s (the process was stopped)'
+        $caught.Exception.Data['ProcessId'] | Should-BeGreaterThan 0
+        Get-Process -Id $caught.Exception.Data['ProcessId'] -ErrorAction SilentlyContinue | Should-BeNull
+    }
+
+    It 'fails naming the loader exception when a cop references an assembly the package does not ship' {
+        $root = Get-FaultyToolsFolder -Fault MissingDependency -Destination (Join-Path $TestDrive 'missing-dependency')
+        $caught = $null
+        try { $null = Invoke-DescriptorExtraction -ToolsDir (Resolve-AnalyzerFolder -PackageRoot $root -Kind tools) -WorkPath $work } catch { $caught = $_ }
+        $caught.Exception.Message | Should-BeLikeString '*Microsoft.Dynamics.Nav.BrokenCop.dll: * types could not be loaded (*Stub.Missing*'
+    }
+
+    It 'fails naming the analyzer whose constructor throws' {
+        $root = Get-FaultyToolsFolder -Fault ThrowingConstructor -Destination (Join-Path $TestDrive 'throwing-constructor')
+        $caught = $null
+        try { $null = Invoke-DescriptorExtraction -ToolsDir (Resolve-AnalyzerFolder -PackageRoot $root -Kind tools) -WorkPath $work } catch { $caught = $_ }
+        $caught.Exception.Message | Should-BeLikeString '*Could not instantiate Microsoft.Dynamics.Nav.ThrowingCop.ThrowingAnalyzer of Microsoft.Dynamics.Nav.ThrowingCop.dll:*stub constructor failure*'
+    }
+
+    It 'starts the child without the tokens and action inputs of the parent' {
+        $saved = @{ Input = $env:INPUT_TOKEN; Gh = $env:GH_TOKEN; Custom = $env:RULEBOOK_SECRET_TOKEN; Plain = $env:RULEBOOK_PLAIN }
+        try {
+            $env:INPUT_TOKEN = 'ghp_parent'
+            $env:GH_TOKEN = 'ghp_parent'
+            $env:RULEBOOK_SECRET_TOKEN = 'ghp_parent'
+            $env:RULEBOOK_PLAIN = 'kept'
+            $info = InModuleScope Rulebook.Extract { New-ExtractionStartInfo -PwshPath 'pwsh' -EncodedCommand 'AA==' }
+            $names = @($info.Environment.Keys)
+            foreach ($name in 'INPUT_TOKEN', 'GH_TOKEN', 'RULEBOOK_SECRET_TOKEN', 'GITHUB_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN') { $names -contains $name | Should-BeFalse -Because $name }
+            $info.Environment['RULEBOOK_PLAIN'] | Should-Be 'kept'
+        } finally {
+            $env:INPUT_TOKEN = $saved.Input
+            $env:GH_TOKEN = $saved.Gh
+            $env:RULEBOOK_SECRET_TOKEN = $saved.Custom
+            $env:RULEBOOK_PLAIN = $saved.Plain
+        }
     }
 
     It 'leaves no result file behind' {

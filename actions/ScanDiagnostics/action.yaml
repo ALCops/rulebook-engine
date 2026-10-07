@@ -56,7 +56,7 @@ outputs:
     description: The scanned versions as <package>@<version>:<channel>, comma separated.
     value: ${{ steps.scan.outputs.scannedVersions }}
   pullRequestUrl:
-    description: The URL of the scan pull request (new or updated).
+    description: The URL of the scan pull request (new, updated, or closed because the base holds its result).
     value: ${{ steps.scan.outputs.pullRequestUrl }}
   candidatePath:
     description: After a dry run, the folder holding the scanned repository.
@@ -84,7 +84,6 @@ runs:
         INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
         INPUT_ACTOR: ${{ inputs.actor }}
         INPUT_PACKAGESOURCE: ${{ inputs.packageSource }}
-        GITHUB_TOKEN: ${{ github.token }}
       run: |
         $parameters = @{
           RepositoryRoot    = $env:INPUT_REPOSITORYROOT
