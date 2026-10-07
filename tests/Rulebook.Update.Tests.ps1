@@ -354,22 +354,20 @@ Describe 'Get-ReleaseNotesDelta' {
 
 Describe 'Compare-CustomizableFile' {
     It '<Name> gives <Decision>' -ForEach @(
-        @{ Name = 'org equal to old, new changed'; Org = 'a'; Old = 'a'; New = 'b'; Mode = 'skip'; Listed = $false; Decision = 'overwrite' }
-        @{ Name = 'org changed, new equal to old'; Org = 'x'; Old = 'a'; New = 'a'; Mode = 'skip'; Listed = $false; Decision = 'keep' }
-        @{ Name = 'both changed'; Org = 'x'; Old = 'a'; New = 'b'; Mode = 'skip'; Listed = $false; Decision = 'skip' }
-        @{ Name = 'org absent, new file'; Org = $null; Old = $null; New = 'b'; Mode = 'skip'; Listed = $false; Decision = 'add' }
-        @{ Name = 'removed from the template, org has it'; Org = 'a'; Old = 'a'; New = $null; Mode = 'skip'; Listed = $false; Decision = 'vanished' }
-        @{ Name = 'removed from the template and listed'; Org = 'a'; Old = 'a'; New = $null; Mode = 'skip'; Listed = $true; Decision = 'remove' }
-        @{ Name = 'listed, org absent'; Org = $null; Old = 'a'; New = 'a'; Mode = 'skip'; Listed = $true; Decision = 'none' }
-        @{ Name = 'org equal to new'; Org = 'b'; Old = 'a'; New = 'b'; Mode = 'skip'; Listed = $false; Decision = 'none' }
-        @{ Name = 'no installed template, org differs'; Org = 'x'; Old = $null; New = 'b'; Mode = 'skip'; Listed = $false; Decision = 'skip' }
-        @{ Name = 'no installed template, org equal'; Org = 'b'; Old = $null; New = 'b'; Mode = 'skip'; Listed = $false; Decision = 'none' }
-        @{ Name = 'overwrite mode, both changed'; Org = 'x'; Old = 'a'; New = 'b'; Mode = 'overwrite'; Listed = $false; Decision = 'overwrite' }
-        @{ Name = 'overwrite mode, org changed only'; Org = 'x'; Old = 'a'; New = 'a'; Mode = 'overwrite'; Listed = $false; Decision = 'overwrite' }
-        @{ Name = 'overwrite mode, no installed template'; Org = 'x'; Old = $null; New = 'b'; Mode = 'overwrite'; Listed = $false; Decision = 'overwrite' }
-        @{ Name = 'overwrite mode, org absent'; Org = $null; Old = 'a'; New = 'b'; Mode = 'overwrite'; Listed = $false; Decision = 'add' }
+        @{ Name = 'org equal to old, new changed'; Org = 'a'; Old = 'a'; New = 'b'; Mode = 'skip'; Decision = 'overwrite' }
+        @{ Name = 'org changed, new equal to old'; Org = 'x'; Old = 'a'; New = 'a'; Mode = 'skip'; Decision = 'keep' }
+        @{ Name = 'both changed'; Org = 'x'; Old = 'a'; New = 'b'; Mode = 'skip'; Decision = 'skip' }
+        @{ Name = 'org absent, new file'; Org = $null; Old = $null; New = 'b'; Mode = 'skip'; Decision = 'add' }
+        @{ Name = 'not shipped by the new template'; Org = 'a'; Old = 'a'; New = $null; Mode = 'skip'; Decision = 'none' }
+        @{ Name = 'org equal to new'; Org = 'b'; Old = 'a'; New = 'b'; Mode = 'skip'; Decision = 'none' }
+        @{ Name = 'no installed template, org differs'; Org = 'x'; Old = $null; New = 'b'; Mode = 'skip'; Decision = 'skip' }
+        @{ Name = 'no installed template, org equal'; Org = 'b'; Old = $null; New = 'b'; Mode = 'skip'; Decision = 'none' }
+        @{ Name = 'overwrite mode, both changed'; Org = 'x'; Old = 'a'; New = 'b'; Mode = 'overwrite'; Decision = 'overwrite' }
+        @{ Name = 'overwrite mode, org changed only'; Org = 'x'; Old = 'a'; New = 'a'; Mode = 'overwrite'; Decision = 'overwrite' }
+        @{ Name = 'overwrite mode, no installed template'; Org = 'x'; Old = $null; New = 'b'; Mode = 'overwrite'; Decision = 'overwrite' }
+        @{ Name = 'overwrite mode, org absent'; Org = $null; Old = 'a'; New = 'b'; Mode = 'overwrite'; Decision = 'add' }
     ) {
-        Compare-CustomizableFile -Org $Org -Old $Old -New $New -UpdateMode $Mode -Listed:$Listed | Should-Be $Decision
+        Compare-CustomizableFile -Org $Org -Old $Old -New $New -UpdateMode $Mode | Should-Be $Decision
     }
 }
 
@@ -602,6 +600,37 @@ Describe 'Get-RulebookUpdatePlan: variants' {
         $plan = Get-Plan -Org $root
         $plan.Valid | Should-BeFalse
         @($plan.Findings | ForEach-Object { "$($_.Rule) $($_.Severity)" }) | Should-BeCollection @('update error')
+    }
+
+    It 'copies a binary file by its bytes, whatever its extension (a font and a NUL-sniffed file)' {
+        # CR LF, a lone CR, a trailing LF, a NUL and an invalid UTF-8 byte: the text path would change every one.
+        [byte[]]$bytes = 0x00, 0x01, 0x0D, 0x0A, 0x41, 0x0D, 0x42, 0xFF, 0xFE, 0x0A, 0x0A
+        $template = Get-TestFolder
+        Copy-FixtureTree -Source $v2 -Destination $template
+        foreach ($name in 'site/static/font.ttf', 'site/static/data.blob') {
+            $target = Join-Path $template $name
+            [System.IO.File]::WriteAllBytes($target, $bytes)
+        }
+        $plan = Get-Plan -Template $template
+        Assert-ItemPresent -Actual (Get-ChangeList $plan) -Expected @('created site/static/font.ttf', 'created site/static/data.blob')
+        foreach ($name in 'site/static/font.ttf', 'site/static/data.blob') {
+            [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes((Join-Path $plan.CandidatePath $name))) | Should-Be ([System.Convert]::ToBase64String($bytes)) -Because $name
+            [System.Convert]::ToBase64String(($plan.Changes | Where-Object File -CEQ $name).Bytes) | Should-Be ([System.Convert]::ToBase64String($bytes)) -Because $name
+        }
+    }
+
+    It 'hashes a binary file by its bytes in the content sha' {
+        $one = Get-TestFolder
+        $two = Get-TestFolder
+        Write-FixtureText -Path (Join-Path $one '.github' 'workflows' 'x.yaml') -Text 'name: x'
+        Write-FixtureText -Path (Join-Path $two '.github' 'workflows' 'x.yaml') -Text 'name: x'
+        [System.IO.File]::WriteAllBytes((Join-Path $one 'font.ttf'), [byte[]](0x00, 0x0D, 0x0A))
+        [System.IO.File]::WriteAllBytes((Join-Path $two 'font.ttf'), [byte[]](0x00, 0x0A))
+        (Get-TemplateContentSha -Path $one) | Should-NotBe (Get-TemplateContentSha -Path $two)
+        # Text files still compare LF-normalised.
+        [System.IO.File]::WriteAllText((Join-Path $two '.github' 'workflows' 'x.yaml'), "name: x`r`n")
+        [System.IO.File]::WriteAllBytes((Join-Path $two 'font.ttf'), [byte[]](0x00, 0x0D, 0x0A))
+        (Get-TemplateContentSha -Path $one) | Should-Be (Get-TemplateContentSha -Path $two)
     }
 
     It 'leaves site/data out of the candidate and the comparison' {
@@ -837,6 +866,50 @@ Describe 'ConvertTo-UpdatePullRequestBody and ConvertTo-UpdateSummary' {
         $copy = $plan.PSObject.Copy()
         $copy.ReleaseNotes = ''
         ConvertTo-UpdatePullRequestBody -Plan $copy -Diff @() -Branch 'main' | Should-MatchString '(?m)^## Release notes\n\nNo release notes available$'
+    }
+
+    It 'keeps fenced code in the release notes as it is and moves the other headings down' {
+        $copy = $plan.PSObject.Copy()
+        $copy.ReleaseNotes = "# Release notes`n`n## v1.1`n`n``````powershell`n# comment`n## heading`n```````n`n~~~`n# tilde`n~~~`n`n### Detail`n"
+        $body = ConvertTo-UpdatePullRequestBody -Plan $copy -Diff @() -Branch 'main'
+        $notes = $body.Substring($body.IndexOf("## Release notes`n", [System.StringComparison]::Ordinal))
+        $notes | Should-Be "## Release notes`n`n### v1.1`n`n``````powershell`n# comment`n## heading`n```````n`n~~~`n# tilde`n~~~`n`n#### Detail`n`n"
+    }
+
+    It 'drops the release notes first, then endpoint tables from the end, when the body is too long' {
+        $diff = @(foreach ($endpoint in 'a.default', 'b.default', 'c.default') {
+                foreach ($i in 1..20) { [pscustomobject]@{ Endpoint = $endpoint; File = "rulesets/$endpoint.json"; Id = ('LC{0:0000}' -f $i); Before = 'None'; After = 'Error'; BeforeSource = 'default'; AfterSource = 'level:x'; AfterDetail = $null; Change = 'action'; ListedAfter = $true } }
+            })
+        $copy = $plan.PSObject.Copy()
+        $copy.ReleaseNotes = "## v1.1`n`n" + ('- a long line of release notes' * 200) + "`n"
+        $full = ConvertTo-UpdatePullRequestBody -Plan $copy -Diff $diff -Branch 'main' -Limit 1000000
+        $full | Should-MatchString 'a long line of release notes'
+
+        $withoutNotes = ConvertTo-UpdatePullRequestBody -Plan $copy -Diff $diff -Branch 'main' -Limit ($full.Length - 1000)
+        $withoutNotes.Length | Should-BeLessThanOrEqual ($full.Length - 1000)
+        $withoutNotes | Should-NotMatchString 'a long line of release notes'
+        $withoutNotes | Should-MatchString '(?m)^_The release notes were left out'
+        $withoutNotes | Should-MatchString '(?m)^### `c\.default`'
+
+        $limit = $withoutNotes.Length - 500
+        $short = ConvertTo-UpdatePullRequestBody -Plan $copy -Diff $diff -Branch 'main' -Limit $limit
+        $short.Length | Should-BeLessThanOrEqual $limit
+        $short | Should-MatchString '(?m)^### `a\.default`'
+        $short | Should-NotMatchString '(?m)^### `c\.default`'
+        $short | Should-MatchString '(?m)^_1 of 3 endpoint tables of the effective diff were left out'
+        # Whole rows only.
+        foreach ($line in $short.Split("`n")) { if ($line.StartsWith('| LC')) { $line | Should-MatchString '^\| LC\d{4} \| None \| Error \| level:x \|$' } }
+    }
+
+    It 'cuts at a line boundary when dropping parts is not enough' {
+        $copy = $plan.PSObject.Copy()
+        $body = ConvertTo-UpdatePullRequestBody -Plan $copy -Diff @() -Branch 'main' -Limit 600
+        $body.Length | Should-BeLessThanOrEqual 600
+        $body | Should-MatchString '\n_The body was cut at a line boundary[^\n]*_\n$'
+        $kept = $body.Substring(0, $body.IndexOf("`n_The body was cut", [System.StringComparison]::Ordinal))
+        $full = ConvertTo-UpdatePullRequestBody -Plan $copy -Diff @() -Branch 'main'
+        $kept.EndsWith("`n", [System.StringComparison]::Ordinal) | Should-BeTrue
+        $full.StartsWith($kept, [System.StringComparison]::Ordinal) | Should-BeTrue
     }
 
     It 'writes the check summary with the change table' {

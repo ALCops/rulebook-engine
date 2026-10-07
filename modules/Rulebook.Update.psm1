@@ -16,7 +16,9 @@ $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:ReleaseNotesPath = '.github/RELEASENOTES.copy.md'
 $script:UpdateWorkflow = 'UpdateRulebookSystemFiles.yaml'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-$script:BinaryExtensions = @('.png', '.jpg', '.gif', '.ico', '.pdf', '.woff', '.woff2')
+# Extensions that are always binary (a fast path); any other file is binary when its first 8 KB hold a NUL byte.
+$script:BinaryExtensions = @('.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp', '.avif', '.pdf', '.woff', '.woff2', '.ttf', '.otf', '.eot', '.zip')
+$script:BinarySniffBytes = 8192
 # Folders of the working tree that are never compared or copied: git, the site data written at publish time (D35),
 # and a local npm install.
 $script:ExcludedPrefixes = @('.git/', 'site/data/')
@@ -50,9 +52,20 @@ function Get-OrdinalSet {
     return , $set
 }
 
-function Test-BinaryPath {
+function Test-BinaryFile {
+    # The one binary rule of the update: a known binary extension, or a NUL byte in the first 8 KB. A binary file is
+    # compared, hashed and copied by its bytes, never through the LF and UTF-8 text path.
     param([Parameter(Mandatory)][string]$Path)
-    return [System.IO.Path]::GetExtension($Path).ToLowerInvariant() -cin $script:BinaryExtensions
+    if ([System.IO.Path]::GetExtension($Path).ToLowerInvariant() -cin $script:BinaryExtensions) { return $true }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $buffer = [byte[]]::new($script:BinarySniffBytes)
+        $read = $stream.Read($buffer, 0, $buffer.Length)
+    } finally {
+        $stream.Dispose()
+    }
+    return [System.Array]::IndexOf($buffer, [byte]0, 0, $read) -ge 0
 }
 
 function ConvertTo-UpdateText {
@@ -76,7 +89,7 @@ function Get-ComparableContent {
     param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$Path)
     $full = Join-Path $Root $Path
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { return $null }
-    if (Test-BinaryPath -Path $Path) { return [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($full)) }
+    if (Test-BinaryFile -Path $full) { return [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($full)) }
     return Read-UpdateText -Path $full
 }
 
@@ -209,7 +222,7 @@ function New-UpdateFinding {
 function Find-YamlPath {
     # { Start, Count } of the block Path addresses in Lines, or $null.
     param([AllowEmptyCollection()][string[]]$Lines, [Parameter(Mandatory)][string]$Path)
-    $slash = $Path.IndexOf('/')
+    $slash = $Path.IndexOf([char]'/')
     if ($slash -ge 0) {
         $head = $Path.Substring(0, $slash)
         $rest = $Path.Substring($slash + 1)
@@ -350,7 +363,7 @@ function Get-TemplateContentSha {
         foreach ($file in Get-TreeFile -Root $root) {
             $bytes = $script:Utf8NoBom.GetBytes($file + [char]0)
             $stream.Write($bytes, 0, $bytes.Length)
-            $content = if (Test-BinaryPath -Path $file) { [System.IO.File]::ReadAllBytes((Join-Path $root $file)) } else { $script:Utf8NoBom.GetBytes((Read-UpdateText -Path (Join-Path $root $file))) }
+            $content = if (Test-BinaryFile -Path (Join-Path $root $file)) { [System.IO.File]::ReadAllBytes((Join-Path $root $file)) } else { $script:Utf8NoBom.GetBytes((Read-UpdateText -Path (Join-Path $root $file))) }
             $stream.Write($content, 0, $content.Length)
             $stream.WriteByte(10)
         }
@@ -558,11 +571,11 @@ function Update-RulebookSettingsText {
     } else {
         $url = Get-JsonStringMatch -Text $result -Key 'templateUrl'
         $end = $url.Index + $url.Length
-        $lineEnd = $result.IndexOf("`n", $end)
+        $lineEnd = $result.IndexOf([char]10, $end)
         if ($lineEnd -lt 0) { $lineEnd = $result.Length }
         $tail = $result.Substring($end, $lineEnd - $end)
         if ($tail -match '^[ \t]*,[ \t]*$') {
-            $lineStart = $result.LastIndexOf("`n", [math]::Max(0, $url.Index - 1)) + 1
+            $lineStart = $result.LastIndexOf([char]10, [math]::Max(0, $url.Index - 1)) + 1
             $indent = [regex]::Match($result.Substring($lineStart), '^[ \t]*').Value
             $result = $result.Insert($lineEnd, "`n$indent`"templateSha`": `"$shaValue`",")
         } else {
@@ -578,7 +591,7 @@ function Update-RulebookSettingsText {
         if ($schema.Success) {
             $result = Get-TextWithValue -Text $result -Match $schema -Value $schemaValue
         } else {
-            $brace = $result.IndexOf('{')
+            $brace = $result.IndexOf([char]'{')
             if ($brace -lt 0) { throw "$($script:SettingsPath) has no JSON object." }
             $after = $result.Substring($brace + 1)
             $multiLine = [regex]::Match($after, '^[ \t]*\n([ \t]*)')
@@ -666,14 +679,14 @@ function Get-ReleaseNotesDelta {
 function Compare-CustomizableFile {
     <#
     .SYNOPSIS
-    The decision for one customizable (site/**) file: overwrite, keep, skip, add, remove, vanished or none.
+    The decision for one customizable (site/**) file the new template ships: overwrite, keep, skip, add or none.
     .DESCRIPTION
     -Org, -Old (the template at the installed templateSha) and -New are the normalised contents or $null when the
-    file does not exist on that side (D35, dashboard.md section 9). -Listed (in unusedRulebookFiles) gives remove
-    when the organization has the file, else none. New absent: vanished when the organization has the file (kept;
-    only unusedRulebookFiles removes it). Org absent: add. Org equal to New: none. -UpdateMode overwrite: overwrite.
-    Old absent (no installed template, or a file the organization made itself): skip. Org equal to Old: overwrite;
-    else New equal to Old: keep; else skip.
+    file does not exist on that side (D35, dashboard.md section 9). Org absent: add. Org equal to New: none.
+    -UpdateMode overwrite: overwrite. Old absent (no installed template, or a file the organization made itself):
+    skip. Org equal to Old: overwrite; else New equal to Old: keep; else skip. A file the new template does not ship
+    is never decided here (-New $null gives none): removal goes only through unusedRulebookFiles, which
+    Get-RulebookUpdatePlan applies to every managed class alike.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -682,11 +695,9 @@ function Compare-CustomizableFile {
         [AllowNull()][AllowEmptyString()]$Org,
         [AllowNull()][AllowEmptyString()]$Old,
         [AllowNull()][AllowEmptyString()]$New,
-        [AllowNull()][AllowEmptyString()][string]$UpdateMode,
-        [switch]$Listed
+        [AllowNull()][AllowEmptyString()][string]$UpdateMode
     )
-    if ($Listed) { if ($null -ne $Org) { return 'remove' } else { return 'none' } }
-    if ($null -eq $New) { if ($null -ne $Org) { return 'vanished' } else { return 'none' } }
+    if ($null -eq $New) { return 'none' }
     if ($null -eq $Org) { return 'add' }
     if ($Org -ceq $New) { return 'none' }
     if ($UpdateMode -ceq 'overwrite') { return 'overwrite' }
@@ -802,14 +813,14 @@ function Get-RulebookUpdatePlan {
             $new = Get-ComparableContent -Root $templateRoot -Path $path
             $decision = Compare-CustomizableFile -Org $org -Old $old -New $new -UpdateMode $updateMode
             if ($decision -cin 'add', 'overwrite') {
-                if (Test-BinaryPath -Path $path) { Write-UpdateBinary -Path $target -Bytes ([System.IO.File]::ReadAllBytes($source)) } else { Write-UpdateText -Path $target -Text $new }
+                if (Test-BinaryFile -Path $source) { Write-UpdateBinary -Path $target -Bytes ([System.IO.File]::ReadAllBytes($source)) } else { Write-UpdateText -Path $target -Text $new }
             } elseif ($decision -ceq 'skip') {
                 $reason = if (-not $installedRoot) { 'no installed template' } elseif (-not $oldSet.Contains($path)) { 'local file' } else { 'local changes' }
                 $skipped.Add([pscustomobject]@{ File = $path; Reason = $reason })
             }
             continue
         }
-        if (Test-BinaryPath -Path $path) {
+        if (Test-BinaryFile -Path $source) {
             Write-UpdateBinary -Path $target -Bytes ([System.IO.File]::ReadAllBytes($source))
         } elseif ($class.Kind -ceq 'workflow') {
             $text = ConvertTo-UpdatedWorkflowText -Text (Read-UpdateText -Path $source) -FileName (Split-Path -Leaf $path) -Settings $settings -TemplateUrl $Template.Url
@@ -947,12 +958,14 @@ function Get-RulebookUpdateStatus {
 
 #region Pull request
 
-function ConvertTo-EffectiveDiffMarkdown {
-    # One | Id | Before | After | Decided by | table per endpoint, the rendering of Validate.ps1.
+function Get-EffectiveDiffBlock {
+    # One Markdown block per endpoint: a heading and a | Id | Before | After | Decided by | table, the rendering of
+    # Validate.ps1.
     param([AllowNull()][AllowEmptyCollection()][object[]]$Diff, [string]$Heading = '###')
-    $text = [System.Text.StringBuilder]::new()
+    $blocks = [System.Collections.Generic.List[string]]::new()
     foreach ($group in (@($Diff) | Group-Object Endpoint)) {
         $first = $group.Group[0]
+        $text = [System.Text.StringBuilder]::new()
         [void]$text.AppendLine(('{0} `{1}` (`{2}`)' -f $Heading, $first.Endpoint, $first.File)).AppendLine()
         [void]$text.AppendLine('| Id | Before | After | Decided by |').AppendLine('|---|---|---|---|')
         foreach ($row in $group.Group) {
@@ -965,45 +978,75 @@ function ConvertTo-EffectiveDiffMarkdown {
             [void]$text.AppendLine(('| {0} | {1} | {2} | {3} |' -f (Format-TableCell $row.Id), $before, $after, (Format-TableCell $decidedBy)))
         }
         [void]$text.AppendLine()
+        $blocks.Add($text.ToString())
     }
-    return $text.ToString()
+    return , [string[]]$blocks.ToArray()
 }
 
-function ConvertTo-PlanTablesMarkdown {
-    # The change table, the skipped site files, the notes and the validation warnings of a plan.
+function Get-PlanSection {
+    # The sections of a plan as separate Markdown strings ('' when a section is empty): Changes, Skipped, Notes,
+    # Warnings. The body and the summary concatenate them in their own order.
     param([Parameter(Mandatory)]$Plan, [string]$CompareUrl)
-    $text = [System.Text.StringBuilder]::new()
-    [void]$text.AppendLine('## Changes').AppendLine()
+    $changes = [System.Text.StringBuilder]::new()
+    [void]$changes.AppendLine('## Changes').AppendLine()
     if (@($Plan.Changes).Count -eq 0) {
-        [void]$text.AppendLine('No file changes.').AppendLine()
+        [void]$changes.AppendLine('No file changes.').AppendLine()
     } else {
-        [void]$text.AppendLine('| File | Class | Change |').AppendLine('|---|---|---|')
-        foreach ($change in $Plan.Changes) { [void]$text.AppendLine(('| `{0}` | {1} | {2} |' -f $change.File, $change.Class, $change.Change)) }
-        [void]$text.AppendLine()
+        [void]$changes.AppendLine('| File | Class | Change |').AppendLine('|---|---|---|')
+        foreach ($change in $Plan.Changes) { [void]$changes.AppendLine(('| `{0}` | {1} | {2} |' -f $change.File, $change.Class, $change.Change)) }
+        [void]$changes.AppendLine()
     }
+    $skipped = [System.Text.StringBuilder]::new()
     if (@($Plan.Skipped).Count -gt 0) {
-        [void]$text.AppendLine('## Skipped: local changes in site/').AppendLine()
-        [void]$text.AppendLine('These files differ from the template and were kept. Compare them with the template and take over what you need, or set site.updateMode to overwrite.').AppendLine()
-        foreach ($item in $Plan.Skipped) { [void]$text.AppendLine(('- `{0}`: {1}' -f $item.File, $item.Reason)) }
-        if ($CompareUrl) { [void]$text.AppendLine().AppendLine("Template changes since the installed version: $CompareUrl") }
-        [void]$text.AppendLine()
+        [void]$skipped.AppendLine('## Skipped: local changes in site/').AppendLine()
+        [void]$skipped.AppendLine('These files differ from the template and were kept. Compare them with the template and take over what you need, or set site.updateMode to overwrite.').AppendLine()
+        foreach ($item in $Plan.Skipped) { [void]$skipped.AppendLine(('- `{0}`: {1}' -f $item.File, $item.Reason)) }
+        if ($CompareUrl) { [void]$skipped.AppendLine().AppendLine("Template changes since the installed version: $CompareUrl") }
+        [void]$skipped.AppendLine()
     }
+    $notes = [System.Text.StringBuilder]::new()
     if (@($Plan.Notes).Count -gt 0) {
-        [void]$text.AppendLine('## Notes').AppendLine()
-        foreach ($note in $Plan.Notes) { [void]$text.AppendLine("- $note") }
-        [void]$text.AppendLine()
+        [void]$notes.AppendLine('## Notes').AppendLine()
+        foreach ($note in $Plan.Notes) { [void]$notes.AppendLine("- $note") }
+        [void]$notes.AppendLine()
     }
-    $warnings = @($Plan.Findings | Where-Object Severity -EQ 'warning')
-    if ($warnings.Count -gt 0) {
-        [void]$text.AppendLine('## Validation warnings').AppendLine()
-        [void]$text.AppendLine('| Rule | File | Id | Message |').AppendLine('|---|---|---|---|')
-        foreach ($finding in $warnings) {
+    $warnings = [System.Text.StringBuilder]::new()
+    $warningFindings = @($Plan.Findings | Where-Object Severity -EQ 'warning')
+    if ($warningFindings.Count -gt 0) {
+        [void]$warnings.AppendLine('## Validation warnings').AppendLine()
+        [void]$warnings.AppendLine('| Rule | File | Id | Message |').AppendLine('|---|---|---|---|')
+        foreach ($finding in $warningFindings) {
             $file = if ($finding.File) { '`' + $finding.File + '`' } else { '' }
-            [void]$text.AppendLine(('| {0} | {1} | {2} | {3} |' -f $finding.Rule, $file, (Format-TableCell $finding.Id), (Format-TableCell $finding.Message)))
+            [void]$warnings.AppendLine(('| {0} | {1} | {2} | {3} |' -f $finding.Rule, $file, (Format-TableCell $finding.Id), (Format-TableCell $finding.Message)))
         }
-        [void]$text.AppendLine()
+        [void]$warnings.AppendLine()
     }
-    return $text.ToString()
+    return [pscustomobject]@{ Changes = $changes.ToString(); Skipped = $skipped.ToString(); Notes = $notes.ToString(); Warnings = $warnings.ToString() }
+}
+
+function ConvertTo-ReleaseNotesMarkdown {
+    # Release notes placed below a '## Release notes' heading: outside fenced code blocks (``` or ~~~) a title line
+    # ('# ...') goes and every other heading moves one level down; fenced lines stay as they are.
+    param([Parameter(Mandatory)][string]$Text)
+    $result = [System.Collections.Generic.List[string]]::new()
+    $fence = $null
+    foreach ($line in $Text.TrimEnd().Split("`n")) {
+        $marker = [regex]::Match($line, '^[ ]{0,3}(`{3,}|~{3,})')
+        if ($null -ne $fence) {
+            if ($marker.Success -and $marker.Groups[1].Value[0] -ceq $fence[0] -and $marker.Groups[1].Value.Length -ge $fence.Length -and $line.Trim() -ceq $marker.Groups[1].Value) { $fence = $null }
+            $result.Add($line)
+            continue
+        }
+        if ($marker.Success) {
+            $fence = $marker.Groups[1].Value
+            $result.Add($line)
+            continue
+        }
+        if ($line -cmatch '^# ') { continue }
+        if ($line -cmatch '^#{2,5} ') { $result.Add("#$line"); continue }
+        $result.Add($line)
+    }
+    return ($result -join "`n").Trim()
 }
 
 function Get-CompareUrl {
@@ -1022,8 +1065,10 @@ function ConvertTo-UpdatePullRequestBody {
     Sections in order: '## Changes' (| File | Class | Change |), '## Effective diff' (one | Id | Before | After |
     Decided by | table per endpoint, or 'No effective change.'), '## Skipped: local changes in site/' and '## Notes'
     when there are any, '## Validation warnings' when there are any, '## Release notes' with the new part of
-    RELEASENOTES.copy.md or 'No release notes available' (left out when the template ships no release notes). Cut
-    below the 65536-character limit of GitHub.
+    RELEASENOTES.copy.md or 'No release notes available' (left out when the template ships no release notes).
+    Above the 65536-character limit of GitHub (-Limit, default 60000) whole parts are dropped, the release notes
+    first, then endpoint tables of the effective diff from the end, each with one italic line saying what is missing;
+    only when that is not enough is the body cut, at a line boundary.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -1032,43 +1077,54 @@ function ConvertTo-UpdatePullRequestBody {
         [AllowNull()][AllowEmptyCollection()][object[]]$Diff,
         [string]$TemplateRepo,
         [string]$Branch,
-        [string]$DiffNote
+        [string]$DiffNote,
+        [int]$Limit = $script:BodyLimit
     )
     if ([string]::IsNullOrEmpty($TemplateRepo)) { $TemplateRepo = $Plan.TemplateRepo }
-    $text = [System.Text.StringBuilder]::new()
-    [void]$text.AppendLine(('Updates the Rulebook system files of `{0}` from {1} at {2}. The endpoints in rulesets/ and the skeletons are regenerated from the new level and stage files and this repository''s settings, overrides and quarantine; the effective diff below is what changes for the AL projects.' -f $Branch, $TemplateRepo, (Get-ShortSha $Plan.TemplateSha))).AppendLine()
-    $tables = ConvertTo-PlanTablesMarkdown -Plan $Plan -CompareUrl (Get-CompareUrl -Plan $Plan)
-    $split = $tables.IndexOf("## Skipped: local changes in site/")
-    if ($split -lt 0) { $split = $tables.IndexOf('## Notes') }
-    if ($split -lt 0) { $split = $tables.IndexOf('## Validation warnings') }
-    $head = if ($split -ge 0) { $tables.Substring(0, $split) } else { $tables }
-    $tail = if ($split -ge 0) { $tables.Substring($split) } else { '' }
-    [void]$text.Append($head)
-    [void]$text.AppendLine('## Effective diff').AppendLine()
+    $intro = ('Updates the Rulebook system files of `{0}` from {1} at {2}. The endpoints in rulesets/ and the skeletons are regenerated from the new level and stage files and this repository''s settings, overrides and quarantine; the effective diff below is what changes for the AL projects.' -f $Branch, $TemplateRepo, (Get-ShortSha $Plan.TemplateSha)) + "`n`n"
+    $sections = Get-PlanSection -Plan $Plan -CompareUrl (Get-CompareUrl -Plan $Plan)
+    $diffHead = "## Effective diff`n`n"
+    [string[]]$diffBlocks = @()
+    $diffEmpty = ''
     if ($DiffNote) {
-        [void]$text.AppendLine($DiffNote).AppendLine()
+        $diffEmpty = "$DiffNote`n`n"
     } elseif (@($Diff).Count -eq 0) {
-        [void]$text.AppendLine('No effective change.').AppendLine()
+        $diffEmpty = "No effective change.`n`n"
     } else {
-        [void]$text.Append((ConvertTo-EffectiveDiffMarkdown -Diff $Diff))
+        $diffBlocks = Get-EffectiveDiffBlock -Diff $Diff
     }
-    [void]$text.Append($tail)
+    $notes = ''
     if ($Plan.ReleaseNotesShipped) {
-        [void]$text.AppendLine('## Release notes').AppendLine()
-        # The notes sit below this section's heading: a title line goes, every other heading moves one level down.
-        $notes = if ([string]::IsNullOrWhiteSpace($Plan.ReleaseNotes)) {
-            'No release notes available'
-        } else {
-            $lines = @($Plan.ReleaseNotes.TrimEnd().Split("`n") | Where-Object { $_ -cnotmatch '^# ' } | ForEach-Object { if ($_ -cmatch '^#{2,5} ') { "#$_" } else { $_ } })
-            ($lines -join "`n").Trim()
-        }
-        [void]$text.AppendLine($notes).AppendLine()
+        $content = if ([string]::IsNullOrWhiteSpace($Plan.ReleaseNotes)) { 'No release notes available' } else { ConvertTo-ReleaseNotesMarkdown -Text $Plan.ReleaseNotes }
+        $notes = "## Release notes`n`n$content`n`n"
     }
-    $body = $text.ToString().Replace("`r`n", "`n")
-    if ($body.Length -gt $script:BodyLimit) {
-        $body = $body.Substring(0, $script:BodyLimit) + "`n`n_The body was cut at $($script:BodyLimit) characters; the job summary of the update run has the full effective diff._`n"
+
+    $build = {
+        param([string]$ReleaseNotes, [int]$BlockCount, [string]$DroppedNote)
+        $diffText = $diffHead + $diffEmpty + (@($diffBlocks | Select-Object -First $BlockCount) -join '')
+        if ($DroppedNote) { $diffText += "$DroppedNote`n`n" }
+        return ($intro + $sections.Changes + $diffText + $sections.Skipped + $sections.Notes + $sections.Warnings + $ReleaseNotes).Replace("`r`n", "`n")
     }
-    return $body
+    $body = & $build $notes $diffBlocks.Count $null
+    if ($body.Length -le $Limit) { return $body }
+
+    # Too long: the release notes go first (they are in .github/RELEASENOTES.copy.md of this pull request).
+    $notesDropped = if ($notes) { "## Release notes`n`n_The release notes were left out to keep this body below the GitHub limit; they are in .github/RELEASENOTES.copy.md of this pull request._`n`n" } else { '' }
+    $body = & $build $notesDropped $diffBlocks.Count $null
+    if ($body.Length -le $Limit) { return $body }
+
+    # Then endpoint tables of the effective diff, from the end.
+    for ($count = $diffBlocks.Count - 1; $count -ge 0; $count--) {
+        $dropped = "_$($diffBlocks.Count - $count) of $($diffBlocks.Count) endpoint tables of the effective diff were left out to keep this body below the GitHub limit; the job summary of the update run has them all._"
+        $body = & $build $notesDropped $count $dropped
+        if ($body.Length -le $Limit) { return $body }
+    }
+
+    # Still too long (a huge change table): cut at a line boundary.
+    $tail = "`n_The body was cut at a line boundary to stay below the GitHub limit; the job summary of the update run has the full lists._`n"
+    $cut = $body.LastIndexOf("`n", [math]::Max(0, $Limit - $tail.Length - 1), [System.StringComparison]::Ordinal)
+    if ($cut -lt 0) { $cut = 0 }
+    return $body.Substring(0, $cut + 1) + $tail
 }
 
 function ConvertTo-UpdateSummary {
@@ -1099,7 +1155,8 @@ function ConvertTo-UpdateSummary {
         }
         [void]$text.AppendLine($line).AppendLine()
     }
-    [void]$text.Append((ConvertTo-PlanTablesMarkdown -Plan $Plan -CompareUrl (Get-CompareUrl -Plan $Plan)))
+    $sections = Get-PlanSection -Plan $Plan -CompareUrl (Get-CompareUrl -Plan $Plan)
+    [void]$text.Append($sections.Changes).Append($sections.Skipped).Append($sections.Notes).Append($sections.Warnings)
     $errors = @($Plan.Findings | Where-Object Severity -EQ 'error')
     if ($errors.Count -gt 0) {
         [void]$text.AppendLine('## Validation errors of the updated rulebook').AppendLine()
@@ -1112,7 +1169,7 @@ function ConvertTo-UpdateSummary {
     }
     if ($null -ne $Result -and @($Result.Diff).Count -gt 0) {
         [void]$text.AppendLine('## Effective diff').AppendLine()
-        [void]$text.Append((ConvertTo-EffectiveDiffMarkdown -Diff @($Result.Diff)))
+        [void]$text.Append((@(Get-EffectiveDiffBlock -Diff @($Result.Diff)) -join ''))
     }
     return $text.ToString().Replace("`r`n", "`n")
 }

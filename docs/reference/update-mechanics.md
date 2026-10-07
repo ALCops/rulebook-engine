@@ -47,23 +47,21 @@ A file the installed template shipped and the new one does not, present and not 
 
 1. Read `.github/Rulebook-Settings.json` (missing or not JSON: one finding `update`, error).
 2. Copy the working tree to `<work>/candidate`, without `.git`, `site/data` and any `node_modules`.
-3. For every template path by class: write the overwrite files (bytes for `.png .jpg .gif .ico .pdf .woff .woff2`), decide the customizable ones, skip the listed ones; then the settings edit.
+3. For every template path by class: write the overwrite files (bytes for a binary file: a known image, font, PDF or zip extension, or a NUL byte in the first 8 KB), decide the customizable ones, skip the listed ones; then the settings edit.
 4. Delete the listed managed files; collect the notes of section 1.
 5. Regenerate `skeletons/` and `rulesets/` on the candidate. An exception there is one finding `update`.
 6. Run `Test-Rulebook` on the candidate. `Valid` means no error finding.
-7. Compare the candidate with the working tree over both file lists: text LF-normalised with one trailing LF and compared case-sensitively (`-cne`), binaries by bytes. Each difference is a change `{ File, Class, Kind, Change (created, modified, deleted), Bytes }`.
+7. Compare the candidate with the working tree over both file lists: text LF-normalised with one trailing LF and compared case-sensitively (`-cne`), binaries (same rule as step 3) by bytes. Each difference is a change `{ File, Class, Kind, Change (created, modified, deleted), Bytes }`.
 8. The release notes delta (section 9).
 
 **Sha-only.** When every change is bookkeeping, `templateSha` in the settings and the `{TEMPLATEURL}` placeholder of a workflow, the plan is `ShaOnly` and `UpdatesAvailable` is false. That is the state of a repository fresh from the template and of one whose template has not moved since it recorded another sha. Any other change makes `UpdatesAvailable` true.
 
 ## 3. Customizable files
 
-`Compare-CustomizableFile` takes the organization's file, the template file at the installed `templateSha` (old) and the new template file, each `$null` when absent (D35, dashboard.md section 9):
+`Compare-CustomizableFile` decides every `site/**` file the new template ships and `unusedRulebookFiles` does not list. It takes the organization's file, the template file at the installed `templateSha` (old) and the new template file, each `$null` when absent (D35, dashboard.md section 9):
 
 | Organization | Old template | New template | Decision |
 |---|---|---|---|
-| listed in `unusedRulebookFiles` | any | any | `remove` when the organization has it, else `none` |
-| any | any | absent | `vanished` (kept; a note when it was shipped before) |
 | absent | any | present | `add` |
 | equal to new | any | present | `none` |
 | differs | any | present, `updateMode` `overwrite` | `overwrite` (the pull request shows the revert) |
@@ -72,7 +70,7 @@ A file the installed template shipped and the new one does not, present and not 
 | differs from old | present | equal to old | `keep`, no diff |
 | differs from old | present | changed | `skip`, listed with reason `local changes` |
 
-Skipped files are listed in the pull request under "Skipped: local changes in site/", with the template's compare link when the installed commit is known.
+Skipped files are listed in the pull request under "Skipped: local changes in site/", with the template's compare link when the installed commit is known. Removal follows the one rule of section 1 for every managed class: a site file listed in `unusedRulebookFiles` is deleted when present and shipped by the new or the installed template; a site file the template dropped and nobody listed stays, with the note "The template no longer ships ...".
 
 ## 4. The settings edit
 
@@ -130,7 +128,7 @@ Neither annotation counts towards `warnings=` or `failOnWarning`, and the check 
 2. The template: with `downloadLatest` the branch head, else the recorded `templateSha`; an empty `templateSha` or another template URL than the recorded one always resolves the head. Failure: `failure=template`.
 3. The plan. Not valid: one error annotation per error finding ("The updated rulebook would not validate: ..."), `failure=validation`, nothing pushed. The findings come from the repository after the update, so an error the repository already has fails the update too.
 4. The write token (exchange failure: `failure=token`), masked.
-5. Title `[<branch>@<sha7>] Update Rulebook System Files from <owner>/<repo> - <templateSha7>`, `<sha7>` the branch head from the API. An open pull request into the branch with exactly this title: warning `Pull request already exists: <url>`, exit 0, nothing cloned. A push to the branch while the update pull request is open changes `<sha7>`, and the next run opens a second pull request (AL-Go behaviour).
+5. Title `[<branch>@<sha7>] Update Rulebook System Files from <owner>/<repo> - <templateSha7>`, `<sha7>` the branch head from the API. An open pull request into the branch with exactly this title: warning `Pull request already exists: <url>`, exit 0, nothing cloned. **Known limitation (AL-Go behaviour, accepted):** the title carries the branch head, so a push to the branch while the update pull request is open changes `<sha7>`, the guard no longer matches, and the next run opens a second update pull request; close the older one.
 6. Clone the branch (`--single-branch`), write the plan's changes, commit with the title. Pull request: push `update-rulebook-system-files/<branch>/<yyMMddHHmmss UTC>`, open the pull request with the body of section 9 and add `commitOptions.pullRequestLabels`. Direct commit: push the branch; a refused push (branch protection) moves the commit to the timestamped branch and opens the pull request instead. Nothing to commit: notice `No updates available`.
 7. A failure while cloning or pushing is `failure=push`, while listing or opening the pull request `failure=pull-request`, both with the hint "Make sure that the token in the secret <name> is not expired and may write contents, pull requests and workflows of <repo>".
 
@@ -146,9 +144,9 @@ The body, in this order:
 - `## Skipped: local changes in site/` when files were skipped, with the reasons and the compare link.
 - `## Notes` when there are notes.
 - `## Validation warnings` when the candidate has warnings.
-- `## Release notes`: the part of the template's `.github/RELEASENOTES.copy.md` above the first `## v*.*` heading of the installed copy, headings moved one level down; "No release notes available" when nothing is new; left out when the template ships no release notes.
+- `## Release notes`: the part of the template's `.github/RELEASENOTES.copy.md` above the first `## v*.*` heading of the installed copy, its title line dropped and the other headings moved one level down (lines inside ``` or ~~~ fences stay as they are); "No release notes available" when nothing is new; left out when the template ships no release notes.
 
-The body is cut below the 65536-character limit. The job summary is `## Template update check` (check mode) or `## Rulebook system files update`, the result line and the same tables, plus the validation errors of an invalid candidate.
+The body stays below the 65536-character limit (60000 characters): when it is longer, the release notes go first (a line points at `.github/RELEASENOTES.copy.md` of the pull request), then endpoint tables of the effective diff from the end (a line says how many are left out); only when that is not enough is the body cut at a line boundary, with a closing note. The job summary always has the full lists. The job summary is `## Template update check` (check mode) or `## Rulebook system files update`, the result line and the same tables, plus the validation errors of an invalid candidate.
 
 ## 10. Action reference
 
