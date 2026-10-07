@@ -293,6 +293,18 @@ Describe 'C9 dead weight' {
         @(Test-Rulebook -RepositoryRoot $root).Count | Should-Be 0
     }
 
+    It 'a bare file name in unusedRulebookFiles does not silence C9' {
+        # Entries are repository-relative paths (#49); the update matches them the same way (Rulebook.Update suite).
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root 'base' 'orphan.ruleset.json') -Text '{ "name": "Rulebook Orphan", "rules": [] }'
+        Edit-SettingsFile -Root $root -Script { $_.unusedRulebookFiles = @('orphan.ruleset.json') }
+        # The settings schema rejects the entry (C5), which holds back C9; the matcher itself is path-only too.
+        $findings = @(Test-Rulebook -RepositoryRoot $root)
+        @($findings | Where-Object { $_.Rule -eq 'C5' -and $_.Message -like '*unusedRulebookFiles*' }).Count | Should-Be 1
+        InModuleScope Rulebook.Validate { Test-UnusedListed -Unused @('orphan.ruleset.json') -Path 'base/orphan.ruleset.json' } | Should-BeFalse
+        InModuleScope Rulebook.Validate { Test-UnusedListed -Unused @('base/orphan.ruleset.json') -Path 'base/orphan.ruleset.json' } | Should-BeTrue
+    }
+
     It 'does not report a level file a published chain reaches' {
         $root = Copy-Fixture
         Edit-SettingsFile -Root $root -Script { $_.levels = @($_.levels | Where-Object { $_.name -ne 'Essential' }) }

@@ -145,7 +145,7 @@ function Get-RuleIdList {
 
 function Test-UnusedListed {
     param([string[]]$Unused, [Parameter(Mandatory)][string]$Path)
-    return ($Path -cin $Unused) -or ((Split-Path -Leaf $Path) -cin $Unused)
+    return $Path -cin $Unused
 }
 
 function Get-SortedFinding {
