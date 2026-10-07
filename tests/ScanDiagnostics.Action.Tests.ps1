@@ -238,6 +238,8 @@ Describe 'ScanDiagnostics.ps1' {
             $run.Result.Result | Should-Be 'pull-request'
             $run.Result.Outputs.pullRequestUrl | Should-Be 'https://github.com/Contoso/rulebook/pull/21'
             $run.Lines | Should-ContainCollection @('::add-mask::ghp_secret')
+            # The org copy in TestDrive is no git checkout, so the base-move guard says it cannot work.
+            $run.Result.Annotations | Should-ContainCollection @('::warning title=ScanDiagnostics::base-move guard inactive: the checkout HEAD could not be read')
             @(Get-ChildItem -LiteralPath $env:RUNNER_TEMP -Directory -Filter 'rulebook-scan-*') | Should-BeCollection @()
             $run.Summary | Should-MatchString '(?m)^Pull request: https://github.com/Contoso/rulebook/pull/21$'
         } finally {

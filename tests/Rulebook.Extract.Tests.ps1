@@ -177,22 +177,20 @@ Describe 'Invoke-DescriptorExtraction failures' {
         $caught.Exception.Message | Should-BeLikeString '*: Could not instantiate Microsoft.Dynamics.Nav.ThrowingCop.ThrowingAnalyzer of Microsoft.Dynamics.Nav.ThrowingCop.dll: stub constructor failure'
     }
 
-    It 'starts the child without the tokens and action inputs of the parent' {
-        $saved = @{ Input = $env:INPUT_TOKEN; Gh = $env:GH_TOKEN; Custom = $env:RULEBOOK_SECRET_TOKEN; Plain = $env:RULEBOOK_PLAIN }
+    It 'starts the child in the work folder without the secrets, inputs and runner command files of the parent' {
+        $names = @('INPUT_TOKEN', 'GH_TOKEN', 'RULEBOOK_SECRET_TOKEN', 'AZURE_CLIENT_SECRET', 'NUGET_PASSWORD', 'SIGNING_KEY', 'ORG_PAT', 'GITHUB_ENV', 'GITHUB_PATH', 'GITHUB_OUTPUT', 'GITHUB_STATE', 'GITHUB_STEP_SUMMARY')
+        $saved = @{}
+        foreach ($name in $names + 'RULEBOOK_PLAIN') { $saved[$name] = [System.Environment]::GetEnvironmentVariable($name) }
         try {
-            $env:INPUT_TOKEN = 'ghp_parent'
-            $env:GH_TOKEN = 'ghp_parent'
-            $env:RULEBOOK_SECRET_TOKEN = 'ghp_parent'
+            foreach ($name in $names) { [System.Environment]::SetEnvironmentVariable($name, 'parent') }
             $env:RULEBOOK_PLAIN = 'kept'
-            $info = InModuleScope Rulebook.Extract { New-ExtractionStartInfo -PwshPath 'pwsh' -EncodedCommand 'AA==' }
-            $names = @($info.Environment.Keys)
-            foreach ($name in 'INPUT_TOKEN', 'GH_TOKEN', 'RULEBOOK_SECRET_TOKEN', 'GITHUB_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN') { $names -contains $name | Should-BeFalse -Because $name }
+            $info = InModuleScope Rulebook.Extract { New-ExtractionStartInfo -PwshPath 'pwsh' -EncodedCommand 'AA==' -WorkingDirectory $TestDrive }
+            $childNames = @($info.Environment.Keys)
+            foreach ($name in $names + 'GITHUB_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN') { $childNames -contains $name | Should-BeFalse -Because $name }
             $info.Environment['RULEBOOK_PLAIN'] | Should-Be 'kept'
+            $info.WorkingDirectory | Should-Be $TestDrive
         } finally {
-            $env:INPUT_TOKEN = $saved.Input
-            $env:GH_TOKEN = $saved.Gh
-            $env:RULEBOOK_SECRET_TOKEN = $saved.Custom
-            $env:RULEBOOK_PLAIN = $saved.Plain
+            foreach ($name in $saved.Keys) { [System.Environment]::SetEnvironmentVariable($name, $saved[$name]) }
         }
     }
 

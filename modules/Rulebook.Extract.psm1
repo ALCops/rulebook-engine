@@ -67,17 +67,23 @@ function Get-DefaultPwshPath {
     return $command.Source
 }
 
+# The runner's command files: a DLL that appends to them (NODE_OPTIONS, a PATH entry) would poison the later steps.
+$script:RunnerFileVariables = @('GITHUB_ENV', 'GITHUB_PATH', 'GITHUB_OUTPUT', 'GITHUB_STATE', 'GITHUB_STEP_SUMMARY')
+
 function Test-SecretVariable {
-    # A variable the extraction child must not see: the action inputs and every token.
+    # A variable the extraction child must not see: the action inputs, every token, secret, password, key or PAT, and
+    # the runner's command files.
     param([Parameter(Mandatory)][string]$Name)
-    return $Name -like 'INPUT_*' -or $Name -like '*TOKEN' -or $Name -in 'GITHUB_TOKEN', 'GH_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN'
+    foreach ($pattern in 'INPUT_*', '*TOKEN', '*_SECRET', '*_PASSWORD', '*_KEY', '*_PAT') { if ($Name -like $pattern) { return $true } }
+    return $Name -in @('GITHUB_TOKEN', 'GH_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN') + $script:RunnerFileVariables
 }
 
 function New-ExtractionStartInfo {
     # The start info of the extraction child, its environment without secrets (Test-SecretVariable).
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object; changes no state')]
-    param([Parameter(Mandatory)][string]$PwshPath, [Parameter(Mandatory)][string]$EncodedCommand)
+    param([Parameter(Mandatory)][string]$PwshPath, [Parameter(Mandatory)][string]$EncodedCommand, [string]$WorkingDirectory)
     $info = [System.Diagnostics.ProcessStartInfo]::new($PwshPath)
+    if ($WorkingDirectory) { $info.WorkingDirectory = $WorkingDirectory }
     foreach ($argument in '-NoProfile', '-NonInteractive', '-OutputFormat', 'Text', '-EncodedCommand', $EncodedCommand) { $info.ArgumentList.Add($argument) }
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
@@ -336,9 +342,10 @@ function Invoke-DescriptorExtraction {
     <WorkPath>/descriptors-<guid>.json. -PwshPath defaults to the pwsh in $PSHOME (Get-Command pwsh as the fallback).
     A non-zero exit, a timeout (-TimeoutSeconds, default 300; the child is killed) or a missing result file throws
     'Extraction failed for <ToolsDir>: <the last 20 output lines>' with Data['Stage'] = 'extract' (and Data['ProcessId']).
-    The child gets no token: every INPUT_* variable, GITHUB_TOKEN, GH_TOKEN, ACTIONS_RUNTIME_TOKEN,
-    ACTIONS_ID_TOKEN_REQUEST_TOKEN and any variable whose name ends in TOKEN is removed from its environment, because
-    it loads the downloaded DLLs and runs their analyzer constructors.
+    The child gets no secret: every INPUT_* variable, GITHUB_TOKEN, GH_TOKEN, ACTIONS_RUNTIME_TOKEN,
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN, any name ending in TOKEN, _SECRET, _PASSWORD, _KEY or _PAT, and the runner's
+    command files (GITHUB_ENV, GITHUB_PATH, GITHUB_OUTPUT, GITHUB_STATE, GITHUB_STEP_SUMMARY) are removed from its
+    environment, and it runs in -WorkPath, because it loads the downloaded DLLs and runs their analyzer constructors.
     #>
     [CmdletBinding()]
     [OutputType([System.Collections.IDictionary])]
@@ -367,7 +374,7 @@ function Invoke-DescriptorExtraction {
     [void]$command.Append(" } catch { [Console]::Error.WriteLine(`$_.Exception.Message); exit 1 }")
     $encoded = [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command.ToString()))
 
-    $info = New-ExtractionStartInfo -PwshPath $PwshPath -EncodedCommand $encoded
+    $info = New-ExtractionStartInfo -PwshPath $PwshPath -EncodedCommand $encoded -WorkingDirectory $WorkPath
     $process = [System.Diagnostics.Process]::Start($info)
     $outputTask = $process.StandardOutput.ReadToEndAsync()
     $errorTask = $process.StandardError.ReadToEndAsync()

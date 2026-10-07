@@ -29,8 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # No credentials in .git/config: the scan reads the checkout and clones again with the secret's token to push.
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # The secret name comes from ghTokenWorkflowSecretName; a scheduled run has no inputs, scans prereleases and
       # follows commitOptions.createPullRequest.

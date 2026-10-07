@@ -199,6 +199,7 @@ try {
         $result = 'dry-run'
     } else {
         # 8. Publish.
+        if (-not $plan.HeadSha) { Add-Annotation -Command warning -Message 'base-move guard inactive: the checkout HEAD could not be read' }
         $labels = [string[]]@(& $setting 'commitOptions', 'pullRequestLabels' | Where-Object { $_ -is [string] -and $_ -ne '' })
         try {
             $publishParameters = @{
@@ -216,7 +217,7 @@ try {
         $result = $publish.Result
         switch ($publish.Result) {
             'no-changes' { $summaryMessage = 'No changes to commit' }
-            'direct-commit' { $summaryMessage = "Scan committed to $($publish.Branch) ($($publish.Sha.Substring(0, [math]::Min(7, $publish.Sha.Length))))" }
+            'direct-commit' { $summaryMessage = "Scan committed to $($publish.Branch) ($(Get-ShortSha $publish.Sha))" }
             'pull-request-updated' { $summaryMessage = "Pull request updated: $($publish.PullRequestUrl)" }
             default { $summaryMessage = "Pull request: $($publish.PullRequestUrl)" + $(if ($publish.Fallback) { ' (the direct commit was refused)' } else { '' }) }
         }

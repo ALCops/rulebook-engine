@@ -356,6 +356,9 @@ function Update-CatalogFromScan {
             $lists.Recorded.Add($id)
         }
         if ([string]::IsNullOrEmpty($entry.LastSeenVersion) -or (Compare-NuGetVersion -Reference $Version -Difference $entry.LastSeenVersion) -gt 0) { $entry.LastSeenVersion = $Version }
+        # The first stable version of an id first seen in a prerelease: its defaults are what the id ships with, not a
+        # change of a released default, so they are taken over without a defaultChanges element.
+        $firstStable = $stable -and [string]::IsNullOrEmpty($entry.FirstStableVersion) -and $entry.FirstSeenChannel -ceq 'prerelease'
         $fields = @(
             @{ Field = 'defaultSeverity'; Property = 'DefaultSeverity'; Value = $record.DefaultSeverity }
             @{ Field = 'enabledByDefault'; Property = 'EnabledByDefault'; Value = [bool]$record.EnabledByDefault }
@@ -363,6 +366,10 @@ function Update-CatalogFromScan {
         foreach ($field in $fields) {
             $current = $entry.($field.Property)
             if ($null -eq $field.Value -or ($null -ne $current -and $current -ceq $field.Value) -or ($current -is [bool] -and $current -eq $field.Value)) { continue }
+            if ($firstStable) {
+                $entry.($field.Property) = $field.Value
+                continue
+            }
             $change = [pscustomobject]@{ Id = $id; Field = $field.Field; From = $current; To = $field.Value; Version = $Version }
             if (-not $stable) {
                 $lists.PrereleaseDefaultChanges.Add($change)
@@ -391,7 +398,8 @@ function Update-CatalogFromScan {
     }
     if ($stable) {
         foreach ($entry in $entries.Values) {
-            if ($entry.Package -ceq $PackageId -and -not $Records.Contains($entry.Id)) { $lists.Vanished.Add($entry.Id) }
+            # An id only a prerelease carried has not vanished from a stable version.
+            if ($entry.Package -ceq $PackageId -and -not [string]::IsNullOrEmpty($entry.FirstStableVersion) -and -not $Records.Contains($entry.Id)) { $lists.Vanished.Add($entry.Id) }
         }
     }
     $after = [pscustomobject]@{ PSTypeName = 'Rulebook.Catalog'; Schema = $Catalog.Schema; Version = $Catalog.Version; Entries = $entries; Path = $Catalog.Path }

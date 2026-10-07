@@ -10,6 +10,7 @@
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
         'Compare-CustomizableFile'
+        'Get-ShortSha'
         'Copy-UpdateTree'
         'Format-TableCell'
         'Get-ComparableContent'

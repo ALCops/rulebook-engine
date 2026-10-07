@@ -389,6 +389,13 @@ Describe 'Publish-RulebookScan against a bare repository' -Skip:$gitMissing {
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'PATCH' -and $Body.state -eq 'closed' -and $Body.body -like 'Closed by the scan of 2026-10-08: the base branch main already contains its result.*' }
     }
 
+    It 'writes the closing line once on a pull request closed before' {
+        $bare = New-BareFixtureRepo -Source (Copy-Candidate $plan) -Destination (Join-Path (Get-TestFolder) 'merged-again.git')
+        $script:openPulls = @(@{ number = 21; title = 'Scan diagnostics: old'; html_url = 'https://github.com/Contoso/rulebook/pull/21'; body = "Closed by the scan of 2026-10-01: the base branch main already contains its result.`n`nold body" })
+        $null = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -WorkPath (Get-TestFolder)
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'PATCH' -and $Body.body -ceq "Closed by the scan of 2026-10-08: the base branch main already contains its result.`n`nold body" }
+    }
+
     It 'closes nothing when no scan pull request is open' {
         $bare = New-BareFixtureRepo -Source (Copy-Candidate $plan) -Destination (Join-Path (Get-TestFolder) 'merged-none.git')
         $result = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -WorkPath (Get-TestFolder)

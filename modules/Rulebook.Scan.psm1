@@ -37,12 +37,6 @@ function Get-PackageLabel {
     return $PackageId
 }
 
-function Get-ShortSha {
-    param([AllowNull()][AllowEmptyString()][string]$Sha)
-    if ([string]::IsNullOrEmpty($Sha)) { return '' }
-    return $Sha.Substring(0, [math]::Min(7, $Sha.Length))
-}
-
 function Format-PackageText {
     # Text a package supplies (a title), for a Markdown table cell: Format-TableCell, and a zero-width space after every
     # '@' so a title cannot mention a GitHub user or team.
@@ -205,7 +199,10 @@ function Get-RulebookScanPlan {
             $index = Get-NuGetVersionIndex -PackageId $packageId -Source $Source
             $selected = Select-NuGetChannelVersion -Versions $index.Versions -IncludePrerelease:$IncludePrerelease
             if (@($selected.Invalid).Count -gt 0) { $notes.Add("The NuGet index of $packageId lists $(@($selected.Invalid).Count) entries that are not versions; they were skipped.") }
-            if ($null -eq $selected.Stable) { throw "The NuGet index of $packageId lists no stable version" }
+            if ($null -eq $selected.Stable) {
+                $what = if (@($selected.Invalid).Count -gt 0) { " ($(@($selected.Invalid).Count) of its entries are not versions)" } else { '' }
+                throw "The NuGet index of $packageId lists no stable version$what"
+            }
             [pscustomobject]@{ PackageId = $packageId; Label = Get-PackageLabel $packageId; Stable = $selected.Stable; Prerelease = $selected.Prerelease }
         }
         $plan.Channels = @($channels)
@@ -643,6 +640,11 @@ function ConvertTo-ScanSummary {
     $text = [System.Text.StringBuilder]::new()
     [void]$text.AppendLine('## Diagnostic scan').AppendLine()
     if ($Message) { [void]$text.AppendLine("**$Message**").AppendLine() }
+    # A failed plan has no result to show; its message is the summary.
+    if ($Plan.PSObject.Properties['Failure'] -and $Plan.Failure) {
+        if ($Plan.FailureMessage -and $Plan.FailureMessage -cne $Message) { [void]$text.AppendLine($Plan.FailureMessage).AppendLine() }
+        return $text.ToString().Replace("`r`n", "`n")
+    }
     $versions = @($Plan.Channels | ForEach-Object { "$($_.PackageId) $($_.Stable) stable" + $(if ($_.Prerelease) { ", $($_.Prerelease) prerelease" } else { '' }) })
     if ($versions.Count -gt 0) { [void]$text.AppendLine("Newest versions on NuGet: $($versions -join '; ').").AppendLine() }
     if ($null -ne $Result) {
@@ -758,7 +760,9 @@ function Publish-RulebookScan {
             $open = Find-GitHubPullRequestByHead -Repository $Repository -Head $branch -Base $BaseBranch -Token $Token -ApiUrl $ApiUrl
             if ($null -eq $open) { return }
             $date = $Plan.Now.UtcDateTime.ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
-            $closedBody = "Closed by the scan of $($date): $Reason`n`n$($open.Body)"
+            # A pull request reopened by hand and closed again carries the line once.
+            $previous = [regex]::Replace([string]$open.Body, '^(Closed by the scan of [^\n]*\n\n)+', '')
+            $closedBody = "Closed by the scan of $($date): $Reason`n`n$previous"
             $closed = Update-GitHubPullRequest -Repository $Repository -Number $open.Number -Title $open.Title -Body $closedBody -State closed -Token $Token -ApiUrl $ApiUrl
             $result.ClosedPullRequestUrl = if ($closed.Url) { $closed.Url } else { $open.Url }
         } catch {

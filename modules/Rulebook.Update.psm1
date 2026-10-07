@@ -1403,6 +1403,7 @@ function Publish-RulebookUpdate {
 
 Export-ModuleMember -Function @(
     'Compare-CustomizableFile'
+    'Get-ShortSha'
     'Copy-UpdateTree'
     'Format-TableCell'
     'Get-ComparableContent'

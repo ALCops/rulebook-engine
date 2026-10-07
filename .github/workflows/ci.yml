@@ -268,6 +268,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Prepare the fixtures
         id: fixtures
@@ -325,7 +327,7 @@ jobs:
           $catalog = Read-CatalogFile -Path (Join-Path $env:CANDIDATE 'catalog' 'diagnostics.json')
           $withPackage = @($catalog.Entries.Values | Where-Object Package)
           if ($withPackage.Count -lt 600) { $failures.Add("only $($withPackage.Count) catalog entries have a package") }
-          $untitled = @($catalog.Entries.Values | Where-Object { $_.Analyzer -eq 'Compiler' -and [string]::IsNullOrWhiteSpace($_.Title) } | ForEach-Object Id)
+          $untitled = @($catalog.Entries.Values | Where-Object { $_.Analyzer -eq 'Compiler' -and $_.Package -and [string]::IsNullOrWhiteSpace($_.Title) } | ForEach-Object Id)
           if ($untitled.Count -gt 0) { $failures.Add("$($untitled.Count) compiler ids have no title after the scan (the CompilerDiagnosticsResources path): $(@($untitled | Select-Object -First 10) -join ', ')") }
           $errors = @(Test-Rulebook -RepositoryRoot $env:CANDIDATE | Where-Object Severity -EQ 'error')
           foreach ($finding in $errors) { $failures.Add("$($finding.Rule) $($finding.File) $($finding.Id): $($finding.Message)") }

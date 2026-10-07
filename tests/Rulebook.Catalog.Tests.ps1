@@ -222,6 +222,22 @@ Describe 'Update-CatalogFromScan' {
         $diff.Catalog.Entries['LC0001'].LastSeenVersion | Should-Be '1.3.1'
     }
 
+    It 'takes over the defaults of an id first seen in a prerelease silently on its first stable version' {
+        $pre = Update-CatalogFromScan -Catalog $catalog -Records (New-Records @((New-Record -Id 'LC0101' -Severity 'Warning'))) -PackageId $alcops -Version '1.4.0-beta.1' -Channel prerelease
+        $stable = Update-CatalogFromScan -Catalog $pre.Catalog -Records (New-Records @((New-Record -Id 'LC0101' -Severity 'Info'))) -PackageId $alcops -Version '1.4.0' -Channel stable
+        $entry = $stable.Catalog.Entries['LC0101']
+        $entry.DefaultSeverity | Should-Be 'Info'
+        $entry.FirstStableVersion | Should-Be '1.4.0'
+        @($entry.DefaultChanges) | Should-BeCollection @()
+        $stable.ChangedDefaults | Should-BeCollection @()
+    }
+
+    It 'does not report an id only a prerelease carried as vanished from a stable version' {
+        $pre = Update-CatalogFromScan -Catalog $catalog -Records (New-Records @((New-Record -Id 'LC0101'))) -PackageId $alcops -Version '1.4.0-beta.1' -Channel prerelease
+        $stable = Update-CatalogFromScan -Catalog $pre.Catalog -Records (New-Records @((New-Record -Id 'LC0001'), (New-Record -Id 'LC0099'))) -PackageId $alcops -Version '1.4.0' -Channel stable
+        $stable.Vanished | Should-BeCollection @()
+    }
+
     It 'moves lastSeenVersion forward only' {
         $records = New-Records @((New-Record -Id 'LC0001'))
         $newer = Update-CatalogFromScan -Catalog $catalog -Records $records -PackageId $alcops -Version '1.4.0' -Channel stable
