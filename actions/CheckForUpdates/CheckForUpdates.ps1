@@ -52,57 +52,17 @@ $modules = Join-Path $PSScriptRoot '..' '..' 'modules'
 Import-Module (Join-Path $modules 'Rulebook.Generate.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.GitHub.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Update.psd1') -Force
+Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
 $docsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
 
-function Format-AnnotationText {
-    # Workflow command escaping: the message part escapes %, CR and LF; a property value also : and ,.
-    param([AllowNull()][string]$Text, [switch]$Property)
-    if ($null -eq $Text) { return '' }
-    $escaped = $Text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
-    if ($Property) { $escaped = $escaped.Replace(':', '%3A').Replace(',', '%2C') }
-    return $escaped
-}
-
-function ConvertTo-SingleLine {
-    # A message on one Markdown line (list item or paragraph); no table escaping.
-    param([AllowNull()][string]$Text)
-    if ([string]::IsNullOrEmpty($Text)) { return '' }
-    return $Text.Replace("`r", ' ').Replace("`n", ' ')
-}
-
-function Add-Annotation {
-    param([ValidateSet('error', 'warning', 'notice')][string]$Command = 'error', [string]$File, [string]$Title = 'CheckForUpdates', [Parameter(Mandatory)][string]$Message)
-    $properties = "title=$(Format-AnnotationText $Title -Property)"
-    if ($File) { $properties = "file=$(Format-AnnotationText $File -Property),$properties" }
-    $line = "::$Command $properties::$(Format-AnnotationText $Message)"
-    $script:annotations.Add($line)
-    if ($Command -eq 'error') { $script:errorMessages.Add($Message) }
-    Write-Host $line
-}
-
-function Write-Text {
-    param([AllowNull()][string]$Path, [Parameter(Mandatory)][AllowEmptyString()][string]$Text)
-    if ([string]::IsNullOrEmpty($Path)) { return }
-    [System.IO.File]::AppendAllText($Path, $Text.Replace("`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
-}
-
-# [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
-$resolvePath = { param($Path) if ([string]::IsNullOrEmpty($Path)) { $Path } else { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) } }
-$SummaryPath = & $resolvePath $SummaryPath
 $ownWork = [string]::IsNullOrEmpty($WorkPath)
 if ($ownWork) {
     $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
     $WorkPath = Join-Path $tempRoot ('rulebook-update-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
 }
-$WorkPath = & $resolvePath $WorkPath
-$script:annotations = [System.Collections.Generic.List[string]]::new()
-$script:errorMessages = [System.Collections.Generic.List[string]]::new()
-$script:failure = $null
-function Add-Failure {
-    param([Parameter(Mandatory)][string]$Kind)
-    if ($null -eq $script:failure) { $script:failure = $Kind }
-}
+$WorkPath = Resolve-ActionPath $WorkPath
+$ctx = New-ActionContext -Title 'CheckForUpdates'
 
 # Every token obtained by an exchange is masked before anything can print it.
 $maskToken = { param([string]$Value) if (-not [string]::IsNullOrEmpty($Value)) { Write-Host "::add-mask::$Value" } }
@@ -133,11 +93,11 @@ try {
     # 1. Template URL and the token guard (before any request).
     $requested = if (-not [string]::IsNullOrWhiteSpace($TemplateUrl)) { $TemplateUrl } else { [string](& $setting 'templateUrl') }
     if ($Update -and -not [string]::IsNullOrEmpty($name) -and -not $nameValid) {
-        Add-Failure 'token'
+        Add-Failure -Context $ctx -Kind 'token'
         throw "ghTokenWorkflowSecretName '$name' in .github/Rulebook-Settings.json is not a valid secret name (letters, digits and underscores, not starting with a digit or GITHUB_). Read $docsUrl"
     }
     if ($Update -and [string]::IsNullOrWhiteSpace($Token)) {
-        Add-Failure 'token'
+        Add-Failure -Context $ctx -Kind 'token'
         throw "The $secretName secret is needed to update system files. Read $docsUrl"
     }
 
@@ -149,7 +109,7 @@ try {
         try {
             $access = Get-GitHubAccessToken -Token $Token -Repository $Repository -ApiUrl $ApiUrl
         } catch {
-            Add-Failure 'token'
+            Add-Failure -Context $ctx -Kind 'token'
             throw "The $secretName secret could not be used: $($_.Exception.Message)"
         }
         if (-not [string]::IsNullOrEmpty($access.Token)) { & $maskToken $access.Token }
@@ -179,10 +139,10 @@ try {
         $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $WorkPath
     } catch {
         if ($Update) {
-            if ($null -eq $template) { Add-Failure 'template' }
+            if ($null -eq $template) { Add-Failure -Context $ctx -Kind 'template' }
             throw
         }
-        Add-Annotation -Command warning -Message "update check skipped: $($_.Exception.Message)"
+        Add-Annotation -Context $ctx -Command warning -Message "update check skipped: $($_.Exception.Message)"
         $summaryMessage = "update check skipped: $($_.Exception.Message)"
         $plan = $null
     }
@@ -194,7 +154,7 @@ try {
         $updatesAvailable = $plan.Valid -and $plan.UpdatesAvailable
 
         if (-not $Update) {
-            Add-Annotation -Command $status.Command -Message $status.Message
+            Add-Annotation -Context $ctx -Command $status.Command -Message $status.Message
             $summaryMessage = $status.Message
         } else {
             # 4. Update mode.
@@ -202,9 +162,9 @@ try {
                 foreach ($finding in @($plan.Findings | Where-Object Severity -EQ 'error')) {
                     $message = if ($finding.Id) { "$($finding.Id): $($finding.Message)" } else { $finding.Message }
                     $file = if ($finding.File) { [System.IO.Path]::GetRelativePath($workspace, (Join-Path $root $finding.File)).Replace($separator, '/') } else { $null }
-                    Add-Annotation -File $file -Title $finding.Rule -Message "The updated rulebook would not validate: $message"
+                    Add-Annotation -Context $ctx -File $file -Title $finding.Rule -Message "The updated rulebook would not validate: $message"
                 }
-                Add-Failure 'validation'
+                Add-Failure -Context $ctx -Kind 'validation'
                 $summaryMessage = 'The updated rulebook does not validate; nothing was pushed. The findings come from the repository after the update.'
                 $failed = $true
             } else {
@@ -218,26 +178,26 @@ try {
                 } catch {
                     $stage = [string]$_.Exception.Data['Stage']
                     if ($stage -cnotin 'push', 'pull-request') { $stage = 'push' }
-                    Add-Failure $stage
+                    Add-Failure -Context $ctx -Kind $stage
                     $what = if ($stage -eq 'pull-request') { 'Failed to create the pull request for the Rulebook system files' } else { 'Failed to update the Rulebook system files' }
                     throw "$what. Make sure that the token in the secret $secretName is not expired and may write contents, pull requests and workflows of $Repository. Read $docsUrl (Error was: $($_.Exception.Message))"
                 }
                 switch ($publish.Result) {
                     'exists' {
-                        Add-Annotation -Command warning -Message "Pull request already exists: $($publish.PullRequestUrl)"
+                        Add-Annotation -Context $ctx -Command warning -Message "Pull request already exists: $($publish.PullRequestUrl)"
                         $summaryMessage = "Pull request already exists: $($publish.PullRequestUrl)"
                     }
                     'no-changes' {
-                        Add-Annotation -Command notice -Message 'No updates available'
+                        Add-Annotation -Context $ctx -Command notice -Message 'No updates available'
                         $summaryMessage = 'No updates available'
                     }
                     'direct-commit' {
-                        Add-Annotation -Command notice -Message "Rulebook system files updated in $($publish.Branch) ($($publish.Sha))"
+                        Add-Annotation -Context $ctx -Command notice -Message "Rulebook system files updated in $($publish.Branch) ($($publish.Sha))"
                         $summaryMessage = "Committed to $($publish.Branch)"
                     }
                     default {
                         $suffix = if ($publish.Fallback) { ' (the direct commit was refused)' } else { '' }
-                        Add-Annotation -Command notice -Message "Pull request: $($publish.PullRequestUrl)$suffix"
+                        Add-Annotation -Context $ctx -Command notice -Message "Pull request: $($publish.PullRequestUrl)$suffix"
                         $summaryMessage = "Pull request: $($publish.PullRequestUrl)$suffix"
                     }
                 }
@@ -245,8 +205,8 @@ try {
         }
     }
 } catch {
-    Add-Annotation -Message $_.Exception.Message
-    Add-Failure 'error'
+    Add-Annotation -Context $ctx -Message $_.Exception.Message
+    Add-Failure -Context $ctx -Kind 'error'
     $summaryMessage = $_.Exception.Message
     $failed = $true
 } finally {
@@ -270,18 +230,16 @@ $summary = Limit-SummaryText -Text $summary -MaxBytes $SummaryLimit -Footer "The
 Write-Text -Path $SummaryPath -Text $summary
 $pullRequestUrl = if ($null -ne $publish -and $publish.PullRequestUrl) { $publish.PullRequestUrl } else { '' }
 $sha = if ($null -ne $template) { $template.Sha } else { '' }
-if ($env:GITHUB_OUTPUT) {
-    Write-Text -Path $env:GITHUB_OUTPUT -Text ("updatesAvailable={0}`npullRequestUrl={1}`ntemplateSha={2}`nfailure={3}`n" -f $updatesAvailable.ToString().ToLowerInvariant(), $pullRequestUrl, $sha, $script:failure)
-}
+Write-ActionOutput -Outputs ([ordered]@{ updatesAvailable = $updatesAvailable.ToString().ToLowerInvariant(); pullRequestUrl = $pullRequestUrl; templateSha = $sha; failure = $ctx.Failure })
 [pscustomobject]@{
     ExitCode         = $(if ($failed) { 1 } else { 0 })
     Mode             = $mode
-    Failure          = $script:failure
+    Failure          = $ctx.Failure
     UpdatesAvailable = $updatesAvailable
     TemplateSha      = $sha
     PullRequestUrl   = $pullRequestUrl
     Plan             = $plan
     Result           = $publish
-    Annotations      = $script:annotations.ToArray()
+    Annotations      = $ctx.Annotations.ToArray()
     Summary          = $summary
 }

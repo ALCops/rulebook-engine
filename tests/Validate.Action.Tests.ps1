@@ -40,7 +40,7 @@ AfterAll {
     $env:GITHUB_BASE_REF = $script:savedEvent.Base
     $env:GITHUB_OUTPUT = $script:savedOutput
     $env:GITHUB_STEP_SUMMARY = $script:savedSummary
-    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/Validate/action.yaml' {

@@ -39,57 +39,17 @@ Set-StrictMode -Version 3.0
 $modules = Join-Path $PSScriptRoot '..' '..' 'modules'
 Import-Module (Join-Path $modules 'Rulebook.Generate.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Publish.psd1') -Force
+Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
-function Format-AnnotationText {
-    # Workflow command escaping: the message part escapes %, CR and LF; a property value also : and ,.
-    param([AllowNull()][string]$Text, [switch]$Property)
-    if ($null -eq $Text) { return '' }
-    $escaped = $Text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
-    if ($Property) { $escaped = $escaped.Replace(':', '%3A').Replace(',', '%2C') }
-    return $escaped
-}
-
-function ConvertTo-SingleLine {
-    # A message on one Markdown line (list item or paragraph); no table escaping.
-    param([AllowNull()][string]$Text)
-    if ([string]::IsNullOrEmpty($Text)) { return '' }
-    return $Text.Replace("`r", ' ').Replace("`n", ' ')
-}
-
-function Add-Annotation {
-    param([ValidateSet('error', 'warning', 'notice')][string]$Command = 'error', [string]$File, [Parameter(Mandatory)][string]$Message)
-    $properties = 'title=Publish'
-    if ($File) { $properties = "file=$(Format-AnnotationText $File -Property),$properties" }
-    $line = "::$Command $properties::$(Format-AnnotationText $Message)"
-    $script:annotations.Add($line)
-    if ($Command -eq 'error') { $script:errorMessages.Add($Message) }
-    Write-Host $line
-}
-
-function Write-Text {
-    param([AllowNull()][string]$Path, [Parameter(Mandatory)][AllowEmptyString()][string]$Text)
-    if ([string]::IsNullOrEmpty($Path)) { return }
-    [System.IO.File]::AppendAllText($Path, $Text.Replace("`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
-}
-
-# [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
-$resolvePath = { param($Path) if ([string]::IsNullOrEmpty($Path)) { $Path } else { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) } }
-$SummaryPath = & $resolvePath $SummaryPath
 $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
 if ([string]::IsNullOrEmpty($StagingPath)) { $StagingPath = Join-Path $tempRoot 'rulebook-publish' }
 # The manifest sits next to the staging folder, never inside it, so it is not published.
 if ([string]::IsNullOrEmpty($ManifestPath)) { $ManifestPath = Join-Path $tempRoot 'rulebook-publish.manifest.json' }
-$StagingPath = & $resolvePath $StagingPath
-$ManifestPath = & $resolvePath $ManifestPath
-$script:annotations = [System.Collections.Generic.List[string]]::new()
-$script:errorMessages = [System.Collections.Generic.List[string]]::new()
-# The first reason the run failed, written as the output 'failure': target, baseUrl-empty, baseUrl-invalid,
-# preflight, stage or check (anything else is error).
-$script:failure = $null
-function Add-Failure {
-    param([Parameter(Mandatory)][string]$Kind)
-    if ($null -eq $script:failure) { $script:failure = $Kind }
-}
+$StagingPath = Resolve-ActionPath $StagingPath
+$ManifestPath = Resolve-ActionPath $ManifestPath
+# Failure is the first reason the run failed, written as the output 'failure': target, baseUrl-empty,
+# baseUrl-invalid, preflight, stage or check (anything else is error).
+$ctx = New-ActionContext -Title 'Publish'
 $summary = [System.Text.StringBuilder]::new()
 
 if ($Phase -eq 'Stage') {
@@ -111,37 +71,37 @@ if ($Phase -eq 'Stage') {
         try {
             $resolvedTarget = Resolve-RulebookPublishTarget -Settings $settings -Override $Target
         } catch {
-            Add-Annotation -File $(if ([string]::IsNullOrWhiteSpace($Target)) { $settingsFile }) -Message $_.Exception.Message
-            Add-Failure 'target'
+            Add-Annotation -Context $ctx -File $(if ([string]::IsNullOrWhiteSpace($Target)) { $settingsFile }) -Message $_.Exception.Message
+            Add-Failure -Context $ctx -Kind 'target'
             $failed = $true
         }
         try {
             $resolvedBaseUrl = Resolve-RulebookBaseUrl -Settings $settings -Repository $Repository -Override $BaseUrl
         } catch {
-            Add-Annotation -File $(if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $settingsFile }) -Message $_.Exception.Message
+            Add-Annotation -Context $ctx -File $(if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $settingsFile }) -Message $_.Exception.Message
             $empty = [string]::IsNullOrWhiteSpace($BaseUrl) -and [string]::IsNullOrEmpty([string]$settings['baseUrl'])
-            Add-Failure $(if ($empty) { 'baseUrl-empty' } else { 'baseUrl-invalid' })
+            Add-Failure -Context $ctx -Kind $(if ($empty) { 'baseUrl-empty' } else { 'baseUrl-invalid' })
             $failed = $true
         }
         if (-not $failed) {
             Write-Host "Publish target: $resolvedTarget, base URL: $resolvedBaseUrl"
             $site = $settings['site']
             if ($site -is [System.Collections.IDictionary] -and $site.Contains('enabled') -and $site['enabled'] -eq $true) {
-                Add-Annotation -Command notice -Message 'site.enabled is true: the dashboard site arrives with WP14 (https://github.com/ALCops/rulebook-engine/issues/16). This run publishes the plain index.html.'
+                Add-Annotation -Context $ctx -Command notice -Message 'site.enabled is true: the dashboard site arrives with WP14 (https://github.com/ALCops/rulebook-engine/issues/16). This run publishes the plain index.html.'
             }
             if ($Deploy) {
                 if ([string]::IsNullOrEmpty($Repository)) { throw 'The Pages preflight needs the repository (GITHUB_REPOSITORY) as owner/name.' }
                 $preflight = Invoke-PagesPreflight -Repository $Repository -ApiUrl $ApiUrl -Token $Token -BaseUrl $resolvedBaseUrl
                 Write-Host "Pages preflight: HTTP $($preflight.StatusCode). $($preflight.Message)"
-                if ($preflight.Warning) { Add-Annotation -Command warning -Message $preflight.Warning }
-                if (-not $preflight.Ok) { Add-Annotation -Message $preflight.Message; Add-Failure 'preflight'; $failed = $true }
+                if ($preflight.Warning) { Add-Annotation -Context $ctx -Command warning -Message $preflight.Warning }
+                if (-not $preflight.Ok) { Add-Annotation -Context $ctx -Message $preflight.Message; Add-Failure -Context $ctx -Kind 'preflight'; $failed = $true }
             }
         }
         if (-not $failed) {
             try {
                 $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath -Inputs $inputs -Repository $Repository)
             } catch {
-                Add-Failure 'stage'
+                Add-Failure -Context $ctx -Kind 'stage'
                 throw
             }
             $manifestParent = Split-Path -Parent $ManifestPath
@@ -150,15 +110,15 @@ if ($Phase -eq 'Stage') {
             Write-Host ('Staged {0} endpoints, {1} skeletons, rulebook.json and index.html in {2}' -f @($manifest | Where-Object Kind -CEQ 'endpoint').Count, @($manifest | Where-Object Kind -CEQ 'skeleton').Count, $StagingPath)
         }
     } catch {
-        Add-Annotation -Message $_.Exception.Message
-        Add-Failure 'error'
+        Add-Annotation -Context $ctx -Message $_.Exception.Message
+        Add-Failure -Context $ctx -Kind 'error'
         $failed = $true
     }
 
-    if ($failed -and $env:GITHUB_OUTPUT) { Write-Text -Path $env:GITHUB_OUTPUT -Text "failure=$($script:failure)`n" }
     if ($failed) {
+        Write-ActionOutput -Outputs ([ordered]@{ failure = $ctx.Failure })
         [void]$summary.AppendLine('Publish stopped before deploying:').AppendLine()
-        foreach ($message in $script:errorMessages) { [void]$summary.AppendLine('- ' + (ConvertTo-SingleLine $message)) }
+        foreach ($message in $ctx.ErrorMessages) { [void]$summary.AppendLine('- ' + (ConvertTo-SingleLine $message)) }
         [void]$summary.AppendLine()
     } else {
         $mode = if ($Deploy) { 'Deploying to GitHub Pages' } else { 'Staged only (deploy is off)' }
@@ -166,22 +126,20 @@ if ($Phase -eq 'Stage') {
         [void]$summary.AppendLine('| Kind | URL |').AppendLine('|---|---|')
         foreach ($entry in $manifest) { [void]$summary.AppendLine(('| {0} | {1} |' -f $entry.Kind, $entry.Url)) }
         [void]$summary.AppendLine()
-        if ($env:GITHUB_OUTPUT) {
-            Write-Text -Path $env:GITHUB_OUTPUT -Text "stagingPath=$StagingPath`nmanifestPath=$ManifestPath`npageUrl=$resolvedBaseUrl/`n"
-        }
+        Write-ActionOutput -Outputs ([ordered]@{ stagingPath = $StagingPath; manifestPath = $ManifestPath; pageUrl = "$resolvedBaseUrl/" })
     }
     $summaryText = $summary.ToString().Replace("`r`n", "`n")
     Write-Text -Path $SummaryPath -Text $summaryText
     return [pscustomobject]@{
         ExitCode     = $(if ($failed) { 1 } else { 0 })
         Phase        = $Phase
-        Failure      = $script:failure
+        Failure      = $ctx.Failure
         BaseUrl      = $resolvedBaseUrl
         StagingPath  = $StagingPath
         ManifestPath = $ManifestPath
         Manifest     = $manifest
         Preflight    = $preflight
-        Annotations  = $script:annotations.ToArray()
+        Annotations  = $ctx.Annotations.ToArray()
         Summary      = $summaryText
     }
 }
@@ -205,7 +163,7 @@ try {
             default { if ($result.Status -gt 0) { "failed (HTTP $($result.Status))" } else { 'failed' } }
         }
         if ($result.Detail) { $reason += " ($($result.Detail))" }
-        Add-Annotation -Message ('{0} {1} after {2} attempt(s) in {3} s. Consumers of this URL compile with AL1033 (alc aborts; VS Code falls back to the analyzer defaults).' -f $result.Url, $reason, $result.Attempts, $result.Seconds)
+        Add-Annotation -Context $ctx -Message ('{0} {1} after {2} attempt(s) in {3} s. Consumers of this URL compile with AL1033 (alc aborts; VS Code falls back to the analyzer defaults).' -f $result.Url, $reason, $result.Attempts, $result.Seconds)
         $failed = $true
     }
     $okCount = @($results | Where-Object Reason -CEQ 'ok').Count
@@ -218,7 +176,7 @@ try {
     }
     [void]$summary.AppendLine()
 } catch {
-    Add-Annotation -Message $_.Exception.Message
+    Add-Annotation -Context $ctx -Message $_.Exception.Message
     [void]$summary.AppendLine((ConvertTo-SingleLine $_.Exception.Message)).AppendLine()
     $failed = $true
 }
@@ -229,6 +187,6 @@ Write-Text -Path $SummaryPath -Text $summaryText
     Phase       = $Phase
     Failure     = $(if ($failed) { 'check' })
     Results     = $results
-    Annotations = $script:annotations.ToArray()
+    Annotations = $ctx.Annotations.ToArray()
     Summary     = $summaryText
 }

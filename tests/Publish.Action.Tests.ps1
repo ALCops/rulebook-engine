@@ -52,7 +52,7 @@ AfterAll {
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository
     $env:INPUT_TOKEN = $script:saved.Token
-    Remove-Module Rulebook.Publish, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/Publish/action.yaml' {

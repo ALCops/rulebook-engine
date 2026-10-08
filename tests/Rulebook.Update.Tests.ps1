@@ -87,7 +87,7 @@ BeforeAll {
 AfterAll {
     $env:GITHUB_API_URL = $script:savedApiUrl
     $env:GITHUB_SERVER_URL = $script:savedServerUrl
-    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
 }
 
 Describe 'Fixture consistency' {
@@ -1075,16 +1075,6 @@ Describe 'ConvertTo-UpdatePullRequestBody and ConvertTo-UpdateSummary' {
         $summary = ConvertTo-UpdateSummary -Plan $plan -Result $result -Mode update
         $summary | Should-MatchString '(?m)^## Effective diff\n\nThe effective diff could not be computed: boom$'
         $summary | Should-MatchString '(?m)^## Release notes\n\n### v1\.1$'
-    }
-
-    It 'cuts a summary at a line boundary, closes an open fence and adds the footer' {
-        $text = "## Title`n`nintro`n`n``````powershell`n" + (@(1..200 | ForEach-Object { "line $_" }) -join "`n") + "`n```````n`nafter`n"
-        $cut = Limit-SummaryText -Text $text -MaxBytes 400 -Footer 'The summary was cut at 0 KiB; the full lists are in the job log.'
-        [System.Text.Encoding]::UTF8.GetByteCount($cut) | Should-BeLessThanOrEqual 400
-        $cut | Should-MatchString '(?s)\A## Title\n'
-        $cut | Should-MatchString '\n```\n\n_The summary was cut at 0 KiB; the full lists are in the job log\._\n\z'
-        @($cut.Split("`n") | Where-Object { $_ -match '^```' }).Count % 2 | Should-Be 0
-        Limit-SummaryText -Text $text -MaxBytes 1000000 -Footer 'x' | Should-Be $text
     }
 
     It 'writes the check summary with the change table' {

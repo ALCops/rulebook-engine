@@ -40,21 +40,7 @@ Set-StrictMode -Version 3.0
 $modules = Join-Path $PSScriptRoot '..' '..' 'modules'
 Import-Module (Join-Path $modules 'Rulebook.Generate.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Validate.psd1') -Force
-
-function Format-AnnotationText {
-    # Workflow command escaping: the message part escapes %, CR and LF; a property value also : and ,.
-    param([AllowNull()][string]$Text, [switch]$Property)
-    if ($null -eq $Text) { return '' }
-    $escaped = $Text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
-    if ($Property) { $escaped = $escaped.Replace(':', '%3A').Replace(',', '%2C') }
-    return $escaped
-}
-
-function Format-TableCell {
-    param([AllowNull()][string]$Text)
-    if ([string]::IsNullOrEmpty($Text)) { return '' }
-    return $Text.Replace('|', '\|').Replace("`r", ' ').Replace("`n", ' ')
-}
+Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
 function Test-GitRef {
     param([string]$Root, [string]$Ref)
@@ -63,10 +49,9 @@ function Test-GitRef {
     return $LASTEXITCODE -eq 0
 }
 
-# [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
-$resolvePath = { param($Path) if ([string]::IsNullOrEmpty($Path)) { $Path } else { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) } }
-$SummaryPath = & $resolvePath $SummaryPath
-$JsonPath = & $resolvePath $JsonPath
+# Test-Rulebook writes -Json with [System.IO.File], which resolves a relative path against the process directory.
+$JsonPath = Resolve-ActionPath $JsonPath
+$ctx = New-ActionContext -Title 'Validate'
 $root = (Resolve-Path -LiteralPath $RepositoryRoot).ProviderPath
 $workspace = if ([string]::IsNullOrEmpty($WorkspaceRoot)) { $root } else { (Resolve-Path -LiteralPath $WorkspaceRoot).ProviderPath }
 $separator = [System.IO.Path]::DirectorySeparatorChar
@@ -80,18 +65,11 @@ $errorCount = @($findings | Where-Object Severity -EQ 'error').Count
 $warningCount = @($findings | Where-Object Severity -EQ 'warning').Count
 
 # 2. Annotations
-$annotations = [System.Collections.Generic.List[string]]::new()
 foreach ($finding in $findings) {
     $command = if ($finding.Severity -eq 'error') { 'error' } else { 'warning' }
     $message = if ($finding.Id) { "$($finding.Id): $($finding.Message)" } else { $finding.Message }
-    $properties = "title=$(Format-AnnotationText $finding.Rule -Property)"
-    if ($finding.File) {
-        $path = [System.IO.Path]::GetRelativePath($workspace, (Join-Path $root $finding.File)).Replace($separator, '/')
-        $properties = "file=$(Format-AnnotationText $path -Property),$properties"
-    }
-    $line = "::$command $properties::$(Format-AnnotationText $message)"
-    $annotations.Add($line)
-    Write-Host $line
+    $path = if ($finding.File) { [System.IO.Path]::GetRelativePath($workspace, (Join-Path $root $finding.File)).Replace($separator, '/') } else { $null }
+    Add-Annotation -Context $ctx -Command $command -File $path -Title $finding.Rule -Message $message
 }
 Write-Host ('Rulebook validation: {0} error(s), {1} warning(s) in {2}' -f $errorCount, $warningCount, $relativeRoot)
 
@@ -191,12 +169,10 @@ if ($null -ne $diffNote) {
 $summaryText = $summary.ToString().Replace("`r`n", "`n")
 # The runner caps a step summary at 1 MiB; stay well below it.
 $summaryLimit = $SummaryLimit
-if ([System.Text.Encoding]::UTF8.GetByteCount($summaryText) -gt $summaryLimit) {
-    $cut = [math]::Min($summaryText.Length, $summaryLimit)
-    while ([System.Text.Encoding]::UTF8.GetByteCount($summaryText.Substring(0, $cut)) -gt $summaryLimit) { $cut = [int]($cut * 0.9) }
-    $summaryText = $summaryText.Substring(0, $cut) + "`n`n_The summary was truncated at 900 KiB; the -JsonPath file and the annotations above have the findings._`n"
-}
-if ($SummaryPath) { [System.IO.File]::AppendAllText($SummaryPath, $summaryText, [System.Text.UTF8Encoding]::new($false)) }
+# The limit in KiB for the footers of both summary parts.
+$limitLabel = [math]::Round($summaryLimit / 1KB)
+$summaryText = Limit-SummaryText -Text $summaryText -MaxBytes $summaryLimit -Footer "The summary was truncated at $limitLabel KiB; the -JsonPath file and the annotations above have the findings."
+Write-Text -Path $SummaryPath -Text $summaryText
 
 # 5. Update check (WP07): check mode only, never counted, never failing.
 $updateCheck = $null
@@ -211,7 +187,7 @@ if ($CheckForUpdates) {
         Import-Module (Join-Path $modules 'Rulebook.GitHub.psd1') -Force
         Import-Module (Join-Path $modules 'Rulebook.Update.psd1') -Force
         if ($UpdateWorkPath) {
-            $work = & $resolvePath $UpdateWorkPath
+            $work = Resolve-ActionPath $UpdateWorkPath
         } else {
             $work = Join-Path $(if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }) ('rulebook-update-check-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
             $ownWork = $true
@@ -237,27 +213,19 @@ if ($CheckForUpdates) {
     } finally {
         if ($ownWork -and (Test-Path -LiteralPath $work)) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
     }
-    $line = "::$command title=Update check::$(Format-AnnotationText $message)"
-    $annotations.Add($line)
-    Write-Host $line
+    Add-Annotation -Context $ctx -Command $command -Title 'Update check' -Message $message
     $updateSummary = if ($null -ne $updateCheck.Plan) { ConvertTo-UpdateSummary -Plan $updateCheck.Plan -Mode check -Message $message } else { "## Template update check`n`n$message`n`n" }
     $updateSummary = $updateSummary.Replace("`r`n", "`n")
     # Within what the validation summary leaves of the cap: cut at a line boundary, never dropped.
     $budget = $summaryLimit - [System.Text.Encoding]::UTF8.GetByteCount($summaryText)
-    $footer = "The update check summary was cut at $([math]::Floor($summaryLimit / 1KB)) KiB; the full lists are in the job log."
-    if (Get-Command Limit-SummaryText -ErrorAction SilentlyContinue) {
-        $updateSummary = Limit-SummaryText -Text $updateSummary -MaxBytes ([math]::Max(0, $budget)) -Footer $footer
-    } elseif ([System.Text.Encoding]::UTF8.GetByteCount($updateSummary) -gt $budget) {
-        $updateSummary = "## Template update check`n`n_$($footer)_`n"
-    }
+    $footer = "The update check summary was cut at $limitLabel KiB; the full lists are in the job log."
+    $updateSummary = Limit-SummaryText -Text $updateSummary -MaxBytes ([math]::Max(0, $budget)) -Footer $footer
     $summaryText += $updateSummary
-    if ($SummaryPath) { [System.IO.File]::AppendAllText($SummaryPath, $updateSummary, [System.Text.UTF8Encoding]::new($false)) }
+    Write-Text -Path $SummaryPath -Text $updateSummary
 }
 
 # 6. Outputs
-if ($env:GITHUB_OUTPUT) {
-    [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "errors=$errorCount`nwarnings=$warningCount`n", [System.Text.UTF8Encoding]::new($false))
-}
+Write-ActionOutput -Outputs ([ordered]@{ errors = $errorCount; warnings = $warningCount })
 
 $exitCode = if ($errorCount -gt 0 -or ($FailOnWarning -and $warningCount -gt 0)) { 1 } else { 0 }
 [pscustomobject]@{
@@ -265,7 +233,7 @@ $exitCode = if ($errorCount -gt 0 -or ($FailOnWarning -and $warningCount -gt 0))
     Findings    = $findings
     Diff        = $diff
     Summary     = $summaryText
-    Annotations = $annotations.ToArray()
+    Annotations = $ctx.Annotations.ToArray()
     DiffRef     = $DiffRef
     UpdateCheck = $updateCheck
 }
