@@ -260,6 +260,69 @@ jobs:
           Write-Host "::error::CheckForUpdates outcomes: v1 updatesAvailable '$($env:UNCHANGED)' (expected false), v2 '$($env:MOVED)' (expected true), update without token '$($env:NOTOKEN)' (expected failure/token)"
           exit 1
 
+  # The change workflow on a copy of valid-minimal: no token, nothing pushed. The token guard runs after the local
+  # plan, so a valid change fails on the token while a no-op and an invalid id need none.
+  changerule-action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Prepare the fixture
+        id: fixture
+        shell: pwsh
+        run: |
+          . ./tests/Helpers/RepoFixture.ps1
+          $org = New-FixtureRepo -Name 'valid-minimal' -Destination (Join-Path $env:RUNNER_TEMP 'change-org')
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "org=$org"
+
+      - name: Change AA0001 to None without the token (must fail)
+        id: notoken
+        continue-on-error: true
+        uses: ./actions/ChangeRule
+        with:
+          repositoryRoot: ${{ steps.fixture.outputs.org }}
+          ruleId: AA0001
+          action: None
+          levels: '*'
+          stages: '*'
+
+      # valid-minimal already has AA0072 Info for every level and stage with the justification House style.
+      - name: No-op change
+        id: noop
+        uses: ./actions/ChangeRule
+        with:
+          repositoryRoot: ${{ steps.fixture.outputs.org }}
+          ruleId: AA0072
+          action: Info
+          levels: '*'
+          stages: '*'
+          justification: House style
+
+      - name: Invalid id (must fail)
+        id: invalid
+        continue-on-error: true
+        uses: ./actions/ChangeRule
+        with:
+          repositoryRoot: ${{ steps.fixture.outputs.org }}
+          ruleId: LC9999
+          action: Warning
+
+      # The outputs name the outcome, so a crash or another error does not pass.
+      - name: Require the three outcomes
+        if: steps.notoken.outcome != 'failure' || steps.notoken.outputs.failure != 'token' || steps.noop.outputs.noop != 'true' || steps.invalid.outcome != 'failure' || steps.invalid.outputs.failure != 'validation'
+        shell: pwsh
+        env:
+          NOTOKEN: ${{ steps.notoken.outcome }}/${{ steps.notoken.outputs.failure }}
+          NOOP: ${{ steps.noop.outputs.noop }}
+          INVALID: ${{ steps.invalid.outcome }}/${{ steps.invalid.outputs.failure }}
+        run: |
+          Write-Host "::error::ChangeRule outcomes: without token '$($env:NOTOKEN)' (expected failure/token), no-op '$($env:NOOP)' (expected true), invalid id '$($env:INVALID)' (expected failure/validation)"
+          exit 1
+
   # The scan against the real packages on nuget.org (the unit suites use stub packages). Every run is a dry run: no
   # token, nothing pushed. nuget.org moves, so the checks are lower bounds and the log prints the numbers.
   scan-action:

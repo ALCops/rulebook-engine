@@ -3,7 +3,7 @@ name: Change Rule
 on:
   workflow_dispatch:
     inputs:
-      id:
+      ruleId:
         description: 'Diagnostic id, for example LC0001.'
         required: true
       action:

@@ -1,0 +1,93 @@
+name: Change Rule
+
+on:
+  workflow_dispatch:
+    inputs:
+      ruleId:
+        description: 'Diagnostic id, for example LC0015.'
+        type: string
+        required: true
+      action:
+        description: 'The new action; Remove deletes the matching override entry.'
+        type: choice
+        options:
+          - Error
+          - Warning
+          - Info
+          - Hidden
+          - None
+          - Remove
+      # The level and stage lists are rewritten from the settings by every update (D30).
+      levels:
+        description: 'Level slug, or * for every level. The list follows the settings after the next update.'
+        type: choice
+        default: '*'
+        options:
+          - '*'
+          - essential
+          - recommended
+          - strict
+          - complete
+      stages:
+        description: 'Stage slug, or * for every stage. The list follows the settings after the next update.'
+        type: choice
+        default: '*'
+        options:
+          - '*'
+          - default
+          - ci
+          - vnext
+      justification:
+        description: 'Why the rule changes (optional); written into the override entry.'
+        type: string
+        required: false
+        default: ''
+
+# The workflow token stays read-only: the change is pushed with the token from the GHTOKENWORKFLOW secret, so the
+# pull request it opens runs the Validate workflow (a pull request opened with GITHUB_TOKEN would not).
+permissions:
+  contents: read
+
+concurrency:
+  group: change-rule-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  change:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # No credentials in .git/config: the action reads the checkout and clones again with the secret's token to push.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The secret name comes from ghTokenWorkflowSecretName; where the change lands follows
+      # commitOptions.createPullRequest on every run (D47).
+      - name: Read the settings
+        id: settings
+        shell: pwsh
+        run: |
+          $settings = Get-Content -LiteralPath .github/Rulebook-Settings.json -Raw | ConvertFrom-Json -AsHashtable
+          $name = 'GHTOKENWORKFLOW'
+          if ($settings.Contains('ghTokenWorkflowSecretName') -and $settings['ghTokenWorkflowSecretName']) { $name = [string]$settings['ghTokenWorkflowSecretName'] }
+          if ($name -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$' -or $name -imatch '^GITHUB_') { Write-Host "::error::ghTokenWorkflowSecretName '$name' is not a valid secret name"; exit 1 }
+          $createPullRequest = $true
+          $options = $settings['commitOptions']
+          if ($options -is [System.Collections.IDictionary] -and $options.Contains('createPullRequest')) { $createPullRequest = [bool]$options['createPullRequest'] }
+          $directCommit = -not $createPullRequest
+          $lines = "secretName=$name", "directCommit=$($directCommit.ToString().ToLowerInvariant())"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value $lines
+          Write-Host "Secret: $name, direct commit: $directCommit"
+
+      - name: Change the rule
+        uses: ALCops/rulebook-engine/actions/ChangeRule@main
+        with:
+          token: ${{ secrets[steps.settings.outputs.secretName] }}
+          ruleId: ${{ inputs.ruleId }}
+          action: ${{ inputs.action }}
+          levels: ${{ inputs.levels }}
+          stages: ${{ inputs.stages }}
+          justification: ${{ inputs.justification }}
+          directCommit: ${{ steps.settings.outputs.directCommit }}
