@@ -70,6 +70,14 @@ Describe 'overrides.json I/O' {
         $file.Schema | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json'
     }
 
+    It 'reads comments and trailing commas as ConvertFrom-Json does' {
+        $path = Join-Path (Get-TestFolder) 'overrides.json'
+        Write-FixtureText -Path $path -Text ('{' + "`n" + '  // organization overrides' + "`n" + '  "rules": [' + "`n" + '    { "id": "LC0015", "action": "None", "levels": ["*"], "stages": ["ci"], },' + "`n" + '  ],' + "`n" + '}')
+        $file = Read-OverridesFile -Path $path
+        $file.Rules.Count | Should-Be 1
+        ConvertTo-OverridesJson -File $file | Should-NotMatchString 'organization overrides'
+    }
+
     It 'keeps a justification that looks like a date as text' {
         $path = Join-Path (Get-TestFolder) 'overrides.json'
         Write-FixtureText -Path $path -Text "{`n  `"rules`": [`n    { `"id`": `"LC0015`", `"action`": `"None`", `"levels`": [`"*`"], `"stages`": [`"ci`"], `"justification`": `"2026-10-03T10:00:00`" }`n  ]`n}"
@@ -137,7 +145,7 @@ Describe 'Set-RulebookOverride and Remove-RulebookOverride' {
         $file.Rules.Count | Should-Be 1
     }
 
-    It 'keeps one entry per selector set: the first is set, duplicates are removed, the last one (effective) wins' {
+    It 'keeps one entry per selector set: duplicates collapse into the last one (effective), at its position' {
         $file = Get-EmptyFile
         $file.Rules.Add([pscustomobject]@{ Id = 'LC0015'; Action = 'None'; Levels = [string[]]@('strict'); Stages = [string[]]@('ci'); Justification = 'First' })
         $file.Rules.Add([pscustomobject]@{ Id = 'AA0001'; Action = 'Info'; Levels = [string[]]@('*'); Stages = [string[]]@('*'); Justification = $null })
@@ -145,9 +153,9 @@ Describe 'Set-RulebookOverride and Remove-RulebookOverride' {
         $result = Set-RulebookOverride -File $file -Id 'LC0015' -Action 'Info' -Levels 'strict' -Stages 'ci'
         $result.Change | Should-Be 'deduplicated'
         $result.Previous.Justification | Should-Be 'Last'
-        @($file.Rules | ForEach-Object Id) | Should-BeCollection @('LC0015', 'AA0001')
-        $file.Rules[0].Action | Should-Be 'Info'
-        $file.Rules[0].Justification | Should-Be 'Last'
+        @($file.Rules | ForEach-Object Id) | Should-BeCollection @('AA0001', 'LC0015')
+        $file.Rules[1].Action | Should-Be 'Info'
+        $file.Rules[1].Justification | Should-Be 'Last'
     }
 
     It 'reports deduplicated when only duplicates of the effective entry go' {
@@ -302,7 +310,43 @@ Describe 'Invoke-RulebookChangeSet' {
         $plan.Items[0].Entry.Change | Should-Be 'added'
         @($plan.Changes) | Should-BeCollection @()
         $plan.Items[0].Rows[0].Note | Should-Be 'unchanged'
+        # The rows show the real state: the level decides, no override was stored.
+        $plan.Items[0].Rows[0].AfterSource | Should-Be 'level:recommended'
+        $plan.OverridesChange | Should-BeNull
         ConvertTo-ChangeSummary -Plan $plan -Message 'x' | Should-MatchString '(?m)^Leaves AA0001 at Warning for levels strict, stages ci \(every matching endpoint has that action already; no entry is written\)\.$'
+    }
+
+    It 'words the sentence of a masked dead entry from the rows' {
+        $root = Copy-Minimal
+        $path = Join-Path $root 'overrides.json'
+        $text = [System.IO.File]::ReadAllText($path)
+        $extra = ',' + "`n" + '    { "id": "LC0015", "action": "None", "levels": ["strict"], "stages": ["ci"] }'
+        Write-FixtureText -Path $path -Text $text.Replace('"justification": "Backlog DEV-1234" }', '"justification": "Backlog DEV-1234" }' + $extra)
+        $plan = Invoke-Change -Root $root -RuleId 'LC0015' -Action 'Warning' -Levels 'strict' -Stages '*'
+        $plan.NoOp | Should-BeTrue
+        @($plan.Items[0].Rows | Where-Object Endpoint -EQ 'strict.ci' | ForEach-Object AfterSource) | Should-BeCollection @('override')
+        ConvertTo-ChangeSummary -Plan $plan -Message 'x' | Should-MatchString '(?m)^Leaves LC0015 as it is for levels strict, stages \* \(2 at Warning; 1 decided by a more specific entry or input; no entry is written\)\.$'
+    }
+
+    It 'keeps the precedence when it collapses duplicates (the survivor takes the last position)' {
+        $root = Copy-Minimal
+        $lines = @(
+            '{'
+            '  "rules": ['
+            '    { "id": "AA0072", "action": "Error", "levels": ["strict"], "stages": ["*"], "justification": "d1" },'
+            '    { "id": "AA0072", "action": "None", "levels": ["*"], "stages": ["ci"], "justification": "X" },'
+            '    { "id": "AA0072", "action": "Error", "levels": ["strict"], "stages": ["*"], "justification": "d2" }'
+            '  ]'
+            '}'
+        )
+        Write-FixtureText -Path (Join-Path $root 'overrides.json') -Text ($lines -join "`n")
+        $null = Update-RulebookEndpoints -RepositoryRoot $root
+        $plan = Invoke-Change -Root $root -RuleId 'AA0072' -Action 'Error' -Levels 'strict' -Stages '*'
+        $plan.Items[0].Entry.Change | Should-Be 'deduplicated'
+        $plan.Items[0].ChangedEndpoints | Should-BeCollection @()
+        @($plan.Changes | ForEach-Object File) | Should-BeCollection @('overrides.json')
+        $file = Read-OverridesFile -Path (Join-Path $plan.CandidatePath 'overrides.json')
+        @($file.Rules | ForEach-Object Justification) | Should-BeCollection @('X', 'd2')
     }
 
     It 'says a given justification was not stored when the new entry is dead' {

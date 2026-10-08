@@ -143,7 +143,12 @@ function Get-ItemSentence {
     $where = 'levels {0}, stages {1}' -f (Format-Selector $Item.Levels), (Format-Selector $Item.Stages)
     $previous = $Item.Entry.Previous
     if ($Item.Op -ceq 'set' -and $Item.NoOp) {
-        if ($Item.Entry.Change -ceq 'added') { return "Leaves $($Item.Id) at $($Item.Action) for $where (every matching endpoint has that action already; no entry is written)." }
+        if ($Item.Entry.Change -ceq 'added') {
+            $other = @($Item.Rows | Where-Object { $_.After -cne $Item.Action })
+            if ($other.Count -eq 0) { return "Leaves $($Item.Id) at $($Item.Action) for $where (every matching endpoint has that action already; no entry is written)." }
+            $same = @($Item.Rows).Count - $other.Count
+            return "Leaves $($Item.Id) as it is for $where ($same at $($Item.Action); $($other.Count) decided by a more specific entry or input; no entry is written)."
+        }
         return "Leaves $($Item.Id) at $($Item.Action) for $where (the entry is unchanged)."
     }
     if ($Item.Op -ceq 'remove') {
@@ -226,7 +231,12 @@ function Read-OverridesFile {
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { return $file }
     $file.Exists = $true
     try {
-        $document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($full, $script:Utf8NoBom))
+        # Comments and trailing commas are accepted as ConvertFrom-Json accepts them (Rulebook.Generate reads the
+        # same file); the writer drops them.
+        $options = [System.Text.Json.JsonDocumentOptions]::new()
+        $options.CommentHandling = [System.Text.Json.JsonCommentHandling]::Skip
+        $options.AllowTrailingCommas = $true
+        $document = [System.Text.Json.JsonDocument]::Parse([System.IO.File]::ReadAllText($full, $script:Utf8NoBom), $options)
     } catch {
         throw "$($script:OverridesFile) is not valid JSON: $($_.Exception.InnerException.Message)"
     }
@@ -316,7 +326,7 @@ function Set-RulebookOverride {
     Sets the override of -Id for a level and stage selection in an overrides file object: { Entry, Change, Previous }.
     .DESCRIPTION
     An entry with the same id and the same level and stage sets (ordinal, order and duplicates ignored) gets the new
-    action in place, its position and selector order kept; a non-empty -Justification replaces the entry's text, an
+    action in place, its selector order kept; a non-empty -Justification replaces the entry's text, an
     empty one keeps it (clearing a justification is a hand edit). Change is replaced, or unchanged when the action is
     the same and the justification is empty or the same already; otherwise the entry is appended (added, with the
     justification when one is given). Previous is a copy of the entry before (or $null). Throws (Data['Stage'] = 'validation') on an
@@ -350,12 +360,12 @@ function Set-RulebookOverride {
         $File.Rules.Add($new)
         return [pscustomobject]@{ Entry = $new; Change = 'added'; Previous = $null }
     }
-    # The first entry with these selectors is the one set; duplicates a hand edit left are removed (the last of them
-    # was the effective one, so it is the Previous), so one entry per selector set remains.
-    $index = $hits[0]
+    # Duplicates a hand edit left are collapsed into the last of them, the effective one (on equal specificity the
+    # later entry wins), at its position, so the precedence against other entries stays; it is the Previous.
     $old = $File.Rules[$hits[$hits.Count - 1]]
     $previous = ConvertTo-OverrideEntry -Id $old.Id -Action $old.Action -Levels $old.Levels -Stages $old.Stages -Justification $old.Justification
-    for ($k = $hits.Count - 1; $k -ge 1; $k--) { $File.Rules.RemoveAt($hits[$k]) }
+    for ($k = $hits.Count - 2; $k -ge 0; $k--) { $File.Rules.RemoveAt($hits[$k]) }
+    $index = $hits[$hits.Count - 1] - ($hits.Count - 1)
     $first = $File.Rules[$index]
     # An empty justification keeps the entry's text; only a non-empty one replaces it.
     if ([string]::IsNullOrEmpty($Justification)) { $Justification = $old.Justification }
@@ -683,7 +693,7 @@ function Invoke-RulebookChangeSet {
     # A dead new entry is never written, also when another item of the set changes something: drop it, write the
     # file again and recompute the other items, whose effective actions the dropped entry could have masked.
     $dead = @($items | Where-Object { $_.NoOp -and $_.Entry.Change -ceq 'added' })
-    if ($dead.Count -gt 0 -and @($items | Where-Object { -not $_.NoOp }).Count -gt 0) {
+    if ($dead.Count -gt 0) {
         foreach ($item in $dead) { [void]$file.Rules.Remove($item.Entry.Entry) }
         $plan.OverridesChange = Write-OverridesFile -Path (Join-Path $candidate $script:OverridesFile) -File $file -WhatIf:$false -Confirm:$false
         try {
@@ -693,10 +703,14 @@ function Invoke-RulebookChangeSet {
             $plan.Failure = 'validation'
             return $plan
         }
-        foreach ($item in @($items | Where-Object { -not ($_.NoOp -and $_.Entry.Change -ceq 'added') })) { & $computeRows $item $after }
+        # Every item against the final state, so the rows of a dead entry show what really decides each endpoint;
+        # a dead entry stays a no-op.
+        foreach ($item in $items) { & $computeRows $item $after }
+        foreach ($item in $dead) { $item.NoOp = $true }
     }
     $plan.NoOp = @($items | Where-Object { -not $_.NoOp }).Count -eq 0
     if ($plan.NoOp) {
+        $plan.OverridesChange = $null
         $plan.Valid = $true
         return $plan
     }

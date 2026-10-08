@@ -273,6 +273,20 @@ Describe 'ChangeRule.ps1' {
         $run.Summary | Should-MatchString '(?m)^## Effective diff\n\n### `strict\.ci` \(`rulesets/strict\.ci\.ruleset\.json`\)$'
     }
 
+    It 'writes the full summary when the effective diff is empty (a justification-only change)' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/9'; Number = 9; Branch = 'change-rule/AA0072/261008091530'; Sha = 'a' * 40; Fallback = $false; Diff = @(); DiffNote = $null; Body = 'body'; Title = 't' }
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'AA0072'; Action = 'Info'; Justification = 'Team decision'; Token = 'ghp_x'; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Summary | Should-MatchString '(?m)^Justification: Team decision$'
+        $run.Summary | Should-MatchString '(?m)^\| Endpoint \| Before \| After \| Note \|$'
+        $run.Summary | Should-MatchString '(?m)^\| strict\.ci \| Info \(override, "House style"\) \| Info \(override, "Team decision"\) \| justification updated \|$'
+        @($run.Lines | Where-Object { $_ -like 'The summary could not be written in full*' }) | Should-BeCollection @()
+    }
+
     It 'reports nothing to commit after the plan as a no-op' {
         $publish = {
             param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
