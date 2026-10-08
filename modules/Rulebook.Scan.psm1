@@ -95,6 +95,8 @@ function Get-ScanFacts {
         ChangedDefaults    = @($diffs | ForEach-Object { $_.ChangedDefaults })
         PrereleaseDefaults = @($diffs | ForEach-Object { $_.PrereleaseDefaultChanges })
         Released           = @($Plan.Quarantine.Removed)
+        # One adopted id released from several stage files is one released quarantine entry in the title and outputs.
+        ReleasedIds        = Get-Distinct ($Plan.Quarantine.Removed | ForEach-Object { $_.Id })
         Refreshed          = @($diffs | ForEach-Object { $_.Refreshed })
         Recorded           = Get-Distinct ($diffs | ForEach-Object { $_.Recorded })
         Vanished           = Get-Distinct ($diffs | ForEach-Object { $_.Vanished })
@@ -371,7 +373,7 @@ function Get-ScanCount {
         Unadvertised    = $facts.NewUnadvertised.Count
         Promoted        = $facts.Promoted.Count
         ChangedDefaults = $facts.ChangedDefaults.Count
-        Released        = $facts.Released.Count
+        Released        = $facts.ReleasedIds.Count
         Refreshed       = $facts.Refreshed.Count
         Recorded        = $facts.Recorded.Count
         Changes         = @($Plan.Changes).Count
@@ -402,7 +404,7 @@ function Get-ScanTitle {
     if ($facts.RecordedNew.Count -gt 0) { $parts.Add((Format-Count $facts.RecordedNew.Count 'new id recorded' 'new ids recorded')) }
     if ($facts.Promoted.Count -gt 0) { $parts.Add((Format-Count $facts.Promoted.Count 'id promoted to stable' 'ids promoted to stable')) }
     if ($facts.ChangedDefaults.Count -gt 0) { $parts.Add((Format-Count $facts.ChangedDefaults.Count 'default changed' 'defaults changed')) }
-    if ($facts.Released.Count -gt 0) { $parts.Add((Format-Count $facts.Released.Count 'quarantine entry released' 'quarantine entries released')) }
+    if ($facts.ReleasedIds.Count -gt 0) { $parts.Add((Format-Count $facts.ReleasedIds.Count 'quarantine entry released' 'quarantine entries released')) }
     if ($Plan.Mode -eq 'housekeeping') {
         $what = if ($parts.Count -gt 0) { $parts -join ', ' } else { 'housekeeping' }
         return "Scan diagnostics: $what, no new package version"

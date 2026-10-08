@@ -183,7 +183,8 @@ Describe 'Get-RulebookScanPlan, later runs' {
         $plan = Get-Plan -Root $root
         $plan.Mode | Should-Be 'housekeeping'
         @($plan.Quarantine.Removed | ForEach-Object { "$($_.Stage) $($_.Id)" }) | Should-BeCollection @('default AL1027', 'ci AL1027')
-        Get-ScanTitle -Plan $plan | Should-Be 'Scan diagnostics: 2 quarantine entries released, no new package version'
+        Get-ScanTitle -Plan $plan | Should-Be 'Scan diagnostics: 1 quarantine entry released, no new package version'
+        $plan.Counts.Released | Should-Be 1
         @($plan.Changes | ForEach-Object File) | Should-NotContainCollection @('catalog/scan-state.json', 'catalog/diagnostics.json')
         $plan.Valid | Should-BeTrue
     }

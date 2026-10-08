@@ -154,7 +154,7 @@ There is no title guard: the branch, not the title, identifies the pull request.
 
 **Direct commit.** With `directCommit` (or on a schedule with `commitOptions.createPullRequest: false`) the commit goes to the base branch; a refused push (branch protection) falls back to the scan branch and the pull request. The summary goes to the job summary only.
 
-**Title.** `Scan diagnostics: <parts> (<label> <version>, ...)`, the parts in this order and only when not zero: `3 new ids quarantined` (`1 new id quarantined`), `2 new ids recorded` (new ids no policy stage took), `2 ids promoted to stable`, `1 default changed`, `1 quarantine entry released`; the newly scanned versions follow with the labels `alcops` and `tools`, ALCops first. A run with no part: `Scan diagnostics: alcops 1.3.2 recorded, no new diagnostics` (`alcops 1.3.2 and tools 30.0.42.60748-beta recorded, ...`). Housekeeping: `Scan diagnostics: 1 quarantine entry released, no new package version`. Prerelease default changes and unadvertised ids do not count.
+**Title.** `Scan diagnostics: <parts> (<label> <version>, ...)`, the parts in this order and only when not zero: `3 new ids quarantined` (`1 new id quarantined`), `2 new ids recorded` (new ids no policy stage took), `2 ids promoted to stable`, `1 default changed`, `1 quarantine entry released` (released ids, one per id whatever the number of stage files it leaves); the newly scanned versions follow with the labels `alcops` and `tools`, ALCops first. A run with no part: `Scan diagnostics: alcops 1.3.2 recorded, no new diagnostics` (`alcops 1.3.2 and tools 30.0.42.60748-beta recorded, ...`). Housekeeping: `Scan diagnostics: 1 quarantine entry released, no new package version`. Prerelease default changes and unadvertised ids do not count.
 
 ## 8. Pull request body and job summary
 
@@ -192,7 +192,7 @@ Above 60000 characters (GitHub allows 65536) the effective diff tables go first,
 | Output | Values |
 |---|---|
 | `result` | `pull-request`, `pull-request-updated`, `direct-commit`, `no-changes`, `nothing-new`, `dry-run`; empty on failure |
-| `newIds`, `quarantined`, `changedDefaults`, `released` | counts |
+| `newIds`, `quarantined`, `changedDefaults`, `released` | counts (`released`: distinct released ids) |
 | `scannedVersions` | `<package>@<version>:<channel>`, comma separated |
 | `pullRequestUrl` | the new or updated pull request, or the one closed as stale |
 | `candidatePath`, `elapsedSeconds` | |
