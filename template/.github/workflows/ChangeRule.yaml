@@ -38,7 +38,7 @@ on:
           - ci
           - vnext
       justification:
-        description: 'Why the rule changes (optional); written into the override entry.'
+        description: 'Why the rule changes (optional); written into the override entry. Empty keeps the existing justification; ignored for Remove.'
         type: string
         required: false
         default: ''

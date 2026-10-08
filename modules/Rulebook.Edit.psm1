@@ -141,6 +141,10 @@ function Get-ItemSentence {
     param([Parameter(Mandatory)]$Item)
     $where = 'levels {0}, stages {1}' -f (Format-Selector $Item.Levels), (Format-Selector $Item.Stages)
     $previous = $Item.Entry.Previous
+    if ($Item.Op -ceq 'set' -and $Item.NoOp) {
+        if ($Item.Entry.Change -ceq 'added') { return "Leaves $($Item.Id) at $($Item.Action) for $where (every matching endpoint has that action already; no entry is written)." }
+        return "Leaves $($Item.Id) at $($Item.Action) for $where (the entry is unchanged)."
+    }
     if ($Item.Op -ceq 'remove') {
         $was = if ($null -ne $previous) { " (it was $($previous.Action))" } else { '' }
         return "Removes the override entry for $($Item.Id) with $where$was."
@@ -174,7 +178,7 @@ function Get-ItemBlock {
     $text = [System.Text.StringBuilder]::new()
     [void]$text.AppendLine((Get-ItemSentence -Item $Item)).AppendLine()
     [void]$text.Append((ConvertTo-ChangeTable -Rows $Item.Rows)).AppendLine()
-    $notes = Get-ItemNote -Item $Item
+    $notes = @($Item.Notes)
     if ($notes.Count -gt 0) {
         foreach ($note in $notes) { [void]$text.AppendLine("- $note") }
         [void]$text.AppendLine()
@@ -184,10 +188,14 @@ function Get-ItemBlock {
 
 function Get-JustificationParagraph {
     param([Parameter(Mandatory)]$Plan)
+    # The justification of a one-item set is the entry's text after the change (given or kept); a change set of
+    # removes only has no paragraph unless it carries a note.
     $items = @($Plan.Items)
-    if ($items.Count -eq 1 -and -not [string]::IsNullOrEmpty($items[0].Justification)) { return "Justification: $($items[0].Justification)" }
+    # One line: a justification or note never adds headings or sections to the body.
+    if ($items.Count -eq 1 -and -not [string]::IsNullOrEmpty($items[0].Justification)) { return "Justification: $(ConvertTo-SingleLine $items[0].Justification)" }
     $note = if ($null -ne $Plan.ChangeSet -and $Plan.ChangeSet.Contains('note')) { [string]$Plan.ChangeSet['note'] } else { '' }
-    if (-not [string]::IsNullOrEmpty($note)) { return $note }
+    if (-not [string]::IsNullOrEmpty($note)) { return ConvertTo-SingleLine $note }
+    if ($items.Count -gt 0 -and @($items | Where-Object { $_.Op -cne 'remove' }).Count -eq 0) { return '' }
     return 'No justification given.'
 }
 
@@ -303,9 +311,10 @@ function Set-RulebookOverride {
     Sets the override of -Id for a level and stage selection in an overrides file object: { Entry, Change, Previous }.
     .DESCRIPTION
     An entry with the same id and the same level and stage sets (ordinal, order and duplicates ignored) gets the new
-    action and justification in place, its position and selector order kept; an empty justification drops the key.
-    Change is replaced, or unchanged when action and justification are the same already; otherwise the entry is
-    appended (added). Previous is a copy of the entry before (or $null). Throws (Data['Stage'] = 'validation') on an
+    action in place, its position and selector order kept; a non-empty -Justification replaces the entry's text, an
+    empty one keeps it (clearing a justification is a hand edit). Change is replaced, or unchanged when the action is
+    the same and the justification is empty or the same already; otherwise the entry is appended (added, with the
+    justification when one is given). Previous is a copy of the entry before (or $null). Throws (Data['Stage'] = 'validation') on an
     action outside the five and on an empty selector or one that mixes '*' with slugs. Changes the object passed in;
     writes no file.
     #>
@@ -323,25 +332,32 @@ function Set-RulebookOverride {
     if ($Action -cnotin $script:Actions) { throw (New-ValidationException "action '$Action': use Error, Warning, Info, Hidden or None") }
     Assert-Selector -Name 'levels' -Values $Levels
     Assert-Selector -Name 'stages' -Values $Stages
-    if ([string]::IsNullOrEmpty($Justification)) { $Justification = $null }
+    if ([string]::IsNullOrWhiteSpace($Justification)) { $Justification = '' }
     $levelKey = Get-SelectorKey $Levels
     $stageKey = Get-SelectorKey $Stages
-    $index = -1
+    $hits = [System.Collections.Generic.List[int]]::new()
     for ($i = 0; $i -lt $File.Rules.Count; $i++) {
         $entry = $File.Rules[$i]
-        if ($entry.Id -ceq $Id -and (Get-SelectorKey $entry.Levels) -ceq $levelKey -and (Get-SelectorKey $entry.Stages) -ceq $stageKey) { $index = $i }
+        if ($entry.Id -ceq $Id -and (Get-SelectorKey $entry.Levels) -ceq $levelKey -and (Get-SelectorKey $entry.Stages) -ceq $stageKey) { $hits.Add($i) }
     }
-    if ($index -lt 0) {
+    if ($hits.Count -eq 0) {
         $new = ConvertTo-OverrideEntry -Id $Id -Action $Action -Levels $Levels -Stages $Stages -Justification $Justification
         $File.Rules.Add($new)
         return [pscustomobject]@{ Entry = $new; Change = 'added'; Previous = $null }
     }
-    $old = $File.Rules[$index]
+    # The first entry with these selectors is the one set; duplicates a hand edit left are removed (the last of them
+    # was the effective one, so it is the Previous), so one entry per selector set remains.
+    $index = $hits[0]
+    $old = $File.Rules[$hits[$hits.Count - 1]]
     $previous = ConvertTo-OverrideEntry -Id $old.Id -Action $old.Action -Levels $old.Levels -Stages $old.Stages -Justification $old.Justification
-    if ($old.Action -ceq $Action -and [string]$old.Justification -ceq [string]$Justification) {
-        return [pscustomobject]@{ Entry = $old; Change = 'unchanged'; Previous = $previous }
+    for ($k = $hits.Count - 1; $k -ge 1; $k--) { $File.Rules.RemoveAt($hits[$k]) }
+    $first = $File.Rules[$index]
+    # An empty justification keeps the entry's text; only a non-empty one replaces it.
+    if ([string]::IsNullOrEmpty($Justification)) { $Justification = $old.Justification }
+    if ($hits.Count -eq 1 -and $first.Action -ceq $Action -and [string]$first.Justification -ceq [string]$Justification) {
+        return [pscustomobject]@{ Entry = $first; Change = 'unchanged'; Previous = $previous }
     }
-    $new = ConvertTo-OverrideEntry -Id $old.Id -Action $Action -Levels $old.Levels -Stages $old.Stages -Justification $Justification
+    $new = ConvertTo-OverrideEntry -Id $first.Id -Action $Action -Levels $first.Levels -Stages $first.Stages -Justification $Justification
     $File.Rules[$index] = $new
     return [pscustomobject]@{ Entry = $new; Change = 'replaced'; Previous = $previous }
 }
@@ -402,8 +418,8 @@ function ConvertTo-RulebookChangeSet {
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$RuleId,
         [Parameter(Mandatory)][AllowEmptyString()][string]$Action,
-        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Levels,
-        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Stages,
+        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][string[]]$Levels,
+        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][string[]]$Stages,
         [AllowNull()][AllowEmptyString()][string]$Justification,
         [AllowNull()][AllowEmptyString()][string]$Note
     )
@@ -417,8 +433,8 @@ function ConvertTo-RulebookChangeSet {
         $canonical = @($script:Actions | Where-Object { $_ -ieq $Action.Trim() })
         $change['action'] = if ($canonical.Count -eq 1) { $canonical[0] } else { $Action }
     }
-    $change['levels'] = [string[]]@($Levels | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
-    $change['stages'] = [string[]]@($Stages | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+    $change['levels'] = [string[]]@($Levels | Where-Object { $null -ne $_ } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+    $change['stages'] = [string[]]@($Stages | Where-Object { $null -ne $_ } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
     if ($change['op'] -ceq 'set' -and -not [string]::IsNullOrWhiteSpace($Justification)) { $change['justification'] = $Justification.Trim() }
     $set = [ordered]@{}
     if (-not [string]::IsNullOrWhiteSpace($Note)) { $set['note'] = $Note.Trim() }
@@ -583,6 +599,8 @@ function Invoke-RulebookChangeSet {
             } else {
                 $result = Set-RulebookOverride -File $file -Id $item.Id -Action $item.Action -Levels $item.Levels -Stages $item.Stages -Justification $item.Justification
                 $item.Entry = [pscustomobject]@{ Change = $result.Change; Previous = $result.Previous }
+                # The justification the entry carries after the change: the given text, or the kept one.
+                $item.Justification = $result.Entry.Justification
             }
         } catch {
             $plan.Findings = @(New-ChangeFinding -Id $item.Id -Message $_.Exception.Message)
@@ -602,7 +620,13 @@ function Invoke-RulebookChangeSet {
     if (@($items | Where-Object { $_.Entry.Change -cne 'unchanged' }).Count -gt 0) {
         $plan.OverridesChange = Write-OverridesFile -Path (Join-Path $candidate $script:OverridesFile) -File $file -WhatIf:$false -Confirm:$false
     }
-    $after = Read-RulebookInputs -RepositoryRoot $candidate
+    try {
+        $after = Read-RulebookInputs -RepositoryRoot $candidate
+    } catch {
+        $plan.Findings = @(New-ChangeFinding -File $null -Message "The changed rulebook cannot be read: $($_.Exception.Message)")
+        $plan.Failure = 'validation'
+        return $plan
+    }
 
     # 4. Rows per item and endpoint.
     foreach ($item in $items) {
@@ -634,10 +658,12 @@ function Invoke-RulebookChangeSet {
         }
         $item.Rows = $rows.ToArray()
         $item.ChangedEndpoints = [string[]]@($rows | Where-Object Changed | ForEach-Object Endpoint)
-        $item.NoOp = $item.ChangedEndpoints.Count -eq 0 -and $item.Entry.Change -ceq 'unchanged'
+        # D48: a set that changes no endpoint is a no-op when the entry is unchanged or would be new (a dead entry
+        # that only repeats what the base gives is not written); a replaced justification is written.
+        $item.NoOp = $item.Op -ceq 'set' -and $item.ChangedEndpoints.Count -eq 0 -and $item.Entry.Change -cin 'unchanged', 'added'
         $item.Notes = Get-ItemNote -Item $item
     }
-    $plan.NoOp = @($items | Where-Object { $_.ChangedEndpoints.Count -gt 0 }).Count -eq 0 -and $null -eq $plan.OverridesChange
+    $plan.NoOp = @($items | Where-Object { -not $_.NoOp }).Count -eq 0
     if ($plan.NoOp) {
         $plan.Valid = $true
         return $plan
@@ -724,14 +750,15 @@ function ConvertTo-ChangePullRequestBody {
     .SYNOPSIS
     The pull request body of a change: the justification, then per item one sentence, its table and its notes.
     .DESCRIPTION
-    The paragraph is 'Justification: <text>' (one item with a justification), the note of the change set, or
-    'No justification given.'. Above -Limit (default 60000 characters, GitHub allows 65536) the item tables are left
+    The paragraph is 'Justification: <text>' (one set item whose entry has a justification, given or kept), the note
+    of the change set, nothing for a change set of removes only, or 'No justification given.'. Above -Limit (default 60000 characters, GitHub allows 65536) the item tables are left
     out from the end with one italic line; only when that is not enough is the body cut at a line boundary.
     #>
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)]$Plan, [int]$Limit = $script:BodyLimit)
-    $intro = (Get-JustificationParagraph -Plan $Plan) + "`n`n"
+    $paragraph = Get-JustificationParagraph -Plan $Plan
+    $intro = if ($paragraph) { $paragraph + "`n`n" } else { '' }
     $items = @($Plan.Items)
     [string[]]$blocks = @($items | ForEach-Object { Get-ItemBlock -Item $_ })
     [string[]]$short = @($items | ForEach-Object { (Get-ItemSentence -Item $_) + "`n`n" })
@@ -781,7 +808,8 @@ function ConvertTo-ChangeSummary {
         if ($line) { [void]$text.AppendLine($line).AppendLine() }
     }
     if (@($Plan.Items).Count -gt 0) {
-        [void]$text.AppendLine((Get-JustificationParagraph -Plan $Plan)).AppendLine()
+        $paragraph = Get-JustificationParagraph -Plan $Plan
+        if ($paragraph) { [void]$text.AppendLine($paragraph).AppendLine() }
         foreach ($item in @($Plan.Items)) { [void]$text.Append((Get-ItemBlock -Item $item)) }
     }
     $errors = @($Plan.Findings | Where-Object Severity -EQ 'error')

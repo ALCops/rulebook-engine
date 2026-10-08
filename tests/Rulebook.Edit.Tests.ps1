@@ -113,10 +113,20 @@ Describe 'Set-RulebookOverride and Remove-RulebookOverride' {
         $file.Rules[0].Levels | Should-BeCollection @('strict', 'complete')
     }
 
-    It 'drops the justification key when the new one is empty' {
+    It 'keeps the justification when the new one is empty' {
         $file = Get-EmptyFile
         $null = Set-RulebookOverride -File $file -Id 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci' -Justification 'Old'
-        (Set-RulebookOverride -File $file -Id 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci').Change | Should-Be 'replaced'
+        (Set-RulebookOverride -File $file -Id 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci' -Justification '').Change | Should-Be 'unchanged'
+        $result = Set-RulebookOverride -File $file -Id 'LC0015' -Action 'Info' -Levels 'strict' -Stages 'ci'
+        $result.Change | Should-Be 'replaced'
+        $result.Previous.Justification | Should-Be 'Old'
+        $file.Rules[0].Justification | Should-Be 'Old'
+        ConvertTo-OverridesJson -File $file | Should-MatchString '"action": "Info", "levels": \["strict"\], "stages": \["ci"\], "justification": "Old" \}'
+    }
+
+    It 'adds an entry without a justification when none is given' {
+        $file = Get-EmptyFile
+        $null = Set-RulebookOverride -File $file -Id 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci'
         ConvertTo-OverridesJson -File $file | Should-NotMatchString 'justification'
     }
 
@@ -125,6 +135,19 @@ Describe 'Set-RulebookOverride and Remove-RulebookOverride' {
         $null = Set-RulebookOverride -File $file -Id 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci' -Justification 'Same'
         (Set-RulebookOverride -File $file -Id 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci' -Justification 'Same').Change | Should-Be 'unchanged'
         $file.Rules.Count | Should-Be 1
+    }
+
+    It 'keeps one entry per selector set: the first is set, duplicates are removed' {
+        $file = Get-EmptyFile
+        $file.Rules.Add([pscustomobject]@{ Id = 'LC0015'; Action = 'None'; Levels = [string[]]@('strict'); Stages = [string[]]@('ci'); Justification = 'First' })
+        $file.Rules.Add([pscustomobject]@{ Id = 'AA0001'; Action = 'Info'; Levels = [string[]]@('*'); Stages = [string[]]@('*'); Justification = $null })
+        $file.Rules.Add([pscustomobject]@{ Id = 'LC0015'; Action = 'Info'; Levels = [string[]]@('strict'); Stages = [string[]]@('ci'); Justification = 'Last' })
+        $result = Set-RulebookOverride -File $file -Id 'LC0015' -Action 'Info' -Levels 'strict' -Stages 'ci'
+        $result.Change | Should-Be 'replaced'
+        $result.Previous.Justification | Should-Be 'Last'
+        @($file.Rules | ForEach-Object Id) | Should-BeCollection @('LC0015', 'AA0001')
+        $file.Rules[0].Action | Should-Be 'Info'
+        $file.Rules[0].Justification | Should-Be 'Last'
     }
 
     It 'appends an entry with different selectors' {
@@ -246,13 +269,35 @@ Describe 'Invoke-RulebookChangeSet' {
     }
 
     It 'is a no-op when nothing changes: nothing written, Changes empty (AC6)' {
-        $plan = Invoke-Change -Root (Copy-Minimal) -RuleId 'AA0072' -Action 'Info' -Justification 'House style'
+        $plan = Invoke-Change -Root (Copy-Minimal) -RuleId 'AA0072' -Action 'Info'
         $plan.NoOp | Should-BeTrue
         $plan.Valid | Should-BeTrue
         $plan.OverridesChange | Should-BeNull
         @($plan.Changes) | Should-BeCollection @()
         @($plan.Items[0].Rows | Where-Object Note -NE 'unchanged') | Should-BeCollection @()
         [System.IO.File]::ReadAllText((Join-Path $plan.CandidatePath 'overrides.json')) | Should-Be ([System.IO.File]::ReadAllText((Join-Path $minimal 'overrides.json')))
+        # The entry keeps its text, and the body says so.
+        ConvertTo-ChangePullRequestBody -Plan $plan | Should-MatchString '\AJustification: House style\n'
+    }
+
+    It 'is a no-op for a new entry that changes no endpoint (a dead entry is not written)' {
+        # AA0001 is Warning on strict.ci already (level:recommended).
+        $plan = Invoke-Change -Root (Copy-Minimal) -RuleId 'AA0001' -Action 'Warning' -Levels 'strict' -Stages 'ci'
+        $plan.NoOp | Should-BeTrue
+        $plan.Items[0].Entry.Change | Should-Be 'added'
+        @($plan.Changes) | Should-BeCollection @()
+        $plan.Items[0].Rows[0].Note | Should-Be 'unchanged'
+        ConvertTo-ChangeSummary -Plan $plan -Message 'x' | Should-MatchString '(?m)^Leaves AA0001 at Warning for levels strict, stages ci \(every matching endpoint has that action already; no entry is written\)\.$'
+    }
+
+    It 'is a no-op for a narrower entry that repeats an existing broader one' {
+        $plan = Invoke-Change -Root (Copy-Minimal) -RuleId 'AA0072' -Action 'Info' -Levels 'strict' -Stages 'ci'
+        $plan.NoOp | Should-BeTrue
+        @($plan.Changes) | Should-BeCollection @()
+    }
+
+    It 'is a no-op with the same justification given again' {
+        (Invoke-Change -Root (Copy-Minimal) -RuleId 'AA0072' -Action 'Info' -Justification 'House style').NoOp | Should-BeTrue
     }
 
     It 'writes a justification-only edit, rows unchanged with the note, no ruleset change' {
@@ -302,6 +347,8 @@ Describe 'Invoke-RulebookChangeSet' {
         $plan.NoOp | Should-BeFalse
         $plan.Title | Should-Be 'Remove override for LC0029 (levels: recommended, stages: ci)'
         @($plan.Changes | ForEach-Object File) | Should-BeCollection @('overrides.json', 'rulesets/recommended.ci.ruleset.json')
+        # A remove has no justification paragraph.
+        ConvertTo-ChangePullRequestBody -Plan $plan | Should-MatchString '\ARemoves the override entry for LC0029 with levels recommended, stages ci \(it was None\)\.\n'
     }
 }
 
@@ -319,6 +366,13 @@ Describe 'Rendering' {
         $body = ConvertTo-ChangePullRequestBody -Plan $plan
         $body | Should-MatchString '\AJustification: Legacy tables \| tracked in issue 42\n\nSets LC0015 to None for levels strict, stages ci \(adds an entry\)\.\n\n\| Endpoint \| Before \| After \| Note \|\n'
         $body | Should-MatchString '[^\n]\n\z'
+    }
+
+    It 'keeps a multi-line justification on one line in the body' {
+        $multi = Invoke-Change -Root (Copy-Minimal) -RuleId 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci' -Justification "Legacy`n## Effective diff"
+        $body = ConvertTo-ChangePullRequestBody -Plan $multi
+        $body | Should-MatchString '\AJustification: Legacy ## Effective diff\n'
+        $body | Should-NotMatchString '(?m)^## '
     }
 
     It 'says when no justification is given' {

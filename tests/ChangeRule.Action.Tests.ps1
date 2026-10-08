@@ -107,7 +107,8 @@ Describe 'actions/ChangeRule/action.yaml' {
         foreach ($name in 'RULEID', 'ACTION', 'LEVELS', 'STAGES', 'JUSTIFICATION', 'TOKEN', 'DIRECTCOMMIT', 'BASEBRANCH', 'REPOSITORYROOT', 'ACTOR') {
             $yaml | Should-MatchString "(?m)^        INPUT_$($name): \`$\{\{ inputs\.\w+ \}\}$"
         }
-        $yaml | Should-MatchString '(?m)^        GITHUB_TOKEN: \$\{\{ github\.token \}\}$'
+        # The action never reads with the workflow token.
+        $yaml | Should-NotMatchString 'GITHUB_TOKEN'
         $run | Should-MatchString 'GITHUB_ACTION_PATH'
         $run | Should-MatchString 'exit \$result\.ExitCode'
     }
@@ -192,6 +193,13 @@ Describe 'ChangeRule.ps1' {
         $run.Output | Should-Be "result=`nnoop=false`nchangedEndpoints=`npullRequestUrl=`nbranch=`nfailure=validation`n"
     }
 
+    It 'reports an empty levels input as a validation finding' {
+        $root = Copy-Minimal
+        $run = Invoke-Entry @{ RepositoryRoot = $root; WorkspaceRoot = $root; RuleId = 'LC0015'; Action = 'None'; Levels = ' , '; Stages = 'ci' }
+        $run.Result.Failure | Should-Be 'validation'
+        $run.Result.Annotations[0] | Should-Be '::error file=overrides.json,title=ChangeRule::change 0 has no levels; use a slug from the settings or ["*"]'
+    }
+
     It 'lists the existing entries when Remove finds no matching entry' {
         $root = Copy-Minimal
         $run = Invoke-Entry @{ RepositoryRoot = $root; WorkspaceRoot = $root; RuleId = 'LC0029'; Action = 'Remove'; Levels = 'strict'; Stages = 'ci' }
@@ -200,7 +208,8 @@ Describe 'ChangeRule.ps1' {
     }
 
     It 'reports a no-op with a notice and exit code 0, without a token (AC6)' {
-        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'LC0029'; Action = 'None'; Levels = 'recommended'; Stages = 'ci'; Justification = 'Backlog DEV-1234' }
+        # No justification: the entry keeps 'Backlog DEV-1234', so nothing changes.
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'LC0029'; Action = 'None'; Levels = 'recommended'; Stages = 'ci' }
         $run.Result.ExitCode | Should-Be 0
         $run.Result.NoOp | Should-BeTrue
         @($run.Result.Annotations) | Should-BeCollection @('::notice title=ChangeRule::No change: LC0029 is already None on every matching endpoint (recommended.ci); overrides.json was not written')
@@ -250,6 +259,19 @@ Describe 'ChangeRule.ps1' {
         $run.Result.Annotations[-1] | Should-Be '::notice title=ChangeRule::Pull request: https://github.com/Contoso/rulebook/pull/7'
         $run.Output | Should-Be "result=pull-request`nnoop=false`nchangedEndpoints=strict.ci`npullRequestUrl=https://github.com/Contoso/rulebook/pull/7`nbranch=change-rule/LC0015/261008091530`nfailure=`n"
         $run.Summary | Should-MatchString '(?m)^## Effective diff\n\n### `strict\.ci` \(`rulesets/strict\.ci\.ruleset\.json`\)$'
+    }
+
+    It 'reports nothing to commit after the plan as a no-op' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            [pscustomobject]@{ Result = 'no-changes'; PullRequestUrl = $null; Number = $null; Branch = 'main'; Sha = 'a' * 40; Fallback = $false; Diff = @(); DiffNote = $null; Body = $null; Title = 't' }
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'LC0015'; Action = 'None'; Levels = 'strict'; Stages = 'ci'; Token = 'ghp_x'; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.NoOp | Should-BeTrue
+        $run.Result.Annotations[-1] | Should-Be '::notice title=ChangeRule::No change: main already holds this change; nothing was pushed'
+        $run.Output | Should-MatchString '\Aresult=no-op\nnoop=true\n'
     }
 
     It 'maps a pull request failure of the seam to failure pull-request with the token hint' {

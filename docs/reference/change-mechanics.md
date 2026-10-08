@@ -43,7 +43,7 @@ The Change Rule form is a one-item client: `ConvertTo-RulebookChangeSet -RuleId 
 
 | Function | Rule |
 |---|---|
-| `Set-RulebookOverride` | An entry with the same id and the **same level set and stage set** (ordinal, order and duplicates ignored: `["strict", "complete"]` equals `["complete", "strict"]`) is replaced in place: new action, new justification (an empty one drops the key), its position and its own selector order kept. Change `replaced`, or `unchanged` when action and justification are equal already. Any other selection appends a new entry (`added`), so the file never collects two entries with the same selectors. |
+| `Set-RulebookOverride` | An entry with the same id and the **same level set and stage set** (ordinal, order and duplicates ignored: `["strict", "complete"]` equals `["complete", "strict"]`) is replaced in place: new action, and a new justification only when one is given; an empty justification keeps the entry's text (an entry without one stays without one; clearing a justification is a hand edit or a later dashboard change set). Its position and its own selector order are kept. Change `replaced`, or `unchanged` when the action is the same and the justification is empty or the same. Any other selection appends a new entry (`added`), so the file never collects two entries with the same selectors. Should a hand edit have left several entries with the same selectors, the first is set and the others are removed (the last of them, the effective one, is reported as the previous entry). |
 | `Remove-RulebookOverride` | Removes the entry (every entry, should a hand edit have left duplicates) with the same id and selector sets. Everything else in the file stays byte-identical (AC4). |
 
 An entry with a different selection is a separate entry: a later `strict`/`ci` entry next to an existing `*`/`ci` entry wins on `strict.ci` by specificity, as [composition.md](../rulebook/composition.md) defines.
@@ -76,9 +76,9 @@ D48, per change set:
 
 | Situation | Result |
 |---|---|
-| No matching endpoint changes and `overrides.json` would not change (same action, same justification) | **No-op**: notice `No change: LC0015 is already None on every matching endpoint (strict.ci); overrides.json was not written`, the table in the job summary with every row `unchanged`, outputs `result=no-op` and `noop=true`, exit code 0, nothing written, no token needed. |
-| At least one endpoint changes | Written. The table lists every matching endpoint; rows that stay the same say `unchanged`, and the body adds `<k> of <n> matching endpoints are unchanged.` |
-| Same action, different justification | Written: the file changes, no endpoint does. Every row `unchanged` with the note `justification updated`, no file in `rulesets/` changes. |
+| No matching endpoint changes, and the entry is unchanged (same action; the justification empty, so the entry keeps its text, or the same) or would be new (a dead entry: the base, the stage, an existing broader entry or the twins setting already give that action everywhere the selection matches) | **No-op**: notice `No change: LC0015 is already None on every matching endpoint (strict.ci); overrides.json was not written`, the table in the job summary with every row `unchanged`, outputs `result=no-op` and `noop=true`, exit code 0, nothing written, no token needed. |
+| A new entry, a removed entry, or a changed action that alters at least one endpoint | Written. The table lists every matching endpoint; rows that stay the same say `unchanged`, and the body adds `<k> of <n> matching endpoints are unchanged.` |
+| Same action, a new non-empty justification | Written: the file changes, no endpoint does. Every row `unchanged` with the note `justification updated`, no file in `rulesets/` changes. |
 | An id set to its analyzer default where the base deviates | Written (AC3): the id is no longer listed in that endpoint, the row note is `now unlisted in <endpoint>: <action> equals the analyzer default` and the body repeats it as a sentence. |
 | `remove` | Never a no-op: the file always changes. |
 | `remove` without a matching entry | Validation error (section 3). |
@@ -90,10 +90,10 @@ The endpoint comparison uses the effective action and the listed status (`Get-Ef
 `Invoke-RulebookChangeSet -RepositoryRoot -ChangeSet [-WorkPath] [-Now]` returns a `Rulebook.ChangePlan` and **never writes into the repository**:
 
 1. The head of the checkout (`HeadSha`, for the base-moved guard of section 7) and the inputs of the working tree.
-2. Validation (section 3, steps 1 to 3). A finding returns `Valid $false`, `Failure validation`, no candidate.
+2. Validation (section 3, steps 1 to 3). A finding returns `Valid $false`, `Failure validation`, no candidate. When `git rev-parse HEAD` fails (no git, or not a checkout), `HeadSha` stays empty and the base-moved guard of section 7 is off; the action then writes the warning `base-move guard inactive: the checkout HEAD could not be read`.
 3. The repository is copied to `<WorkPath>/candidate` (`Copy-UpdateTree`, without `.git`), and `overrides.json` is written there unless every entry is unchanged (`OverridesChange`).
 4. One row per item and matching endpoint (`*` expanded in settings order): `{ Endpoint, File, Id, Before, After, BeforeSource, AfterSource, BeforeDetail, AfterDetail, ListedBefore, ListedAfter, Changed, Note }`, from the inputs of the working tree and of the candidate, both in memory. Rows are not taken from `Compare-RulebookEndpoints`, which lists changed rows only and needs a git ref.
-5. `NoOp` (section 4). A no-op returns here: `Valid $true`, `Changes` empty, no regeneration.
+5. `NoOp` (section 4): every item is a `set` that changes no endpoint and whose entry is `unchanged` or would be `added`. A no-op returns here: `Valid $true`, `Changes` empty, no regeneration (the candidate copy may hold the unwritten entry; it is never pushed).
 6. `Update-RulebookEndpoints` on the candidate (a failure is the finding "The changed rulebook cannot be regenerated: ..."), then `Test-Rulebook`: `Findings`, `Valid`.
 7. `Changes`: every file that differs between the repository and the candidate, `{ File, Change (created, modified, deleted), Bytes }`, the list `Publish-RulebookChange` writes into its clone.
 
@@ -115,7 +115,7 @@ Sets LC0015 to None for levels strict, stages ci (replaces the entry that was Wa
 | strict.ci | Warning (level:strict) | None (override, "Legacy tables, tracked in issue 42") |  |
 ```
 
-The first paragraph is the justification of a one-item change, else the note of the change set, else `No justification given.` The sentence per item is one of `Sets <id> to <action> for levels <l>, stages <s> (adds an entry).`, `(replaces the entry that was <action>).`, `Updates the justification of the <id> entry for levels <l>, stages <s> (the action stays <action>).` and `Removes the override entry for <id> with levels <l>, stages <s> (it was <action>).`; notes follow as a list (unlisted ids, unchanged count). Above 60000 characters the tables are left out from the end with one italic line, then the body is cut at a line boundary.
+The first paragraph is `Justification: <text>` for a one-item `set` whose entry has a justification after the change (the given text or the kept one), else the note of the change set, else nothing for a change set of removes only, else `No justification given.` The sentence per item is one of `Sets <id> to <action> for levels <l>, stages <s> (adds an entry).`, `(replaces the entry that was <action>).`, `Updates the justification of the <id> entry for levels <l>, stages <s> (the action stays <action>).` and `Removes the override entry for <id> with levels <l>, stages <s> (it was <action>).`; notes follow as a list (unlisted ids, unchanged count). Above 60000 characters the tables are left out from the end with one italic line, then the body is cut at a line boundary.
 
 The job summary (`ConvertTo-ChangeSummary`) has `## Rule change`, the message, the pull request or commit line, the same paragraph and tables, `## Validation errors` when there are any, and `## Effective diff`: the git-based diff of the pushed commit against the cloned head (`Compare-RulebookEndpoints`, the Validate rendering). That diff appears only in the summary, never in the body (WP09 interview, decision 14): the reviewer reads the in-memory table, and Validate on the pull request shows the effective diff again.
 
@@ -132,14 +132,14 @@ The job summary (`ConvertTo-ChangeSummary`) has `## Rule change`, the message, t
 
 ## 8. Action reference
 
-`actions/ChangeRule/action.yaml`, one `pwsh` step, inputs through `INPUT_*` environment variables only:
+`actions/ChangeRule/action.yaml`, one `pwsh` step, inputs through `INPUT_*` environment variables only; the step gets no `GITHUB_TOKEN` (the action reads nothing from GitHub with the workflow token, it writes with the secret's token):
 
 | Input | Default | Meaning |
 |---|---|---|
 | `ruleId` | required | The diagnostic id. |
 | `action` | required | Error, Warning, Info, Hidden, None, or Remove. |
 | `levels`, `stages` | `'*'` | A slug or `*`. |
-| `justification` | `''` | Optional. |
+| `justification` | `''` | Optional; empty keeps the existing justification of the entry; ignored for Remove. |
 | `token` | `''` | The `GHTOKENWORKFLOW` value; not needed for a validation error or a no-op. |
 | `directCommit` | `'false'` | The workflow passes `-not createPullRequest`. |
 | `baseBranch` | `${{ github.ref_name }}` | |
@@ -148,7 +148,7 @@ The job summary (`ConvertTo-ChangeSummary`) has `## Rule change`, the message, t
 
 | Output | Values |
 |---|---|
-| `result` | `pull-request`, `direct-commit`, `no-op`; empty on failure |
+| `result` | `pull-request`, `direct-commit`, `no-op`; empty on failure. Should the clone of the base branch hold the change already (pushed between plan and publish), there is nothing to commit and the result is `no-op` too, with the notice `No change: <branch> already holds this change; nothing was pushed`. |
 | `noop` | `true` or `false` |
 | `changedEndpoints` | Comma-separated endpoints, for example `strict.ci` |
 | `pullRequestUrl`, `branch` | The pull request and the pushed branch (the base branch for a direct commit) |
@@ -158,16 +158,16 @@ Order in `ChangeRule.ps1`: settings (secret name, labels), the plan, the validat
 
 ## 9. The workflow and its choice lists
 
-`template/.github/workflows/ChangeRule.yaml` (system file): `workflow_dispatch` with `ruleId` (string, required), `action` (choice), `levels` and `stages` (choice, default `'*'`, the shipped slugs), `justification` (string, optional); `permissions: contents: read` (the change is pushed with the secret's token, so the pull request runs Validate); `concurrency: change-rule-${{ github.ref }}` without cancelling; checkout without persisted credentials; a "Read the settings" step that resolves the secret name and `directCommit = -not commitOptions.createPullRequest` on every run (D47), with no `directCommit` input; then `ALCops/rulebook-engine/actions/ChangeRule@main` (pinned to `@v1` by the deploy, WP13).
+`template/.github/workflows/ChangeRule.yaml` (system file): `workflow_dispatch` with `ruleId` (string, required), `action` (choice), `levels` and `stages` (choice, default `'*'`, the shipped slugs), `justification` (string, optional); `permissions: contents: read` (the change is pushed with the secret's token, so the pull request runs Validate); `concurrency: change-rule-${{ github.ref }}` without cancelling (GitHub keeps one running and one pending run per group: a third dispatch while one runs and one waits replaces the waiting one, which is then cancelled, so run the form again for it); checkout without persisted credentials; a "Read the settings" step that resolves the secret name and `directCommit = -not commitOptions.createPullRequest` on every run (D47), with no `directCommit` input; then `ALCops/rulebook-engine/actions/ChangeRule@main` (pinned to `@v1` by the deploy, WP13).
 
 The update rewrites the `levels` and `stages` options from the settings (D30, [update-mechanics.md](update-mechanics.md) section 5): `'*'` and the slugs in settings order. The shipped file is laid out so that rewrite with the shipped settings reproduces it byte for byte; an organization that adds a level `House` gets `house` in its form after the next update.
 
 ## 10. Tests and CI
 
-- `tests/Rulebook.Edit.Tests.ps1`: the round trips, write-on-change and `-WhatIf`; set on an empty array, replace in place with order-insensitive selectors, the dropped justification, `unchanged`, append; remove with the rest of the file byte-identical (AC4) and the miss message; every `Test-RulebookChangeSet` message; `Invoke-RulebookChangeSet` for AC1 (one endpoint), AC2 (all 12), AC3 (unlisted), AC5 (nothing copied, repository untouched), AC6 (no-op), justification-only, partial, `*` order and remove; title, table, body (and its limit) and summary; `Publish-RulebookChange` against a bare repository (pull request with labels and body, direct commit, fallback with a push-refusing hook, base moved, the pull-request failure, refused plans).
+- `tests/Rulebook.Edit.Tests.ps1`: the round trips, write-on-change and `-WhatIf`; set on an empty array, replace in place with order-insensitive selectors, the kept justification, `unchanged`, append; remove with the rest of the file byte-identical (AC4) and the miss message; every `Test-RulebookChangeSet` message; `Invoke-RulebookChangeSet` for AC1 (one endpoint), AC2 (all 12), AC3 (unlisted), AC5 (nothing copied, repository untouched), AC6 (no-op), justification-only, partial, `*` order and remove; title, table, body (and its limit) and summary; `Publish-RulebookChange` against a bare repository (pull request with labels and body, direct commit, fallback with a push-refusing hook, base moved, the pull-request failure, refused plans).
 - `tests/ChangeRule.Action.Tests.ps1`: `action.yaml`; the template workflow (inputs and option lists, permissions, concurrency, secret lookup, no interpolation in `run`, the settings step run in-process for `createPullRequest` false, true and absent); `ChangeRule.ps1` in-process (validation, remove miss, no-op without a token, token guard and mask, the publish seam with outputs and summary, failure mapping, work folders, and against a bare remote: direct commit, pushed branch, fallback).
 - `tests/Rulebook.Update.Tests.ps1`: the shipped `ChangeRule.yaml` rewritten with the shipped settings is unchanged, with a level `House` it gains `house` in settings order.
-- CI job `changerule-action` on a copy of `valid-minimal`, no token: `AA0001` `None` `*`/`*` fails with `token`, `AA0072` `Info` `*`/`*` with the justification `House style` is a no-op, `LC9999` fails with `validation`.
+- CI job `changerule-action` on a copy of `valid-minimal`, no token: `AA0001` `None` `*`/`*` fails with `token`, `AA0072` `Info` `*`/`*` without a justification is a no-op (the entry keeps `House style`), `LC9999` fails with `validation`.
 
 ## 11. Live run
 

@@ -465,9 +465,9 @@ Trigger: `workflow_dispatch` with a form (implemented with WP09).
 | `action` | choice | Error, Warning, Info, Hidden, None, Remove |
 | `levels` | choice | one level slug from the settings or `*`; the choice list is rewritten by the update workflow (D30) |
 | `stages` | choice | one stage slug from the settings or `*`; same mechanism |
-| `justification` | string | optional (D37); stored with the override entry |
+| `justification` | string | optional (D37); stored with the override entry; empty keeps the entry's existing justification |
 
-The workflow builds a one-item change set and calls the `ChangeRule` action (`Rulebook.Edit`): it writes or removes one entry in `overrides.json` on a candidate copy, regenerates `rulesets/`, validates, and lands the result per `commitOptions.createPullRequest` as a pull request on `change-rule/<ruleId>/<yyMMddHHmmss>` or a direct commit (D47; there is no `directCommit` input). The pull request body shows the effective change per endpoint with provenance. A change that alters no endpoint and not `overrides.json` is reported and never written (D48). Changing the shipped level content itself is done in the engine, in the matrix, and reaches orgs through the update workflow; an org edits its own level and stage files by hand. Mechanics, messages and tests: [reference/change-mechanics.md](reference/change-mechanics.md).
+The workflow builds a one-item change set and calls the `ChangeRule` action (`Rulebook.Edit`): it writes or removes one entry in `overrides.json` on a candidate copy, regenerates `rulesets/`, validates, and lands the result per `commitOptions.createPullRequest` as a pull request on `change-rule/<ruleId>/<yyMMddHHmmss>` or a direct commit (D47; there is no `directCommit` input). The pull request body shows the effective change per endpoint with provenance. A change that alters no endpoint (the entry is unchanged, or a new entry would only repeat what the base already gives) is reported and never written (D48). Changing the shipped level content itself is done in the engine, in the matrix, and reaches orgs through the update workflow; an org edits its own level and stage files by hand. Mechanics, messages and tests: [reference/change-mechanics.md](reference/change-mechanics.md).
 
 ### 7.6 Apply change set (R12)
 

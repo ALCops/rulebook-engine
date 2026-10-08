@@ -290,7 +290,7 @@ jobs:
           levels: '*'
           stages: '*'
 
-      # valid-minimal already has AA0072 Info for every level and stage with the justification House style.
+      # valid-minimal already has AA0072 Info for every level and stage; an empty justification keeps its text.
       - name: No-op change
         id: noop
         uses: ./actions/ChangeRule
@@ -300,7 +300,6 @@ jobs:
           action: Info
           levels: '*'
           stages: '*'
-          justification: House style
 
       - name: Invalid id (must fail)
         id: invalid

@@ -75,7 +75,8 @@ $result = $null
 $summaryMessage = $null
 $failed = $false
 $secretName = 'GHTOKENWORKFLOW'
-$split = { param([string]$Value) [string[]]@($Value.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }) }
+# A comma-separated selector; ConvertTo-RulebookChangeSet trims the values and drops empty ones.
+$split = { param([string]$Value) , [string[]]$Value.Split(',') }
 
 try {
     # 1. Settings: the secret name and the labels.
@@ -135,6 +136,7 @@ try {
         Write-Host "Write token: $($access.Kind)"
 
         # 5. Publish.
+        if (-not $plan.HeadSha) { Add-Annotation -Context $ctx -Command warning -Message 'base-move guard inactive: the checkout HEAD could not be read' }
         try {
             $publishParameters = @{
                 Plan = $plan; RepositoryRoot = $root; Repository = $Repository; RemoteUrl = $RemoteUrl; Token = $access.Token; BaseBranch = $BaseBranch
@@ -154,7 +156,11 @@ try {
         $result = $publish.Result
         switch ($publish.Result) {
             'direct-commit' { $summaryMessage = "Rule change committed to $($publish.Branch) ($(Get-ShortSha $publish.Sha))" }
-            'no-changes' { $summaryMessage = 'No changes to commit' }
+            'no-changes' {
+                # The plan saw a change but the clone of the base branch holds it already (pushed in between): a no-op.
+                $result = 'no-op'
+                $summaryMessage = "No change: $BaseBranch already holds this change; nothing was pushed"
+            }
             default { $summaryMessage = "Pull request: $($publish.PullRequestUrl)" + $(if ($publish.Fallback) { ' (the direct commit was refused)' } else { '' }) }
         }
         Add-Annotation -Context $ctx -Command notice -Message $summaryMessage

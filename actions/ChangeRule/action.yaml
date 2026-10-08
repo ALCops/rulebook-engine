@@ -18,7 +18,7 @@ inputs:
     required: false
     default: '*'
   justification:
-    description: Why the organization changes the rule; written into the entry. Optional.
+    description: Why the organization changes the rule; written into the entry. Optional; empty keeps the existing justification of the entry; ignored for Remove.
     required: false
     default: ''
   token:
@@ -44,7 +44,7 @@ inputs:
 
 outputs:
   result:
-    description: "pull-request, direct-commit or no-op; empty on failure."
+    description: "pull-request, direct-commit or no-op (nothing written); empty on failure."
     value: ${{ steps.change.outputs.result }}
   noop:
     description: "'true' when nothing would change (no endpoint and not overrides.json); nothing was written."
@@ -80,7 +80,6 @@ runs:
         INPUT_BASEBRANCH: ${{ inputs.baseBranch }}
         INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
         INPUT_ACTOR: ${{ inputs.actor }}
-        GITHUB_TOKEN: ${{ github.token }}
       run: |
         $parameters = @{
           RepositoryRoot = $env:INPUT_REPOSITORYROOT
