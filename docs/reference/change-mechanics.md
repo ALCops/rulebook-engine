@@ -35,7 +35,7 @@ A change set is an in-memory dictionary `{ note?, changes[] }` (D32). Each chang
 
 `levels` and `stages` are `["*"]` or a list of slugs of the settings, the selector format of `overrides.json` (D19). A change set is applied all or nothing and regenerated once.
 
-The Change Rule form is a one-item client: `ConvertTo-RulebookChangeSet -RuleId -Action -Levels -Stages [-Justification] [-Note]` builds `{ changes = @({ op = 'set', id, action, levels, stages, justification? }) }`, and `Action Remove` (any case) becomes `op remove` without an action. A known action is written in its canonical case (`none` becomes `None`), surrounding blanks are trimmed, an empty justification is left out. The action input `levels` and `stages` take one slug or `*`; a comma-separated list also works for a hand-run of the action.
+The Change Rule form is a one-item client: `ConvertTo-RulebookChangeSet -RuleId -Action -Levels -Stages [-Justification] [-Note]` builds `{ changes = @({ op = 'set', id, action, levels, stages, justification? }) }`, and `Action Remove` (any case) becomes `op remove` without an action. A known action is written in its canonical case (`none` becomes `None`), surrounding blanks are trimmed, empty selector values are dropped and a repeated slug is kept once (ordinal, order kept), an empty justification is left out. The action input `levels` and `stages` take one slug or `*`; a comma-separated list also works for a hand-run of the action.
 
 ## 2. Setting, replacing and removing an entry
 
@@ -43,7 +43,7 @@ The Change Rule form is a one-item client: `ConvertTo-RulebookChangeSet -RuleId 
 
 | Function | Rule |
 |---|---|
-| `Set-RulebookOverride` | An entry with the same id and the **same level set and stage set** (ordinal, order and duplicates ignored: `["strict", "complete"]` equals `["complete", "strict"]`) is replaced in place: new action, and a new justification only when one is given; an empty justification keeps the entry's text (an entry without one stays without one; clearing a justification is a hand edit or a later dashboard change set). Its position and its own selector order are kept. Change `replaced`, or `unchanged` when the action is the same and the justification is empty or the same. Any other selection appends a new entry (`added`), so the file never collects two entries with the same selectors. Should a hand edit have left several entries with the same selectors, the first is set and the others are removed (the last of them, the effective one, is reported as the previous entry). |
+| `Set-RulebookOverride` | An entry with the same id and the **same level set and stage set** (ordinal, order and duplicates ignored: `["strict", "complete"]` equals `["complete", "strict"]`) is replaced in place: new action, and a new justification only when one is given; an empty justification keeps the entry's text (an entry without one stays without one; clearing a justification is a hand edit or a later dashboard change set). Its position and its own selector order are kept. Change `replaced`, or `unchanged` when the action is the same and the justification is empty or the same. Any other selection appends a new entry (`added`), so the file never collects two entries with the same selectors. Should a hand edit have left several entries with the same selectors, the first is set and the others are removed: the last duplicate was the effective entry, so it is reported as the previous entry and its justification survives when none is given (the first duplicate's text is dropped). When the requested action and justification equal that effective entry, the change is `deduplicated`: written (the file loses the duplicates), every row noted `duplicate entries removed`, the sentence `Removes the duplicate entries of <id> for ... (the action stays <action>).` |
 | `Remove-RulebookOverride` | Removes the entry (every entry, should a hand edit have left duplicates) with the same id and selector sets. Everything else in the file stays byte-identical (AC4). |
 
 An entry with a different selection is a separate entry: a later `strict`/`ci` entry next to an existing `*`/`ci` entry wins on `strict.ci` by specificity, as [composition.md](../rulebook/composition.md) defines.
@@ -76,11 +76,14 @@ D48, per change set:
 
 | Situation | Result |
 |---|---|
-| No matching endpoint changes, and the entry is unchanged (same action; the justification empty, so the entry keeps its text, or the same) or would be new (a dead entry: the base, the stage, an existing broader entry or the twins setting already give that action everywhere the selection matches) | **No-op**: notice `No change: LC0015 is already None on every matching endpoint (strict.ci); overrides.json was not written`, the table in the job summary with every row `unchanged`, outputs `result=no-op` and `noop=true`, exit code 0, nothing written, no token needed. |
+| No matching endpoint changes, and the entry is unchanged (same action; the justification empty, so the entry keeps its text, or the same) or would be new (a dead entry: the base, the stage, an existing broader entry or the twins setting already give that action everywhere the selection matches) | **No-op**: notice `No change: LC0015 is already None on every matching endpoint (strict.ci); overrides.json was not written`, or, when a more specific entry or input keeps another action on some endpoints, `No change: LC0015 keeps its effective action on every matching endpoint (2 at Warning; 1 decided by a more specific entry or input: strict.ci None (override)); overrides.json was not written`; a justification given for a dead entry shows as `Justification given but not stored (no entry was written): <text>`; the table in the job summary with every row `unchanged`, outputs `result=no-op` and `noop=true`, exit code 0, nothing written, no token needed. |
 | A new entry, a removed entry, or a changed action that alters at least one endpoint | Written. The table lists every matching endpoint; rows that stay the same say `unchanged`, and the body adds `<k> of <n> matching endpoints are unchanged.` |
 | Same action, a new non-empty justification | Written: the file changes, no endpoint does. Every row `unchanged` with the note `justification updated`, no file in `rulesets/` changes. |
 | An id set to its analyzer default where the base deviates | Written (AC3): the id is no longer listed in that endpoint, the row note is `now unlisted in <endpoint>: <action> equals the analyzer default` and the body repeats it as a sentence. |
+| A changed action that alters no endpoint (a more specific entry or input masks every matching endpoint) | Written (the entry is `replaced`); every row `unchanged`, the table shows why nothing changes (the deciding source on the after side). |
+| Duplicates of the effective entry removed (`deduplicated`) | Written, every row `duplicate entries removed`. |
 | `remove` | Never a no-op: the file always changes. |
+| Several items (WP15) | A dead new entry is dropped before `overrides.json` is written, also when another item changes something, and the other items are recomputed without it; the set is a no-op only when every item is. |
 | `remove` without a matching entry | Validation error (section 3). |
 
 The endpoint comparison uses the effective action and the listed status (`Get-EffectiveAction` on the working tree and on the candidate), the two things an endpoint file depends on.
@@ -150,7 +153,7 @@ The job summary (`ConvertTo-ChangeSummary`) has `## Rule change`, the message, t
 |---|---|
 | `result` | `pull-request`, `direct-commit`, `no-op`; empty on failure. Should the clone of the base branch hold the change already (pushed between plan and publish), there is nothing to commit and the result is `no-op` too, with the notice `No change: <branch> already holds this change; nothing was pushed`. |
 | `noop` | `true` or `false` |
-| `changedEndpoints` | Comma-separated endpoints, for example `strict.ci` |
+| `changedEndpoints` | Comma-separated endpoints, for example `strict.ci`; empty for a no-op |
 | `pullRequestUrl`, `branch` | The pull request and the pushed branch (the base branch for a direct commit) |
 | `failure` | `validation`, `token`, `push`, `pull-request`, `error`; empty on success |
 

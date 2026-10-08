@@ -137,17 +137,25 @@ Describe 'Set-RulebookOverride and Remove-RulebookOverride' {
         $file.Rules.Count | Should-Be 1
     }
 
-    It 'keeps one entry per selector set: the first is set, duplicates are removed' {
+    It 'keeps one entry per selector set: the first is set, duplicates are removed, the last one (effective) wins' {
         $file = Get-EmptyFile
         $file.Rules.Add([pscustomobject]@{ Id = 'LC0015'; Action = 'None'; Levels = [string[]]@('strict'); Stages = [string[]]@('ci'); Justification = 'First' })
         $file.Rules.Add([pscustomobject]@{ Id = 'AA0001'; Action = 'Info'; Levels = [string[]]@('*'); Stages = [string[]]@('*'); Justification = $null })
         $file.Rules.Add([pscustomobject]@{ Id = 'LC0015'; Action = 'Info'; Levels = [string[]]@('strict'); Stages = [string[]]@('ci'); Justification = 'Last' })
         $result = Set-RulebookOverride -File $file -Id 'LC0015' -Action 'Info' -Levels 'strict' -Stages 'ci'
-        $result.Change | Should-Be 'replaced'
+        $result.Change | Should-Be 'deduplicated'
         $result.Previous.Justification | Should-Be 'Last'
         @($file.Rules | ForEach-Object Id) | Should-BeCollection @('LC0015', 'AA0001')
         $file.Rules[0].Action | Should-Be 'Info'
         $file.Rules[0].Justification | Should-Be 'Last'
+    }
+
+    It 'reports deduplicated when only duplicates of the effective entry go' {
+        $file = Get-EmptyFile
+        $file.Rules.Add([pscustomobject]@{ Id = 'LC0015'; Action = 'None'; Levels = [string[]]@('strict'); Stages = [string[]]@('ci'); Justification = 'Same' })
+        $file.Rules.Add([pscustomobject]@{ Id = 'LC0015'; Action = 'None'; Levels = [string[]]@('strict'); Stages = [string[]]@('ci'); Justification = 'Same' })
+        (Set-RulebookOverride -File $file -Id 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci').Change | Should-Be 'deduplicated'
+        $file.Rules.Count | Should-Be 1
     }
 
     It 'appends an entry with different selectors' {
@@ -205,6 +213,13 @@ Describe 'ConvertTo-RulebookChangeSet and Test-RulebookChangeSet' {
         $remove = ConvertTo-RulebookChangeSet -RuleId 'LC0015' -Action 'Remove' -Levels '*' -Stages '*'
         $remove['changes'][0]['op'] | Should-Be 'remove'
         $remove['changes'][0].Contains('action') | Should-BeFalse
+    }
+
+    It 'drops repeated slugs and reports an empty selector as a finding' {
+        $set = ConvertTo-RulebookChangeSet -RuleId 'LC0015' -Action 'None' -Levels 'strict', 'strict', 'complete' -Stages ''
+        $set['changes'][0]['levels'] | Should-BeCollection @('strict', 'complete')
+        $findings = @(Test-RulebookChangeSet -ChangeSet $set -Inputs $inputs)
+        $findings[0].Message | Should-Be 'change 0 has no stages; use a slug from the settings or ["*"]'
     }
 
     It 'accepts a valid set' {
@@ -288,6 +303,42 @@ Describe 'Invoke-RulebookChangeSet' {
         @($plan.Changes) | Should-BeCollection @()
         $plan.Items[0].Rows[0].Note | Should-Be 'unchanged'
         ConvertTo-ChangeSummary -Plan $plan -Message 'x' | Should-MatchString '(?m)^Leaves AA0001 at Warning for levels strict, stages ci \(every matching endpoint has that action already; no entry is written\)\.$'
+    }
+
+    It 'says a given justification was not stored when the new entry is dead' {
+        $plan = Invoke-Change -Root (Copy-Minimal) -RuleId 'AA0001' -Action 'Warning' -Levels 'strict' -Stages 'ci' -Justification 'Why'
+        $plan.NoOp | Should-BeTrue
+        ConvertTo-ChangeSummary -Plan $plan -Message 'x' | Should-MatchString '(?m)^Justification given but not stored \(no entry was written\): Why$'
+    }
+
+    It 'writes only the live item of a set with a dead new entry and a real change' {
+        $root = Copy-Minimal
+        $set = @{ changes = @(
+                [ordered]@{ op = 'set'; id = 'AA0001'; action = 'Warning'; levels = @('strict'); stages = @('ci') }
+                [ordered]@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('strict'); stages = @('ci') }
+            ) }
+        $plan = Invoke-RulebookChangeSet -RepositoryRoot $root -ChangeSet $set -WorkPath (Get-TestFolder)
+        $plan.NoOp | Should-BeFalse
+        $plan.Items[0].NoOp | Should-BeTrue
+        $plan.Items[1].ChangedEndpoints | Should-BeCollection @('strict.ci')
+        $written = [System.IO.File]::ReadAllText((Join-Path $plan.CandidatePath 'overrides.json'))
+        $written | Should-MatchString '"id": "LC0015"'
+        $written | Should-NotMatchString '"id": "AA0001"'
+        $plan.Title | Should-Be 'Rulebook change: 2 changes'
+    }
+
+    It 'writes the removal of duplicate entries with the note duplicate entries removed' {
+        $root = Copy-Minimal
+        $path = Join-Path $root 'overrides.json'
+        $text = [System.IO.File]::ReadAllText($path)
+        $line = '    { "id": "AA0072", "action": "Info", "levels": ["*"], "stages": ["*"], "justification": "House style" },'
+        Write-FixtureText -Path $path -Text $text.Replace($line, $line + "`n" + $line)
+        $plan = Invoke-Change -Root $root -RuleId 'AA0072' -Action 'Info'
+        $plan.NoOp | Should-BeFalse
+        $plan.Items[0].Entry.Change | Should-Be 'deduplicated'
+        @($plan.Items[0].Rows | ForEach-Object Note | Select-Object -Unique) | Should-BeCollection @('duplicate entries removed')
+        @($plan.Changes | ForEach-Object File) | Should-BeCollection @('overrides.json')
+        ConvertTo-ChangePullRequestBody -Plan $plan | Should-MatchString '(?m)^Removes the duplicate entries of AA0072 for levels \*, stages \* \(the action stays Info\)\.$'
     }
 
     It 'is a no-op for a narrower entry that repeats an existing broader one' {
@@ -395,6 +446,15 @@ Describe 'Rendering' {
         $summary | Should-MatchString '(?m)^\| strict\.ci \| Warning \(level:strict\) \|'
         $summary | Should-MatchString '(?m)^## Effective diff\n\n### `strict\.ci` \(`rulesets/strict\.ci\.ruleset\.json`\)$'
         ConvertTo-ChangePullRequestBody -Plan $plan | Should-NotMatchString 'Effective diff'
+    }
+
+    It 'writes the summary of a change with an empty effective diff' {
+        $justification = Invoke-Change -Root (Copy-Minimal) -RuleId 'AA0072' -Action 'Info' -Justification 'Team decision'
+        $result = [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/8'; Branch = 'change-rule/AA0072/261008090000'; Sha = 'b' * 40; Fallback = $false; Diff = @(); DiffNote = $null }
+        $summary = ConvertTo-ChangeSummary -Plan $justification -Result $result -Message 'm'
+        $summary | Should-MatchString '(?m)^Justification: Team decision$'
+        $summary | Should-MatchString '(?m)^\| essential\.default \| Info \(override, "House style"\) \| Info \(override, "Team decision"\) \| justification updated \|$'
+        $summary | Should-NotMatchString 'Effective diff'
     }
 
     It 'lists validation errors in the summary' {

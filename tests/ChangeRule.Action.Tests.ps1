@@ -217,6 +217,18 @@ Describe 'ChangeRule.ps1' {
         $run.Summary | Should-MatchString '(?m)^\| recommended\.ci \| None \(override, "Backlog DEV-1234"\) \| None \(override, "Backlog DEV-1234"\) \| unchanged \|$'
     }
 
+    It 'words the no-op notice from the rows when a more specific entry keeps another action' {
+        $root = Copy-Minimal
+        $path = Join-Path $root 'overrides.json'
+        $text = [System.IO.File]::ReadAllText($path)
+        $extra = ',' + "`n" + '    { "id": "LC0015", "action": "None", "levels": ["strict"], "stages": ["ci"] }'
+        Write-FixtureText -Path $path -Text $text.Replace('"justification": "Backlog DEV-1234" }', '"justification": "Backlog DEV-1234" }' + $extra)
+        $run = Invoke-Entry @{ RepositoryRoot = $root; RuleId = 'LC0015'; Action = 'Warning'; Levels = 'strict'; Stages = '*' }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.NoOp | Should-BeTrue
+        $run.Result.Annotations[-1] | Should-Be '::notice title=ChangeRule::No change: LC0015 keeps its effective action on every matching endpoint (2 at Warning; 1 decided by a more specific entry or input: strict.ci None (override)); overrides.json was not written'
+    }
+
     It 'needs the token for a real change, after the plan' {
         $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'AA0001'; Action = 'None' }
         $run.Result.ExitCode | Should-Be 1
@@ -271,7 +283,7 @@ Describe 'ChangeRule.ps1' {
         $run.Result.ExitCode | Should-Be 0
         $run.Result.NoOp | Should-BeTrue
         $run.Result.Annotations[-1] | Should-Be '::notice title=ChangeRule::No change: main already holds this change; nothing was pushed'
-        $run.Output | Should-MatchString '\Aresult=no-op\nnoop=true\n'
+        $run.Output | Should-MatchString '\Aresult=no-op\nnoop=true\nchangedEndpoints=\n'
     }
 
     It 'maps a pull request failure of the seam to failure pull-request with the token hint' {

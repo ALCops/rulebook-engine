@@ -124,9 +124,10 @@ function ConvertFrom-JsonElement {
 }
 
 function Get-RowNote {
-    param([Parameter(Mandatory)]$Row, [bool]$JustificationOnly)
+    param([Parameter(Mandatory)]$Row, [string]$EntryChange, [bool]$JustificationOnly)
     if (-not $Row.Changed) {
         if ($JustificationOnly) { return 'justification updated' }
+        if ($EntryChange -ceq 'deduplicated') { return 'duplicate entries removed' }
         return 'unchanged'
     }
     # Listed before, unlisted after while the id still has an action: the endpoint drops it because the action now
@@ -152,6 +153,7 @@ function Get-ItemSentence {
     switch ($Item.Entry.Change) {
         'added' { return "Sets $($Item.Id) to $($Item.Action) for $where (adds an entry)." }
         'unchanged' { return "Leaves $($Item.Id) at $($Item.Action) for $where (the entry is unchanged)." }
+        'deduplicated' { return "Removes the duplicate entries of $($Item.Id) for $where (the action stays $($Item.Action))." }
         default {
             if ($null -ne $previous -and $previous.Action -ceq $Item.Action) {
                 return "Updates the justification of the $($Item.Id) entry for $where (the action stays $($Item.Action))."
@@ -192,7 +194,10 @@ function Get-JustificationParagraph {
     # removes only has no paragraph unless it carries a note.
     $items = @($Plan.Items)
     # One line: a justification or note never adds headings or sections to the body.
-    if ($items.Count -eq 1 -and -not [string]::IsNullOrEmpty($items[0].Justification)) { return "Justification: $(ConvertTo-SingleLine $items[0].Justification)" }
+    if ($items.Count -eq 1 -and -not [string]::IsNullOrEmpty($items[0].Justification)) {
+        if ($items[0].NoOp -and $items[0].Entry.Change -ceq 'added') { return "Justification given but not stored (no entry was written): $(ConvertTo-SingleLine $items[0].Justification)" }
+        return "Justification: $(ConvertTo-SingleLine $items[0].Justification)"
+    }
     $note = if ($null -ne $Plan.ChangeSet -and $Plan.ChangeSet.Contains('note')) { [string]$Plan.ChangeSet['note'] } else { '' }
     if (-not [string]::IsNullOrEmpty($note)) { return ConvertTo-SingleLine $note }
     if ($items.Count -gt 0 -and @($items | Where-Object { $_.Op -cne 'remove' }).Count -eq 0) { return '' }
@@ -354,12 +359,15 @@ function Set-RulebookOverride {
     $first = $File.Rules[$index]
     # An empty justification keeps the entry's text; only a non-empty one replaces it.
     if ([string]::IsNullOrEmpty($Justification)) { $Justification = $old.Justification }
-    if ($hits.Count -eq 1 -and $first.Action -ceq $Action -and [string]$first.Justification -ceq [string]$Justification) {
+    $same = $old.Action -ceq $Action -and [string]$old.Justification -ceq [string]$Justification
+    if ($hits.Count -eq 1 -and $same) {
         return [pscustomobject]@{ Entry = $first; Change = 'unchanged'; Previous = $previous }
     }
     $new = ConvertTo-OverrideEntry -Id $first.Id -Action $Action -Levels $first.Levels -Stages $first.Stages -Justification $Justification
     $File.Rules[$index] = $new
-    return [pscustomobject]@{ Entry = $new; Change = 'replaced'; Previous = $previous }
+    # Only duplicates went: the effective entry is the same, the file is shorter.
+    $change = if ($same) { 'deduplicated' } else { 'replaced' }
+    return [pscustomobject]@{ Entry = $new; Change = $change; Previous = $previous }
 }
 
 function Remove-RulebookOverride {
@@ -418,8 +426,8 @@ function ConvertTo-RulebookChangeSet {
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$RuleId,
         [Parameter(Mandatory)][AllowEmptyString()][string]$Action,
-        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][string[]]$Levels,
-        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][string[]]$Stages,
+        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][AllowEmptyString()][string[]]$Levels,
+        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][AllowEmptyString()][string[]]$Stages,
         [AllowNull()][AllowEmptyString()][string]$Justification,
         [AllowNull()][AllowEmptyString()][string]$Note
     )
@@ -433,8 +441,14 @@ function ConvertTo-RulebookChangeSet {
         $canonical = @($script:Actions | Where-Object { $_ -ieq $Action.Trim() })
         $change['action'] = if ($canonical.Count -eq 1) { $canonical[0] } else { $Action }
     }
-    $change['levels'] = [string[]]@($Levels | Where-Object { $null -ne $_ } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
-    $change['stages'] = [string[]]@($Stages | Where-Object { $null -ne $_ } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+    # Trimmed, empty values dropped, repeated slugs once (ordinal, order kept).
+    $selector = {
+        param([string[]]$Values)
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        return , [string[]]@($Values | Where-Object { $null -ne $_ } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and $seen.Add($_) })
+    }
+    $change['levels'] = & $selector $Levels
+    $change['stages'] = & $selector $Stages
     if ($change['op'] -ceq 'set' -and -not [string]::IsNullOrWhiteSpace($Justification)) { $change['justification'] = $Justification.Trim() }
     $set = [ordered]@{}
     if (-not [string]::IsNullOrWhiteSpace($Note)) { $set['note'] = $Note.Trim() }
@@ -595,10 +609,10 @@ function Invoke-RulebookChangeSet {
         try {
             if ($item.Op -ceq 'remove') {
                 $result = Remove-RulebookOverride -File $file -Id $item.Id -Levels $item.Levels -Stages $item.Stages
-                $item.Entry = [pscustomobject]@{ Change = 'removed'; Previous = $result.Entry }
+                $item.Entry = [pscustomobject]@{ Change = 'removed'; Previous = $result.Entry; Entry = $null }
             } else {
                 $result = Set-RulebookOverride -File $file -Id $item.Id -Action $item.Action -Levels $item.Levels -Stages $item.Stages -Justification $item.Justification
-                $item.Entry = [pscustomobject]@{ Change = $result.Change; Previous = $result.Previous }
+                $item.Entry = [pscustomobject]@{ Change = $result.Change; Previous = $result.Previous; Entry = $result.Entry }
                 # The justification the entry carries after the change: the given text, or the kept one.
                 $item.Justification = $result.Entry.Justification
             }
@@ -629,18 +643,19 @@ function Invoke-RulebookChangeSet {
     }
 
     # 4. Rows per item and endpoint.
-    foreach ($item in $items) {
-        $justificationOnly = $item.Entry.Change -ceq 'replaced' -and $null -ne $item.Entry.Previous -and $item.Entry.Previous.Action -ceq $item.Action
+    $computeRows = {
+        param($Item, $After)
+        $justificationOnly = $Item.Entry.Change -ceq 'replaced' -and $null -ne $Item.Entry.Previous -and $Item.Entry.Previous.Action -ceq $Item.Action
         $rows = [System.Collections.Generic.List[object]]::new()
-        foreach ($level in (Get-ExpandedSelector $item.Levels $levelSlugs)) {
-            foreach ($stage in (Get-ExpandedSelector $item.Stages $stageSlugs)) {
-                $b = Get-EffectiveAction -Inputs $before -Id $item.Id -Level $level -Stage $stage
-                $a = Get-EffectiveAction -Inputs $after -Id $item.Id -Level $level -Stage $stage
+        foreach ($level in (Get-ExpandedSelector $Item.Levels $levelSlugs)) {
+            foreach ($stage in (Get-ExpandedSelector $Item.Stages $stageSlugs)) {
+                $b = Get-EffectiveAction -Inputs $before -Id $Item.Id -Level $level -Stage $stage
+                $a = Get-EffectiveAction -Inputs $After -Id $Item.Id -Level $level -Stage $stage
                 $row = [pscustomobject]@{
                     PSTypeName   = 'Rulebook.ChangeRow'
                     Endpoint     = "$level.$stage"
                     File         = 'rulesets/' + (Get-EndpointFileName -Level $level -Stage $stage)
-                    Id           = $item.Id
+                    Id           = $Item.Id
                     Before       = $b.Action
                     After        = $a.Action
                     BeforeSource = $b.Source
@@ -652,16 +667,33 @@ function Invoke-RulebookChangeSet {
                     Changed      = ($b.Action -cne $a.Action) -or ([bool]$b.Listed -ne [bool]$a.Listed)
                     Note         = $null
                 }
-                $row.Note = Get-RowNote -Row $row -JustificationOnly $justificationOnly
+                $row.Note = Get-RowNote -Row $row -EntryChange $Item.Entry.Change -JustificationOnly $justificationOnly
                 $rows.Add($row)
             }
         }
-        $item.Rows = $rows.ToArray()
-        $item.ChangedEndpoints = [string[]]@($rows | Where-Object Changed | ForEach-Object Endpoint)
+        $Item.Rows = $rows.ToArray()
+        $Item.ChangedEndpoints = [string[]]@($rows | Where-Object Changed | ForEach-Object Endpoint)
         # D48: a set that changes no endpoint is a no-op when the entry is unchanged or would be new (a dead entry
-        # that only repeats what the base gives is not written); a replaced justification is written.
-        $item.NoOp = $item.Op -ceq 'set' -and $item.ChangedEndpoints.Count -eq 0 -and $item.Entry.Change -cin 'unchanged', 'added'
-        $item.Notes = Get-ItemNote -Item $item
+        # that only repeats what the base gives is not written); a replaced or deduplicated entry is written.
+        $Item.NoOp = $Item.Op -ceq 'set' -and $Item.ChangedEndpoints.Count -eq 0 -and $Item.Entry.Change -cin 'unchanged', 'added'
+        $Item.Notes = Get-ItemNote -Item $Item
+    }
+    foreach ($item in $items) { & $computeRows $item $after }
+
+    # A dead new entry is never written, also when another item of the set changes something: drop it, write the
+    # file again and recompute the other items, whose effective actions the dropped entry could have masked.
+    $dead = @($items | Where-Object { $_.NoOp -and $_.Entry.Change -ceq 'added' })
+    if ($dead.Count -gt 0 -and @($items | Where-Object { -not $_.NoOp }).Count -gt 0) {
+        foreach ($item in $dead) { [void]$file.Rules.Remove($item.Entry.Entry) }
+        $plan.OverridesChange = Write-OverridesFile -Path (Join-Path $candidate $script:OverridesFile) -File $file -WhatIf:$false -Confirm:$false
+        try {
+            $after = Read-RulebookInputs -RepositoryRoot $candidate
+        } catch {
+            $plan.Findings = @(New-ChangeFinding -File $null -Message "The changed rulebook cannot be read: $($_.Exception.Message)")
+            $plan.Failure = 'validation'
+            return $plan
+        }
+        foreach ($item in @($items | Where-Object { -not ($_.NoOp -and $_.Entry.Change -ceq 'added') })) { & $computeRows $item $after }
     }
     $plan.NoOp = @($items | Where-Object { -not $_.NoOp }).Count -eq 0
     if ($plan.NoOp) {
@@ -824,7 +856,8 @@ function ConvertTo-ChangeSummary {
     }
     if ($null -ne $Result) {
         $note = if ($Result.PSObject.Properties['DiffNote']) { $Result.DiffNote } else { $null }
-        $diff = if ($Result.PSObject.Properties['Diff']) { @($Result.Diff) } else { @() }
+        # @() around the if: an if expression unrolls an empty array to $null.
+        $diff = @(if ($Result.PSObject.Properties['Diff']) { $Result.Diff })
         if ($note) {
             [void]$text.AppendLine('## Effective diff').AppendLine().AppendLine($note).AppendLine()
         } elseif ($diff.Count -gt 0) {

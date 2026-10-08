@@ -110,8 +110,15 @@ try {
     } elseif ($plan.NoOp) {
         # 3. Nothing would change (D48).
         $item = @($plan.Items)[0]
-        $endpoints = @($item.Rows | ForEach-Object Endpoint) -join ', '
-        $summaryMessage = "No change: $($item.Id) is already $($item.Action) on every matching endpoint ($endpoints); overrides.json was not written"
+        # Worded from the rows: an endpoint can keep another action, decided by a more specific entry or input.
+        $same = @($item.Rows | Where-Object { $_.After -ceq $item.Action })
+        $other = @($item.Rows | Where-Object { $_.After -cne $item.Action })
+        if ($other.Count -eq 0) {
+            $summaryMessage = "No change: $($item.Id) is already $($item.Action) on every matching endpoint ($(@($same | ForEach-Object Endpoint) -join ', ')); overrides.json was not written"
+        } else {
+            $kept = @($other | ForEach-Object { '{0} {1} ({2})' -f $_.Endpoint, $_.After, $_.AfterSource }) -join ', '
+            $summaryMessage = "No change: $($item.Id) keeps its effective action on every matching endpoint ($($same.Count) at $($item.Action); $($other.Count) decided by a more specific entry or input: $kept); overrides.json was not written"
+        }
         Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
         $result = 'no-op'
     } else {
@@ -188,7 +195,7 @@ $summary = $summary.Replace("`r`n", "`n")
 $where = if ($null -ne $publish -and $publish.PSObject.Properties['Body'] -and $publish.Body) { 'the pull request body' } else { 'the job log' }
 $summary = Limit-SummaryText -Text $summary -MaxBytes $SummaryLimit -Footer "The summary was cut at $([math]::Round($SummaryLimit / 1KB)) KiB; the full tables are in $where."
 Write-Text -Path $SummaryPath -Text $summary
-$changed = if ($null -ne $plan -and -not $failed) { @($plan.Items | ForEach-Object { $_.ChangedEndpoints } | Select-Object -Unique) -join ',' } else { '' }
+$changed = if ($null -ne $plan -and -not $failed -and $result -ne 'no-op') { @($plan.Items | ForEach-Object { $_.ChangedEndpoints } | Select-Object -Unique) -join ',' } else { '' }
 $outputs = [ordered]@{
     result           = $(if ($failed -or -not $result) { '' } else { $result })
     noop             = $(if (-not $failed -and $result -eq 'no-op') { 'true' } else { 'false' })
