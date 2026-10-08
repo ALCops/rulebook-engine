@@ -549,6 +549,7 @@ Describe 'Build-Template.ps1' {
         $script:handWritten = @(
             '.github/Rulebook-Settings.json'
             '.github/workflows/Publish.yaml'
+            '.github/workflows/ScanDiagnostics.yaml'
             '.github/workflows/UpdateRulebookSystemFiles.yaml'
             '.github/workflows/Validate.yaml'
             'README.md'
@@ -564,7 +565,7 @@ Describe 'Build-Template.ps1' {
         @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()
     }
 
-    It 'regenerates template/ byte for byte from the 10 hand-written files' {
+    It 'regenerates template/ byte for byte from the 11 hand-written files' {
         $scratch = Get-TestFolder
         foreach ($file in $handWritten) {
             $target = Join-Path $scratch $file

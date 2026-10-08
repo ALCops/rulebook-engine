@@ -309,6 +309,39 @@ Describe 'Find-GitHubPullRequest and New-GitHubPullRequest' {
     }
 }
 
+Describe 'The living pull request of the scan' {
+    It 'sends PATCH with the JSON body' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 200 -Json @{ number = 7; html_url = 'https://github.com/Contoso/rulebook/pull/7' } }
+        $response = Invoke-GitHubApi -Method PATCH -Path 'repos/Contoso/rulebook/pulls/7' -Token 'tok' -Body @{ title = 'T' }
+        $response.StatusCode | Should-Be 200
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'PATCH' -and $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/pulls/7' -and $Body -eq '{"title":"T"}' }
+    }
+
+    It 'finds the open pull request by its head branch and base, the first one' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 200 -Json @(@{ number = 9; html_url = 'https://github.com/Contoso/rulebook/pull/9'; title = 'Scan diagnostics: x' }, @{ number = 3; html_url = 'u3'; title = 'y' }) }
+        $pull = Find-GitHubPullRequestByHead -Repository 'Contoso/rulebook' -Head 'scan-diagnostics/main' -Base 'main' -Token 'tok'
+        "$($pull.Number) $($pull.Url)" | Should-Be '9 https://github.com/Contoso/rulebook/pull/9'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'GET' -and $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/pulls?state=open&head=Contoso%3Ascan-diagnostics%2Fmain&base=main&per_page=100' }
+    }
+
+    It 'returns $null when no pull request is open from the branch' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 200 -Json '[]' }
+        Find-GitHubPullRequestByHead -Repository 'Contoso/rulebook' -Head 'scan-diagnostics/main' -Base 'main' | Should-BeNull
+    }
+
+    It 'updates title and body with PATCH' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 200 -Json @{ number = 9; html_url = 'https://github.com/Contoso/rulebook/pull/9' } }
+        $updated = Update-GitHubPullRequest -Repository 'Contoso/rulebook' -Number 9 -Title 'New title' -Body 'New body' -Token 'tok'
+        $updated.Url | Should-Be 'https://github.com/Contoso/rulebook/pull/9'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'PATCH' -and $Uri -like '*/repos/Contoso/rulebook/pulls/9' -and $Body -eq '{"title":"New title","body":"New body"}' }
+    }
+
+    It 'throws when the update is refused' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 422 -Json @{ message = 'Validation Failed' } }
+        { Update-GitHubPullRequest -Repository 'Contoso/rulebook' -Number 9 -Title 'T' -Body 'B' } | Should-Throw -ExceptionMessage 'Could not update pull request #9 of Contoso/rulebook (HTTP 422: Validation Failed)'
+    }
+}
+
 Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
     BeforeEach {
         $script:source = Get-TestFolder
@@ -398,5 +431,53 @@ Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
         $result.Pushed | Should-BeFalse
         $result.Reason | Should-Be 'no-changes'
         (Get-GitText -Root $bare -Arguments @('branch', '--list')) | Should-NotMatchString 'update-rulebook-system-files'
+    }
+
+    It 'creates the scan branch with -Force' {
+        $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
+        Write-FixtureText -Path (Join-Path $clone.Path 'catalog' 'scan-state.json') -Text '{ "version": 1, "packages": {} }'
+        $result = Publish-GitHubChange -Clone $clone -Message 'Scan 1' -NewBranch 'scan-diagnostics/main' -Force
+        $result.Branch | Should-Be 'scan-diagnostics/main'
+        (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/scan-diagnostics/main')).Trim() | Should-Be $result.Sha
+        (Get-GitText -Root $bare -Arguments @('rev-parse', "$($result.Sha)~1")).Trim() | Should-Be $mainSha
+    }
+
+    It 'replaces the scan branch with one commit above main' {
+        $first = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
+        Write-FixtureText -Path (Join-Path $first.Path 'a.txt') -Text 'first'
+        $null = Publish-GitHubChange -Clone $first -Message 'Scan 1' -NewBranch 'scan-diagnostics/main' -Force
+        $second = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
+        Write-FixtureText -Path (Join-Path $second.Path 'b.txt') -Text 'second'
+        $result = Publish-GitHubChange -Clone $second -Message 'Scan 2' -NewBranch 'scan-diagnostics/main' -Force
+        (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/scan-diagnostics/main')).Trim() | Should-Be $result.Sha
+        (Get-GitText -Root $bare -Arguments @('rev-list', '--count', 'main..scan-diagnostics/main')).Trim() | Should-Be '1'
+        (Get-GitText -Root $bare -Arguments @('ls-tree', '--name-only', 'scan-diagnostics/main')) | Should-NotMatchString 'a\.txt'
+    }
+
+    It 'rejects the push when the branch moved after the lease was read' {
+        $first = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
+        Write-FixtureText -Path (Join-Path $first.Path 'a.txt') -Text 'first'
+        $pushed = Publish-GitHubChange -Clone $first -Message 'Scan 1' -NewBranch 'scan-diagnostics/main' -Force
+        $second = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
+        Write-FixtureText -Path (Join-Path $second.Path 'b.txt') -Text 'second'
+        # Someone pushes to the branch after the lease was read: the pre-push hook of the clone moves the remote
+        # branch back to main (with hooks off, so it does not run itself), so the lease no longer matches.
+        $hook = Join-Path $second.Path '.git' 'hooks' 'pre-push'
+        $script = "#!/bin/sh`ngit -c core.hooksPath=no-hooks push -q --force origin $($mainSha):refs/heads/scan-diagnostics/main`n"
+        [System.IO.File]::WriteAllText($hook, $script, $utf8)
+        if (-not $IsWindows) { [System.IO.File]::SetUnixFileMode($hook, [System.IO.UnixFileMode]'UserRead, UserWrite, UserExecute, GroupRead, GroupExecute, OtherRead, OtherExecute') }
+        { Publish-GitHubChange -Clone $second -Message 'Scan 2' -NewBranch 'scan-diagnostics/main' -Force } | Should-Throw -ExceptionMessage 'git push --force-with-lease scan-diagnostics/main failed*'
+        (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/scan-diagnostics/main')).Trim() | Should-Be $mainSha
+        $pushed.Sha | Should-NotBe $mainSha
+    }
+
+    It 'falls back to the scan branch with -Force when the direct push is refused' {
+        Add-RejectPushHook -BarePath $bare -Branch 'main'
+        $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
+        Write-FixtureText -Path (Join-Path $clone.Path 'c.txt') -Text 'direct'
+        $result = Publish-GitHubChange -Clone $clone -Message 'Scan' -NewBranch 'scan-diagnostics/main' -DirectCommit -Force -WarningAction SilentlyContinue
+        $result.Fallback | Should-BeTrue
+        $result.Branch | Should-Be 'scan-diagnostics/main'
+        (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/main')).Trim() | Should-Be $mainSha
     }
 }

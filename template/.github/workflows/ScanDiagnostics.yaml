@@ -1,0 +1,71 @@
+name: Scan Diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      includePrerelease:
+        description: 'Also scan the newest prerelease of each package when it is newer than the stable one.'
+        type: boolean
+        default: true
+      directCommit:
+        description: 'Push to this branch instead of updating the scan pull request.'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 4 * * *'
+
+# The workflow token stays read-only: the scan writes with the token from the GHTOKENWORKFLOW secret, so the pull
+# request it opens runs the Validate workflow (a pull request opened with GITHUB_TOKEN would not).
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: scan-diagnostics-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # No credentials in .git/config: the scan reads the checkout and clones again with the secret's token to push.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The secret name comes from ghTokenWorkflowSecretName; a scheduled run has no inputs, scans prereleases and
+      # follows commitOptions.createPullRequest.
+      - name: Read the settings
+        id: settings
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_INCLUDEPRERELEASE: ${{ inputs.includePrerelease }}
+          INPUT_DIRECTCOMMIT: ${{ inputs.directCommit }}
+        run: |
+          $settings = Get-Content -LiteralPath .github/Rulebook-Settings.json -Raw | ConvertFrom-Json -AsHashtable
+          $name = 'GHTOKENWORKFLOW'
+          if ($settings.Contains('ghTokenWorkflowSecretName') -and $settings['ghTokenWorkflowSecretName']) { $name = [string]$settings['ghTokenWorkflowSecretName'] }
+          if ($name -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$' -or $name -imatch '^GITHUB_') { Write-Host "::error::ghTokenWorkflowSecretName '$name' is not a valid secret name"; exit 1 }
+          if ($env:EVENT_NAME -eq 'schedule') {
+            $createPullRequest = $true
+            $options = $settings['commitOptions']
+            if ($options -is [System.Collections.IDictionary] -and $options.Contains('createPullRequest')) { $createPullRequest = [bool]$options['createPullRequest'] }
+            $directCommit = -not $createPullRequest
+            $includePrerelease = $true
+          } else {
+            $directCommit = $env:INPUT_DIRECTCOMMIT -eq 'true'
+            $includePrerelease = $env:INPUT_INCLUDEPRERELEASE -ne 'false'
+          }
+          $lines = "secretName=$name", "directCommit=$($directCommit.ToString().ToLowerInvariant())", "includePrerelease=$($includePrerelease.ToString().ToLowerInvariant())"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value $lines
+          Write-Host "Secret: $name, direct commit: $directCommit, include prerelease: $includePrerelease"
+
+      - name: Scan diagnostics
+        uses: ALCops/rulebook-engine/actions/ScanDiagnostics@main
+        with:
+          token: ${{ secrets[steps.settings.outputs.secretName] }}
+          includePrerelease: ${{ steps.settings.outputs.includePrerelease }}
+          directCommit: ${{ steps.settings.outputs.directCommit }}

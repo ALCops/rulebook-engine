@@ -34,17 +34,18 @@ Paths in an organization rulebook repository. Class is what the update workflow 
 
 | Path | Content | Class | Schema |
 |---|---|---|---|
-| `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, `levels`, `stages`, the write token secret name, commit options, site, `update.schedule`, `unusedRulebookFiles` (repository-relative paths with `/`, such as `stages/vnext.json`; a bare file name is rejected, [#49](https://github.com/ALCops/rulebook-engine/issues/49)). | settings | `rulebook-settings.schema.json` |
+| `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, `levels`, `stages`, the write token secret name, commit options, site, `update.schedule`, `scan.schedule`, `unusedRulebookFiles` (repository-relative paths with `/`, such as `stages/vnext.json`; a bare file name is rejected, [#49](https://github.com/ALCops/rulebook-engine/issues/49)). | settings | `rulebook-settings.schema.json` |
 | `base/<level>.ruleset.json` | One per level: the ids the level changes relative to its `basedOn` level, a root level relative to the analyzer defaults. Shipped: `essential`, `recommended`, `strict`, `complete`. | system (shipped), org-owned (custom) | `ruleset.delta.schema.json` |
 | `base/twins.json` | The PerTenantExtensionCop/AppSourceCop twin pairs (D23). | system | `rulebook-twins.schema.json` |
 | `stages/<stage>.json` | One per non-default stage: the ids the stage changes. Shipped: `ci`, `vnext`. `stages/default.json` must not exist (C6). | system (shipped), org-owned (custom) | `ruleset.delta.schema.json` |
 | `overrides.json` | Organization overrides with level and stage selectors. | org-owned | `rulebook-overrides.schema.json` |
 | `quarantine.<stage>.json` | Ids held at `None` for that stage, written by the scan. One per stage, `quarantine.default.json` included. | org-owned | `rulebook-quarantine.schema.json` |
 | `catalog/diagnostics.json` | Every known id with its analyzer default (D24). | org-owned | `rulebook-catalog.schema.json` |
-| `catalog/scan-state.json` | Scan state. Reserved for WP08 (section 8). | org-owned | none yet |
+| `catalog/scan-state.json` | The package version the scan recorded last per package and channel. Created by the first scan (WP08), never shipped. | org-owned | `rulebook-scan-state.schema.json` |
 | `rulesets/<level>.ruleset.json`, `rulesets/<level>.<stage>.ruleset.json` | The generated endpoints, written by `Update-RulebookEndpoints` (WP03) in id order. `levels x stages` files. | generated | `ruleset.endpoint.schema.json` |
 | `skeletons/<level>.<stage>.ruleset.json` | One include of the endpoint with `{BASEURL}`; project exceptions go into `rules`. `levels x stages` files. | generated (from the settings, by every update) | `ruleset.skeleton.schema.json` |
 | `skeletons/README.md` | Explains the skeletons next to them (WP06). Not published; exempt from C11 by its exact name, as `README.md` in `rulesets/` is. | system | none |
+| `.github/workflows/ScanDiagnostics.yaml` | The diagnostic scan (WP08): dispatch inputs `includePrerelease`, `directCommit`; `schedule:` written by the update from `scan.schedule` (shipped daily, `17 4 * * *`). Scan branch `scan-diagnostics/<branch>`, rebuilt by every run. | system | none |
 | `.github/workflows/UpdateRulebookSystemFiles.yaml` | The update workflow (WP07): dispatch inputs `templateUrl`, `downloadLatest`, `directCommit`; `schedule:` written by the update from `update.schedule`. Update branch `update-rulebook-system-files/<branch>/<yyMMddHHmmss>`. | system | none |
 | `.rulebook/<stage>.ruleset.json` in an AL project | A published skeleton with `{BASEURL}` resolved, written by the init script `scripts/Get-RulebookSkeletons.ps1` or downloaded by hand. One per stage. Not part of the rulebook repository. | not managed | `ruleset.skeleton.schema.json` |
 
@@ -125,6 +126,7 @@ The schemas live in the engine under `schemas/` and are served from the `v1` rel
 | `rulebook-twins.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json` | `base/twins.json` and the engine's `docs/rulebook/matrix/twins.json` |
 | `rulebook-catalog.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json` | `catalog/diagnostics.json` |
 | `rulebook-settings.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-settings.schema.json` | `.github/Rulebook-Settings.json` |
+| `rulebook-scan-state.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-scan-state.schema.json` | `catalog/scan-state.json` (closed) |
 
 A tool that validates files in an organization repository uses the profile file for the folder; the hub accepts a file that matches any profile (an endpoint rule with a `justification` passes it through the delta profile), so it is for editors only and is never the `$schema` of a generated file.
 
@@ -161,7 +163,7 @@ What the schemas cannot check, and the validation check that does (ARCHITECTURE.
 | `count` in `base/twins.json` equals the number of pairs | C14 |
 | Every `quarantine.<x>.json` names a stage of the settings | C16 |
 
-The settings schema is closed: an unknown key at the top level or in `publish`, `quarantine`, `commitOptions` or `site` is an error, and a work package that needs a new key adds it to the schema in its own pull request. `publish.target` requires its own fields (`dist-repo`: `repository`, `branch`; `azure-blob`: `storageAccount`, `container`; `gist`: `gistId`); the fields of another target are allowed and ignored. The catalog schema is minimal: `id`, `defaultSeverity` and `enabledByDefault` are required per entry, the other known fields are typed, and the scan may add more.
+The settings schema is closed: an unknown key at the top level or in `publish`, `quarantine`, `commitOptions`, `site`, `update` or `scan` is an error, and a work package that needs a new key adds it to the schema in its own pull request. `publish.target` requires its own fields (`dist-repo`: `repository`, `branch`; `azure-blob`: `storageAccount`, `container`; `gist`: `gistId`); the fields of another target are allowed and ignored. The catalog schema is minimal: `id`, `defaultSeverity` and `enabledByDefault` are required per entry, the other known fields are typed (the scan fields of WP08 included: `firstStableVersion`, `advertised`, `deprecated` and the closed `defaultChanges` elements), and a later scan may add more. The scan-state schema is closed.
 
 The fixtures under `tests/fixtures/schemas/<valid|invalid>/<schema-basename>/<reason>.json` show what each schema accepts and rejects; `tests/Schemas.Tests.ps1` runs them.
 
@@ -287,6 +289,5 @@ Settings with only the required keys, `tests/fixtures/schemas/valid/rulebook-set
 
 | Name | Owner | Note |
 |---|---|---|
-| `catalog/scan-state.json` | WP08 ([#10](https://github.com/ALCops/rulebook-engine/issues/10)) | The scan's state. Org-owned; its schema comes with WP08. |
 | `schemas/rulebook-changeset.schema.json` | WP15 ([#17](https://github.com/ALCops/rulebook-engine/issues/17)) | The change set the dashboard submits and ChangeRule builds ([dashboard.md](../dashboard.md) section 6). `justification` is optional (D37). |
 | The path segment between `baseUrl` and `rulesets/` | a future major version | Kept free for a version prefix (section 4). |

@@ -6,12 +6,13 @@
 
 Set-StrictMode -Version 3.0
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
+# The catalog writer (ConvertTo-CatalogJson) is shared with the scan.
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Catalog.psd1')
 
 $script:Actions = @('Error', 'Warning', 'Info', 'Hidden', 'None')
 $script:Severities = @('Error', 'Warning', 'Info', 'Hidden')
 $script:DeltaSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json'
 $script:TwinsSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json'
-$script:CatalogSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json'
 $script:GeneratedNote = 'Generated from docs/rulebook; do not edit.'
 $script:SkeletonDescription = 'Copy into your AL project and point al.ruleSetPath or the AL-Go rulesetFile at it. Add project exceptions to rules; they override the endpoint.'
 $script:TwinsGeneratedBy = 'tools/rulebook/Build-Template.ps1'
@@ -306,27 +307,6 @@ function ConvertTo-TwinsJson {
         $item + ' }'
     }
     Add-JsonArrayLine -Lines $lines -Key 'pairs' -Items @($items)
-    $lines.Add('}')
-    return Join-JsonLine -Lines $lines
-}
-
-function ConvertTo-CatalogJson {
-    # catalog/diagnostics.json: $schema, version 1, one entry per line in the given order.
-    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Entries)
-    $lines = [System.Collections.Generic.List[string]]::new()
-    $lines.Add('{')
-    $lines.Add('  "$schema": ' + (ConvertTo-JsonString $script:CatalogSchemaUrl) + ',')
-    $lines.Add('  "version": 1,')
-    $items = foreach ($entry in $Entries) {
-        $item = '{ "id": ' + (ConvertTo-JsonString $entry.Id)
-        $item += ', "analyzer": ' + (ConvertTo-JsonString $entry.Analyzer)
-        $item += ', "defaultSeverity": ' + (ConvertTo-JsonString $entry.DefaultSeverity)
-        $item += ', "enabledByDefault": ' + $(if ($entry.EnabledByDefault) { 'true' } else { 'false' })
-        if (-not [string]::IsNullOrEmpty($entry.Title)) { $item += ', "title": ' + (ConvertTo-JsonString $entry.Title) }
-        if (-not [string]::IsNullOrEmpty($entry.Docs)) { $item += ', "docs": ' + (ConvertTo-JsonString $entry.Docs) }
-        $item + ' }'
-    }
-    Add-JsonArrayLine -Lines $lines -Key 'diagnostics' -Items @($items)
     $lines.Add('}')
     return Join-JsonLine -Lines $lines
 }

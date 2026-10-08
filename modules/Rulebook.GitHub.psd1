@@ -5,11 +5,12 @@
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook GitHub plumbing for the update workflow: one REST wrapper, the GHTOKENWORKFLOW exchange (personal access token or GitHub App JSON), the template zipball, pull requests, and the clone, commit and push with the token in the git environment only. See docs/reference/update-mechanics.md.'
+    Description          = 'Rulebook GitHub plumbing for the update workflow: one REST wrapper, the GHTOKENWORKFLOW exchange (personal access token or GitHub App JSON), the template zipball, pull requests (the living pull request of the scan included), and the clone, commit and push (a lease push for the scan branch) with the token in the git environment only. See docs/reference/update-mechanics.md.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
         'Find-GitHubPullRequest'
+        'Find-GitHubPullRequestByHead'
         'Get-GitHubAccessToken'
         'Get-GitHubBranchSha'
         'Invoke-GitHubApi'
@@ -18,6 +19,7 @@
         'New-GitHubPullRequest'
         'Publish-GitHubChange'
         'Save-GitHubZipball'
+        'Update-GitHubPullRequest'
     )
     CmdletsToExport      = @()
     VariablesToExport    = @()

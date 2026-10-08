@@ -14,7 +14,13 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.GitHub.psd1')
 
 $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:ReleaseNotesPath = '.github/RELEASENOTES.copy.md'
-$script:UpdateWorkflow = 'UpdateRulebookSystemFiles.yaml'
+# The workflows whose schedule: trigger comes from a settings key. KeepWhenAbsent: an absent key keeps the schedule the
+# template ships (an organization from before WP08 has no scan key, and the scan is daily by design); only an explicit
+# null removes it. update.schedule keeps its WP07 rule: absent or null removes the schedule.
+$script:ScheduledWorkflows = [ordered]@{
+    'UpdateRulebookSystemFiles.yaml' = @{ Path = @('update', 'schedule'); KeepWhenAbsent = $false }
+    'ScanDiagnostics.yaml'           = @{ Path = @('scan', 'schedule'); KeepWhenAbsent = $true }
+}
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 # Extensions that are always binary (a fast path); any other file is binary when its first 8 KB hold a NUL byte.
 $script:BinaryExtensions = @('.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp', '.avif', '.pdf', '.woff', '.woff2', '.ttf', '.otf', '.eot', '.zip')
@@ -157,8 +163,10 @@ function Copy-UpdateTree {
 }
 
 function Get-DefaultWorkPath {
+    # A fresh work folder name under RUNNER_TEMP (else the temp folder): <Prefix>-<8 hex>. Shared with Rulebook.Scan.
+    param([string]$Prefix = 'rulebook-update')
     $temp = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
-    return Join-Path $temp ('rulebook-update-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
+    return Join-Path $temp ($Prefix + '-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
 }
 
 function Find-TemplateRoot {
@@ -642,8 +650,9 @@ function ConvertTo-UpdatedWorkflowText {
     .DESCRIPTION
     1. {TEMPLATEURL} becomes -TemplateUrl. 2. Where on:/workflow_dispatch:/inputs:/levels:/options: (or stages:)
     exists, its items become '*' and the level (stage) slugs of -Settings in settings order (D30); the items must be
-    indented below options:. 3. For UpdateRulebookSystemFiles.yaml, settings update.schedule (a cron string) adds or
-    replaces schedule: under on:; null or absent removes it. Line-based (no YAML parser); output LF, one trailing LF.
+    indented below options:. 3. For UpdateRulebookSystemFiles.yaml settings update.schedule, for ScanDiagnostics.yaml
+    settings scan.schedule (a cron string) adds or replaces schedule: under on:; null removes it. Absent removes it for
+    the update workflow and keeps the shipped schedule for the scan workflow. Any other workflow keeps its triggers. Line-based (no YAML parser); output LF, one trailing LF.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -666,8 +675,12 @@ function ConvertTo-UpdatedWorkflowText {
         $lines = Set-YamlPath -Lines $lines -Path $path -Content $items
     }
 
-    if ($FileName -ieq $script:UpdateWorkflow) {
-        $cron = Get-SettingValue $Settings 'update', 'schedule'
+    foreach ($workflow in $script:ScheduledWorkflows.GetEnumerator()) {
+        if ($FileName -ine $workflow.Key) { continue }
+        $section = Get-SettingValue $Settings $workflow.Value.Path[0]
+        $present = $section -is [System.Collections.IDictionary] -and $section.Contains($workflow.Value.Path[1])
+        if ($workflow.Value.KeepWhenAbsent -and -not $present) { continue }
+        $cron = Get-SettingValue $Settings $workflow.Value.Path
         if ($cron -is [string] -and -not [string]::IsNullOrWhiteSpace($cron)) {
             $lines = Set-YamlKey -Lines $lines -Path 'on:/' -Key 'schedule:' -Content @("- cron: '$($cron.Trim().Replace("'", "''"))'")
         } else {
@@ -988,8 +1001,15 @@ function Get-RulebookUpdateStatus {
 #region Pull request
 
 function Get-EffectiveDiffBlock {
-    # One Markdown block per endpoint: a heading and a | Id | Before | After | Decided by | table, the rendering of
-    # Validate.ps1.
+    <#
+    .SYNOPSIS
+    One Markdown block per endpoint: a heading and a | Id | Before | After | Decided by | table.
+    .DESCRIPTION
+    The rendering of Validate.ps1, shared by the update and the scan pull request bodies. Endpoints in the order of
+    -Diff (settings order).
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
     param([AllowNull()][AllowEmptyCollection()][object[]]$Diff, [string]$Heading = '###')
     $blocks = [System.Collections.Generic.List[string]]::new()
     # Endpoints in the order of the diff (settings order); Group-Object would sort them by name.
@@ -1383,11 +1403,19 @@ function Publish-RulebookUpdate {
 
 Export-ModuleMember -Function @(
     'Compare-CustomizableFile'
+    'Get-ShortSha'
+    'Copy-UpdateTree'
+    'Format-TableCell'
+    'Get-ComparableContent'
+    'Get-DefaultWorkPath'
+    'Get-TreeFile'
+    'Test-BinaryFile'
     'ConvertTo-TemplateUrl'
     'ConvertTo-UpdatedWorkflowText'
     'ConvertTo-UpdatePullRequestBody'
     'ConvertTo-UpdateSummary'
     'Get-ReleaseNotesDelta'
+    'Get-EffectiveDiffBlock'
     'Get-RulebookFileClass'
     'Get-RulebookTemplate'
     'Get-RulebookUpdatePlan'

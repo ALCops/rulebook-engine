@@ -19,14 +19,15 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 
 ## 1. Files
 
-42 files: 10 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
+43 files: 11 written by hand, 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
 
 | Path | Class | Origin |
 |---|---|---|
 | `.github/Rulebook-Settings.json` | settings | Hand-written: the `template-default.json` settings fixture with `"baseUrl": ""` |
 | `.github/workflows/Validate.yaml` | system | Hand-written (WP03) |
 | `.github/workflows/Publish.yaml` | system | Hand-written (WP05) |
-| `.github/workflows/UpdateRulebookSystemFiles.yaml` | system | Hand-written (WP07): the update workflow with `{TEMPLATEURL}` and no `schedule:`; the later workflows come with their work packages |
+| `.github/workflows/UpdateRulebookSystemFiles.yaml` | system | Hand-written (WP07): the update workflow with `{TEMPLATEURL}` and no `schedule:` (`update.schedule` ships `null`) |
+| `.github/workflows/ScanDiagnostics.yaml` | system | Hand-written (WP08): the scan workflow with its `schedule:` as the last key under `on:`, the cron of `scan.schedule` (`17 4 * * *`), so the update's rewrite leaves it unchanged; the later workflows come with their work packages |
 | `README.md` | never touched after creation | Hand-written, organization-facing |
 | `overrides.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `quarantine.default.json`, `quarantine.ci.json`, `quarantine.vnext.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
@@ -38,7 +39,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 | `skeletons/README.md` | system | Hand-written (WP06): what the skeletons are, the init script, the settings and the exceptions; not published, exempt from C11. `New-RulebookSkeleton` deletes only `*.ruleset.json`, so it survives a regeneration |
 | `rulesets/<level>[.<stage>].ruleset.json` (12) | generated | `Update-RulebookEndpoints` (Rulebook.Generate, WP03) |
 
-There is no placeholder for files that later work packages own: no workflows besides Validate, Publish and UpdateRulebookSystemFiles, no `.github/RELEASENOTES.copy.md` (the deploy step writes it, D38), no `docs/` (WP11), no `site/` (WP14). The deploy workflow (WP13) must keep `docs/` in its keep list until WP11 decides where the organization documentation lives.
+There is no placeholder for files that later work packages own: no workflows besides Validate, Publish, UpdateRulebookSystemFiles and ScanDiagnostics, no `catalog/scan-state.json` (the first scan creates it), no `.github/RELEASENOTES.copy.md` (the deploy step writes it, D38), no `docs/` (WP11), no `site/` (WP14). The deploy workflow (WP13) must keep `docs/` in its keep list until WP11 decides where the organization documentation lives.
 
 Every generated file is UTF-8 without BOM, LF, with a trailing LF, and its text depends on the inputs only (no date, commit or machine path), so regenerating unchanged inputs gives the same bytes.
 
@@ -93,13 +94,25 @@ Invoke-Pester -Path ./tests -Output Detailed
 
 Commit `docs/rulebook/` and `template/` together. The checks that catch a forgotten regeneration:
 
-- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and expects no change. It also copies the 9 hand-written files into a scratch folder, runs the wrapper there, and compares every file byte for byte with the committed one.
+- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and expects no change. It also copies the 11 hand-written files into a scratch folder, runs the wrapper there, and compares every file byte for byte with the committed one.
 - The same suite composes every cell of `resolved.json` from the committed files with `Get-EffectiveAction` (V13 on disk), checks the entry counts against `matrix/counts.md` and the Listed column, and runs `Test-Rulebook` on `template/`.
 - CI runs the Validate action on `template/` with `failOnWarning`, which includes the regeneration check C12 for `rulesets/`.
 
 ## 5. The seed catalog
 
-`catalog/diagnostics.json` ships every inventory id so that C7 and the sparse rule work before the first scan (D24). An entry is `id`, `analyzer` (the inventory name, for example `Compiler`, `CodeCop`, `LinterCop`), `defaultSeverity`, `enabledByDefault`, `title` and `docs`, in that order, one entry per line; `title` and `docs` are left out when empty. It has no `package`, no versions and no channel: the catalog schema does not accept `null`, and the first scan (WP08) adds those fields. Titles are written as UTF-8 as they are, including the two non-ASCII titles of LC0009 and LC0089.
+`catalog/diagnostics.json` ships every inventory id so that C7 and the sparse rule work before the first scan (D24). An entry is `id`, `analyzer` (the inventory name, for example `Compiler`, `CodeCop`, `LinterCop`), `defaultSeverity`, `enabledByDefault`, `title` and `docs`, in that order, one entry per line; `title` and `docs` are left out when empty. It has no `package`, no versions and no channel: the catalog schema does not accept `null`, and the first scan (WP08) adds those fields. Titles are written as UTF-8 as they are, including the two non-ASCII titles of LC0009 and LC0089. The writer is `ConvertTo-CatalogJson` of `Rulebook.Catalog`, the one the scan uses; a seed entry is written byte for byte as before.
+
+The seeded ids are known ids (D46): the scan never quarantines them. What the first scan changes in the seed, observed on 2026-10-07 in a dry run with the template settings and a policy against Development.Tools 18.0.43.1464 and 30.0.42.60748-beta and ALCops.Analyzers 1.3.1 (the numbers move with nuget.org; the CI job `scan-action` prints them on every run):
+
+| Change | Ids |
+|---|---|
+| package fields (`package`, `firstSeenVersion`, `firstSeenChannel`, `firstStableVersion`, `lastSeenVersion`) | 625 of 628 |
+| `advertised: false` (defined, returned by no analyzer) | 7: AS0141, AC0000, DC0000, FC0000, LC0000, PC0000, TA0000 |
+| no package fields (in no released package) | 3: AC0033, AC0034, TA0002 |
+| `title` refreshed from the descriptor | 1: DC0009 |
+| `docs` refreshed (the TestAutomationCop link lowercased) | 2: TA0000, TA0001 |
+| default severity or enablement changed | 0 |
+| new ids | 0 |
 
 The catalog is org-owned: an update from the template never overwrites it, so the seed matters for new repositories only. The engine regenerates it on every run of `Build-Template.ps1`.
 

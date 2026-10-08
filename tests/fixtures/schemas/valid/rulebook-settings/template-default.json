@@ -21,5 +21,6 @@
   "commitOptions": { "createPullRequest": true, "pullRequestLabels": ["rulebook"] },
   "site": { "enabled": true, "includeJustifications": false, "updateMode": "skip" },
   "update": { "schedule": null },
+  "scan": { "schedule": "17 4 * * *" },
   "unusedRulebookFiles": []
 }
