@@ -12,9 +12,9 @@ inputs:
     required: false
     default: 'false'
   checkForUpdates:
-    description: "'true' runs the template update check in check mode: one notice or warning, never counted towards warnings or failOnWarning."
+    description: "'true' or 'false' runs or skips the template update check; empty follows update.check of the settings (default true)."
     required: false
-    default: 'true'
+    default: ''
 
 outputs:
   errors:
@@ -41,7 +41,7 @@ runs:
         $parameters = @{
           RepositoryRoot  = $env:INPUT_REPOSITORYROOT
           FailOnWarning   = $env:INPUT_FAILONWARNING -eq 'true'
-          CheckForUpdates = $env:INPUT_CHECKFORUPDATES -eq 'true'
+          CheckForUpdates = $env:INPUT_CHECKFORUPDATES
         }
         # The result object is the last pipeline output; anything a module emits before it is ignored.
         $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'Validate.ps1') @parameters)[-1]

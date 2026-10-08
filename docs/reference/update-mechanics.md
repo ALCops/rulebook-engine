@@ -110,7 +110,7 @@ Line endings become LF. Keys the engine does not know survive; the schema reject
 
 ## 7. Check mode
 
-The Validate action runs the check when `checkForUpdates` is `'true'` (the default); CheckForUpdates runs it with `update` other than `'Y'`. Validate downloads the template of the settings at the head of its branch, and both read it with `GITHUB_TOKEN` only (CheckForUpdates passes no write token in check mode); a template that token cannot read (a private template, or a pull request from a fork with a restricted token) gives "update check skipped".
+The Validate action runs the check when `checkForUpdates` is `'true'`, or when it is empty (the default) and `update.check` of the settings is not `false`; CheckForUpdates runs it with `update` other than `'Y'`. Validate downloads the template of the settings at the head of its branch, and both read it with `GITHUB_TOKEN` only (CheckForUpdates passes no write token in check mode); a template that token cannot read (a private template, or a pull request from a fork with a restricted token) gives "update check skipped".
 
 | Outcome | Annotation |
 |---|---|
@@ -121,6 +121,8 @@ The Validate action runs the check when `checkForUpdates` is `'true'` (the defau
 | The candidate would not validate | warning `update check skipped: the updated rulebook would not validate (<first error>)` |
 
 Neither annotation counts towards `warnings=` or `failOnWarning`, and the check never fails the step. The engine CI passes `checkForUpdates: 'false'` on its fixture steps.
+
+**Turning it off (#67).** `update.check: false` in `.github/Rulebook-Settings.json` turns the check off for every Validate run; the log says `Update check off (update.check is false)` and the summary has no update section. The key lives in the settings, so it survives updates, where an edited `checkForUpdates` input in `Validate.yaml` (a system file) would be overwritten. The template does not ship the key; absent means `true`. Precedence: an explicit `checkForUpdates` input (`'true'` or `'false'`) wins over the setting, an empty input follows it. Validate reads the setting leniently: a missing or unreadable settings file, or a value that is not a boolean, leaves the check on (the checks report the settings themselves). A caller of `Validate.ps1` that omits `-CheckForUpdates` follows the setting too; pass `'false'` to skip the check. Any other non-empty input turns the check off with the log line `checkForUpdates '<value>' is not 'true' or 'false'; the update check is off`.
 
 ## 8. Update mode
 

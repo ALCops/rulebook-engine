@@ -150,7 +150,8 @@
       "description": "The update workflow (WP07): schedule is a five-field cron expression the update writes into UpdateRulebookSystemFiles.yaml as its schedule trigger, or null for none.",
       "type": "object",
       "properties": {
-        "schedule": { "type": ["string", "null"], "pattern": "^\\S+( \\S+){4}(?![\\s\\S])" }
+        "schedule": { "type": ["string", "null"], "pattern": "^\\S+( \\S+){4}(?![\\s\\S])" },
+        "check": { "description": "false turns the template update check of the Validate action off; an explicit checkForUpdates input still wins.", "type": "boolean", "default": true }
       },
       "additionalProperties": false
     },
