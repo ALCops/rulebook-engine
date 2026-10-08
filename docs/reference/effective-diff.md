@@ -160,3 +160,5 @@ A ref without `.github/Rulebook-Settings.json` (a commit before the rulebook exi
 | `Text` | `<Id>: <Before> (<source>[, "<detail>"]) -> <After> (<source>[, "<detail>"])`, with `(absent)` for a missing side |
 
 The Validate job summary groups the rows into one table per changed endpoint, `| Id | Before | After | Decided by |`, where "Decided by" is the after side's source and detail; "No effective change" when there are no rows.
+
+The ChangeRule pull request (WP09) does not use this diff: its body has one `| Endpoint | Before | After | Note |` table per change with a row for every endpoint the selectors match, changed or not, each side written as `Warning (level:recommended)` or `None (override, "<justification>")` with the tokens of section 2. It is computed from two in-memory input sets (the working tree and the candidate), because this diff lists changed rows only; the git-based diff of the pushed commit goes into the job summary of the change run ([change-mechanics.md](change-mechanics.md) section 6).

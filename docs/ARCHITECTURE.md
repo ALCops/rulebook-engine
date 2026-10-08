@@ -97,7 +97,7 @@ Everything an org repo contains after "Use this template". The **class** column 
 | `.github/workflows/Publish.yaml` | On push to the default branch and on demand: validate, refuse stale endpoints, deploy `rulesets/`, the rendered skeletons and `index.html` to the configured target, verify reachability. Never commits (D42). | system |
 | `.github/workflows/UpdateRulebookSystemFiles.yaml` | Manual, or scheduled when `update.schedule` is set (the update writes the `schedule:` trigger): pull the new template version into a PR (or a direct commit) with the regenerated endpoints and skeletons, after validating the result (section 7.3). | system |
 | `.github/workflows/ScanDiagnostics.yaml` | Daily (the `schedule:` comes from `scan.schedule`, shipped `17 4 * * *`) and manual: scan the newest stable and prerelease versions of the two analyzer packages on NuGet, record new ids and changed defaults in the catalog, quarantine new ids by the policy, release the ids a level file adopted, regenerate the endpoints and keep one living pull request on `scan-diagnostics/<branch>`, or push a direct commit (section 7.4). | system |
-| `.github/workflows/ChangeRule.yaml` | Manual form: one override entry, regenerate, open a PR. | system |
+| `.github/workflows/ChangeRule.yaml` | Manual form: set or remove one override entry, regenerate, open a PR or push a direct commit per `commitOptions.createPullRequest` (section 7.5). | system |
 | `.github/workflows/ApplyRulebookChange.yaml` | On an issue with the `rulebook-change` label: gate on collaborator association, apply the change set, regenerate, open a PR or commit (section 7.6). | system |
 | `.github/ISSUE_TEMPLATE/rulebook-change.yml`, `config.yml` | The issue form the dashboard prefills; blank issues stay enabled. | system |
 | `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, the ordered `levels` (name, `basedOn`, description) and `stages` (name, description). Carries the settings schema URL in `$schema`. | settings (kept, `$schema` refreshed) |
@@ -265,7 +265,7 @@ A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`,
 
 Common to all four: entries in inventory order with the matrix row justification; the level and stage files carry the delta profile URL in `$schema`; UTF-8 without BOM, LF; a file is written only when its bytes differ, files of the folder that no input produces are deleted first; one `{ File, Path, Change }` object per change (`created`, `modified`, `deleted`); `-WhatIf` writes nothing and returns the same list. The functions throw, as engine tools, on matrix input they cannot use (rows out of inventory order, an id without resolved cells, a level that is not a slug, an unresolved `basedOn` or a cycle, no `default` stage, a stage without a matrix column, a value that is not an action).
 
-`tools/rulebook/Build-Template.ps1 [-RulebookDir] [-TemplateDir] [-WhatIf]` runs the four functions and then `Update-RulebookEndpoints` on `template/`, prints one line per change or `template: current`, and returns the change objects. `tests/Rulebook.Template.Tests.ps1` regenerates `template/` from its 11 hand-written files and compares the bytes, so a matrix change without a template regeneration fails CI.
+`tools/rulebook/Build-Template.ps1 [-RulebookDir] [-TemplateDir] [-WhatIf]` runs the four functions and then `Update-RulebookEndpoints` on `template/`, prints one line per change or `template: current`, and returns the change objects. `tests/Rulebook.Template.Tests.ps1` regenerates `template/` from its 12 hand-written files and compares the bytes, so a matrix change without a template regeneration fails CI.
 
 ### 5.7 Scan modules
 
@@ -278,6 +278,13 @@ The scan of section 7.4 (WP08) is five modules, each a `.psm1` with a `.psd1` ma
 | `Rulebook.Catalog` | `Read-CatalogFile`, `ConvertTo-CatalogJson`, `Write-CatalogFile`, `Get-CatalogDocsUrl`, `Update-CatalogFromScan`, `Read-ScanState`, `Write-ScanState`, `Get-NewPackageVersion` | The catalog with every scan field and unknown keys kept, the docs URL rule, one scanned version applied to the catalog (pure), the scan state. |
 | `Rulebook.Quarantine` | `Get-QuarantinePolicy`, `Read-QuarantineFile`, `Write-QuarantineFile`, `New-QuarantineJustification`, `Add-QuarantineEntry`, `Invoke-QuarantineHousekeeping`, `Update-QuarantineFromScan` | The policy (no default, D14), the quarantine files in the template layout, new ids into the policy stages, housekeeping by the rule of C13. |
 | `Rulebook.Scan` | `Get-RulebookScanPlan`, `Get-ScanTitle`, `ConvertTo-ScanPullRequestBody`, `ConvertTo-ScanSummary`, `Publish-RulebookScan` | The run of section 7.4 on a candidate tree, its title and body, and the living pull request (D45). |
+
+### 5.8 Edit and action helper modules
+
+| Module | Functions | Role |
+|---|---|---|
+| `Rulebook.Edit` (WP09) | `Read-OverridesFile`, `ConvertTo-OverridesJson`, `Write-OverridesFile`, `Set-RulebookOverride`, `Remove-RulebookOverride`, `ConvertTo-RulebookChangeSet`, `Test-RulebookChangeSet`, `Invoke-RulebookChangeSet`, `Get-RulebookChangeTitle`, `ConvertTo-ChangeTable`, `ConvertTo-ChangePullRequestBody`, `ConvertTo-ChangeSummary`, `Publish-RulebookChange` | `overrides.json` in the template layout, the change set of sections 7.5 and 7.6 (`set` and `remove`; `release` arrives with WP15) applied all or nothing on a candidate copy, the per-endpoint table and the no-op rule (D48), and the pull request or direct commit (D47). Contract: [reference/change-mechanics.md](reference/change-mechanics.md). |
+| `Rulebook.Action` (#58) | `Format-AnnotationText`, `ConvertTo-SingleLine`, `Format-TableCell`, `New-ActionContext`, `Add-Annotation`, `Add-Failure`, `Write-Text`, `Resolve-ActionPath`, `Write-ActionOutput`, `Limit-SummaryText` | The helpers every action entry script shares: workflow command escaping and annotations, the failure kind, the job summary and `GITHUB_OUTPUT`. No engine imports. |
 
 ## 6. Endpoints and skeletons
 
@@ -450,17 +457,17 @@ flowchart LR
 
 ### 7.5 Change rule (R10)
 
-Trigger: `workflow_dispatch` with a form.
+Trigger: `workflow_dispatch` with a form (implemented with WP09).
 
 | Input | Type | Values |
 |---|---|---|
-| `ruleId` | string | `AA0001`, `LC0029`, ... validated against the catalog |
+| `ruleId` | string | `AA0001`, `LC0029`, ... checked against `^[A-Z]{2,3}\d{4}i?$` and the catalog |
 | `action` | choice | Error, Warning, Info, Hidden, None, Remove |
-| `levels` | choice | the level slugs from the settings and `*`; the choice list is rewritten by the update workflow (D30) |
-| `stages` | choice | the stage slugs from the settings and `*`; same mechanism |
-| `justification` | string | stored with the override entry |
+| `levels` | choice | one level slug from the settings or `*`; the choice list is rewritten by the update workflow (D30) |
+| `stages` | choice | one stage slug from the settings or `*`; same mechanism |
+| `justification` | string | optional (D37); stored with the override entry |
 
-The action writes or removes one entry in `overrides.json`, regenerates `rulesets/`, runs validation, and opens a PR whose body shows the effective change per endpoint (before and after). Changing the shipped level content itself is done in the engine, in the matrix, and reaches orgs through the update workflow; an org edits its own level and stage files by hand. The same action is callable from a future web UI or VS Code extension because its inputs are plain strings.
+The workflow builds a one-item change set and calls the `ChangeRule` action (`Rulebook.Edit`): it writes or removes one entry in `overrides.json` on a candidate copy, regenerates `rulesets/`, validates, and lands the result per `commitOptions.createPullRequest` as a pull request on `change-rule/<ruleId>/<yyMMddHHmmss>` or a direct commit (D47; there is no `directCommit` input). The pull request body shows the effective change per endpoint with provenance. A change that alters no endpoint and not `overrides.json` is reported and never written (D48). Changing the shipped level content itself is done in the engine, in the matrix, and reaches orgs through the update workflow; an org edits its own level and stage files by hand. Mechanics, messages and tests: [reference/change-mechanics.md](reference/change-mechanics.md).
 
 ### 7.6 Apply change set (R12)
 
@@ -479,7 +486,7 @@ flowchart LR
     apply -->|direct commit| commit[commit, comment table, close]
 ```
 
-A change set is `{ version, note?, changes[] }` with `set` (write an override entry), `remove` (delete one) and `release` (remove an id from the quarantine of the listed stages). It is applied all or nothing, regenerated once, and lands per `commitOptions.createPullRequest` as one PR or one commit (D33). The gate is collaborator association (D34); justification is optional (D37). ChangeRule (section 7.5) builds a one-item change set and calls the same module function. Details, schema and the comment protocol are in [dashboard.md](dashboard.md) sections 6 to 8.
+A change set is `{ version, note?, changes[] }` with `set` (write an override entry), `remove` (delete one) and `release` (remove an id from the quarantine of the listed stages). It is applied all or nothing, regenerated once, and lands per `commitOptions.createPullRequest` as one PR or one commit (D33). The gate is collaborator association (D34); justification is optional (D37). ChangeRule (section 7.5) builds a one-item change set and calls the same module function: `Invoke-RulebookChangeSet` with `set` and `remove` landed with WP09 ([reference/change-mechanics.md](reference/change-mechanics.md)); `release`, the change set schema and the issue parsing arrive with WP15. Details, schema and the comment protocol are in [dashboard.md](dashboard.md) sections 6 to 8.
 
 ## 8. Settings
 
@@ -553,7 +560,7 @@ Every target ends with the same reachability check: `GET` each endpoint, skeleto
 | Endpoint unreachable, invalid JSON, invalid enum, timeout | Whole ruleset discarded, one diagnostic AL1033. `alc` aborts the compile (exit 1, no `.app`; timeout: not observed), whether the endpoint is the root path or the skeleton's include ([spike c](reference/spikes/c-alc-on-ubuntu.md), [spike a](reference/spikes/a-hosts-and-skeleton-include.md)), so on raw `alc` the build fails by itself (AL-Go and BcContainerHelper run the same compiler but were not observed). The VS Code language server continues with compiler defaults and shows AL1033 on `app.json` ([spike e](reference/spikes/e-vscode-refetch.md)), so the editor shows default severities: because the matrix follows the analyzer defaults for most rules (D21) and the endpoint only lists deviations (D22), that is close to the intended ruleset; what is lost is every `None` the level set, every downgrade, and the org's overrides. | Validate before publish, reachability check after publish, and as a backstop treat AL1033 as a failure in pipelines (documented in WP11). One fetch per compile keeps the exposure to one request. |
 | External rulesets disabled in the consumer | AL0767 when the root path is a URL, AL1033 when a local skeleton includes the URL; `alc` aborts with exit 1 in both cases. | Walkthroughs set `enableExternalRulesets` in every consumer. `alc` defaults to disabled. |
 | Endpoint committed but stale (inputs changed, not regenerated) | Consumers get yesterday's decision. | Regeneration check in Validate; Publish refuses to deploy stale endpoints and keeps the last good site (D42); every writing workflow regenerates in its pull request. |
-| Override selector typo | Silent no-op. | Selector validation; the ChangeRule PR body shows before and after per endpoint. |
+| Override selector typo | Silent no-op. | Selector validation (C10, and the ChangeRule action refuses an unknown slug before writing); the ChangeRule PR body shows before and after per endpoint, and a change that alters nothing is reported, not written (D48). |
 | Update PR overwrites an org edit in a system file | Edit lost. | File classes; org decisions live only in `overrides.json`; docs say which files are system files. |
 | Scan adds an id the org wanted to see | Rule hidden until adopted. | Policy is explicit per org; the PR lists every new id with its default severity and docs link; adopting it in a level file releases it on the next run. |
 | Someone pushes to the scan branch by hand | The push is replaced by the next run. | The branch is rebuilt from the base on every run with a lease push (D45): the lease covers the window between `ls-remote` and the push only (a push in that window is rejected, an earlier push is replaced), and a base branch that moved while the scan was planning fails the run before the push; the PR body says not to push to the branch. |
@@ -609,7 +616,9 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | Update PR title | `[<branch>@<sha7>] Update Rulebook System Files from ALCops/rulebook - <templateSha7>` | |
 | Scan branch | `scan-diagnostics/<branch>`, rebuilt by every run (D45) | `scan-diagnostics/main` |
 | Scan PR title | `Scan diagnostics: <counts> (<label> <version>, ...)` | `Scan diagnostics: 3 new ids quarantined, 1 default changed (alcops 1.4.0)` |
-| Change branch | `rulebook-change/<issue>/<yyMMddHHmmss>` | |
+| Change rule branch | `change-rule/<ruleId>/<yyMMddHHmmss>` (UTC) | `change-rule/LC0015/261008091530` |
+| Change rule PR title | `Change <ruleId> to <action> (levels: <levels>, stages: <stages>)`, or `Remove override for <ruleId> (...)` | `Change LC0015 to None (levels: strict, stages: ci)` |
+| Change branch | `rulebook-change/<issue>/<yyMMddHHmmss>` (WP15) | |
 | Dashboard | `<baseUrl>/`, `<baseUrl>/rules/<id>/`, `<baseUrl>/rulebook.json` | `https://contoso.github.io/rulebook/rules/AL0432/` |
 
 ### File classes for the update
@@ -619,7 +628,7 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | system | workflows, the shipped level files in `base/`, the shipped stage files in `stages/`, `base/twins.json`, `skeletons/README.md`, release notes copy | Overwritten with template content; the ChangeRule choice lists, `{TEMPLATEURL}` and the schedule rewritten from the settings. |
 | settings | `Rulebook-Settings.json` | Content kept, `$schema` refreshed, `templateSha` written. |
 | generated | `rulesets/`, `skeletons/*.ruleset.json` | Regenerated after every update from the new level and stage files and the org's inputs (the skeletons from the settings). |
-| org-owned | `overrides.json`, quarantine files, catalog (with `catalog/scan-state.json`), level and stage files the org added, the org's own workflows and docs | Never touched by the update; the scan writes the quarantine files and the catalog. |
+| org-owned | `overrides.json` (written by the ChangeRule workflow or by hand), quarantine files, catalog (with `catalog/scan-state.json`), level and stage files the org added, the org's own workflows and docs | Never touched by the update; the scan writes the quarantine files and the catalog. |
 | customizable | `site/**` | Overwritten only when unchanged since the installed template version; otherwise kept and listed in the PR (D35). |
 
 ### Actions in the engine
@@ -630,5 +639,5 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | `Publish` | Publish.yaml | Gate on stale endpoints, Pages preflight, stage the endpoints with the rendered skeletons and index, deploy, verify (section 7.2). |
 | `CheckForUpdates` | UpdateRulebookSystemFiles.yaml (the Validate action runs the same check in check mode) | Section 7.3; implemented (WP07), [reference/update-mechanics.md](reference/update-mechanics.md). |
 | `ScanDiagnostics` | ScanDiagnostics.yaml | Section 7.4; implemented (WP08), [reference/scan-mechanics.md](reference/scan-mechanics.md). |
-| `ChangeRule` | ChangeRule.yaml | Section 7.5; one-item client of the change-set module. |
+| `ChangeRule` | ChangeRule.yaml | Section 7.5; one-item client of the change-set module; implemented (WP09), [reference/change-mechanics.md](reference/change-mechanics.md). |
 | `ApplyChangeSet` | ApplyRulebookChange.yaml | Section 7.6. |
