@@ -9,11 +9,13 @@ appends a Markdown summary to -SummaryPath, writes the errors and warnings outpu
 warnings with -FailOnWarning. The script never calls exit, so tests run it in-process; action.yaml exits with ExitCode.
 
 -CheckForUpdates 'true' or 'false' (case-insensitive; $true and $false work too) runs or skips the template update
-check; '' (the default) follows update.check of the settings, true when absent. The check runs in check mode
-(Rulebook.Update): the template of the settings at the head of its branch, downloaded with GITHUB_TOKEN (never the
-write token), or -TemplatePath and -InstalledTemplatePath as local folders. One notice (no updates, templateSha not recorded) or warning (updates available, check skipped) and
-the section '## Template update check' in the summary. Neither counts towards warnings= or -FailOnWarning, and the
-check never fails the step. UpdateCheck is { Status (none, sha-only, available, skipped), Reason, Plan }. The check works
+check; '' (the default) follows update.check of the settings, true when absent. Omitting -CheckForUpdates follows
+update.check of the settings; pass 'false' to skip the check. Any other value turns the check off and says so in the
+log. The check runs in check mode (Rulebook.Update): the template of the settings at the head of its branch,
+downloaded with GITHUB_TOKEN (never the write token), or -TemplatePath and -InstalledTemplatePath as local folders.
+One notice (no updates, templateSha not recorded) or warning (updates available, check skipped) and the section
+'## Template update check' in the summary. Neither counts towards warnings= or -FailOnWarning, and the check never
+fails the step. UpdateCheck is { Status (none, sha-only, available, skipped), Reason, Plan }. The check works
 in -UpdateWorkPath when given (left in place afterwards), else in a temporary folder it removes.
 
 The effective diff compares against -DiffRef. Without -DiffRef it is origin/<GITHUB_BASE_REF> on a pull_request or
@@ -63,6 +65,7 @@ $relativeRoot = [System.IO.Path]::GetRelativePath($workspace, $root).Replace($se
 $runUpdateCheck = $true
 if (-not [string]::IsNullOrWhiteSpace($CheckForUpdates)) {
     $runUpdateCheck = $CheckForUpdates.Trim() -ieq 'true'
+    if ($CheckForUpdates.Trim() -inotin 'true', 'false') { Write-Host "checkForUpdates '$CheckForUpdates' is not 'true' or 'false'; the update check is off" }
 } else {
     try {
         $settingsForCheck = Get-Content -LiteralPath (Join-Path $root '.github' 'Rulebook-Settings.json') -Raw -ErrorAction Stop | ConvertFrom-Json -AsHashtable -ErrorAction Stop

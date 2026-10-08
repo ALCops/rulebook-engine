@@ -23,7 +23,8 @@ BeforeAll {
         # Runs Validate.ps1 in-process; returns the result object and the console lines (information stream).
         param([hashtable]$Parameters)
         # The update check follows update.check by default; a test that does not ask for it never downloads a template.
-        if (-not $Parameters.ContainsKey('CheckForUpdates')) { $Parameters.CheckForUpdates = 'false' }
+        # OmitCheck = $true leaves -CheckForUpdates unbound, so Validate.ps1 follows update.check.
+        if ($Parameters.ContainsKey('OmitCheck')) { $Parameters.Remove('OmitCheck') } elseif (-not $Parameters.ContainsKey('CheckForUpdates')) { $Parameters.CheckForUpdates = 'false' }
         if (-not $Parameters.ContainsKey('SummaryPath')) { $Parameters.SummaryPath = Join-Path $TestDrive ('summary-{0}.md' -f [guid]::NewGuid().ToString('n')) }
         # Derive = $true leaves -DiffRef unbound, so Validate.ps1 derives it from the event.
         if ($Parameters.ContainsKey('Derive')) { $Parameters.Remove('Derive') } elseif (-not $Parameters.ContainsKey('DiffRef')) { $Parameters.DiffRef = '' }
@@ -285,6 +286,24 @@ Describe 'Validate.ps1' {
             $run = Invoke-Entry @{ RepositoryRoot = (Copy-UpdateOrg -Check $false); CheckForUpdates = 'True'; TemplatePath = $v2; InstalledTemplatePath = $v1 }
             $run.Result.UpdateCheck.Status | Should-Be 'available'
             $run.Lines | Should-NotContainCollection @('Update check off (update.check is false)')
+        }
+
+        It 'follows update.check false when the caller omits -CheckForUpdates' {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-UpdateOrg -Check $false); OmitCheck = $true; TemplatePath = $v2; InstalledTemplatePath = $v1 }
+            $run.Result.UpdateCheck | Should-BeNull
+            $run.Lines | Should-ContainCollection @('Update check off (update.check is false)')
+        }
+
+        It 'runs the check when the caller omits -CheckForUpdates and update.check is absent' {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-UpdateOrg); OmitCheck = $true; TemplatePath = $v2; InstalledTemplatePath = $v1 }
+            $run.Result.UpdateCheck.Status | Should-Be 'available'
+        }
+
+        It 'turns the check off and says so for an input other than true or false' {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-UpdateOrg -Check $true); CheckForUpdates = 'yes'; TemplatePath = $v2; InstalledTemplatePath = $v1 }
+            $run.Result.ExitCode | Should-Be 0
+            $run.Result.UpdateCheck | Should-BeNull
+            $run.Lines | Should-ContainCollection @("checkForUpdates 'yes' is not 'true' or 'false'; the update check is off")
         }
 
         It 'skips the check for an explicit false input although update.check is true' {
