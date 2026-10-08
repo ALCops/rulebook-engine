@@ -297,6 +297,15 @@ Describe 'ConvertTo-UpdatedWorkflowText' {
         $result.Replace("          - house`n", '') | Should-Be $text
     }
 
+    It 'rewrites the shipped ChangeRule.yaml: a no-op with the template settings, house in settings order with it (WP09)' {
+        $text = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'template' '.github' 'workflows' 'ChangeRule.yaml')).Replace("`r`n", "`n")
+        $templateSettings = Get-Content -LiteralPath (Join-Path $repoRoot 'template' '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json -AsHashtable
+        ConvertTo-UpdatedWorkflowText -Text $text -FileName 'ChangeRule.yaml' -Settings $templateSettings -TemplateUrl $url | Should-Be $text
+        $house = @{ levels = @(@{ name = 'Essential' }, @{ name = 'Recommended' }, @{ name = 'House' }, @{ name = 'Strict' }, @{ name = 'Complete' }); stages = $templateSettings.stages }
+        $result = ConvertTo-UpdatedWorkflowText -Text $text -FileName 'ChangeRule.yaml' -Settings $house -TemplateUrl $url
+        $result | Should-Be $text.Replace("          - recommended`n", "          - recommended`n          - house`n")
+    }
+
     It 'quotes a slug YAML would read as another type' {
         $text = [System.IO.File]::ReadAllText((Join-Path $v1 '.github' 'workflows' 'ChangeRule.yaml'))
         $settings = @{ levels = @(@{ name = 'Yes' }, @{ name = '2026' }); stages = @(@{ name = 'default' }) }
