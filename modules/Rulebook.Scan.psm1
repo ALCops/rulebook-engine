@@ -695,7 +695,7 @@ function Publish-RulebookScan {
     scan-diagnostics/<base>, rebuilt from the base head with a lease push (Publish-GitHubChange -Force); with
     -DirectCommit it pushes to the base branch (a refused push falls back to the scan branch). The effective diff is
     computed against the cloned head. A plan that recorded the head of its checkout (HeadSha) refuses a base branch that
-    moved since (stage push). With no changes or a direct commit an open scan pull request is closed
+    moved since (stage push, Data['Reason'] = 'base-moved'). With no changes or a direct commit an open scan pull request is closed
     (ClosedPullRequestUrl). Then the open pull request from that branch is updated (PATCH title and body,
     pull-request-updated) or a new one is opened with -Labels (pull-request). Returns { Result (pull-request,
     pull-request-updated, direct-commit, no-changes), PullRequestUrl, Number, Branch, Sha, Fallback, Diff, DiffNote,
@@ -735,7 +735,9 @@ function Publish-RulebookScan {
         $clone = New-GitHubClone -RemoteUrl $RemoteUrl -Branch $BaseBranch -Path (Join-Path $WorkPath 'clone') -Token $Token -Actor $Actor
         $planned = if ($Plan.PSObject.Properties['HeadSha']) { [string]$Plan.HeadSha } else { '' }
         if ($planned -and $planned -cne $clone.BaseSha) {
-            throw "The base branch moved during the scan ($BaseBranch was at $(Get-ShortSha $planned) when the scan started and is at $(Get-ShortSha $clone.BaseSha) now); nothing was pushed, the next run will pick it up."
+            $moved = [System.InvalidOperationException]::new("The base branch moved during the scan ($BaseBranch $(Get-ShortSha $planned) is now $(Get-ShortSha $clone.BaseSha)); nothing was pushed, the next run will pick it up.")
+            $moved.Data['Reason'] = 'base-moved'
+            throw $moved
         }
         $rulebookRoot = if ($prefix) { Join-Path $clone.Path $prefix.TrimEnd('/') } else { $clone.Path }
         foreach ($change in $Plan.Changes) {
@@ -752,6 +754,8 @@ function Publish-RulebookScan {
     } catch {
         $exception = [System.InvalidOperationException]::new($_.Exception.Message, $_.Exception)
         $exception.Data['Stage'] = 'push'
+        # A base that moved is no token problem; the entry script reports it as it is.
+        if ($_.Exception.Data['Reason']) { $exception.Data['Reason'] = $_.Exception.Data['Reason'] }
         throw $exception
     }
     $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; Diff = @(); DiffNote = $null; Body = $null; Title = $title; ClosedPullRequestUrl = $null }

@@ -247,6 +247,32 @@ Describe 'ScanDiagnostics.ps1' {
         }
     }
 
+    It 'reports a base branch that moved as it is, without the token advice' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('The base branch moved during the scan (main 1111111 is now 2222222); nothing was pushed, the next run will pick it up.')
+            $exception.Data['Stage'] = 'push'
+            $exception.Data['Reason'] = 'base-moved'
+            throw $exception }
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'push'
+        $run.Result.Annotations[-1] | Should-Be '::error title=ScanDiagnostics::The base branch moved during the scan (main 1111111 is now 2222222); nothing was pushed, the next run will pick it up.'
+    }
+
+    It 'wraps any other push failure in the token advice' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('git push --force-with-lease scan-diagnostics/main failed: stale info')
+            $exception.Data['Stage'] = 'push'
+            throw $exception }
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; PublishCommand = $publish }
+        $run.Result.Failure | Should-Be 'push'
+        $run.Result.Annotations[-1] | Should-BeLikeString '::error title=ScanDiagnostics::Failed to push the scan. Make sure that the token in the secret GHTOKENWORKFLOW is not expired*(Error was: git push --force-with-lease scan-diagnostics/main failed: stale info)'
+    }
+
     It 'names the pushed branch and fails with failure pull-request when the pull request cannot be opened' {
         $publish = {
             param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)

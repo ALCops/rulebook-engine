@@ -211,6 +211,8 @@ try {
             $stage = [string]$_.Exception.Data['Stage']
             if ($stage -cnotin 'push', 'pull-request') { $stage = 'push' }
             Add-Failure $stage
+            # The base branch moved between plan and publish: nothing is wrong with the token, the next run picks it up.
+            if ([string]$_.Exception.Data['Reason'] -ceq 'base-moved') { throw $_.Exception.Message }
             $what = if ($stage -eq 'pull-request') { 'Failed to create or update the scan pull request' } else { 'Failed to push the scan' }
             throw "$what. Make sure that the token in the secret $secretName is not expired and may write contents and pull requests of $Repository. Read $docsUrl (Error was: $($_.Exception.Message))"
         }

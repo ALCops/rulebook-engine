@@ -419,7 +419,8 @@ Describe 'Publish-RulebookScan against a bare repository' -Skip:$gitMissing {
         $caught = $null
         try { $null = Publish-RulebookScan -Plan $moving -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -WorkPath (Get-TestFolder) } catch { $caught = $_ }
         $caught.Exception.Data['Stage'] | Should-Be 'push'
-        $caught.Exception.Message | Should-BeLikeString "The base branch moved during the scan (main was at $($sha.Substring(0, 7)) when the scan started and is at $($moved.Substring(0, 7)) now)*the next run will pick it up."
+        $caught.Exception.Message | Should-Be "The base branch moved during the scan (main $($sha.Substring(0, 7)) is now $($moved.Substring(0, 7))); nothing was pushed, the next run will pick it up."
+        $caught.Exception.Data['Reason'] | Should-Be 'base-moved'
         (& git -C $bare branch --list 'scan-diagnostics/*') | Should-BeNull
     }
 
