@@ -169,7 +169,9 @@ if ($null -ne $diffNote) {
 $summaryText = $summary.ToString().Replace("`r`n", "`n")
 # The runner caps a step summary at 1 MiB; stay well below it.
 $summaryLimit = $SummaryLimit
-$summaryText = Limit-SummaryText -Text $summaryText -MaxBytes $summaryLimit -Footer "The summary was truncated at $([math]::Round($summaryLimit / 1KB)) KiB; the -JsonPath file and the annotations above have the findings."
+# The limit in KiB for the footers of both summary parts.
+$limitLabel = [math]::Round($summaryLimit / 1KB)
+$summaryText = Limit-SummaryText -Text $summaryText -MaxBytes $summaryLimit -Footer "The summary was truncated at $limitLabel KiB; the -JsonPath file and the annotations above have the findings."
 Write-Text -Path $SummaryPath -Text $summaryText
 
 # 5. Update check (WP07): check mode only, never counted, never failing.
@@ -216,7 +218,7 @@ if ($CheckForUpdates) {
     $updateSummary = $updateSummary.Replace("`r`n", "`n")
     # Within what the validation summary leaves of the cap: cut at a line boundary, never dropped.
     $budget = $summaryLimit - [System.Text.Encoding]::UTF8.GetByteCount($summaryText)
-    $footer = "The update check summary was cut at $([math]::Floor($summaryLimit / 1KB)) KiB; the full lists are in the job log."
+    $footer = "The update check summary was cut at $limitLabel KiB; the full lists are in the job log."
     $updateSummary = Limit-SummaryText -Text $updateSummary -MaxBytes ([math]::Max(0, $budget)) -Footer $footer
     $summaryText += $updateSummary
     Write-Text -Path $SummaryPath -Text $updateSummary
