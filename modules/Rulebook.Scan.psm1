@@ -16,6 +16,7 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.NuGet.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Catalog.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Extract.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Quarantine.psd1')
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Action.psd1')
 
 $script:ToolsPackageId = 'microsoft.dynamics.businesscentral.development.tools'
 $script:AlcopsPackageId = 'alcops.analyzers'

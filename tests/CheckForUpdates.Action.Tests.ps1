@@ -42,7 +42,7 @@ AfterAll {
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository
     $env:GITHUB_TOKEN = $script:saved.Token
-    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/CheckForUpdates/action.yaml' {

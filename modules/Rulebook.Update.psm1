@@ -11,6 +11,7 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Validate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Template.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.GitHub.psd1')
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Action.psd1')
 
 $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:ReleaseNotesPath = '.github/RELEASENOTES.copy.md'
@@ -214,12 +215,6 @@ function Format-YamlScalar {
     param([Parameter(Mandatory)][string]$Value)
     if ($Value -cmatch '^[a-z][a-z0-9-]*$' -and $Value -cnotin $script:YamlReserved) { return $Value }
     return "'" + $Value.Replace("'", "''") + "'"
-}
-
-function Format-TableCell {
-    param([AllowNull()][string]$Text)
-    if ([string]::IsNullOrEmpty($Text)) { return '' }
-    return $Text.Replace('|', '\|').Replace("`r", ' ').Replace("`n", ' ')
 }
 
 function Get-ShortSha {
@@ -1239,48 +1234,6 @@ function ConvertTo-UpdateSummary {
     return $text.ToString().Replace("`r`n", "`n")
 }
 
-function Limit-SummaryText {
-    <#
-    .SYNOPSIS
-    Markdown cut below -MaxBytes (UTF-8) at a line boundary, an open code fence closed, and -Footer as an italic line.
-    .DESCRIPTION
-    Text within the limit comes back as it is. Otherwise whole lines are kept from the start (the first line, a
-    heading, always), an open ``` or ~~~ fence in the kept part is closed, and '_<Footer>_' ends the text. Used for
-    the job summaries of the CheckForUpdates and Validate actions.
-    #>
-    [CmdletBinding()]
-    [OutputType([string])]
-    param(
-        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
-        [Parameter(Mandatory)][int]$MaxBytes,
-        [Parameter(Mandatory)][string]$Footer
-    )
-    $utf8 = [System.Text.UTF8Encoding]::new($false)
-    if ($utf8.GetByteCount($Text) -le $MaxBytes) { return $Text }
-    $footerText = "`n_$($Footer)_`n"
-    $lines = $Text.Split("`n")
-    $kept = [System.Collections.Generic.List[string]]::new()
-    $fence = $null
-    $used = 0
-    for ($i = 0; $i -lt $lines.Count; $i++) {
-        $line = $lines[$i]
-        # Room for this line, the footer and a fence closer of the current or a newly opened fence.
-        $closer = if ($null -ne $fence) { $fence.Length + 1 } else { $line.Length + 1 }
-        if ($i -gt 0 -and $used + $utf8.GetByteCount($line) + 1 + $closer + $utf8.GetByteCount($footerText) -gt $MaxBytes) { break }
-        $kept.Add($line)
-        $used += $utf8.GetByteCount($line) + 1
-        $marker = [regex]::Match($line, '^[ ]{0,3}(`{3,}|~{3,})')
-        if ($null -ne $fence) {
-            if ($marker.Success -and $marker.Groups[1].Value[0] -ceq $fence[0] -and $marker.Groups[1].Value.Length -ge $fence.Length -and $line.Trim() -ceq $marker.Groups[1].Value) { $fence = $null }
-        } elseif ($marker.Success) {
-            $fence = $marker.Groups[1].Value
-        }
-    }
-    $result = ($kept -join "`n") + "`n"
-    if ($null -ne $fence) { $result += "$fence`n" }
-    return $result + $footerText
-}
-
 function Publish-RulebookUpdate {
     <#
     .SYNOPSIS
@@ -1405,7 +1358,6 @@ Export-ModuleMember -Function @(
     'Compare-CustomizableFile'
     'Get-ShortSha'
     'Copy-UpdateTree'
-    'Format-TableCell'
     'Get-ComparableContent'
     'Get-DefaultWorkPath'
     'Get-TreeFile'
@@ -1421,7 +1373,6 @@ Export-ModuleMember -Function @(
     'Get-RulebookUpdatePlan'
     'Get-RulebookUpdateStatus'
     'Get-TemplateContentSha'
-    'Limit-SummaryText'
     'Publish-RulebookUpdate'
     'Update-RulebookSettingsText'
 )

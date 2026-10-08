@@ -53,56 +53,19 @@ Import-Module (Join-Path $modules 'Rulebook.GitHub.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Update.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Quarantine.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Scan.psd1') -Force
+Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
 $docsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
 
-# The helpers below are copies of CheckForUpdates.ps1 (a shared action helper module is #58, WP12).
-function Format-AnnotationText {
-    # Workflow command escaping: the message part escapes %, CR and LF; a property value also : and ,.
-    param([AllowNull()][string]$Text, [switch]$Property)
-    if ($null -eq $Text) { return '' }
-    $escaped = $Text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
-    if ($Property) { $escaped = $escaped.Replace(':', '%3A').Replace(',', '%2C') }
-    return $escaped
-}
-
-function ConvertTo-SingleLine {
-    # A message on one Markdown line (list item or paragraph); no table escaping.
-    param([AllowNull()][string]$Text)
-    if ([string]::IsNullOrEmpty($Text)) { return '' }
-    return $Text.Replace("`r", ' ').Replace("`n", ' ')
-}
-
-function Add-Annotation {
-    param([ValidateSet('error', 'warning', 'notice')][string]$Command = 'error', [string]$File, [string]$Title = 'ScanDiagnostics', [Parameter(Mandatory)][string]$Message)
-    $properties = "title=$(Format-AnnotationText $Title -Property)"
-    if ($File) { $properties = "file=$(Format-AnnotationText $File -Property),$properties" }
-    $line = "::$Command $properties::$(Format-AnnotationText $Message)"
-    $script:annotations.Add($line)
-    Write-Host $line
-}
-
-function Write-Text {
-    param([AllowNull()][string]$Path, [Parameter(Mandatory)][AllowEmptyString()][string]$Text)
-    if ([string]::IsNullOrEmpty($Path)) { return }
-    [System.IO.File]::AppendAllText($Path, $Text.Replace("`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
-}
-
 # [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
-$resolvePath = { param($Path) if ([string]::IsNullOrEmpty($Path)) { $Path } else { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) } }
-$SummaryPath = & $resolvePath $SummaryPath
+$SummaryPath = Resolve-ActionPath $SummaryPath
 $ownWork = [string]::IsNullOrEmpty($WorkPath)
 if ($ownWork) {
     $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
     $WorkPath = Join-Path $tempRoot ('rulebook-scan-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
 }
-$WorkPath = & $resolvePath $WorkPath
-$script:annotations = [System.Collections.Generic.List[string]]::new()
-$script:failure = $null
-function Add-Failure {
-    param([Parameter(Mandatory)][string]$Kind)
-    if ($null -eq $script:failure) { $script:failure = $Kind }
-}
+$WorkPath = Resolve-ActionPath $WorkPath
+$ctx = New-ActionContext -Title 'ScanDiagnostics'
 
 # Every token obtained by an exchange is masked before anything can print it.
 $maskToken = { param([string]$Value) if (-not [string]::IsNullOrEmpty($Value)) { Write-Host "::add-mask::$Value" } }
@@ -134,7 +97,7 @@ try {
     try {
         $null = Get-QuarantinePolicy -Settings $settings
     } catch {
-        Add-Failure 'policy'
+        Add-Failure -Context $ctx -Kind 'policy'
         throw
     }
 
@@ -142,11 +105,11 @@ try {
     $access = $null
     if (-not $DryRun) {
         if (-not [string]::IsNullOrEmpty($name) -and -not $nameValid) {
-            Add-Failure 'token'
+            Add-Failure -Context $ctx -Kind 'token'
             throw "ghTokenWorkflowSecretName '$name' in .github/Rulebook-Settings.json is not a valid secret name (letters, digits and underscores, not starting with a digit or GITHUB_). Read $docsUrl"
         }
         if ([string]::IsNullOrWhiteSpace($Token)) {
-            Add-Failure 'token'
+            Add-Failure -Context $ctx -Kind 'token'
             throw "The $secretName secret is needed to scan diagnostics. Read $docsUrl"
         }
         if ([string]::IsNullOrEmpty($Repository)) { throw 'The scan needs the repository (GITHUB_REPOSITORY) as owner/name.' }
@@ -154,7 +117,7 @@ try {
         try {
             $access = Get-GitHubAccessToken -Token $Token -Repository $Repository -ApiUrl $ApiUrl
         } catch {
-            Add-Failure 'token'
+            Add-Failure -Context $ctx -Kind 'token'
             throw "The $secretName secret could not be used: $($_.Exception.Message)"
         }
         if (-not [string]::IsNullOrEmpty($access.Token)) { & $maskToken $access.Token }
@@ -167,7 +130,7 @@ try {
     foreach ($item in $plan.Scanned) { Write-Host "Scanned $($item.PackageId) $($item.Version) ($($item.Channel)): $($item.Records.Records.Count) ids, $(@($item.Diff.NewIds).Count) new, $($item.Extraction.ElapsedSeconds) s in the child process on .NET $($item.Extraction.Runtime)" }
     foreach ($note in $plan.Notes) { Write-Host "Note: $note" }
     if ($plan.Failure) {
-        Add-Failure $plan.Failure
+        Add-Failure -Context $ctx -Kind $plan.Failure
         $what = switch ($plan.Failure) { 'nuget' { 'The NuGet packages could not be read' } 'extract' { 'The diagnostics could not be extracted' } default { 'The scan failed' } }
         throw "$what`: $($plan.FailureMessage)"
     }
@@ -176,7 +139,7 @@ try {
         # 5. Nothing new.
         $versions = @($plan.Channels | ForEach-Object { "$($_.PackageId) $($_.Stable) stable" + $(if ($_.Prerelease) { ", $($_.Prerelease) prerelease" } else { '' }) })
         $summaryMessage = "No new package version ($($versions -join '; ')); nothing to do"
-        Add-Annotation -Command notice -Message $summaryMessage
+        Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
         $result = 'nothing-new'
     } elseif (-not $plan.Valid) {
         # 6. The candidate does not validate.
@@ -187,19 +150,19 @@ try {
                 $message += "; add $($finding.Id) to catalog/diagnostics.json or remove it from $($finding.File); the scan writes catalog/scan-state.json, which turns the C7 warning into an error"
             }
             $file = if ($finding.File) { [System.IO.Path]::GetRelativePath($workspace, (Join-Path $root $finding.File)).Replace($separator, '/') } else { $null }
-            Add-Annotation -File $file -Title $finding.Rule -Message "The scanned rulebook would not validate: $message"
+            Add-Annotation -Context $ctx -File $file -Title $finding.Rule -Message "The scanned rulebook would not validate: $message"
         }
-        Add-Failure 'validation'
+        Add-Failure -Context $ctx -Kind 'validation'
         $summaryMessage = 'The scanned rulebook does not validate; nothing was pushed. The findings come from the repository after the scan.'
         $failed = $true
     } elseif ($DryRun) {
         # 7. Dry run.
         $summaryMessage = "Dry run: $(Get-ScanTitle -Plan $plan); nothing was pushed"
-        Add-Annotation -Command notice -Message $summaryMessage
+        Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
         $result = 'dry-run'
     } else {
         # 8. Publish.
-        if (-not $plan.HeadSha) { Add-Annotation -Command warning -Message 'base-move guard inactive: the checkout HEAD could not be read' }
+        if (-not $plan.HeadSha) { Add-Annotation -Context $ctx -Command warning -Message 'base-move guard inactive: the checkout HEAD could not be read' }
         $labels = [string[]]@(& $setting 'commitOptions', 'pullRequestLabels' | Where-Object { $_ -is [string] -and $_ -ne '' })
         try {
             $publishParameters = @{
@@ -210,7 +173,7 @@ try {
         } catch {
             $stage = [string]$_.Exception.Data['Stage']
             if ($stage -cnotin 'push', 'pull-request') { $stage = 'push' }
-            Add-Failure $stage
+            Add-Failure -Context $ctx -Kind $stage
             # The base branch moved between plan and publish: nothing is wrong with the token, the next run picks it up.
             if ([string]$_.Exception.Data['Reason'] -ceq 'base-moved') { throw $_.Exception.Message }
             $what = if ($stage -eq 'pull-request') { 'Failed to create or update the scan pull request' } else { 'Failed to push the scan' }
@@ -223,12 +186,12 @@ try {
             'pull-request-updated' { $summaryMessage = "Pull request updated: $($publish.PullRequestUrl)" }
             default { $summaryMessage = "Pull request: $($publish.PullRequestUrl)" + $(if ($publish.Fallback) { ' (the direct commit was refused)' } else { '' }) }
         }
-        Add-Annotation -Command notice -Message $summaryMessage
-        if ($publish.PSObject.Properties['ClosedPullRequestUrl'] -and $publish.ClosedPullRequestUrl) { Add-Annotation -Command notice -Message "Pull request closed: $($publish.ClosedPullRequestUrl)" }
+        Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
+        if ($publish.PSObject.Properties['ClosedPullRequestUrl'] -and $publish.ClosedPullRequestUrl) { Add-Annotation -Context $ctx -Command notice -Message "Pull request closed: $($publish.ClosedPullRequestUrl)" }
     }
 } catch {
-    Add-Annotation -Message $_.Exception.Message
-    Add-Failure 'error'
+    Add-Annotation -Context $ctx -Message $_.Exception.Message
+    Add-Failure -Context $ctx -Kind 'error'
     $summaryMessage = $_.Exception.Message
     $failed = $true
 } finally {
@@ -260,18 +223,16 @@ $outputs = [ordered]@{
     pullRequestUrl  = $(if ($null -ne $publish -and $publish.PullRequestUrl) { $publish.PullRequestUrl } elseif ($null -ne $publish -and $publish.PSObject.Properties['ClosedPullRequestUrl'] -and $publish.ClosedPullRequestUrl) { $publish.ClosedPullRequestUrl } else { '' })
     candidatePath   = $(if ($null -ne $plan -and $plan.CandidatePath -and $result -eq 'dry-run') { $plan.CandidatePath } else { '' })
     elapsedSeconds  = [math]::Round($watch.Elapsed.TotalSeconds, 1).ToString([System.Globalization.CultureInfo]::InvariantCulture)
-    failure         = $script:failure
+    failure         = $ctx.Failure
 }
-if ($env:GITHUB_OUTPUT) {
-    Write-Text -Path $env:GITHUB_OUTPUT -Text ((@($outputs.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "`n") + "`n")
-}
+Write-ActionOutput -Outputs $outputs
 [pscustomobject]@{
     ExitCode    = $(if ($failed) { 1 } else { 0 })
     Result      = $outputs.result
-    Failure     = $script:failure
+    Failure     = $ctx.Failure
     Plan        = $plan
     Publish     = $publish
-    Annotations = $script:annotations.ToArray()
+    Annotations = $ctx.Annotations.ToArray()
     Summary     = $summary
     Outputs     = $outputs
 }

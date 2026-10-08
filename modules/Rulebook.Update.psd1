@@ -12,7 +12,6 @@
         'Compare-CustomizableFile'
         'Get-ShortSha'
         'Copy-UpdateTree'
-        'Format-TableCell'
         'Get-ComparableContent'
         'Get-DefaultWorkPath'
         'Get-TreeFile'
@@ -28,7 +27,6 @@
         'Get-RulebookUpdatePlan'
         'Get-RulebookUpdateStatus'
         'Get-TemplateContentSha'
-        'Limit-SummaryText'
         'Publish-RulebookUpdate'
         'Update-RulebookSettingsText'
     )

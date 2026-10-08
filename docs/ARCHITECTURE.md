@@ -242,7 +242,7 @@ A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`,
 
 **Validate action**
 
-`actions/Validate/action.yaml` is a composite action. Inputs: `repositoryRoot` (default `.`), `failOnWarning` (default `'false'`), `checkForUpdates` (default `'true'`, the template update check of section 7.3 in check mode). Outputs: `errors`, `warnings`. One `pwsh` step receives the inputs and the read-only `GITHUB_TOKEN` through `env:` and runs `Validate.ps1` from `GITHUB_ACTION_PATH`, which imports the modules from `../../modules` of the same engine checkout, and exits with its `ExitCode`.
+`actions/Validate/action.yaml` is a composite action. Inputs: `repositoryRoot` (default `.`), `failOnWarning` (default `'false'`), `checkForUpdates` (default `'true'`, the template update check of section 7.3 in check mode). Outputs: `errors`, `warnings`. One `pwsh` step receives the inputs and the read-only `GITHUB_TOKEN` through `env:` and runs `Validate.ps1` from `GITHUB_ACTION_PATH`, which imports the modules from `../../modules` of the same engine checkout, and exits with its `ExitCode`. Like the entry scripts of the other actions, `Validate.ps1` writes its annotations, summary and outputs through `modules/Rulebook.Action` (#58), a leaf module without engine imports.
 
 `Validate.ps1` (`-RepositoryRoot`, `-FailOnWarning`, `-CheckForUpdates`, `-DiffRef`, `-SummaryPath`, `-JsonPath`, `-WorkspaceRoot`, and the test seams `-TemplatePath`, `-InstalledTemplatePath`, `-ApiUrl`, `-UpdateWorkPath`) never calls `exit` and returns `{ ExitCode, Findings, Diff, Summary, Annotations, DiffRef, UpdateCheck }`:
 
