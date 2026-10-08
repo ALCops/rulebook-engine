@@ -41,8 +41,6 @@ Import-Module (Join-Path $modules 'Rulebook.Generate.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Publish.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
-# [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
-$SummaryPath = Resolve-ActionPath $SummaryPath
 $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
 if ([string]::IsNullOrEmpty($StagingPath)) { $StagingPath = Join-Path $tempRoot 'rulebook-publish' }
 # The manifest sits next to the staging folder, never inside it, so it is not published.

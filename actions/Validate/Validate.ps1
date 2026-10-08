@@ -49,8 +49,7 @@ function Test-GitRef {
     return $LASTEXITCODE -eq 0
 }
 
-# [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
-$SummaryPath = Resolve-ActionPath $SummaryPath
+# Test-Rulebook writes -Json with [System.IO.File], which resolves a relative path against the process directory.
 $JsonPath = Resolve-ActionPath $JsonPath
 $ctx = New-ActionContext -Title 'Validate'
 $root = (Resolve-Path -LiteralPath $RepositoryRoot).ProviderPath
@@ -170,7 +169,7 @@ if ($null -ne $diffNote) {
 $summaryText = $summary.ToString().Replace("`r`n", "`n")
 # The runner caps a step summary at 1 MiB; stay well below it.
 $summaryLimit = $SummaryLimit
-$summaryText = Limit-SummaryText -Text $summaryText -MaxBytes $summaryLimit -Footer 'The summary was truncated at 900 KiB; the -JsonPath file and the annotations above have the findings.'
+$summaryText = Limit-SummaryText -Text $summaryText -MaxBytes $summaryLimit -Footer "The summary was truncated at $([math]::Round($summaryLimit / 1KB)) KiB; the -JsonPath file and the annotations above have the findings."
 Write-Text -Path $SummaryPath -Text $summaryText
 
 # 5. Update check (WP07): check mode only, never counted, never failing.

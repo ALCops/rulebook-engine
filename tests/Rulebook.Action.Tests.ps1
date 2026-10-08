@@ -167,6 +167,13 @@ Describe 'Write-ActionOutput' {
         Get-Content -LiteralPath $path -Raw | Should-Be "zeta=1`nalpha=two`nfailure=`nflag=false`n"
     }
 
+    It 'writes a value with CR or LF in the heredoc form and a plain value on one line' {
+        $path = Get-TestFile
+        Write-ActionOutput -Path $path -Outputs ([ordered]@{ body = "line 1`nforged=1`r`nline 3"; plain = 'x' })
+        $text = Get-Content -LiteralPath $path -Raw
+        $text | Should-MatchString '\Abody<<(ghadelim_[0-9a-f]{32})\nline 1\nforged=1\nline 3\n\1\nplain=x\n\z'
+    }
+
     It 'defaults to GITHUB_OUTPUT and writes nothing without it' {
         $saved = $env:GITHUB_OUTPUT
         try {

@@ -54,7 +54,7 @@ function New-ActionContext {
     .DESCRIPTION
     Title is the default annotation title (the action name). Annotations collects every workflow command line
     Add-Annotation writes, ErrorMessages the message of every error annotation (unescaped), and Failure holds the
-    first failure kind Add-Failure records ($null until then).
+    first failure kind Add-Failure records ($null until then). Publish lists ErrorMessages in its failure summary.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an object; changes no state')]
     [CmdletBinding()]
@@ -132,8 +132,9 @@ function Write-ActionOutput {
     .SYNOPSIS
     Appends one key=value line per entry of -Outputs, in its order, to -Path (default GITHUB_OUTPUT).
     .DESCRIPTION
-    A value is written as PowerShell interpolates it ($null as ''). Nothing is written when -Path is empty or
-    -Outputs has no entry. Values are expected on one line.
+    A value is written as PowerShell interpolates it ($null as ''). A value with CR or LF is written in the
+    heredoc form, key<<ghadelim_<guid>, the value, the delimiter, so it cannot forge another output line. Nothing
+    is written when -Path is empty or -Outputs has no entry.
     #>
     [CmdletBinding()]
     param(
@@ -142,7 +143,15 @@ function Write-ActionOutput {
     )
     if ([string]::IsNullOrEmpty($Path) -or $Outputs.Count -eq 0) { return }
     $text = [System.Text.StringBuilder]::new()
-    foreach ($entry in $Outputs.GetEnumerator()) { [void]$text.Append("$($entry.Key)=$($entry.Value)`n") }
+    foreach ($entry in $Outputs.GetEnumerator()) {
+        $value = "$($entry.Value)"
+        if ($value.Contains("`r") -or $value.Contains("`n")) {
+            $delimiter = 'ghadelim_' + [guid]::NewGuid().ToString('n')
+            [void]$text.Append("$($entry.Key)<<$delimiter`n$value`n$delimiter`n")
+        } else {
+            [void]$text.Append("$($entry.Key)=$value`n")
+        }
+    }
     Write-Text -Path $Path -Text $text.ToString()
 }
 

@@ -56,8 +56,6 @@ Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
 $docsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
 
-# [System.IO.File] resolves a relative path against the process directory, not the PowerShell location.
-$SummaryPath = Resolve-ActionPath $SummaryPath
 $ownWork = [string]::IsNullOrEmpty($WorkPath)
 if ($ownWork) {
     $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
