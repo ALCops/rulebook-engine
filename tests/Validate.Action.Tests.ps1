@@ -22,6 +22,8 @@ BeforeAll {
     function Invoke-Entry {
         # Runs Validate.ps1 in-process; returns the result object and the console lines (information stream).
         param([hashtable]$Parameters)
+        # The update check follows update.check by default; a test that does not ask for it never downloads a template.
+        if (-not $Parameters.ContainsKey('CheckForUpdates')) { $Parameters.CheckForUpdates = 'false' }
         if (-not $Parameters.ContainsKey('SummaryPath')) { $Parameters.SummaryPath = Join-Path $TestDrive ('summary-{0}.md' -f [guid]::NewGuid().ToString('n')) }
         # Derive = $true leaves -DiffRef unbound, so Validate.ps1 derives it from the event.
         if ($Parameters.ContainsKey('Derive')) { $Parameters.Remove('Derive') } elseif (-not $Parameters.ContainsKey('DiffRef')) { $Parameters.DiffRef = '' }
@@ -55,7 +57,7 @@ Describe 'actions/Validate/action.yaml' {
     It 'declares input <Name> with default <Default>' -ForEach @(
         @{ Name = 'repositoryRoot'; Default = "'.'" }
         @{ Name = 'failOnWarning'; Default = "'false'" }
-        @{ Name = 'checkForUpdates'; Default = "'true'" }
+        @{ Name = 'checkForUpdates'; Default = "''" }
     ) {
         $yaml | Should-MatchString ("(?ms)^  {0}:\n.*?^    default: {1}$" -f $Name, [regex]::Escape($Default))
     }
@@ -238,8 +240,55 @@ Describe 'Validate.ps1' {
             [System.Text.Encoding]::UTF8.GetByteCount($run.Summary) | Should-BeLessThanOrEqual $limit
         }
 
-        It 'runs no update check without -CheckForUpdates' {
+        It 'runs no update check when the input is false' {
             $run = Invoke-Entry @{ RepositoryRoot = $org }
+            $run.Result.UpdateCheck | Should-BeNull
+            $run.Summary | Should-NotMatchString 'Template update check'
+        }
+    }
+
+    Context 'update.check of the settings (#67)' {
+        BeforeAll {
+            $script:v1 = Join-Path $PSScriptRoot 'fixtures' 'templates' 'v1'
+            $script:v2 = Join-Path $PSScriptRoot 'fixtures' 'templates' 'v2'
+
+            function Copy-UpdateOrg {
+                # A copy of update-org; -Check writes update.check into its settings, otherwise the key stays absent.
+                param([AllowNull()][object]$Check)
+                $root = New-FixtureRepo -Name 'update-org' -Destination (Join-Path $TestDrive ([guid]::NewGuid().ToString('n').Substring(0, 12)))
+                if ($PSBoundParameters.ContainsKey('Check')) {
+                    $settingsFile = Join-Path $root '.github' 'Rulebook-Settings.json'
+                    $text = Get-Content -LiteralPath $settingsFile -Raw
+                    $updated = $text.Replace('"update": { "schedule": "0 6 * * 1" }', ('"update": {{ "schedule": "0 6 * * 1", "check": {0} }}' -f $Check.ToString().ToLowerInvariant()))
+                    $updated | Should-NotBe $text
+                    Write-FixtureText -Path $settingsFile -Text $updated
+                }
+                return $root
+            }
+        }
+
+        It 'runs the check when the input is empty and update.check is absent' {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-UpdateOrg); CheckForUpdates = ''; TemplatePath = $v2; InstalledTemplatePath = $v1 }
+            $run.Result.UpdateCheck.Status | Should-Be 'available'
+            $run.Lines | Should-NotContainCollection @('Update check off (update.check is false)')
+        }
+
+        It 'turns the check off with update.check false and says so in the log' {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-UpdateOrg -Check $false); CheckForUpdates = ''; TemplatePath = $v2; InstalledTemplatePath = $v1 }
+            $run.Result.ExitCode | Should-Be 0
+            $run.Result.UpdateCheck | Should-BeNull
+            $run.Lines | Should-ContainCollection @('Update check off (update.check is false)')
+            $run.Summary | Should-NotMatchString 'Template update check'
+        }
+
+        It 'runs the check for an explicit true input although update.check is false' {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-UpdateOrg -Check $false); CheckForUpdates = 'True'; TemplatePath = $v2; InstalledTemplatePath = $v1 }
+            $run.Result.UpdateCheck.Status | Should-Be 'available'
+            $run.Lines | Should-NotContainCollection @('Update check off (update.check is false)')
+        }
+
+        It 'skips the check for an explicit false input although update.check is true' {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-UpdateOrg -Check $true); CheckForUpdates = 'false'; TemplatePath = $v2; InstalledTemplatePath = $v1 }
             $run.Result.UpdateCheck | Should-BeNull
             $run.Summary | Should-NotMatchString 'Template update check'
         }

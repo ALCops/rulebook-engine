@@ -8,9 +8,10 @@ appends a Markdown summary to -SummaryPath, writes the errors and warnings outpu
 { ExitCode, Findings, Diff, Summary, Annotations, DiffRef, UpdateCheck }. ExitCode is 1 when there are errors, or
 warnings with -FailOnWarning. The script never calls exit, so tests run it in-process; action.yaml exits with ExitCode.
 
--CheckForUpdates runs the template update check in check mode (Rulebook.Update): the template of the settings at the
-head of its branch, downloaded with GITHUB_TOKEN (never the write token), or -TemplatePath and -InstalledTemplatePath
-as local folders. One notice (no updates, templateSha not recorded) or warning (updates available, check skipped) and
+-CheckForUpdates 'true' or 'false' (case-insensitive; $true and $false work too) runs or skips the template update
+check; '' (the default) follows update.check of the settings, true when absent. The check runs in check mode
+(Rulebook.Update): the template of the settings at the head of its branch, downloaded with GITHUB_TOKEN (never the
+write token), or -TemplatePath and -InstalledTemplatePath as local folders. One notice (no updates, templateSha not recorded) or warning (updates available, check skipped) and
 the section '## Template update check' in the summary. Neither counts towards warnings= or -FailOnWarning, and the
 check never fails the step. UpdateCheck is { Status (none, sha-only, available, skipped), Reason, Plan }. The check works
 in -UpdateWorkPath when given (left in place afterwards), else in a temporary folder it removes.
@@ -24,7 +25,7 @@ event, a ref that does not resolve, or a diff that fails is a note in the summar
 param(
     [string]$RepositoryRoot = '.',
     [switch]$FailOnWarning,
-    [switch]$CheckForUpdates,
+    [AllowEmptyString()][string]$CheckForUpdates = '',
     [AllowEmptyString()][string]$DiffRef,
     [string]$SummaryPath = $env:GITHUB_STEP_SUMMARY,
     [string]$JsonPath,
@@ -56,6 +57,23 @@ $root = (Resolve-Path -LiteralPath $RepositoryRoot).ProviderPath
 $workspace = if ([string]::IsNullOrEmpty($WorkspaceRoot)) { $root } else { (Resolve-Path -LiteralPath $WorkspaceRoot).ProviderPath }
 $separator = [System.IO.Path]::DirectorySeparatorChar
 $relativeRoot = [System.IO.Path]::GetRelativePath($workspace, $root).Replace($separator, '/')
+
+# The update check: an explicit -CheckForUpdates wins; '' follows update.check of the settings, read leniently (a
+# missing or unreadable settings file, or a value that is not a boolean, leaves the check on; the checks report them).
+$runUpdateCheck = $true
+if (-not [string]::IsNullOrWhiteSpace($CheckForUpdates)) {
+    $runUpdateCheck = $CheckForUpdates.Trim() -ieq 'true'
+} else {
+    try {
+        $settingsForCheck = Get-Content -LiteralPath (Join-Path $root '.github' 'Rulebook-Settings.json') -Raw -ErrorAction Stop | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+        if ($settingsForCheck -is [System.Collections.IDictionary] -and $settingsForCheck['update'] -is [System.Collections.IDictionary] -and $settingsForCheck['update']['check'] -is [bool]) {
+            $runUpdateCheck = $settingsForCheck['update']['check']
+        }
+    } catch {
+        Write-Verbose "Settings not readable for update.check: $($_.Exception.Message)"
+    }
+    if (-not $runUpdateCheck) { Write-Host 'Update check off (update.check is false)' }
+}
 
 # 1. Checks
 $testParameters = @{ RepositoryRoot = $root }
@@ -176,7 +194,7 @@ Write-Text -Path $SummaryPath -Text $summaryText
 
 # 5. Update check (WP07): check mode only, never counted, never failing.
 $updateCheck = $null
-if ($CheckForUpdates) {
+if ($runUpdateCheck) {
     $updateCheck = [pscustomobject]@{ Status = 'skipped'; Reason = $null; Plan = $null }
     $command = 'warning'
     $message = $null
