@@ -66,8 +66,8 @@ Let `cell(id, level, stage)` be the value in `docs/rulebook/matrix/resolved.json
 ## 3. Build-Template.ps1
 
 ```powershell
-pwsh ./tools/rulebook/Build-Template.ps1            # writes the changed files, prints "template: <file> (<change>)" or "template: current"
-pwsh ./tools/rulebook/Build-Template.ps1 -WhatIf    # writes nothing; an empty list means template/ is current
+pwsh ./tools/rulebook/Build-Template.ps1            # writes the changed files, prints "template: <file> (<change>)", "level pages: <path> (<change>)" or "template: current"
+pwsh ./tools/rulebook/Build-Template.ps1 -WhatIf    # writes nothing; an empty list means template/ and docs/levels/ are current
 ```
 
 The wrapper runs, in this order:
@@ -77,8 +77,9 @@ The wrapper runs, in this order:
 3. `Build-RulebookCatalog -RulebookDir docs/rulebook -OutputPath template/catalog/diagnostics.json`
 4. `New-RulebookSkeleton -SettingsPath template/.github/Rulebook-Settings.json -OutputPath template/skeletons`
 5. `Update-RulebookEndpoints -RepositoryRoot template`
+6. `New-RulebookLevelDocs -RepositoryRoot template -OutputPath docs/levels -GeneratedBy tools/rulebook/Build-Template.ps1` (module `Rulebook.Levels`, WP10)
 
-The endpoints come last because they are generated from the files the first steps write. Each function builds and checks all its texts before it writes the first file, but the steps run one after the other: a step that throws leaves the files of the earlier steps written, so fix the input and run the wrapper again. `-RulebookDir` and `-TemplateDir` default to `docs/rulebook` and `template` next to the script. Each function writes only files whose bytes differ, deletes the files of its folder that it no longer produces (`*.ruleset.json` in `base/`, `skeletons/` and `rulesets/`, `*.json` in `stages/`), and returns one change object per file (`File`, `Change`: `created`, `modified`, `deleted`). The hand-written files are never touched.
+The endpoints come after the files they are generated from, and the level pages last because they read the regenerated template like an organization repository. Step 6 writes the one output outside `template/`: one page per shipped level and a `README.md` index in `docs/levels/` of this repository (`-LevelDocsDir`, default `docs/levels` next to the script; D49, [authoring-levels.md](../authoring-levels.md) section 4). Each function builds and checks all its texts before it writes the first file, but the steps run one after the other: a step that throws leaves the files of the earlier steps written, so fix the input and run the wrapper again. `-RulebookDir` and `-TemplateDir` default to `docs/rulebook` and `template` next to the script. Each function writes only files whose bytes differ, deletes the files of its folder that it no longer produces (`*.ruleset.json` in `base/`, `skeletons/` and `rulesets/`, `*.json` in `stages/`, `*.md` in `docs/levels/`), and returns one change object per file (`File`, `Change`: `created`, `modified`, `deleted`). The hand-written files are never touched.
 
 Step 5 reads the settings as an organization repository would, so a settings file the generator cannot handle (a `basedOn` that names no level file, a `twins` value outside `both`, `appsource` and `pte`) stops the wrapper with the Rulebook.Generate error.
 
@@ -89,13 +90,13 @@ Step 5 reads the settings as an organization repository would, so a settings fil
 ```powershell
 pwsh ./tools/rulebook/Build-Matrix.ps1      # when the placement rules or the inventory changed
 pwsh ./tools/rulebook/Test-Rulebook.ps1     # V1 to V14
-pwsh ./tools/rulebook/Build-Template.ps1    # regenerate template/
+pwsh ./tools/rulebook/Build-Template.ps1    # regenerate template/ and docs/levels/
 Invoke-Pester -Path ./tests -Output Detailed
 ```
 
-Commit `docs/rulebook/` and `template/` together. The checks that catch a forgotten regeneration:
+Commit `docs/rulebook/`, `template/` and `docs/levels/` together. The checks that catch a forgotten regeneration:
 
-- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and expects no change. It also copies the 12 hand-written files into a scratch folder, runs the wrapper there, and compares every file byte for byte with the committed one.
+- `tests/Rulebook.Template.Tests.ps1` runs `Build-Template.ps1 -WhatIf` on the committed `template/` and `docs/levels/` and expects no change. It also copies the 12 hand-written files into a scratch folder, runs the wrapper there with `-LevelDocsDir` pointing at a second folder outside the scratch copy, expects `levels + 1 + (stages - 1) + 1 + 2 x levels x stages + (levels + 1)` created files, and compares every file byte for byte with the committed `template/` and `docs/levels/`. A further case checks that `docs/levels/` holds exactly `README.md` and one page per template level and that each page's counts rows equal the rows of `docs/rulebook/README.md` section 4 (V14).
 - The same suite composes every cell of `resolved.json` from the committed files with `Get-EffectiveAction` (V13 on disk), checks the entry counts against `matrix/counts.md` and the Listed column, and runs `Test-Rulebook` on `template/`.
 - CI runs the Validate action on `template/` with `failOnWarning`, which includes the regeneration check C12 for `rulesets/`.
 
