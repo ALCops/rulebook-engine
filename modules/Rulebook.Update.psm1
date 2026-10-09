@@ -1226,7 +1226,9 @@ function ConvertTo-UpdateSummary {
         [void]$text.AppendLine('## Effective diff').AppendLine().AppendLine($diffNote).AppendLine()
     } elseif ($null -ne $Result -and @($Result.Diff).Count -gt 0) {
         [void]$text.AppendLine('## Effective diff').AppendLine()
-        [void]$text.Append((@(Get-EffectiveDiffBlock -Diff @($Result.Diff)) -join ''))
+        # Get-EffectiveDiffBlock returns its array with a comma; @() around it would nest it and print System.String[] (#75).
+        [string[]]$blocks = Get-EffectiveDiffBlock -Diff @($Result.Diff)
+        [void]$text.Append(($blocks -join ''))
     }
     if ($Plan.ReleaseNotesShipped -and -not [string]::IsNullOrWhiteSpace($Plan.ReleaseNotes)) {
         [void]$text.AppendLine('## Release notes').AppendLine().AppendLine((ConvertTo-ReleaseNotesMarkdown -Text $Plan.ReleaseNotes)).AppendLine()

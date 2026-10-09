@@ -1086,6 +1086,14 @@ Describe 'ConvertTo-UpdatePullRequestBody and ConvertTo-UpdateSummary' {
         $summary | Should-MatchString '(?m)^## Release notes\n\n### v1\.1$'
     }
 
+    It 'writes the effective diff tables into the summary, not System.String[] (#75)' {
+        $row = [pscustomobject]@{ Endpoint = 'recommended.default'; File = 'rulesets/recommended.ruleset.json'; Id = 'LC0031'; Before = 'Warning'; After = 'Error'; BeforeSource = 'default'; AfterSource = 'level:recommended'; AfterDetail = $null; Change = 'action'; ListedAfter = $true }
+        $result = [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/3'; Fallback = $false; Diff = @($row) }
+        $summary = ConvertTo-UpdateSummary -Plan $plan -Result $result -Mode update
+        $summary | Should-MatchString '(?m)^## Effective diff\n\n### `recommended\.default` \(`rulesets/recommended\.ruleset\.json`\)\n\n\| Id \| Before \| After \| Decided by \|\n\|---\|---\|---\|---\|\n\| LC0031 \| Warning \| Error \| level:recommended \|$'
+        $summary | Should-NotMatchString 'System\.String\[\]'
+    }
+
     It 'writes the check summary with the change table' {
         $summary = ConvertTo-UpdateSummary -Plan $plan -Mode check -Message 'Updates available'
         $summary | Should-MatchString '(?m)^## Template update check$'
