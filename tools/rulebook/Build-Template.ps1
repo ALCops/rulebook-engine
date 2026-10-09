@@ -11,7 +11,9 @@
   whose bytes differ and prints one line per change, or "template: current". Outputs the change objects. With
   -WhatIf nothing is written and the changes are still listed: on the committed template/ and docs/levels/ an empty
   list means both are current. -LevelDocsDir must be a folder of generated pages only: New-RulebookLevelDocs
-  refuses a folder holding any other Markdown file. The hand-written files (the settings, overrides.json, the
+  refuses a folder holding any other Markdown file. -WhatIf is a drift check for a committed state, not a preview of a
+  pending matrix change: each step reads the files on disk, so the level pages (like the endpoints) show their change
+  only once template/ is regenerated. Run without -WhatIf, then inspect git status. The hand-written files (the settings, overrides.json, the
   quarantine files, README.md and the workflows) are never touched. See docs/reference/template-content.md and
   docs/authoring-levels.md.
 #>

@@ -105,6 +105,7 @@ if (-not (Test-Path -LiteralPath $settingsPath -PathType Leaf) -or -not (Test-Pa
 }
 $slug = $Name.ToLowerInvariant()
 if ($slug -cnotmatch '^[a-z0-9-]+\z') { throw "Level name '$Name' does not lowercase to a slug matching ^[a-z0-9-]+$ (C5)" }
+if ($slug -ceq 'readme') { throw "Level '$Name' cannot have a page: its slug collides with the index README.md" }
 
 # 2. The catalog: every id enabled by default, sorted by the diagnostic sort key.
 try {

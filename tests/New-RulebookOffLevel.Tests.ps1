@@ -119,6 +119,19 @@ Describe 'New-RulebookOffLevel.ps1' {
         { Invoke-Script @{ RepositoryRoot = $folder } } | Should-Throw -ExceptionMessage 'Run the script from the root of a clone of your rulebook repository (the folder with .github/Rulebook-Settings.json and catalog/diagnostics.json): *'
     }
 
+    It 'refuses the slug readme like the module' {
+        $message = "Level 'README' cannot have a page: its slug collides with the index README.md"
+        { Invoke-Script @{ RepositoryRoot = (Copy-Fixture); Name = 'README' } } | Should-Throw -ExceptionMessage $message
+        { New-RulebookOffLevel -RepositoryRoot (Copy-Fixture) -Name 'README' } | Should-Throw -ExceptionMessage $message
+    }
+
+    It 'refuses a catalog entry without an id (each with its own reader message)' {
+        $root = Copy-Fixture
+        Edit-FixtureJson -Path (Join-Path $root 'catalog' 'diagnostics.json') -Script { $_['diagnostics'][1].Remove('id') }
+        { Invoke-Script @{ RepositoryRoot = $root } } | Should-Throw -ExceptionMessage 'catalog/diagnostics.json has an entry without an id'
+        { New-RulebookOffLevel -RepositoryRoot $root } | Should-Throw -ExceptionMessage '*has an entry without an id'
+    }
+
     It 'refuses a name that is not a slug' {
         { Invoke-Script @{ RepositoryRoot = (Copy-Fixture); Name = 'Bad Name' } } | Should-Throw -ExceptionMessage ([WildcardPattern]::Escape("Level name 'Bad Name' does not lowercase to a slug matching ^[a-z0-9-]+$ (C5)"))
     }
@@ -155,6 +168,9 @@ Describe 'New-RulebookOffLevel.ps1' {
         foreach ($prefix in $prefixes) { $ids.Add('{0}0002' -f $prefix); $ids.Add('{0}0001' -f $prefix) }
         $ids.Add('LC0089i')
         $ids.Add('LC0089')
+        # Seven digits and an id outside the pattern sort after every other id.
+        $ids.Add('al-x')
+        $ids.Add('AL1234567')
         $lines = @($ids | ForEach-Object { '    { "id": "' + $_ + '", "defaultSeverity": "Warning", "enabledByDefault": true }' })
         $root = Get-TestFolder
         Write-FixtureText -Path (Join-Path $root 'catalog' 'diagnostics.json') -Text ("{`n  `"version`": 1,`n  `"diagnostics`": [`n" + ($lines -join ",`n") + "`n  ]`n}")
@@ -162,7 +178,7 @@ Describe 'New-RulebookOffLevel.ps1' {
         Assert-SameAsModule -Root $root -Count $ids.Count
         $written = @((Get-Content -LiteralPath (Join-Path $root 'base' 'off.ruleset.json') -Raw | ConvertFrom-Json).rules | ForEach-Object id)
         $written[0] | Should-Be "$($prefixes[0])0001"
-        $written[-1] | Should-Be 'ZZ0001'
+        $written[-3..-1] | Should-BeCollection @('ZZ0001', 'AL1234567', 'al-x')
         [array]::IndexOf($written, 'LC0089i') | Should-Be ([array]::IndexOf($written, 'LC0089') + 1)
     }
 }
