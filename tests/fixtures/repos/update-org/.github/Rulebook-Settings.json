@@ -21,6 +21,7 @@
   "ghTokenWorkflowSecretName": "GHTOKENWORKFLOW",
   "commitOptions": { "createPullRequest": true, "pullRequestLabels": ["rulebook"] },
   "site": { "enabled": true, "includeJustifications": false, "updateMode": "skip" },
+  "docs": { "updateMode": "skip" },
   "update": { "schedule": "0 6 * * 1" },
   "unusedRulebookFiles": [".github/workflows/Legacy.yaml", "site/layouts/legacy.html"]
 }
