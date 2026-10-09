@@ -146,6 +146,7 @@ try {
             $template = Get-RulebookTemplate @templateParameters
         }
         Write-Host "Template: $($template.Repo) at $($template.Sha) ($($template.Source))"
+        Write-Host (Get-InstalledTemplateLine -Template $template)
         $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $WorkPath
     } catch {
         if ($Update) {

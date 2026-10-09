@@ -1002,6 +1002,34 @@ Describe 'Get-RulebookTemplate (download)' {
             Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/zipball/*' }
         }
 
+        It 'names the API route in the notes and stops the template walk at the page with the match' {
+            Mock Get-RepositoryRootTree -ModuleName Rulebook.Update { [pscustomobject]@{ TreeShas = [string[]]@('T1'); Source = 'api'; Note = 'root from the last page' } }
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $template.InstalledSource | Should-Be 'recovered'
+            $template.Notes[0] | Should-Be 'root from the last page'
+            $template.Notes[1] | Should-BeLikeString '*was recovered*'
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/commits?*' }
+        }
+
+        It 'says the template commit list was capped when no commit matched' {
+            Mock Get-RepositoryRootTree -ModuleName Rulebook.Update { [pscustomobject]@{ TreeShas = [string[]]@('T9'); Source = 'git'; Note = $null } }
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like 'repos/Contoso/rulebook-template/commits?*' } {
+                [pscustomobject]@{ StatusCode = 200; Body = @(for ($i = 0; $i -lt 100; $i++) { Get-CommitItem ('{0:x40}' -f $i) 'Tx' }); Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $template.InstalledSource | Should-Be 'none'
+            $template.Notes[0] | Should-BeLikeString '*in the last 1000 commits (list capped at 1000 commits) has the tree*'
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 10 -Exactly -ParameterFilter { $Path -like '*/commits?*' }
+        }
+
+        It 'gives the log line on the installed template' -ForEach @(
+            @{ Source = 'recorded'; Sha = 'a' * 40; Line = 'Installed template: recorded aaaaaaa' }
+            @{ Source = 'recovered'; Sha = 'b' * 40; Line = 'Installed template: recovered bbbbbbb from the root commit' }
+            @{ Source = 'none'; Sha = $null; Line = 'Installed template: not known' }
+        ) {
+            Get-InstalledTemplateLine -Template ([pscustomobject]@{ InstalledSource = $Source; InstalledSha = $Sha }) | Should-Be $Line
+        }
+
         It 'keeps the behaviour without an installed template when no commit has the root tree' {
             Mock Get-RepositoryRootTree -ModuleName Rulebook.Update { [pscustomobject]@{ TreeShas = [string[]]@('T9'); Source = 'git'; Note = $null } }
             $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
@@ -1121,6 +1149,7 @@ Describe 'Get-RepositoryRootTree' -Skip:$gitMissing {
         $result = Get-RepositoryRootTree -RepositoryRoot $shallowRepo -Repository 'Contoso/rulebook' -Ref ('f' * 40) -Token 'gh'
         $result.TreeShas | Should-BeCollection @($rootTree)
         $result.Source | Should-Be 'api'
+        $result.Note | Should-Be "The repository's root commit was taken from the last page of its commits list (no full git history in the checkout); a repository with more than one root commit, or with commit dates out of order, may not match."
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq "repos/Contoso/rulebook/commits?sha=$('f' * 40)&per_page=100&page=2" -and $Token -eq 'gh' }
     }
 
@@ -1128,7 +1157,7 @@ Describe 'Get-RepositoryRootTree' -Skip:$gitMissing {
         $result = Get-RepositoryRootTree -RepositoryRoot $shallowRepo -Repository 'Contoso/rulebook' -Ref 'main' -MaxPages 1
         $result.TreeShas | Should-BeNull
         $result.Source | Should-BeNull
-        $result.Note | Should-Be "The repository's root commit could not be found (Contoso/rulebook has more than 100 commits, the most the update reads)."
+        $result.Note | Should-Be "The repository's root commit could not be found (Contoso/rulebook has at least 100 commits, the most the update reads)."
     }
 
     It 'notes a failing API call' {

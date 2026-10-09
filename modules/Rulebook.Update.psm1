@@ -399,9 +399,10 @@ function Get-RepositoryRootTree {
     .DESCRIPTION
     The local route first: Get-GitRootTree on -RepositoryRoot (a full clone; a shallow one is skipped). Else, with
     -Repository (owner/name), the REST walk of its commits at -Ref (empty: the default branch) to the last page with
-    -Token, at most -MaxPages pages of 100; the last commit of the last page is the root. Else TreeShas is $null and
-    Note says why ("The repository's root commit could not be found (...)."); a failing call becomes that note, it
-    never throws. Off GitHub (-Repository empty) only the local route runs. Used by Get-RulebookTemplate (D50).
+    -Token, at most -MaxPages pages of 100; the last commit of the last page is taken as the root, and Note says so
+    (a repository with several root commits, or with commit dates out of order, may not match). Else TreeShas is
+    $null and Note says why ("The repository's root commit could not be found (...)."); a failing call becomes that
+    note, it never throws. Off GitHub (-Repository empty) only the local route runs. Used by Get-RulebookTemplate (D50).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -428,13 +429,13 @@ function Get-RepositoryRootTree {
         return & $result $null $null "The repository's root commit could not be found ($($_.Exception.Message))."
     }
     if ($list.Truncated) {
-        return & $result $null $null "The repository's root commit could not be found ($Repository has more than $($MaxPages * 100) commits, the most the update reads)."
+        return & $result $null $null "The repository's root commit could not be found ($Repository has at least $($MaxPages * 100) commits, the most the update reads)."
     }
     $commits = @($list.Commits)
     if ($commits.Count -eq 0 -or [string]::IsNullOrEmpty($commits[-1].TreeSha)) {
         return & $result $null $null "The repository's root commit could not be found (the API listed no commits of $Repository)."
     }
-    return & $result ([string[]]@($commits[-1].TreeSha)) 'api' $null
+    return & $result ([string[]]@($commits[-1].TreeSha)) 'api' "The repository's root commit was taken from the last page of its commits list (no full git history in the checkout); a repository with more than one root commit, or with commit dates out of order, may not match."
 }
 
 function Get-RulebookTemplate {
@@ -558,16 +559,18 @@ function Get-RulebookTemplate {
         if ($null -eq $rootTree.TreeShas -or @($rootTree.TreeShas).Count -eq 0) {
             $notes.Add("$unrecovered $($rootTree.Note) The $consequence")
         } else {
+            if ($rootTree.Note) { $notes.Add($rootTree.Note) }
             try {
-                # The token that read the new template; no second exchange.
-                $list = Get-GitHubCommitList -Repository $info.Repo -Ref $info.Branch -Token $state.Token -ApiUrl $ApiUrl
+                # The token that read the new template; no second exchange. The walk stops at the page with a match.
+                $list = Get-GitHubCommitList -Repository $info.Repo -Ref $info.Branch -Token $state.Token -ApiUrl $ApiUrl -TreeSha @($rootTree.TreeShas)
                 $match = @($list.Commits | Where-Object { $_.TreeSha -cin @($rootTree.TreeShas) } | Select-Object -First 1)
                 if ($match.Count -eq 1) {
                     $installed = $match[0].Sha
                     $installedSource = 'recovered'
                     $notes.Add("templateSha is empty; the installed template commit $(Get-ShortSha $installed) was recovered from the repository's root commit (tree $(Get-ShortSha $match[0].TreeSha)).")
                 } else {
-                    $notes.Add("$unrecovered no commit of $($info.Repo)@$($info.Branch) in the last $(@($list.Commits).Count) commits has the tree of the repository's root commit; $consequence")
+                    $cap = if ($list.Truncated) { " (list capped at $(@($list.Commits).Count) commits)" } else { '' }
+                    $notes.Add("$unrecovered no commit of $($info.Repo)@$($info.Branch) in the last $(@($list.Commits).Count) commits$cap has the tree of the repository's root commit; $consequence")
                 }
             } catch {
                 $notes.Add("$unrecovered the commits of $($info.Repo)@$($info.Branch) could not be listed ($($_.Exception.Message)); $consequence")
@@ -604,6 +607,24 @@ function Get-RulebookTemplate {
         InstalledSource = $installedSource
         Source          = 'download'
         Notes           = $notes.ToArray()
+    }
+}
+
+function Get-InstalledTemplateLine {
+    <#
+    .SYNOPSIS
+    The log line on the installed template of a Rulebook.Template: 'Installed template: recorded <sha7>',
+    'Installed template: recovered <sha7> from the root commit' or 'Installed template: not known' (D50).
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)]$Template)
+    $source = if ($Template.PSObject.Properties['InstalledSource']) { [string]$Template.InstalledSource } else { '' }
+    $sha = Get-ShortSha ([string]$Template.InstalledSha)
+    switch ($source) {
+        'recorded' { return "Installed template: recorded $sha" }
+        'recovered' { return "Installed template: recovered $sha from the root commit" }
+        default { return 'Installed template: not known' }
     }
 }
 
@@ -1471,6 +1492,7 @@ Export-ModuleMember -Function @(
     'Get-ReleaseNotesDelta'
     'Get-EffectiveDiffBlock'
     'Get-RulebookFileClass'
+    'Get-InstalledTemplateLine'
     'Get-RepositoryRootTree'
     'Get-RulebookTemplate'
     'Get-RulebookUpdatePlan'

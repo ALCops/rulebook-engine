@@ -226,6 +226,7 @@ if ($runUpdateCheck) {
             $template = Get-RulebookTemplate -TemplateUrl $templateUrl -GitHubToken $env:GITHUB_TOKEN -DownloadLatest -InstalledSha ([string](& $value 'templateSha')) -WorkPath $work -ApiUrl $ApiUrl `
                 -RepositoryRoot $root -Repository $env:GITHUB_REPOSITORY -Ref $env:GITHUB_SHA -RepositoryToken $env:GITHUB_TOKEN
         }
+        Write-Host (Get-InstalledTemplateLine -Template $template)
         $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $work
         $status = Get-RulebookUpdateStatus -Plan $plan
         $updateCheck = [pscustomobject]@{ Status = $status.Status; Reason = $(if ($status.Status -eq 'skipped') { $status.Message }); Plan = $plan }

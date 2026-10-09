@@ -171,6 +171,7 @@ Describe 'CheckForUpdates.ps1' {
         $run = Invoke-Entry @{ RepositoryRoot = $root; TemplatePath = (Join-Path $templates 'v2') }
         $run.Result.ExitCode | Should-Be 0
         $run.Result.Plan.InstalledSource | Should-Be 'none'
+        $run.Lines | Should-ContainCollection @('Installed template: not known')
         $run.Summary | Should-MatchString '(?m)^## Skipped: local changes$'
         $run.Summary | Should-BeLikeString '*The installed template commit is not recorded in templateSha and could not be recovered*'
         $run.Summary | Should-MatchString '(?m)^- `docs/getting-started\.md`: no installed template$'
