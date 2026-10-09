@@ -59,31 +59,53 @@ function Get-MarkdownAnchor {
 }
 
 function Get-MarkdownLinkTarget {
-    # The targets of inline links and images ([text](target), ![alt](target), an optional "title") and of reference
-    # definitions ([label]: target), in page order.
+    # The link targets of a page, in kind order: inline links and images ([text](target), ![alt](target), with an
+    # optional "title" and one level of balanced parentheses in the target), reference links ([text][label], [label][])
+    # resolved through their definitions (a label without a definition gives '[label]', reported as broken), the
+    # reference definitions themselves ([label]: target), HTML <a href> and <img src>, and autolinks of a relative
+    # file (<other.md>, <docs/x.md#y>).
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Prose)
     $targets = [System.Collections.Generic.List[string]]::new()
-    foreach ($match in [regex]::Matches($Prose, '!?\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(\s*(?:<([^>]*)>|([^\s)]+))(?:\s+(?:"[^"]*"|''[^'']*''))?\s*\)')) {
+    $text = '(?:[^\[\]]|\[[^\[\]]*\])*'
+    foreach ($match in [regex]::Matches($Prose, '!?\[' + $text + '\]\(\s*(?:<([^>]*)>|((?:[^\s()]|\([^\s()]*\))+))(?:\s+(?:"[^"]*"|''[^'']*''))?\s*\)')) {
         $targets.Add($(if ($match.Groups[1].Success) { $match.Groups[1].Value } else { $match.Groups[2].Value }))
     }
-    foreach ($match in [regex]::Matches($Prose, '(?m)^[ ]{0,3}\[[^\]]+\]:[ \t]*<?([^\s>]+)>?')) { $targets.Add($match.Groups[1].Value) }
+    $definitions = [ordered]@{}
+    foreach ($match in [regex]::Matches($Prose, '(?m)^[ ]{0,3}\[([^\]]+)\]:[ \t]*<?([^\s>]+)>?')) {
+        $label = $match.Groups[1].Value.Trim().ToLowerInvariant()
+        if (-not $definitions.Contains($label)) { $definitions[$label] = $match.Groups[2].Value }
+    }
+    foreach ($match in [regex]::Matches($Prose, '!?\[(' + $text + ')\]\[([^\[\]]*)\](?![(:])')) {
+        $label = $(if ($match.Groups[2].Value.Trim()) { $match.Groups[2].Value } else { $match.Groups[1].Value }).Trim().ToLowerInvariant()
+        $targets.Add($(if ($definitions.Contains($label)) { $definitions[$label] } else { "[$label]" }))
+    }
+    foreach ($value in $definitions.Values) { $targets.Add($value) }
+    foreach ($match in [regex]::Matches($Prose, '<(?:a|img)\b[^>]*?\s(?:href|src)\s*=\s*["'']([^"'']+)["'']', 'IgnoreCase')) { $targets.Add($match.Groups[1].Value) }
+    foreach ($match in [regex]::Matches($Prose, '(?<![(\[])<((?:\.{1,2}/|/)?[\w.-]+(?:/[\w.-]+)*\.[A-Za-z0-9]+(?:#[^<>\s]*)?)>')) { $targets.Add($match.Groups[1].Value) }
     return , $targets.ToArray()
 }
 
 function Test-MarkdownLink {
     # The broken relative links of the page -Path under -Root: a target without a scheme whose file or folder does not
-    # exist (fragment stripped, URL-decoded, relative to the page's folder, or to -Root with a leading '/'), and a
-    # '#fragment' link that names no anchor of the page itself.
+    # exist (URL-decoded, relative to the page's folder, or to -Root with a leading '/'), a '#fragment' that names no
+    # anchor of the page itself or, for a link to another Markdown page, of that page, and a reference link without a
+    # definition. -Overlay: further roots a path is looked up in, at the same place relative to -Root (the template
+    # README resolves docs/ in the user documentation). -Pending: root-relative paths that may be missing (pages not
+    # written yet).
     param(
         [Parameter(Mandatory)][string]$Root,
         [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][AllowEmptyString()][string]$Text
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
+        [string[]]$Overlay = @(),
+        [string[]]$Pending = @()
     )
+    if ($null -eq (Get-Variable -Name MarkdownAnchorCache -Scope Script -ErrorAction SilentlyContinue)) { $script:MarkdownAnchorCache = @{} }
     $Prose = Get-MarkdownProse -Text $Text
     $broken = [System.Collections.Generic.List[string]]::new()
     $anchors = $null
     $folder = Split-Path -Parent $Path
     foreach ($target in (Get-MarkdownLinkTarget -Prose $Prose)) {
+        if ($target.StartsWith('[')) { $broken.Add("$target (no reference definition)"); continue }
         if ($target -match '^[A-Za-z][A-Za-z0-9+.-]*:' -or $target -like '//*') { continue }
         if ($target.StartsWith('#')) {
             if ($null -eq $anchors) { $anchors = Get-MarkdownAnchor -Text $Text }
@@ -91,28 +113,50 @@ function Test-MarkdownLink {
             if (-not $anchors.Contains($fragment)) { $broken.Add("$target (no such heading on this page)") }
             continue
         }
-        $relative = [System.Uri]::UnescapeDataString(($target -split '[#?]', 2)[0])
+        $parts = $target -split '#', 2
+        $relative = [System.Uri]::UnescapeDataString(($parts[0] -split '\?', 2)[0])
         if ($relative -eq '') { continue }
-        $full = if ($relative.StartsWith('/')) { Join-Path $Root $relative.TrimStart('/') } else { Join-Path $folder $relative }
-        if (-not (Test-Path -LiteralPath $full)) { $broken.Add($target) }
+        $full = [System.IO.Path]::GetFullPath($(if ($relative.StartsWith('/')) { Join-Path $Root $relative.TrimStart('/') } else { Join-Path $folder $relative }))
+        $fromRoot = [System.IO.Path]::GetRelativePath($Root, $full).Replace('\', '/')
+        $found = $null
+        foreach ($candidate in @($full) + @($Overlay | ForEach-Object { Join-Path $_ $fromRoot })) {
+            if (Test-Path -LiteralPath $candidate) { $found = $candidate; break }
+        }
+        if ($null -eq $found) {
+            if ($fromRoot -cnotin $Pending) { $broken.Add($target) }
+            continue
+        }
+        if ($parts.Count -eq 2 -and $parts[1] -ne '' -and $found -like '*.md' -and (Test-Path -LiteralPath $found -PathType Leaf)) {
+            if (-not $script:MarkdownAnchorCache.ContainsKey($found)) { $script:MarkdownAnchorCache[$found] = Get-MarkdownAnchor -Text ([System.IO.File]::ReadAllText($found)) }
+            if (-not $script:MarkdownAnchorCache[$found].Contains([System.Uri]::UnescapeDataString($parts[1]))) { $broken.Add("$target (no such heading on that page)") }
+        }
     }
     return $broken.ToArray()
 }
 
 function Test-MarkdownJson {
-    # The fenced json blocks (a ```json line at the start of a line up to the next ``` line) that do not parse. A line
-    # starting with // names the file of the part below it: the block is split there and each part parsed on its own.
-    # A part that is an excerpt of an object (one or more "key": value pairs, as the settings pages show) parses
-    # when wrapped in braces.
+    # The fenced JSON blocks that do not parse: a fence of ``` or ~~~ indented up to three spaces whose info string
+    # starts with json (json, jsonc, json title=...), up to the closing fence of the same kind. Full-line // comments
+    # are removed and the whole block parsed; an excerpt of an object (it starts with a "key") parses wrapped in
+    # braces. When that fails, the block is split at the comment lines (a page showing two files, each under a
+    # // file name) and each part must parse on its own.
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Text)
     $failures = [System.Collections.Generic.List[string]]::new()
-    $test = { param([string]$Json) try { return [bool](Test-Json -Json $Json -ErrorAction Stop) } catch { return $false } }
+    $test = {
+        param([string]$Json)
+        foreach ($candidate in @($Json) + @(if ($Json.TrimStart().StartsWith('"')) { "{`n$Json`n}" })) {
+            try { if (Test-Json -Json $candidate -ErrorAction Stop) { return $true } } catch { $null = $_ }
+        }
+        return $false
+    }
     $index = 0
-    foreach ($match in [regex]::Matches($Text.Replace("`r`n", "`n"), '(?ms)^```json\n(.*?)^```')) {
+    foreach ($match in [regex]::Matches($Text.Replace("`r`n", "`n"), '(?ms)^[ ]{0,3}(`{3,}|~{3,})[ \t]*json[^\n]*\n(.*?)^[ ]{0,3}\1[`~]*[ \t]*$')) {
         $index++
+        [string[]]$lines = $match.Groups[2].Value.Split("`n")
+        if (& $test ((@($lines | Where-Object { $_ -notmatch '^\s*//' })) -join "`n")) { continue }
         $parts = [System.Collections.Generic.List[string]]::new()
         $current = [System.Collections.Generic.List[string]]::new()
-        foreach ($line in $match.Groups[1].Value.Split("`n")) {
+        foreach ($line in $lines) {
             if ($line -match '^\s*//') {
                 if (($current -join '').Trim()) { $parts.Add(($current -join "`n")) }
                 $current.Clear()
@@ -122,7 +166,7 @@ function Test-MarkdownJson {
         }
         if (($current -join '').Trim()) { $parts.Add(($current -join "`n")) }
         foreach ($part in $parts) {
-            if ((& $test $part) -or ($part.TrimStart() -match '^"' -and (& $test "{`n$part`n}"))) { continue }
+            if (& $test $part) { continue }
             $first = ($part.Trim().Split("`n") | Select-Object -First 1)
             $failures.Add("json block $index ($first ...)")
         }

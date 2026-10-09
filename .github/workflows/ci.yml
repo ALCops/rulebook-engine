@@ -39,7 +39,9 @@ jobs:
         run: ./tools/rulebook/Test-Rulebook.ps1
 
       # tests/Docs.Tests.ps1 checks the organization documentation of ALCops/rulebook too (WP11); the repository is public.
+      # A failed clone does not fail the job: the suite then skips the user documentation and says why.
       - name: Clone the user documentation
+        continue-on-error: true
         shell: bash
         run: |
           git clone --quiet --depth 1 https://github.com/ALCops/rulebook.git "$RUNNER_TEMP/rulebook"
