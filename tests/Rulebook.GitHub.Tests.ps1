@@ -287,6 +287,14 @@ Describe 'Get-GitHubCommitList' {
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly
     }
 
+    It 'stops after the page that holds one of -TreeSha' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json (Get-CommitPage -Count 100) }
+        $list = Get-GitHubCommitList -Repository 'Contoso/rulebook' -Ref 'main' -TreeSha @('nothing', ('{0:x40}' -f 1050))
+        $list.Commits.Count | Should-Be 100
+        $list.Truncated | Should-BeFalse
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly
+    }
+
     It 'stops at -MaxPages and says the list is truncated' {
         Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json (Get-CommitPage -Count 100) }
         $list = Get-GitHubCommitList -Repository 'Contoso/rulebook' -Ref 'main' -MaxPages 2
@@ -332,6 +340,12 @@ Describe 'Get-GitRootTree' -Skip:$gitMissing {
         $null = New-Item -ItemType Directory -Path $parent
         Invoke-FixtureGit -Root $parent -Arguments @('clone', '--quiet', '--depth', '1', ([System.Uri]::new($repo)).AbsoluteUri, 'shallow') | Out-Null
         Get-GitRootTree -Root (Join-Path $parent 'shallow') | Should-BeNull
+    }
+
+    It 'gives $null for a folder inside a repository' {
+        $sub = Join-Path $repo 'sub'
+        $null = New-Item -ItemType Directory -Path $sub -Force
+        Get-GitRootTree -Root $sub | Should-BeNull
     }
 
     It 'gives $null for a folder that is not a repository or does not exist' {

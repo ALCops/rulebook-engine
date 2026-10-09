@@ -360,8 +360,9 @@ function Get-GitHubCommitList {
     The commits of -Ref in -Repository (owner/name), newest first: { Commits = @({ Sha, TreeSha }), Truncated }.
     .DESCRIPTION
     GET /repos/{r}/commits?sha=<ref>&per_page=100&page=N for N = 1 to -MaxPages (no sha= for an empty -Ref: the
-    default branch); a page with fewer than 100 commits
-    is the last one. Truncated is $true when -MaxPages full pages were read, so older commits may exist. A non-2xx
+    default branch); a page with fewer than 100 commits is the last one. With -TreeSha the walk also stops after the
+    page that holds a commit with one of those trees (the newest match is on the first such page). Truncated is $true
+    when -MaxPages full pages were read without such a stop, so older commits may exist. A non-2xx
     answer throws with the status in Data['StatusCode'], as Get-GitHubBranchSha does. Used to recover the installed
     template commit from the tree of an organization repository's root commit (D50).
     #>
@@ -372,9 +373,13 @@ function Get-GitHubCommitList {
         [AllowNull()][AllowEmptyString()][string]$Ref,
         [AllowNull()][AllowEmptyString()][string]$Token,
         [AllowNull()][AllowEmptyString()][string]$ApiUrl,
-        [ValidateRange(1, 1000)][int]$MaxPages = 10
+        [ValidateRange(1, 1000)][int]$MaxPages = 10,
+        [AllowNull()][AllowEmptyCollection()][string[]]$TreeSha
     )
     $pageSize = 100
+    $wanted = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($tree in @($TreeSha)) { if (-not [string]::IsNullOrEmpty($tree)) { [void]$wanted.Add($tree) } }
+    $matched = $false
     $commits = [System.Collections.Generic.List[object]]::new()
     $truncated = $false
     for ($page = 1; $page -le $MaxPages; $page++) {
@@ -391,8 +396,9 @@ function Get-GitHubCommitList {
             $commit = $item['commit']
             $tree = if ($commit -is [System.Collections.IDictionary] -and $commit['tree'] -is [System.Collections.IDictionary]) { [string]$commit['tree']['sha'] } else { $null }
             $commits.Add([pscustomobject]@{ Sha = [string]$item['sha']; TreeSha = $tree })
+            if ($null -ne $tree -and $wanted.Contains($tree)) { $matched = $true }
         }
-        if ($response.Body.Count -lt $pageSize) { break }
+        if ($matched -or $response.Body.Count -lt $pageSize) { break }
         if ($page -eq $MaxPages) { $truncated = $true }
     }
     return [pscustomobject]@{ Commits = $commits.ToArray(); Truncated = $truncated }
@@ -580,7 +586,7 @@ function Get-GitRootTree {
     .DESCRIPTION
     git rev-list --max-parents=0 HEAD, then rev-parse <sha>^{tree} for each. $null when git is not installed, -Root
     is not a git repository, the repository is shallow (rev-parse --is-shallow-repository; its oldest commit is not
-    the root) or any git call fails. A repository created with "Use this template" has one root commit whose tree is
+    the root), -Root is a folder inside a repository rather than its top level, or any git call fails. A repository created with "Use this template" has one root commit whose tree is
     the tree of the template commit it copied (D50).
     #>
     [CmdletBinding()]
@@ -589,6 +595,10 @@ function Get-GitRootTree {
     if ($null -eq (Get-Command git -CommandType Application -ErrorAction SilentlyContinue)) { return $null }
     if (-not (Test-Path -LiteralPath $Root -PathType Container)) { return $null }
     try {
+        # A folder inside another repository is not the repository: its root commit would be the other one's. The
+        # prefix of the top level is empty (a path comparison with --show-toplevel trips over 8.3 names and links).
+        $prefix = Invoke-Git -Root $Root -Arguments @('rev-parse', '--show-prefix')
+        if ($prefix.ExitCode -ne 0 -or $prefix.Output.Trim() -ne '') { return $null }
         $shallow = Invoke-Git -Root $Root -Arguments @('rev-parse', '--is-shallow-repository')
         if ($shallow.ExitCode -ne 0 -or $shallow.Output.Trim() -cne 'false') { return $null }
         $roots = Invoke-Git -Root $Root -Arguments @('rev-list', '--max-parents=0', 'HEAD')
