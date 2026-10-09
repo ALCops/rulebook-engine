@@ -284,7 +284,8 @@ function Get-RulebookLevelSummary {
     -Inputs is a Rulebook.Inputs (Read-RulebookInputs), -Catalog the Rulebook.Catalog of the same repository
     (Read-CatalogFile, for analyzer, title and docs), -Level a published slug. Returns a Rulebook.LevelSummary
     { Name, Slug, Description, BasedOn, BasedOnName, BasedOnPublished, ChainFiles (root first), File, EntryCount,
-    LoweredCount, TwinsSetting, OverrideCount, Rows, Groups, Counts }.
+    LoweredCount, TwinsSetting, OverrideCount, CatalogCount (the number of catalog ids each counts row covers), Rows,
+    Groups, Counts }.
 
     Rows: one per entry of the level file, sorted by Get-DiagnosticSortKey: { Id, Analyzer, Title, Docs, From,
     FromSource, To, Lowered, Justification }. From is the action of the files below on the chain (last file wins,
