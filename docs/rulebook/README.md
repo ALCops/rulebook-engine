@@ -81,7 +81,7 @@ Reading the table: at Essential the ladder blocks CI on 243 diagnostics (119 Err
 pwsh tools/rulebook/Extract-Inventory.ps1   # from ../nav-sdk-source and ../Analyzers
 pwsh tools/rulebook/Build-Matrix.ps1
 pwsh tools/rulebook/Test-Rulebook.ps1
-pwsh tools/rulebook/Build-Template.ps1      # regenerates template/; commit it with docs/rulebook
+pwsh tools/rulebook/Build-Template.ps1      # regenerates template/ and docs/levels/; commit them with docs/rulebook
 ```
 
 See [versions.md](versions.md) for the full refresh procedure when a new analyzer version ships.

@@ -93,7 +93,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Template, Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Levels, Rulebook.Template, Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
 }
 
 Describe 'Build-RulebookBase' {
@@ -562,26 +562,31 @@ Describe 'Build-Template.ps1' {
         )
     }
 
-    It 'reports no change with -WhatIf on the committed template/' {
+    It 'reports no change with -WhatIf on the committed template/ and docs/levels/' {
+        # -WhatIf writes nothing, so the default -LevelDocsDir (docs/levels/ of this repository) is safe here.
         @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()
     }
 
-    It 'regenerates template/ byte for byte from the 12 hand-written files' {
+    It 'regenerates template/ and the level pages byte for byte from the 12 hand-written files' {
         $scratch = Get-TestFolder
+        # Outside $scratch: a page under it would break the hash comparison with template/.
+        $pages = Get-TestFolder
         foreach ($file in $handWritten) {
             $target = Join-Path $scratch $file
             [void](New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force)
             Copy-Item -LiteralPath (Join-Path $templateDir $file) -Destination $target
         }
-        $changes = @(& $wrapper -TemplateDir $scratch 6>$null)
-        # Generated: the level files, twins.json, the non-default stage files, the catalog, the skeletons and endpoints.
+        $changes = @(& $wrapper -TemplateDir $scratch -LevelDocsDir $pages 6>$null)
+        # Generated: the level files, twins.json, the non-default stage files, the catalog, the skeletons and endpoints,
+        # and one page per level plus the README.md index.
         $settings = Get-Content -LiteralPath (Join-Path $scratch '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json
         $levelTotal = @((Get-Content -LiteralPath (Join-Path $rulebookDir 'matrix' 'levels.json') -Raw | ConvertFrom-Json).levels).Count
         $stageTotal = @((Get-Content -LiteralPath (Join-Path $rulebookDir 'matrix' 'stages.json') -Raw | ConvertFrom-Json).stages).Count
-        $changes.Count | Should-Be ($levelTotal + 1 + ($stageTotal - 1) + 1 + 2 * @($settings.levels).Count * @($settings.stages).Count)
+        $changes.Count | Should-Be ($levelTotal + 1 + ($stageTotal - 1) + 1 + 2 * @($settings.levels).Count * @($settings.stages).Count + (@($settings.levels).Count + 1))
         @($changes | Where-Object Change -ne 'created') | Should-BeCollection @()
         Get-TemplateHash -Root $scratch | Should-BeCollection (Get-TemplateHash -Root $templateDir)
-        @(& $wrapper -TemplateDir $scratch 6>$null) | Should-BeCollection @()
+        Get-TemplateHash -Root $pages | Should-BeCollection (Get-TemplateHash -Root (Join-Path $repoRoot 'docs' 'levels'))
+        @(& $wrapper -TemplateDir $scratch -LevelDocsDir $pages 6>$null) | Should-BeCollection @()
         $elapsed = Measure-Command { $script:endpointChanges = @(Update-RulebookEndpoints -RepositoryRoot $scratch) }
         Write-Host ('Update-RulebookEndpoints on template/ ({0} catalog ids): {1:N2} s' -f (Read-Catalog -Path (Join-Path $scratch 'catalog' 'diagnostics.json')).Count, $elapsed.TotalSeconds)
         $endpointChanges.Count | Should-Be 0
@@ -591,12 +596,32 @@ Describe 'Build-Template.ps1' {
     It 'rejects settings whose basedOn names no level file' {
         $copy = Copy-Template
         Edit-FixtureJson -Path (Join-Path $copy '.github' 'Rulebook-Settings.json') -Script { $_['levels'][2]['basedOn'] = 'Paranoid' }
-        { & $wrapper -TemplateDir $copy 6>$null } | Should-Throw -ExceptionMessage "*Unresolved basedOn 'paranoid' of level 'Strict'*"
+        { & $wrapper -TemplateDir $copy -LevelDocsDir (Get-TestFolder) 6>$null } | Should-Throw -ExceptionMessage "*Unresolved basedOn 'paranoid' of level 'Strict'*"
     }
 
     It 'rejects settings with an unknown twins value' {
         $copy = Copy-Template
         Edit-FixtureJson -Path (Join-Path $copy '.github' 'Rulebook-Settings.json') -Script { $_['twins'] = 'all' }
-        { & $wrapper -TemplateDir $copy 6>$null } | Should-Throw -ExceptionMessage "*twins is 'all'*"
+        { & $wrapper -TemplateDir $copy -LevelDocsDir (Get-TestFolder) 6>$null } | Should-Throw -ExceptionMessage "*twins is 'all'*"
+    }
+
+    It 'commits one page per shipped level plus README.md in docs/levels/, with the counts of docs/rulebook/README.md section 4' {
+        $levelsDir = Join-Path $repoRoot 'docs' 'levels'
+        $settings = Get-Content -LiteralPath (Join-Path $templateDir '.github' 'Rulebook-Settings.json') -Raw | ConvertFrom-Json
+        [string[]]$expected = @('README.md') + @($settings.levels | ForEach-Object { "$($_.name.ToLowerInvariant()).md" })
+        [System.Array]::Sort($expected, [System.StringComparer]::Ordinal)
+        [string[]]$actual = @(Get-ChildItem -LiteralPath $levelsDir -File | ForEach-Object Name)
+        [System.Array]::Sort($actual, [System.StringComparer]::Ordinal)
+        $actual | Should-BeCollection $expected
+        # Section 4 of docs/rulebook/README.md (kept current by V14): '| Level | stage | E | W | I | H | N | Listed |'.
+        $readme = Get-Content -LiteralPath (Join-Path $rulebookDir 'README.md')
+        foreach ($level in $settings.levels) {
+            $matrixRows = @($readme | Where-Object { $_ -match ('^\| {0} \| ' -f [regex]::Escape($level.name)) } | ForEach-Object { $_ -replace ('^\| {0} ' -f [regex]::Escape($level.name)), '' })
+            $matrixRows.Count | Should-Be @($settings.stages).Count
+            $page = Get-Content -LiteralPath (Join-Path $levelsDir "$($level.name.ToLowerInvariant()).md")
+            $start = [array]::IndexOf($page, '## Counts per stage')
+            $pageRows = @($page[($start + 4)..($start + 3 + $matrixRows.Count)])
+            $pageRows | Should-BeCollection $matrixRows
+        }
     }
 }

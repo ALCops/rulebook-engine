@@ -1,19 +1,20 @@
 @{
-    RootModule           = 'Rulebook.Template.psm1'
+    RootModule           = 'Rulebook.Levels.psm1'
     ModuleVersion        = '0.1.0'
-    GUID                 = '3b670575-29ec-4e20-8ca6-23f211a81661'
+    GUID                 = '6d0f4b7e-2c4a-4f0e-9b61-58a3c2e7d915'
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook template generators: the level files, base/twins.json, the stage files, the seed catalog and the skeletons of template/, from the level content in docs/rulebook. See docs/reference/template-content.md.'
+    Description          = 'Rulebook levels: the everything-off root level of an organization (New-RulebookOffLevel) and the generated level pages (New-RulebookLevelDocs) with their model (Get-RulebookLevelSummary). See docs/authoring-levels.md.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
-        'Build-RulebookBase'
-        'Build-RulebookCatalog'
-        'Build-RulebookStages'
-        'New-RulebookSkeleton'
-        'Sync-GeneratedFolder'
+        'ConvertTo-LevelDocsIndexMarkdown'
+        'ConvertTo-LevelDocsMarkdown'
+        'Get-RulebookLevelSummary'
+        'Get-RulebookOffLevelEntry'
+        'New-RulebookLevelDocs'
+        'New-RulebookOffLevel'
     )
     CmdletsToExport      = @()
     VariablesToExport    = @()

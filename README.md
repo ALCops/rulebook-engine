@@ -81,6 +81,8 @@ For any other change: documentation updated, Pester green on `ubuntu-latest`, PS
 | [docs/adr/README.md](docs/adr/README.md) | Decision records (one file per decision, numbered D1 onward) with rationale and rejected alternatives; open decisions are issues labeled `decision`. |
 | [docs/reference/compiler-ruleset-internals.md](docs/reference/compiler-ruleset-internals.md) | How the AL compiler loads and merges rulesets, from the SDK source. Every design constraint comes from here. |
 | [docs/reference/effective-diff.md](docs/reference/effective-diff.md) | How the generator decides each id's action, the provenance tokens, and the effective diff, worked through on the test fixture. |
+| [docs/authoring-levels.md](docs/authoring-levels.md) | Maintaining levels: how a placement change is made and reaches organizations, the generated level pages, the organization recipes (add, alias, everything off, add a stage, remove) and the `Rulebook.Levels` functions and the off-level script. |
+| [docs/levels/README.md](docs/levels/README.md) | The generated pages of the four shipped levels: entries per analyzer with their from and to actions and justification, and the counts per stage. |
 | [docs/reference/template-content.md](docs/reference/template-content.md) | What `template/` holds, which files are generated from `docs/rulebook/` and how, and how to keep it current. |
 | [docs/reference/naming.md](docs/reference/naming.md) | File names, slugs, URL scheme and JSON schemas of an organization rulebook repository, with the 12 shipped endpoint and skeleton names. |
 | [docs/reference/al-go-template-mechanics.md](docs/reference/al-go-template-mechanics.md) | How AL-Go implements templates, system-file updates and the GhTokenWorkflow secret, and what Rulebook reuses. |
