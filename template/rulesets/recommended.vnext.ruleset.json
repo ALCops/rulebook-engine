@@ -94,6 +94,7 @@
     { "id": "AL0912", "action": "Error" },
     { "id": "AL0920", "action": "Error" },
     { "id": "AL1078", "action": "Error" },
+    { "id": "AA0021", "action": "Info" },
     { "id": "AA0251", "action": "Warning" },
     { "id": "AA0252", "action": "Warning" },
     { "id": "AA0476", "action": "Warning" },

@@ -26,6 +26,7 @@ Ladders are written `Essential/Recommended/Strict/Complete`. `native` stands for
 | OV-06 | LC0089i | None/None/None/None | DR-006 | Per-increment complexity noise; LC0089 and LC0090 carry the signal |
 | OV-07 | LC0097, FC0007 | None/None/None/Info | DR-007 | Evaluated for contradictions, none found; opt-in style stays Info in Complete |
 | OV-08 | AS0003, AS0091 | None/Error/Error/Error | DR-019 | Baseline-missing diagnostics need a configured baseline; off at Essential, native from Recommended |
+| OV-09 | AA0021 | None/Info/Warning/Warning | DR-022 | E2E card (a) of WP10: throwaway placement change, advisory at Recommended; to be reverted |
 
 ## 3. Family rows
 
