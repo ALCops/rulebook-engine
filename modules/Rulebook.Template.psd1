@@ -13,6 +13,7 @@
         'Build-RulebookCatalog'
         'Build-RulebookStages'
         'New-RulebookSkeleton'
+        'Sync-GeneratedFolder'
     )
     CmdletsToExport      = @()
     VariablesToExport    = @()

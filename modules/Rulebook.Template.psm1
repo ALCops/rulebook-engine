@@ -266,9 +266,18 @@ function Remove-OrphanFile {
 }
 
 function Sync-GeneratedFolder {
-    # Makes Directory hold exactly Files (leaf -> text) among the files matching Filter: deletes the others first (on
-    # a case-insensitive file system an orphan 'Strict.ruleset.json' is the file 'strict.ruleset.json' written
-    # next), then writes the files whose bytes differ, in the order of Files.
+    <#
+    .SYNOPSIS
+    Makes a folder hold exactly the given generated files among the files matching -Filter.
+    .DESCRIPTION
+    -Files maps a leaf name to its text. Deletes the other files matching -Filter first (on a case-insensitive file
+    system an orphan 'Strict.ruleset.json' is the file 'strict.ruleset.json' written next), then writes the files
+    whose bytes differ (UTF-8 without BOM), in the order of -Files. Returns one Rulebook.TemplateChange { File
+    (<folder leaf>/<leaf>), Path, Change (created, modified, deleted) } per change; -WhatIf writes nothing and returns
+    the same list. Shared by the generators of this module and New-RulebookLevelDocs (Rulebook.Levels).
+    #>
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType('Rulebook.TemplateChange')]
     param(
         [Parameter(Mandatory)][string]$Directory,
         [Parameter(Mandatory)][string]$Filter,
@@ -478,4 +487,5 @@ Export-ModuleMember -Function @(
     'Build-RulebookCatalog'
     'Build-RulebookStages'
     'New-RulebookSkeleton'
+    'Sync-GeneratedFolder'
 )
