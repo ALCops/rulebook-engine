@@ -1002,6 +1002,9 @@ function Get-EffectiveDiffBlock {
     .DESCRIPTION
     The rendering of Validate.ps1, shared by the update and the scan pull request bodies. Endpoints in the order of
     -Diff (settings order).
+    .NOTES
+    The array is returned with a leading comma so that a one-element result stays an array. Callers assign it
+    directly or to [string[]] and never wrap the call in @(), which would nest it and print System.String[] (#75).
     #>
     [CmdletBinding()]
     [OutputType([string[]])]
