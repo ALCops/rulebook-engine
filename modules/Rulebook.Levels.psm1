@@ -164,6 +164,15 @@ function Get-EntryNoun {
 
 #region Off level
 
+function Test-SameTextIgnoringLineEnding {
+    # Whether a file holds Text apart from its line endings: CRLF read as LF and a missing final newline. A clone with
+    # core.autocrlf true checks base/off.ruleset.json out with CRLF; that copy is current, not a differing file.
+    # Everything else must match exactly. scripts/New-RulebookOffLevel.ps1 applies the same rule.
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Text)
+    $existing = [System.IO.File]::ReadAllText($Path, $script:Utf8NoBom).TrimStart([char]0xFEFF).Replace("`r`n", "`n")
+    return ($existing -ceq $Text) -or (($existing + "`n") -ceq $Text)
+}
+
 function Get-RulebookOffLevelEntry {
     <#
     .SYNOPSIS
@@ -194,7 +203,8 @@ function New-RulebookOffLevel {
     differing file throws unless -Force is set. Does not edit the settings; SettingsListed reports whether the
     settings already list the level, and SettingsEntry is the JSON line to paste first into levels. Returns a
     Rulebook.OffLevel { File, Path, Change (created, modified), Name, Slug, Count, SettingsListed, SettingsEntry }.
-    -WhatIf writes nothing and still returns the object. On a current file (equal bytes) nothing is returned: take
+    -WhatIf writes nothing and still returns the object. On a current file (equal bytes, or equal apart from CRLF line
+    endings and a missing final newline, as a checkout with core.autocrlf true gives) nothing is returned: take
     the settings entry from the output of scripts/New-RulebookOffLevel.ps1 or write it by hand. A catalog entry
     without a boolean enabledByDefault throws (C14). The settings are not required (the script requires them as its
     are-you-in-the-right-folder check): a missing settings file gives SettingsListed $false, an unreadable one warns
@@ -229,6 +239,8 @@ function New-RulebookOffLevel {
     $change = 'created'
     if (Test-Path -LiteralPath $path -PathType Leaf) {
         if ([System.Linq.Enumerable]::SequenceEqual([byte[]][System.IO.File]::ReadAllBytes($path), [byte[]]$bytes)) { return }
+        # Only the line endings differ (a checkout with core.autocrlf true): current, not rewritten.
+        if (Test-SameTextIgnoringLineEnding -Path $path -Text $text) { return }
         if ($listed) { Write-Warning "'$Name' is already a published level; -Force would replace $file with an everything-off file" }
         if (-not $Force) { throw "$file exists and differs; it is owned by this repository. Use -Force to overwrite it (your own edits in it are lost)" }
         $change = 'modified'

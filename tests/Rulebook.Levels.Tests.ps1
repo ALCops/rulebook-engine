@@ -170,6 +170,20 @@ Describe 'New-RulebookOffLevel' {
         Get-FileBase64 $path | Should-Be $before
     }
 
+    It 'treats a CRLF working copy of a current file as current and leaves it alone, but not a changed entry' {
+        $root = Copy-Fixture
+        $null = New-RulebookOffLevel -RepositoryRoot $root
+        $path = Join-Path $root 'base' 'off.ruleset.json'
+        $crlf = [System.IO.File]::ReadAllText($path).Replace("`n", "`r`n")
+        [System.IO.File]::WriteAllText($path, $crlf, [System.Text.UTF8Encoding]::new($false))
+        @(New-RulebookOffLevel -RepositoryRoot $root) | Should-BeCollection @()
+        [System.IO.File]::ReadAllText($path) | Should-Be $crlf
+        [System.IO.File]::WriteAllText($path, $crlf.TrimEnd("`r", "`n"), [System.Text.UTF8Encoding]::new($false))
+        @(New-RulebookOffLevel -RepositoryRoot $root) | Should-BeCollection @()
+        [System.IO.File]::WriteAllText($path, $crlf.Replace('"AL0001", "action": "None"', '"AL0001", "action": "Info"'), [System.Text.UTF8Encoding]::new($false))
+        { New-RulebookOffLevel -RepositoryRoot $root } | Should-Throw -ExceptionMessage 'base/off.ruleset.json exists and differs*'
+    }
+
     It 'returns the change under -WhatIf and writes nothing' {
         $root = Copy-Fixture
         $result = New-RulebookOffLevel -RepositoryRoot $root -WhatIf

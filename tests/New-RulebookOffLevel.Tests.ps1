@@ -93,6 +93,19 @@ Describe 'New-RulebookOffLevel.ps1' {
         [System.IO.File]::GetLastWriteTimeUtc($path) | Should-Be $stamp
     }
 
+    It 'says a CRLF working copy is current and does not rewrite it, but refuses a changed entry' {
+        $root = Copy-Fixture
+        $null = Invoke-Script @{ RepositoryRoot = $root }
+        $path = Join-Path $root 'base' 'off.ruleset.json'
+        $crlf = [System.IO.File]::ReadAllText($path).Replace("`n", "`r`n")
+        [System.IO.File]::WriteAllText($path, $crlf, [System.Text.UTF8Encoding]::new($false))
+        $run = Invoke-Script @{ RepositoryRoot = $root }
+        $run.Lines | Should-ContainCollection 'base/off.ruleset.json is current (28 ids at None; only the line endings of the working copy differ)'
+        [System.IO.File]::ReadAllText($path) | Should-Be $crlf
+        [System.IO.File]::WriteAllText($path, $crlf.Replace('"AL0001", "action": "None"', '"AL0001", "action": "Info"'), [System.Text.UTF8Encoding]::new($false))
+        { Invoke-Script @{ RepositoryRoot = $root } } | Should-Throw -ExceptionMessage 'base/off.ruleset.json exists and differs*'
+    }
+
     It 'reports a level the settings list already' {
         $root = Copy-Fixture
         Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_['levels'] = @(@{ name = 'OFF' }) + @($_['levels']) }

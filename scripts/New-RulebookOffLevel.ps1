@@ -165,16 +165,25 @@ if ($settings -is [System.Collections.IDictionary]) {
 $file = "base/$slug.ruleset.json"
 $target = Join-Path $root 'base' "$slug.ruleset.json"
 $current = $false
+$lineEndingsOnly = $false
 if (Test-Path -LiteralPath $target -PathType Leaf) {
+    # Equal apart from the line endings (CRLF, a missing final newline) is current too: a clone with core.autocrlf
+    # true checks the file out with CRLF. The file is then not rewritten.
+    $existingText = [System.IO.File]::ReadAllText($target, $utf8).TrimStart([char]0xFEFF).Replace("`r`n", "`n")
+    $newText = $utf8.GetString($bytes)
     if ([System.Linq.Enumerable]::SequenceEqual([byte[]][System.IO.File]::ReadAllBytes($target), [byte[]]$bytes)) {
         $current = $true
+    } elseif ($existingText -ceq $newText -or ($existingText + "`n") -ceq $newText) {
+        $current = $true
+        $lineEndingsOnly = $true
     } else {
         if ($null -ne $listedAs) { Write-Warning "'$Name' is already a published level; -Force would replace $file with an everything-off file" }
         if (-not $Force) { throw "$file exists and differs; it is owned by this repository. Use -Force to overwrite it (your own edits in it are lost)" }
     }
 }
 if ($current) {
-    Write-Host "$file is current ($($ids.Count) ids at None)"
+    $note = if ($lineEndingsOnly) { '; only the line endings of the working copy differ' } else { '' }
+    Write-Host "$file is current ($($ids.Count) ids at None$note)"
 } else {
     $parent = Split-Path -Parent $target
     if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][System.IO.Directory]::CreateDirectory($parent) }
