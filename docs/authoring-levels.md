@@ -56,7 +56,7 @@ The issue text of #12 listed `Build-RulebookBase` and `Build-RulebookStages` as 
 WP13 deploys `template/` to ALCops/rulebook. An organization's **Update Rulebook System Files** workflow ([ARCHITECTURE.md](ARCHITECTURE.md) section 7.3, [reference/update-mechanics.md](reference/update-mechanics.md)) then opens one pull request that:
 
 - overwrites the shipped level and stage files (`base/essential.ruleset.json` and the others the template ships, `stages/ci.json`, `stages/vnext.json`) and `base/twins.json`, unless `unusedRulebookFiles` lists them;
-- keeps every organization-owned file: `overrides.json`, the quarantine files, the catalog, `docs/**`, and every level or stage file the template does not ship (an organization's `base/off.ruleset.json` or `base/house.ruleset.json` is never touched);
+- keeps every organization-owned file: `overrides.json`, the quarantine files, the catalog, and every level or stage file the template does not ship (an organization's `base/off.ruleset.json` or `base/house.ruleset.json` is never touched);
 - regenerates `rulesets/` and the skeletons from the new files and the organization's own inputs, and writes `templateSha`;
 - shows the effective diff per endpoint, where a moved id appears with the provenance `level:<slug>` or `stage:<slug>` of the file that now decides it. A body that would exceed the GitHub limit drops endpoint tables from the end and says so; the job summary keeps them all (#75).
 

@@ -1,6 +1,6 @@
 # D35. `site/**` is a customizable file class: overwritten only when unchanged locally
 
-- **Status:** Accepted
+- **Status:** Partly superseded by D50 (2026-10-09)
 - **Date:** 2026-10-03
 
 - **Decision:** the update workflow treats `site/**` as **customizable**. For every file it compares the organization's copy with the template version at the installed `templateSha` and with the new template version: unchanged locally means overwrite; changed locally and unchanged in the template means keep; changed on both sides means keep the organization's file and list it under "Skipped: local changes" in the PR body with the template diff. New template files are added; removed ones follow `unusedRulebookFiles`. `site.updateMode: "overwrite"` makes the class behave as system files. `site/data/` is gitignored and never compared.
