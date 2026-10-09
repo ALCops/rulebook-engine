@@ -5,6 +5,7 @@
 BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:entry = Join-Path $script:repoRoot 'scripts' 'New-RulebookOffLevel.ps1'
+    Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
     Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Levels.psd1') -Force
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
 
@@ -122,9 +123,46 @@ Describe 'New-RulebookOffLevel.ps1' {
         { Invoke-Script @{ RepositoryRoot = (Copy-Fixture); Name = 'Bad Name' } } | Should-Throw -ExceptionMessage ([WildcardPattern]::Escape("Level name 'Bad Name' does not lowercase to a slug matching ^[a-z0-9-]+$ (C5)"))
     }
 
-    It 'refuses a catalog entry without a boolean enabledByDefault' {
+    It 'refuses a catalog entry without a boolean enabledByDefault, with the message of the module' {
         $root = Copy-Fixture
         Edit-FixtureJson -Path (Join-Path $root 'catalog' 'diagnostics.json') -Script { $_['diagnostics'][1].Remove('enabledByDefault') }
-        { Invoke-Script @{ RepositoryRoot = $root } } | Should-Throw -ExceptionMessage 'catalog/diagnostics.json: AL0200 has no boolean enabledByDefault'
+        $message = 'catalog/diagnostics.json: AL0200 has no boolean enabledByDefault'
+        { Invoke-Script @{ RepositoryRoot = $root } } | Should-Throw -ExceptionMessage $message
+        { New-RulebookOffLevel -RepositoryRoot $root } | Should-Throw -ExceptionMessage $message
+        Test-Path -LiteralPath (Join-Path $root 'base' 'off.ruleset.json') | Should-BeFalse
+    }
+
+    It 'warns on unreadable settings, writes the file and still prints the entry and the next steps' {
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Text '{ "levels": [ '
+        $output = @(& $script:entry -RepositoryRoot $root 6>&1 3>&1)
+        $warnings = @($output | Where-Object { $_ -is [System.Management.Automation.WarningRecord] } | ForEach-Object { [string]$_.Message })
+        $lines = @($output | Where-Object { $_ -is [System.Management.Automation.InformationRecord] } | ForEach-Object { [string]$_.MessageData })
+        $result = @($output | Where-Object { $_ -isnot [System.Management.Automation.InformationRecord] -and $_ -isnot [System.Management.Automation.WarningRecord] })[0]
+        $warnings | Should-BeLikeString 'Cannot read .github/Rulebook-Settings.json (*); the level counts as not listed'
+        $result.SettingsListed | Should-BeFalse
+        $lines | Should-ContainCollection '    { "name": "Off", "description": "Every known diagnostic off. Opt in through overrides." },'
+        ($lines -join "`n") | Should-MatchString 'Next steps:'
+        Test-Path -LiteralPath (Join-Path $root 'base' 'off.ruleset.json') | Should-BeTrue
+    }
+
+    It 'sorts like Get-DiagnosticSortKey: one id per known prefix, an i suffix and an unknown prefix, byte-identical to the module' {
+        # The prefix list comes from Rulebook.Generate, so a prefix added there without updating the script fails here.
+        $prefixes = @(& (Get-Module Rulebook.Generate) { $script:PrefixOrder })
+        $prefixes.Count | Should-BeGreaterThan 0
+        $ids = [System.Collections.Generic.List[string]]::new()
+        $ids.Add('ZZ0001')
+        foreach ($prefix in $prefixes) { $ids.Add('{0}0002' -f $prefix); $ids.Add('{0}0001' -f $prefix) }
+        $ids.Add('LC0089i')
+        $ids.Add('LC0089')
+        $lines = @($ids | ForEach-Object { '    { "id": "' + $_ + '", "defaultSeverity": "Warning", "enabledByDefault": true }' })
+        $root = Get-TestFolder
+        Write-FixtureText -Path (Join-Path $root 'catalog' 'diagnostics.json') -Text ("{`n  `"version`": 1,`n  `"diagnostics`": [`n" + ($lines -join ",`n") + "`n  ]`n}")
+        Write-FixtureText -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Text '{ "levels": [ { "name": "Essential" } ], "stages": [ { "name": "default" } ] }'
+        Assert-SameAsModule -Root $root -Count $ids.Count
+        $written = @((Get-Content -LiteralPath (Join-Path $root 'base' 'off.ruleset.json') -Raw | ConvertFrom-Json).rules | ForEach-Object id)
+        $written[0] | Should-Be "$($prefixes[0])0001"
+        $written[-1] | Should-Be 'ZZ0001'
+        [array]::IndexOf($written, 'LC0089i') | Should-Be ([array]::IndexOf($written, 'LC0089') + 1)
     }
 }

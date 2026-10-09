@@ -145,7 +145,22 @@ if ($ids.Count -eq 0) {
 $lines.Add('}')
 $bytes = $utf8.GetBytes(($lines -join "`n") + "`n")
 
-# 4. Write, unless the file is current; a differing file needs -Force.
+# 4. Whether the settings list the level; read only for that, so an unreadable file warns and counts as not listed.
+$listedAs = $null
+$settings = $null
+try {
+    $settings = [System.IO.File]::ReadAllText($settingsPath, $utf8) | ConvertFrom-Json -AsHashtable -Depth 10 -ErrorAction Stop
+} catch {
+    Write-Warning "Cannot read .github/Rulebook-Settings.json ($($_.Exception.Message)); the level counts as not listed"
+}
+if ($settings -is [System.Collections.IDictionary]) {
+    foreach ($level in @($settings['levels'] | Where-Object { $_ -is [System.Collections.IDictionary] })) {
+        $levelName = [string]$level['name']
+        if ($levelName -and $levelName.ToLowerInvariant() -ceq $slug) { $listedAs = $levelName }
+    }
+}
+
+# 5. Write, unless the file is current; a differing file needs -Force.
 $file = "base/$slug.ruleset.json"
 $target = Join-Path $root 'base' "$slug.ruleset.json"
 $current = $false
@@ -171,20 +186,8 @@ if ($current) {
     Write-Host "Wrote $file ($($ids.Count) ids at None)"
 }
 
-# 5. The settings entry and the next steps.
+# 6. The settings entry and the next steps.
 $settingsEntry = '{ "name": ' + (ConvertTo-JsonString $Name) + ', "description": ' + (ConvertTo-JsonString $settingsDescription) + ' }'
-$listedAs = $null
-try {
-    $settings = [System.IO.File]::ReadAllText($settingsPath, $utf8) | ConvertFrom-Json -AsHashtable -Depth 10 -ErrorAction Stop
-} catch {
-    throw "Invalid JSON in .github/Rulebook-Settings.json: $($_.Exception.Message)"
-}
-if ($settings -is [System.Collections.IDictionary]) {
-    foreach ($level in @($settings['levels'] | Where-Object { $_ -is [System.Collections.IDictionary] })) {
-        $levelName = [string]$level['name']
-        if ($levelName -and $levelName.ToLowerInvariant() -ceq $slug) { $listedAs = $levelName }
-    }
-}
 Write-Host ''
 if ($null -ne $listedAs) {
     Write-Host "Already listed in the settings as $listedAs."
