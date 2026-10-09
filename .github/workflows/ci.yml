@@ -38,6 +38,13 @@ jobs:
         shell: pwsh
         run: ./tools/rulebook/Test-Rulebook.ps1
 
+      # tests/Docs.Tests.ps1 checks the organization documentation of ALCops/rulebook too (WP11); the repository is public.
+      - name: Clone the user documentation
+        shell: bash
+        run: |
+          git clone --quiet --depth 1 https://github.com/ALCops/rulebook.git "$RUNNER_TEMP/rulebook"
+          echo "RULEBOOK_DOCS_PATH=$RUNNER_TEMP/rulebook" >> "$GITHUB_ENV"
+
       - name: Pester
         shell: pwsh
         run: |
