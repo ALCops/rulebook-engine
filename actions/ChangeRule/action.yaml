@@ -1,0 +1,99 @@
+name: Rulebook ChangeRule
+description: Sets or removes one override entry of an organization rulebook repository for a level and stage selection, regenerates and validates the endpoints, and lands the change as a pull request (or a direct commit).
+author: ALCops
+
+inputs:
+  ruleId:
+    description: The diagnostic id, for example LC0015. Checked against ^[A-Z]{2,3}\d{4}i?$ and the catalog.
+    required: true
+  action:
+    description: Error, Warning, Info, Hidden or None sets the entry; Remove deletes the entry with these selectors.
+    required: true
+  levels:
+    description: "A level slug from the settings, or '*' for every level."
+    required: false
+    default: '*'
+  stages:
+    description: "A stage slug from the settings, or '*' for every stage."
+    required: false
+    default: '*'
+  justification:
+    description: Why the organization changes the rule; written into the entry. Optional; empty keeps the existing justification of the entry; ignored for Remove.
+    required: false
+    default: ''
+  token:
+    description: The GHTOKENWORKFLOW value (a personal access token or GitHub App JSON). Not needed for a change that fails validation or changes nothing.
+    required: false
+    default: ''
+  directCommit:
+    description: "'true' pushes to baseBranch instead of opening a pull request (falls back to a pull request when the push is refused)."
+    required: false
+    default: 'false'
+  baseBranch:
+    description: The branch to change.
+    required: false
+    default: ${{ github.ref_name }}
+  repositoryRoot:
+    description: Path of the rulebook repository, relative to the workspace.
+    required: false
+    default: '.'
+  actor:
+    description: The git author name of the change commit.
+    required: false
+    default: ${{ github.actor }}
+
+outputs:
+  result:
+    description: "pull-request, direct-commit or no-op (nothing written); empty on failure."
+    value: ${{ steps.change.outputs.result }}
+  noop:
+    description: "'true' when nothing would change (no endpoint and not overrides.json); nothing was written."
+    value: ${{ steps.change.outputs.noop }}
+  changedEndpoints:
+    description: The endpoints whose effective action changes, comma separated (for example strict.ci).
+    value: ${{ steps.change.outputs.changedEndpoints }}
+  pullRequestUrl:
+    description: The URL of the pull request.
+    value: ${{ steps.change.outputs.pullRequestUrl }}
+  branch:
+    description: The pushed branch (change-rule/<ruleId>/<yyMMddHHmmss>) or the base branch of a direct commit.
+    value: ${{ steps.change.outputs.branch }}
+  failure:
+    description: "Why the step failed, empty on success: validation, token, push, pull-request or error."
+    value: ${{ steps.change.outputs.failure }}
+
+runs:
+  using: composite
+  steps:
+    - name: Change the rule
+      id: change
+      shell: pwsh
+      # Inputs reach the script through the environment, never interpolated into the script (script injection).
+      env:
+        INPUT_RULEID: ${{ inputs.ruleId }}
+        INPUT_ACTION: ${{ inputs.action }}
+        INPUT_LEVELS: ${{ inputs.levels }}
+        INPUT_STAGES: ${{ inputs.stages }}
+        INPUT_JUSTIFICATION: ${{ inputs.justification }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_DIRECTCOMMIT: ${{ inputs.directCommit }}
+        INPUT_BASEBRANCH: ${{ inputs.baseBranch }}
+        INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
+        INPUT_ACTOR: ${{ inputs.actor }}
+      run: |
+        $parameters = @{
+          RepositoryRoot = $env:INPUT_REPOSITORYROOT
+          RuleId         = $env:INPUT_RULEID
+          Action         = $env:INPUT_ACTION
+          Levels         = $env:INPUT_LEVELS
+          Stages         = $env:INPUT_STAGES
+          Justification  = $env:INPUT_JUSTIFICATION
+          Token          = $env:INPUT_TOKEN
+          DirectCommit   = $env:INPUT_DIRECTCOMMIT -eq 'true'
+          BaseBranch     = $env:INPUT_BASEBRANCH
+          Actor          = $env:INPUT_ACTOR
+        }
+        # The result object is the last pipeline output; anything a module emits before it is ignored.
+        $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'ChangeRule.ps1') @parameters)[-1]
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['ExitCode']) { Write-Host '::error::ChangeRule.ps1 returned no result'; exit 1 }
+        exit $result.ExitCode

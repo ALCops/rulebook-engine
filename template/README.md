@@ -9,11 +9,11 @@ The rulebook ships four levels (`Essential`, `Recommended`, `Strict`, `Complete`
 | Path | Content | Class | Written by |
 |---|---|---|---|
 | `.github/Rulebook-Settings.json` | Base URL, publish target, quarantine policy, twins setting, the levels and stages. | settings | you |
-| `.github/workflows/` | The rulebook workflows. `Validate.yaml` checks every pull request and push; `Publish.yaml` publishes the endpoints when a push to `main` changes them, the skeletons or the settings; `UpdateRulebookSystemFiles.yaml` pulls a new template version into a pull request (by hand, or on the schedule in `update.schedule`); `ScanDiagnostics.yaml` scans the compiler and ALCops packages every day (`scan.schedule`) and keeps one pull request with the new diagnostic ids, quarantined by your policy; the change workflows arrive with a later version of the template. | system | the update workflow |
+| `.github/workflows/` | The rulebook workflows. `Validate.yaml` checks every pull request and push; `Publish.yaml` publishes the endpoints when a push to `main` changes them, the skeletons or the settings; `UpdateRulebookSystemFiles.yaml` pulls a new template version into a pull request (by hand, or on the schedule in `update.schedule`); `ScanDiagnostics.yaml` scans the compiler and ALCops packages every day (`scan.schedule`) and keeps one pull request with the new diagnostic ids, quarantined by your policy; `ChangeRule.yaml` changes one rule through a form (Actions > Change Rule > Run workflow). | system | the update workflow |
 | `base/<level>.ruleset.json` | The level content: `essential` lists the ids that differ from the analyzer defaults, every other level the ids that differ from the level it is based on. | system | the update workflow |
 | `base/twins.json` | The PerTenantExtensionCop and AppSourceCop rules that check the same thing. | system | the update workflow |
 | `stages/<stage>.json` | What the `ci` and `vnext` stages change on top of every level. | system | the update workflow |
-| `overrides.json` | Your organization's rule changes, scoped to levels and stages. | org-owned | you, or the change workflow (later version) |
+| `overrides.json` | Your organization's rule changes, scoped to levels and stages. | org-owned | you, or the Change Rule workflow |
 | `quarantine.<stage>.json` | New diagnostic ids held at `None` per stage until you adopt them; mentioning an id in a level file adopts it, and the next scan removes the entry. | org-owned | the scan workflow |
 | `catalog/diagnostics.json`, `catalog/scan-state.json` | Every known diagnostic id with its analyzer default, the package versions that carry it and its docs link; the package versions the scan read last (created by the first scan). | org-owned | the scan workflow |
 | `rulesets/` | The published endpoints: one flat file per level and stage, listing only the ids whose action differs from the analyzer default. | generated | every workflow that changes an input; never edit by hand |
@@ -51,7 +51,9 @@ Why one file per stage, the settings per consumer and when `suppressWarnings` in
 
 ## Changing a rule
 
-Never edit `rulesets/`: it is regenerated from the other files, and the Validate workflow fails when it is out of date. Change a rule for your organization with an entry in `overrides.json` (an id, an action, the levels and stages it applies to and an optional justification), then let the workflows regenerate the endpoints.
+Never edit `rulesets/`: it is regenerated from the other files, and the Validate workflow fails when it is out of date. Change a rule for your organization with an entry in `overrides.json` (an id, an action, the levels and stages it applies to and an optional justification).
+
+The usual way is the **Change Rule** workflow (Actions > Change Rule > Run workflow): pick the rule id, the new action (or `Remove` to delete your entry), one level and one stage (or `*` for all) and an optional justification. It writes the entry, regenerates `rulesets/`, validates the result and opens a pull request whose table shows the action before and after for every matching endpoint; with `commitOptions.createPullRequest` set to `false` it commits to the branch instead. A change that would alter nothing is reported and not written. It uses the same `GHTOKENWORKFLOW` secret as the update. A level or stage you add yourself appears in the form after your next update. How it works: [docs/changing-a-rule.md](https://github.com/ALCops/rulebook/blob/main/docs/changing-a-rule.md).
 
 ## Documentation
 
@@ -63,8 +65,9 @@ Never edit `rulesets/`: it is regenerated from the other files, and the Validate
 - `docs/al-project.md`
 - `docs/pte-or-appsource.md`
 - `docs/overrides.md`
+- `docs/changing-a-rule.md`
 - `docs/quarantine.md`
 
 Updating the rulebook: [docs/updating.md](https://github.com/ALCops/rulebook/blob/main/docs/updating.md). The token the update writes with: [docs/ghtokenworkflow.md](https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md).
 
-The pages in the list above, and the workflows other than Validate, Publish and Update Rulebook System Files, arrive with a later version of the template. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).
+The pages in the list above arrive with a later version of the template. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).
