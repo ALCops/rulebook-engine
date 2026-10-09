@@ -106,6 +106,29 @@ Describe 'New-RulebookOffLevel.ps1' {
         { Invoke-Script @{ RepositoryRoot = $root } } | Should-Throw -ExceptionMessage 'base/off.ruleset.json exists and differs*'
     }
 
+    It 'decides <Case> by content, not bytes, like the module: current <Current>' -ForEach @(
+            @{ Case = 'a CRLF copy'; Current = $true; Edit = { param($t) $t.Replace("`n", "`r`n") } }
+            @{ Case = 'a copy without the final newline'; Current = $true; Edit = { param($t) $t.TrimEnd("`n") } }
+            @{ Case = 'a copy with a UTF-8 BOM'; Current = $true; Edit = { param($t) [string][char]0xFEFF + $t } }
+            @{ Case = 'a copy with an extra trailing blank line'; Current = $false; Edit = { param($t) $t + "`n" } }
+            @{ Case = 'a copy with a lone CR line end'; Current = $false; Edit = { param($t) $t.Replace("{`n", "{`r") } }
+            @{ Case = 'a CRLF copy with a changed entry'; Current = $false; Edit = { param($t) $t.Replace("`n", "`r`n").Replace('"AL0001", "action": "None"', '"AL0001", "action": "Info"') } }
+        ) {
+        $root = Copy-Fixture
+        $null = Invoke-Script @{ RepositoryRoot = $root }
+        $path = Join-Path $root 'base' 'off.ruleset.json'
+        $edited = & $Edit ([System.IO.File]::ReadAllText($path))
+        [System.IO.File]::WriteAllText($path, $edited, [System.Text.UTF8Encoding]::new($false))
+        $before = Get-FileBase64 $path
+        if ($Current) {
+            $run = Invoke-Script @{ RepositoryRoot = $root }
+            @($run.Lines | Where-Object { $_ -like 'base/off.ruleset.json is current (28 ids at None*' }).Count | Should-Be 1
+            Get-FileBase64 $path | Should-Be $before
+        } else {
+            { Invoke-Script @{ RepositoryRoot = $root } } | Should-Throw -ExceptionMessage 'base/off.ruleset.json exists and differs*'
+        }
+    }
+
     It 'reports a level the settings list already' {
         $root = Copy-Fixture
         Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_['levels'] = @(@{ name = 'OFF' }) + @($_['levels']) }
