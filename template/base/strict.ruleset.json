@@ -6,7 +6,6 @@
     { "id": "AL0432", "action": "Warning", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
     { "id": "AL0801", "action": "Warning", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
     { "id": "AL1412", "action": "Warning", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
-    { "id": "AA0021", "action": "Warning", "justification": "E2E card (a) of WP10: throwaway placement change, advisory at Recommended; to be reverted; OV-09" },
     { "id": "AA0210", "action": "Warning", "justification": "Advisory at Recommended, blocks CI from Strict; D-07" },
     { "id": "AA0232", "action": "Warning", "justification": "Advisory at Recommended, blocks CI from Strict; D-07" },
     { "id": "AA0235", "action": "Warning", "justification": "Advisory at Recommended, blocks CI from Strict; D-07" },

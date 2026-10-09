@@ -137,7 +137,7 @@
     { "id": "AA0008", "action": "Warning", "justification": "Author severity from Recommended; D-06" },
     { "id": "AA0013", "action": "Warning", "justification": "Author severity from Recommended; D-06" },
     { "id": "AA0018", "action": "Warning", "justification": "Author severity from Recommended; D-06" },
-    { "id": "AA0021", "action": "Info", "justification": "E2E card (a) of WP10: throwaway placement change, advisory at Recommended; to be reverted; OV-09" },
+    { "id": "AA0021", "action": "Warning", "justification": "Author severity from Recommended; D-06" },
     { "id": "AA0022", "action": "Warning", "justification": "Author severity from Recommended; D-06" },
     { "id": "AA0040", "action": "Warning", "justification": "Author severity from Recommended; D-06" },
     { "id": "AA0050", "action": "Warning", "justification": "Author severity from Recommended; D-06" },

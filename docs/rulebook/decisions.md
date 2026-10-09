@@ -139,9 +139,3 @@ Format: decision, rationale, rule rows affected. A record that no longer drives 
 - **Decision:** AS0075 and AS0099 are `None/Hidden/Hidden/Hidden`; AS0089 is `Warning` at every level.
 - **Rationale:** `navcontainerhelper/AppHandling/appsource.default.ruleset.json` is the ruleset Microsoft runs on a submission. It hides AS0075 and AS0099 (good practice, not enforced; enum values constrained by Dataverse) and lowers AS0089 because AL offers no way to obsolete the objects it reports. Without a target the only sensible reading of "native AppSource severity" is what the marketplace itself checks, so the adjustments apply everywhere. `None` instead of `Hidden` at Essential keeps DR-012.
 - **Affects:** OV-01, OV-02. Supersedes DR-001 and DR-002.
-
-### DR-022 AA0021 is Info at Recommended (throwaway, WP10 live run)
-
-- **Decision:** AA0021 is `None/Info/Warning/Warning`.
-- **Rationale:** a throwaway placement change for card (a) of the WP10 live run (#12), to prove that a placement change reaches an organization through the update; reverted on the same branch before the merge.
-- **Affects:** OV-09.

@@ -72,8 +72,6 @@ $OvRows = @(
        why='Evaluated for contradictions, none found; opt-in style stays Info in Complete' }
     @{ id='OV-08'; ids=@('AS0003','AS0091'); ladder='None/Error/Error/Error'; dr='DR-019'
        why='Baseline-missing diagnostics need a configured baseline; off at Essential, native from Recommended' }
-    @{ id='OV-09'; ids=@('AA0021'); ladder='None/Info/Warning/Warning'; dr='DR-022'
-       why='E2E card (a) of WP10: throwaway placement change, advisory at Recommended; to be reverted' }
 )
 
 # ---------------------------------------------------------------------------------------------
