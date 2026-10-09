@@ -20,8 +20,8 @@ its target (<file>.tmp) and moved into place.
 
 The script does not change the settings. It prints the entry to paste first into "levels" of
 .github/Rulebook-Settings.json (or says that the settings list the level already) and the next steps: open a pull
-request, then let the update workflow, or a local regeneration, add the endpoints, the skeletons and the Change Rule
-dropdown line of the new level.
+request, then let the update workflow run from that branch, or a local regeneration, add the endpoints, the skeletons and the Change Rule
+dropdown line of the new level on the pull request branch, so Validate passes before the merge.
 
 The script is self-contained (PowerShell 7, no module, no download) and writes the same bytes as the function
 New-RulebookOffLevel of the engine module Rulebook.Levels. The details are on the user page docs/levels.md in the
@@ -199,10 +199,13 @@ if ($null -ne $listedAs) {
 }
 Write-Host ''
 Write-Host 'Next steps:'
-Write-Host "  1. Commit $file and the settings change and open a pull request. Validate reports C11 and C12 until the endpoints and skeletons of the level exist."
-Write-Host '  2. After the merge, run the workflow "Update Rulebook System Files" with "Resolve the latest commit" off. Its pull request adds'
-Write-Host "     rulesets/$slug*.ruleset.json, the skeletons and the '- $slug' line of the Change Rule form."
-Write-Host '     Or regenerate locally and commit the result: Update-RulebookEndpoints -RepositoryRoot . (module Rulebook.Generate) and'
+Write-Host "  1. Commit $file and the settings change on a branch, push it and open a pull request. Validate reports C11 and C12"
+Write-Host '     until the endpoints and skeletons of the level exist.'
+Write-Host '  2. Run the workflow "Update Rulebook System Files" with "Resolve the latest commit" off, from that branch ("Use workflow from")'
+Write-Host '     and with "Push to this branch instead of opening a pull request" on. It commits'
+Write-Host "     rulesets/$slug*.ruleset.json, the skeletons and the '- $slug' line of the Change Rule form to the branch; Validate turns green; merge."
+Write-Host '     If your repository allows merging with a failing check, you can merge first and run the update on the default branch instead.'
+Write-Host '     Or regenerate locally and commit the result to the branch: Update-RulebookEndpoints -RepositoryRoot . (module Rulebook.Generate) and'
 Write-Host '     New-RulebookSkeleton -SettingsPath .github/Rulebook-Settings.json -OutputPath skeletons (module Rulebook.Template).'
 Write-Host "Details: the user page docs/levels.md in the ALCops/rulebook repository, $docsUrl"
 
