@@ -51,10 +51,12 @@ function Get-OffLevelDescription {
 }
 
 function Format-Cell {
-    # Text for a Markdown table cell: pipes escaped, line breaks folded into spaces.
+    # Text for a Markdown table cell: &, < and > as HTML entities (a title such as '<>' cannot render as a tag),
+    # pipes escaped, line breaks folded into spaces.
     param([AllowNull()][AllowEmptyString()][string]$Text)
     if ([string]::IsNullOrEmpty($Text)) { return '' }
-    return ($Text -replace '[\r\n]+', ' ').Replace('|', '\|')
+    $text = $Text.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;')
+    return ($text -replace '[\r\n]+', ' ').Replace('|', '\|')
 }
 
 function Format-Line {
@@ -194,7 +196,9 @@ function New-RulebookOffLevel {
     Rulebook.OffLevel { File, Path, Change (created, modified), Name, Slug, Count, SettingsListed, SettingsEntry }.
     -WhatIf writes nothing and still returns the object. On a current file (equal bytes) nothing is returned: take
     the settings entry from the output of scripts/New-RulebookOffLevel.ps1 or write it by hand. A catalog entry
-    without a boolean enabledByDefault throws (C14). An unreadable settings file warns and gives SettingsListed
+    without a boolean enabledByDefault throws (C14). The settings are not required (the script requires them as its
+    are-you-in-the-right-folder check): a missing settings file gives SettingsListed $false, an unreadable one warns
+    and gives SettingsListed
     $false. The file is written to <file>.tmp and moved into place. scripts/New-RulebookOffLevel.ps1 is the
     self-contained download-and-run copy of this function.
     .PARAMETER Description
@@ -422,8 +426,8 @@ function ConvertTo-LevelDocsMarkdown {
         $lines.Add(('| {0} | {1} | {2} | {3} | {4} | {5} | {6} |' -f $count.Stage, $count.Error, $count.Warning, $count.Info, $count.Hidden, $count.None, $count.Listed))
     }
     $lines.Add('')
-    $lines.Add(('{0} catalog ids per row. Listed is the number of ids the endpoint of the stage writes (`rulesets/{1}.ruleset.json` for default, `rulesets/{1}.<stage>.ruleset.json` for the others) because the action differs from the analyzer default. The counts include this repository''s overrides ({2} match this level), the twins setting `{3}` and the quarantine files; the entries below are the level file alone.' -f
-            $Summary.CatalogCount, $Summary.Slug, $Summary.OverrideCount, $Summary.TwinsSetting))
+    $lines.Add(('{0} catalog ids per row. Listed is the number of ids the endpoint writes (`rulesets/{1}` for default, `rulesets/{2}` for the others): ids whose action differs from the analyzer default, plus ids the level file mentions that are not in the catalog. The counts include this repository''s overrides ({3} match this level), the twins setting `{4}` and the quarantine files; the entries below are the level file alone.' -f
+            $Summary.CatalogCount, (Get-EndpointFileName -Level $Summary.Slug -Stage 'default'), (Get-EndpointFileName -Level $Summary.Slug -Stage '<stage>'), $Summary.OverrideCount, $Summary.TwinsSetting))
     $lines.Add('')
 
     $lines.Add('## Entries')
@@ -437,7 +441,7 @@ function ConvertTo-LevelDocsMarkdown {
         $lines.Add('')
     } else {
         foreach ($group in $Summary.Groups) {
-            $lines.Add("### $($group.Analyzer) ($($group.Count))")
+            $lines.Add("### $(Format-Cell $group.Analyzer) ($($group.Count))")
             $lines.Add('')
             $lines.Add('| Id | Title | From | To | Change | Justification | Docs |')
             $lines.Add('|---|---|---|---|---|---|---|')
@@ -445,7 +449,7 @@ function ConvertTo-LevelDocsMarkdown {
                 $from = if ($null -ne $row.From) { $row.From } else { '(not in the catalog)' }
                 $change = if ($row.Lowered) { 'lowered' } else { '' }
                 $docs = if ([string]::IsNullOrEmpty($row.Docs)) { '' } else { '[docs]({0})' -f (Format-LinkUrl $row.Docs) }
-                $lines.Add(('| {0} | {1} | {2} | {3} | {4} | {5} | {6} |' -f $row.Id, (Format-Cell $row.Title), $from, $row.To, $change, (Format-Cell $row.Justification), $docs))
+                $lines.Add(('| {0} | {1} | {2} | {3} | {4} | {5} | {6} |' -f (Format-Cell $row.Id), (Format-Cell $row.Title), (Format-Cell $from), (Format-Cell $row.To), $change, (Format-Cell $row.Justification), $docs))
             }
             $lines.Add('')
         }
@@ -528,9 +532,11 @@ function New-RulebookLevelDocs {
     }
     $files['README.md'] = ConvertTo-LevelDocsIndexMarkdown -Summaries $summaries.ToArray() -Inputs $inputs -GeneratedBy $GeneratedBy
 
-    # Module functions do not see this function's preference variables, so -WhatIf and -Confirm are passed on;
-    # -Confirm maps to a Low ConfirmPreference, as Build-Template.ps1 does.
-    Sync-GeneratedFolder -Directory $directory -Filter '*.md' -Files $files -WhatIf:$WhatIfPreference -Confirm:($ConfirmPreference -eq 'Low')
+    # Module functions do not see this function's preference variables, so -WhatIf is passed on, and -Confirm only
+    # when the caller asked for it (otherwise the caller's ConfirmPreference applies as it is).
+    $sync = @{ Directory = $directory; Filter = '*.md'; Files = $files; WhatIf = [bool]$WhatIfPreference }
+    if ($PSBoundParameters.ContainsKey('Confirm') -and [bool]$PSBoundParameters['Confirm']) { $sync['Confirm'] = $true }
+    Sync-GeneratedFolder @sync
 }
 
 #endregion

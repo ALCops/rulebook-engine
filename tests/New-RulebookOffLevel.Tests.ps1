@@ -119,6 +119,18 @@ Describe 'New-RulebookOffLevel.ps1' {
         { Invoke-Script @{ RepositoryRoot = $folder } } | Should-Throw -ExceptionMessage 'Run the script from the root of a clone of your rulebook repository (the folder with .github/Rulebook-Settings.json and catalog/diagnostics.json): *'
     }
 
+    It 'warns before replacing the file of a published level, like the module' {
+        $root = Copy-Fixture
+        $message = "'Strict' is already a published level; -Force would replace base/strict.ruleset.json with an everything-off file"
+        $output = @(& $script:entry -RepositoryRoot $root -Name 'Strict' -Force 6>$null 3>&1)
+        @($output | Where-Object { $_ -is [System.Management.Automation.WarningRecord] } | ForEach-Object { [string]$_.Message }) | Should-ContainCollection $message
+        @($output | Where-Object { $_ -isnot [System.Management.Automation.WarningRecord] })[0].SettingsListed | Should-BeTrue
+        $copy = Copy-Fixture
+        $null = New-RulebookOffLevel -RepositoryRoot $copy -Name 'Strict' -Force -WarningVariable moduleWarnings -WarningAction SilentlyContinue
+        @($moduleWarnings | ForEach-Object { [string]$_ }) | Should-ContainCollection $message
+        [System.IO.File]::ReadAllText((Join-Path $root 'base' 'strict.ruleset.json')) | Should-Be ([System.IO.File]::ReadAllText((Join-Path $copy 'base' 'strict.ruleset.json')))
+    }
+
     It 'refuses the slug readme like the module' {
         $message = "Level 'README' cannot have a page: its slug collides with the index README.md"
         { Invoke-Script @{ RepositoryRoot = (Copy-Fixture); Name = 'README' } } | Should-Throw -ExceptionMessage $message

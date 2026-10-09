@@ -168,8 +168,9 @@ $current = $false
 if (Test-Path -LiteralPath $target -PathType Leaf) {
     if ([System.Linq.Enumerable]::SequenceEqual([byte[]][System.IO.File]::ReadAllBytes($target), [byte[]]$bytes)) {
         $current = $true
-    } elseif (-not $Force) {
-        throw "$file exists and differs; it is owned by this repository. Use -Force to overwrite it (your own edits in it are lost)"
+    } else {
+        if ($null -ne $listedAs) { Write-Warning "'$Name' is already a published level; -Force would replace $file with an everything-off file" }
+        if (-not $Force) { throw "$file exists and differs; it is owned by this repository. Use -Force to overwrite it (your own edits in it are lost)" }
     }
 }
 if ($current) {
