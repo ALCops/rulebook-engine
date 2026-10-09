@@ -392,10 +392,56 @@ function Get-TemplateContentSha {
     return [System.Convert]::ToHexString($hash).ToLowerInvariant()
 }
 
+function Get-RepositoryRootTree {
+    <#
+    .SYNOPSIS
+    The tree of the organization repository's root commit: { TreeShas, Source ('git', 'api' or $null), Note }.
+    .DESCRIPTION
+    The local route first: Get-GitRootTree on -RepositoryRoot (a full clone; a shallow one is skipped). Else, with
+    -Repository (owner/name), the REST walk of its commits at -Ref (empty: the default branch) to the last page with
+    -Token, at most -MaxPages pages of 100; the last commit of the last page is the root. Else TreeShas is $null and
+    Note says why ("The repository's root commit could not be found (...)."); a failing call becomes that note, it
+    never throws. Off GitHub (-Repository empty) only the local route runs. Used by Get-RulebookTemplate (D50).
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [AllowNull()][AllowEmptyString()][string]$RepositoryRoot,
+        [AllowNull()][AllowEmptyString()][string]$Repository,
+        [AllowNull()][AllowEmptyString()][string]$Ref,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl,
+        [ValidateRange(1, 1000)][int]$MaxPages = 10
+    )
+    $result = { param($Trees, $Source, $Note) [pscustomobject]@{ TreeShas = $Trees; Source = $Source; Note = $Note } }
+    if (-not [string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+        # Get-GitRootTree returns $null for no answer; @() around it would count that $null as one tree.
+        $trees = Get-GitRootTree -Root $RepositoryRoot
+        if ($null -ne $trees -and @($trees).Count -gt 0) { return & $result ([string[]]@($trees)) 'git' $null }
+    }
+    if ([string]::IsNullOrWhiteSpace($Repository)) {
+        return & $result $null $null "The repository's root commit could not be found (no full git history in the working folder and no repository name to ask the API)."
+    }
+    try {
+        $list = Get-GitHubCommitList -Repository $Repository -Ref $Ref -Token $Token -ApiUrl $ApiUrl -MaxPages $MaxPages
+    } catch {
+        return & $result $null $null "The repository's root commit could not be found ($($_.Exception.Message))."
+    }
+    if ($list.Truncated) {
+        return & $result $null $null "The repository's root commit could not be found ($Repository has more than $($MaxPages * 100) commits, the most the update reads)."
+    }
+    $commits = @($list.Commits)
+    if ($commits.Count -eq 0 -or [string]::IsNullOrEmpty($commits[-1].TreeSha)) {
+        return & $result $null $null "The repository's root commit could not be found (the API listed no commits of $Repository)."
+    }
+    return & $result ([string[]]@($commits[-1].TreeSha)) 'api' $null
+}
+
 function Get-RulebookTemplate {
     <#
     .SYNOPSIS
-    The new template and, when needed, the installed one: { Url, Repo, Branch, Sha, Path, InstalledPath, InstalledSha, Source, Notes }.
+    The new template and, when needed, the installed one: { Url, Repo, Branch, Sha, Path, InstalledPath, InstalledSha,
+    InstalledSource, Source, Notes }.
     .DESCRIPTION
     Download: resolves the branch head of -TemplateUrl when -DownloadLatest or -InstalledSha is empty (else uses
     -InstalledSha) and downloads that zipball into -WorkPath. The requests use -GitHubToken (GITHUB_TOKEN) first; on
@@ -404,10 +450,18 @@ function Get-RulebookTemplate {
     failed exchange rethrows the original error (its status kept) with the exchange error added to the message. -OnToken runs with every token
     obtained by an exchange before it is used (the action masks it). Path is the folder of the zip that holds
     .github/workflows (none throws 'no .github/workflows in the template'). The installed template (a second zipball
-    at -InstalledSha) is downloaded whenever it differs from Sha: the three-way comparison of site files (D35) and the
+    at -InstalledSha) is downloaded whenever it differs from Sha: the three-way comparison of site and docs files (D35, D50) and the
     notes on files the template dropped need it, with the token that read the new template; any failure there is a note,
     and InstalledPath is $null.
-    Local: -TemplatePath (and -InstalledTemplatePath) are folders; Sha is -TemplateSha or Get-TemplateContentSha.
+    Recovery (D50): when -InstalledSha is empty and -RepositoryRoot or -Repository is given (the caller passes them
+    only when the stored templateUrl names this template), the tree of the organization repository's root commit
+    (Get-RepositoryRootTree: the local clone, else the REST walk of -Repository at -Ref with -RepositoryToken) is
+    looked up among the commits of the template branch (Get-GitHubCommitList, with the token that read the new
+    template); the newest commit with that tree becomes the installed commit. Every outcome is a note; no match or a
+    failure keeps the behaviour without an installed template. InstalledSource is recorded (-InstalledSha), recovered
+    or none.
+    Local: -TemplatePath (and -InstalledTemplatePath) are folders; Sha is -TemplateSha or Get-TemplateContentSha;
+    InstalledSource is recorded with -InstalledTemplatePath, else none (no recovery).
     #>
     [CmdletBinding(DefaultParameterSetName = 'Download')]
     [OutputType([pscustomobject])]
@@ -422,6 +476,10 @@ function Get-RulebookTemplate {
         [Parameter(ParameterSetName = 'Download')][string]$WorkPath,
         [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyString()][string]$ApiUrl,
         [Parameter(ParameterSetName = 'Download')][scriptblock]$OnToken,
+        [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyString()][string]$RepositoryRoot,
+        [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyString()][string]$Repository,
+        [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyString()][string]$Ref,
+        [Parameter(ParameterSetName = 'Download')][AllowNull()][AllowEmptyString()][string]$RepositoryToken,
         [Parameter(Mandatory, ParameterSetName = 'Local')][string]$TemplatePath,
         [Parameter(ParameterSetName = 'Local')][AllowNull()][AllowEmptyString()][string]$InstalledTemplatePath,
         [Parameter(ParameterSetName = 'Local')][AllowNull()][AllowEmptyString()][string]$TemplateSha
@@ -440,16 +498,17 @@ function Get-RulebookTemplate {
             $installed = Get-TemplateContentSha -Path $installedPath
         }
         return [pscustomobject]@{
-            PSTypeName    = 'Rulebook.Template'
-            Url           = $(if ($info) { $info.Url } else { $null })
-            Repo          = $(if ($info) { $info.Repo } else { 'local template' })
-            Branch        = $(if ($info) { $info.Branch } else { $null })
-            Sha           = $sha
-            Path          = $path
-            InstalledPath = $installedPath
-            InstalledSha  = $installed
-            Source        = 'local'
-            Notes         = @()
+            PSTypeName      = 'Rulebook.Template'
+            Url             = $(if ($info) { $info.Url } else { $null })
+            Repo            = $(if ($info) { $info.Repo } else { 'local template' })
+            Branch          = $(if ($info) { $info.Branch } else { $null })
+            Sha             = $sha
+            Path            = $path
+            InstalledPath   = $installedPath
+            InstalledSha    = $installed
+            InstalledSource = $(if ($null -ne $installedPath) { 'recorded' } else { 'none' })
+            Source          = 'local'
+            Notes           = @()
         }
     }
 
@@ -489,6 +548,32 @@ function Get-RulebookTemplate {
 
     $installedPath = $null
     $installed = if ([string]::IsNullOrWhiteSpace($InstalledSha)) { $null } else { $InstalledSha.Trim() }
+    $installedSource = if ($null -ne $installed) { 'recorded' } else { 'none' }
+    $consequence = 'site and docs files that differ from the new template are kept and listed, and files the template dropped get no note.'
+    if ($null -eq $installed -and (-not [string]::IsNullOrWhiteSpace($RepositoryRoot) -or -not [string]::IsNullOrWhiteSpace($Repository))) {
+        # D50: "Use this template" copies one template commit into a root commit with the same tree; the newest
+        # template commit with the tree of the repository's root commit is the installed one.
+        $unrecovered = 'templateSha is empty and the installed template commit could not be recovered:'
+        $rootTree = Get-RepositoryRootTree -RepositoryRoot $RepositoryRoot -Repository $Repository -Ref $Ref -Token $RepositoryToken -ApiUrl $ApiUrl
+        if ($null -eq $rootTree.TreeShas -or @($rootTree.TreeShas).Count -eq 0) {
+            $notes.Add("$unrecovered $($rootTree.Note) The $consequence")
+        } else {
+            try {
+                # The token that read the new template; no second exchange.
+                $list = Get-GitHubCommitList -Repository $info.Repo -Ref $info.Branch -Token $state.Token -ApiUrl $ApiUrl
+                $match = @($list.Commits | Where-Object { $_.TreeSha -cin @($rootTree.TreeShas) } | Select-Object -First 1)
+                if ($match.Count -eq 1) {
+                    $installed = $match[0].Sha
+                    $installedSource = 'recovered'
+                    $notes.Add("templateSha is empty; the installed template commit $(Get-ShortSha $installed) was recovered from the repository's root commit (tree $(Get-ShortSha $match[0].TreeSha)).")
+                } else {
+                    $notes.Add("$unrecovered no commit of $($info.Repo)@$($info.Branch) in the last $(@($list.Commits).Count) commits has the tree of the repository's root commit; $consequence")
+                }
+            } catch {
+                $notes.Add("$unrecovered the commits of $($info.Repo)@$($info.Branch) could not be listed ($($_.Exception.Message)); $consequence")
+            }
+        }
+    }
     if ($null -ne $installed) {
         if ($installed -ceq $sha) {
             $installedPath = $path
@@ -499,7 +584,6 @@ function Get-RulebookTemplate {
                 $old = Save-GitHubZipball -Repository $info.Repo -Sha $installed -Token $state.Token -Path (Join-Path $WorkPath 'installed') -ApiUrl $ApiUrl
                 $installedPath = Find-TemplateRoot -Path $old
             } catch {
-                $consequence = 'site files that differ from the new template are kept and listed, and files the template dropped get no note.'
                 if ($_.Exception.Data['StatusCode'] -eq 404) {
                     $notes.Add("The installed template commit $(Get-ShortSha $installed) of $($info.Repo) is not available (HTTP 404); $consequence")
                 } else {
@@ -509,16 +593,17 @@ function Get-RulebookTemplate {
         }
     }
     return [pscustomobject]@{
-        PSTypeName    = 'Rulebook.Template'
-        Url           = $info.Url
-        Repo          = $info.Repo
-        Branch        = $info.Branch
-        Sha           = $sha
-        Path          = $path
-        InstalledPath = $installedPath
-        InstalledSha  = $installed
-        Source        = 'download'
-        Notes         = $notes.ToArray()
+        PSTypeName      = 'Rulebook.Template'
+        Url             = $info.Url
+        Repo            = $info.Repo
+        Branch          = $info.Branch
+        Sha             = $sha
+        Path            = $path
+        InstalledPath   = $installedPath
+        InstalledSha    = $installed
+        InstalledSource = $installedSource
+        Source          = 'download'
+        Notes           = $notes.ToArray()
     }
 }
 
@@ -535,9 +620,10 @@ function Get-RulebookFileClass {
     regenerated on every update). For a path -TemplatePaths contains (shipped): overwrite for
     .github/workflows/*.yml|yaml (kind workflow), .github/*.copy.md (release-notes), .github/ISSUE_TEMPLATE/*,
     base/*.ruleset.json (level), base/twins.json, stages/*.json (stage), skeletons/README.md; customizable for
-    site/** except site/data/** (overwrite when site.updateMode is 'overwrite', D35). Everything else is org-owned:
-    a path the template does not ship, or one outside these patterns (README.md, overrides.json, the quarantine
-    files, catalog/**).
+    site/** except site/data/** (kind site; overwrite when site.updateMode is 'overwrite', D35) and for docs/**
+    (kind docs; overwrite when docs.updateMode is 'overwrite', D50). Everything else is org-owned: a path the
+    template does not ship, or one outside these patterns (README.md, overrides.json, the quarantine files,
+    catalog/**).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -564,6 +650,10 @@ function Get-RulebookFileClass {
             '^site/' {
                 if ([string](Get-SettingValue $Settings 'site', 'updateMode') -ceq 'overwrite') { return & $result 'overwrite' 'site' }
                 return & $result 'customizable' 'site'
+            }
+            '^docs/' {
+                if ([string](Get-SettingValue $Settings 'docs', 'updateMode') -ceq 'overwrite') { return & $result 'overwrite' 'docs' }
+                return & $result 'customizable' 'docs'
             }
         }
     }
@@ -714,10 +804,10 @@ function Get-ReleaseNotesDelta {
 function Compare-CustomizableFile {
     <#
     .SYNOPSIS
-    The decision for one customizable (site/**) file the new template ships: overwrite, keep, skip, add or none.
+    The decision for one customizable (site/**, docs/**) file the new template ships: overwrite, keep, skip, add or none.
     .DESCRIPTION
     -Org, -Old (the template at the installed templateSha) and -New are the normalised contents or $null when the
-    file does not exist on that side (D35, dashboard.md section 9). Org absent: add. Org equal to New: none.
+    file does not exist on that side (D35, D50, dashboard.md section 9). Org absent: add. Org equal to New: none.
     -UpdateMode overwrite: overwrite. Old absent (no installed template, or a file the organization made itself):
     skip. Org equal to Old: overwrite; else New equal to Old: keep; else skip. A file the new template does not ship
     is never decided here (-New $null gives none): removal goes only through unusedRulebookFiles, which
@@ -756,8 +846,8 @@ function Get-RulebookUpdatePlan {
     removed), edits the settings (Update-RulebookSettingsText), deletes the managed files unusedRulebookFiles lists,
     regenerates skeletons/ (New-RulebookSkeleton, when the folder exists) and rulesets/ (Update-RulebookEndpoints),
     runs Test-Rulebook on the candidate and compares it with the working tree (LF-normalised text, bytes for
-    binaries). Returns { TemplateUrl, TemplateRepo, TemplateSha, InstalledSha, CandidatePath, Changes { File, Class,
-    Kind, Change, Bytes }, Skipped { File, Reason }, Notes, Findings, Valid, ReleaseNotes, ReleaseNotesShipped,
+    binaries). Returns { TemplateUrl, TemplateRepo, TemplateSha, InstalledSha, InstalledSource, CandidatePath, Changes
+    { File, Class, Kind, Change, Bytes }, Skipped { File, Kind, Reason }, Notes, Findings, Valid, ReleaseNotes, ReleaseNotesShipped,
     ShaOnly (only templateSha and the {TEMPLATEURL} placeholder change), UpdatesAvailable }. Never throws on repository content: a settings or generator failure is a Finding with
     Rule 'update' and Severity error.
     #>
@@ -782,6 +872,7 @@ function Get-RulebookUpdatePlan {
         TemplateRepo        = $Template.Repo
         TemplateSha         = $Template.Sha
         InstalledSha        = $Template.InstalledSha
+        InstalledSource     = $(if ($Template.PSObject.Properties['InstalledSource']) { $Template.InstalledSource } else { $null })
         TemplateSource      = $Template.Source
         CandidatePath       = $null
         Changes             = @()
@@ -818,7 +909,6 @@ function Get-RulebookUpdatePlan {
         return & $finish
     }
     [string[]]$unused = @(Get-SettingValue $settings 'unusedRulebookFiles' | Where-Object { $_ -is [string] -and $_ -ne '' })
-    $updateMode = [string](Get-SettingValue $settings 'site', 'updateMode')
 
     # 2. Candidate tree
     $candidate = Join-Path $WorkPath 'candidate'
@@ -846,12 +936,13 @@ function Get-RulebookUpdatePlan {
             $org = Get-ComparableContent -Root $root -Path $path
             $old = if ($installedRoot -and $oldSet.Contains($path)) { Get-ComparableContent -Root $installedRoot -Path $path } else { $null }
             $new = Get-ComparableContent -Root $templateRoot -Path $path
-            $decision = Compare-CustomizableFile -Org $org -Old $old -New $new -UpdateMode $updateMode
+            # Each kind has its own key: site.updateMode, docs.updateMode (D50).
+            $decision = Compare-CustomizableFile -Org $org -Old $old -New $new -UpdateMode ([string](Get-SettingValue $settings $class.Kind, 'updateMode'))
             if ($decision -cin 'add', 'overwrite') {
                 if (Test-BinaryFile -Path $source) { Write-UpdateBinary -Path $target -Bytes ([System.IO.File]::ReadAllBytes($source)) } else { Write-UpdateText -Path $target -Text $new }
             } elseif ($decision -ceq 'skip') {
                 $reason = if (-not $installedRoot) { 'no installed template' } elseif (-not $oldSet.Contains($path)) { 'local file' } else { 'local changes' }
-                $skipped.Add([pscustomobject]@{ File = $path; Reason = $reason })
+                $skipped.Add([pscustomobject]@{ File = $path; Kind = $class.Kind; Reason = $reason })
             }
             continue
         }
@@ -1051,8 +1142,14 @@ function Get-PlanSection {
     }
     $skipped = [System.Text.StringBuilder]::new()
     if (@($Plan.Skipped).Count -gt 0) {
-        [void]$skipped.AppendLine('## Skipped: local changes in site/').AppendLine()
-        [void]$skipped.AppendLine('These files differ from the template and were kept. Compare them with the template and take over what you need, or set site.updateMode to overwrite.').AppendLine()
+        # The key of every kind present (site.updateMode, docs.updateMode, D50); an item without Kind is a site file.
+        [string[]]$keys = @(@($Plan.Skipped | ForEach-Object { if ($_.PSObject.Properties['Kind'] -and $_.Kind) { [string]$_.Kind } else { 'site' } }) |
+                Sort-Object -Unique -CaseSensitive | ForEach-Object { "$_.updateMode" })
+        [void]$skipped.AppendLine('## Skipped: local changes').AppendLine()
+        [void]$skipped.AppendLine("These files differ from the template and were kept. Compare them with the template and take over what you need, or set $($keys -join ' or ') to overwrite.").AppendLine()
+        if (@($Plan.Skipped | Where-Object Reason -CEQ 'no installed template').Count -gt 0) {
+            [void]$skipped.AppendLine('The installed template commit is not recorded in templateSha and could not be recovered, so every file that differs from the template counts as changed here.').AppendLine()
+        }
         foreach ($item in $Plan.Skipped) { [void]$skipped.AppendLine(('- `{0}`: {1}' -f $item.File, $item.Reason)) }
         if ($CompareUrl) { [void]$skipped.AppendLine().AppendLine("Template changes since the installed version: $CompareUrl") }
         [void]$skipped.AppendLine()
@@ -1112,11 +1209,11 @@ function Get-CompareUrl {
 function ConvertTo-UpdatePullRequestBody {
     <#
     .SYNOPSIS
-    The pull request body of an update: the changes, the effective diff, skipped site files, validation warnings and
-    the release notes.
+    The pull request body of an update: the changes, the effective diff, skipped customizable files, validation
+    warnings and the release notes.
     .DESCRIPTION
     Sections in order: '## Changes' (| File | Class | Change |), '## Effective diff' (one | Id | Before | After |
-    Decided by | table per endpoint, or 'No effective change.'), '## Skipped: local changes in site/' and '## Notes'
+    Decided by | table per endpoint, or 'No effective change.'), '## Skipped: local changes' and '## Notes'
     when there are any, '## Validation warnings' when there are any, '## Release notes' with the new part of
     RELEASENOTES.copy.md or 'No release notes available' (left out when the template ships no release notes).
     Above the 65536-character limit of GitHub (-Limit, default 60000) whole parts are dropped, the release notes
@@ -1185,7 +1282,7 @@ function ConvertTo-UpdateSummary {
     .SYNOPSIS
     The job summary of an update run: '## Template update check' (-Mode check) or '## Rulebook system files update'.
     .DESCRIPTION
-    The message and result line, the change table, skipped site files, notes, validation warnings and errors, the
+    The message and result line, the change table, skipped customizable files, notes, validation warnings and errors, the
     effective diff (or why it could not be computed) when -Result carries one, and the new release notes. The
     entry script caps it below the step summary limit.
     #>
@@ -1374,6 +1471,7 @@ Export-ModuleMember -Function @(
     'Get-ReleaseNotesDelta'
     'Get-EffectiveDiffBlock'
     'Get-RulebookFileClass'
+    'Get-RepositoryRootTree'
     'Get-RulebookTemplate'
     'Get-RulebookUpdatePlan'
     'Get-RulebookUpdateStatus'

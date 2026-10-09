@@ -160,9 +160,43 @@ Describe 'CheckForUpdates.ps1' {
         $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1') }
         $run.Result.ExitCode | Should-Be 0
         $run.Result.UpdatesAvailable | Should-BeTrue
-        @($run.Result.Annotations) | Should-BeCollection @('::warning title=CheckForUpdates::Updates available: run the Update Rulebook System Files workflow (20 files)')
+        @($run.Result.Annotations) | Should-BeCollection @('::warning title=CheckForUpdates::Updates available: run the Update Rulebook System Files workflow (21 files)')
         $run.Summary | Should-MatchString '(?m)^\| `stages/ci\.json` \| overwrite \| modified \|$'
         $run.Summary | Should-MatchString '(?m)^\| `rulesets/house\.ruleset\.json` \| generated \| modified \|$'
+    }
+
+    It 'says that the installed commit could not be recovered when templateSha is empty on the local set (D50)' {
+        $root = New-FixtureRepo -Name 'update-org' -Destination (Get-TestFolder)
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.templateSha = '' }
+        $run = Invoke-Entry @{ RepositoryRoot = $root; TemplatePath = (Join-Path $templates 'v2') }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.Plan.InstalledSource | Should-Be 'none'
+        $run.Summary | Should-MatchString '(?m)^## Skipped: local changes$'
+        $run.Summary | Should-BeLikeString '*The installed template commit is not recorded in templateSha and could not be recovered*'
+        $run.Summary | Should-MatchString '(?m)^- `docs/getting-started\.md`: no installed template$'
+    }
+
+    It 'passes the repository, GITHUB_SHA and GITHUB_TOKEN for the recovery only when the template URL is unchanged (D50)' {
+        Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Update.psd1') -Force
+        # A mock in this scope outlives the -Force import of the entry script (an alias wins over the function).
+        Mock Get-RulebookTemplate { throw 'stop here' }
+        $saved = @{ Sha = $env:GITHUB_SHA; Token = $env:GITHUB_TOKEN }
+        $env:GITHUB_SHA = 'f' * 40
+        $env:GITHUB_TOKEN = 'gh-read'
+        try {
+            $same = Invoke-Entry @{ RepositoryRoot = $org }
+            $other = Invoke-Entry @{ RepositoryRoot = $org; TemplateUrl = 'https://github.com/Fabrikam/rulebook@main' }
+        } finally {
+            $env:GITHUB_SHA = $saved.Sha
+            $env:GITHUB_TOKEN = $saved.Token
+        }
+        $same.Result.Annotations[0] | Should-Be '::warning title=CheckForUpdates::update check skipped: stop here'
+        $other.Result.Annotations[0] | Should-Be '::warning title=CheckForUpdates::update check skipped: stop here'
+        $resolved = (Resolve-Path -LiteralPath $org).ProviderPath
+        Should-Invoke Get-RulebookTemplate -Times 1 -Exactly -ParameterFilter {
+            $RepositoryRoot -eq $resolved -and $Repository -eq 'Contoso/rulebook' -and $Ref -eq ('f' * 40) -and $RepositoryToken -eq 'gh-read' -and $TemplateUrl -eq 'https://github.com/Contoso/rulebook-template@main'
+        }
+        Should-Invoke Get-RulebookTemplate -Times 1 -Exactly -ParameterFilter { $TemplateUrl -eq 'https://github.com/Fabrikam/rulebook@main' -and [string]::IsNullOrEmpty($RepositoryRoot) -and [string]::IsNullOrEmpty($Repository) }
     }
 
     It 'writes the outputs' {

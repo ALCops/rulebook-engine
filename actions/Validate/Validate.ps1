@@ -13,6 +13,8 @@ check; '' (the default) follows update.check of the settings, true when absent. 
 update.check of the settings; pass 'false' to skip the check. Any other value turns the check off and says so in the
 log. The check runs in check mode (Rulebook.Update): the template of the settings at the head of its branch,
 downloaded with GITHUB_TOKEN (never the write token), or -TemplatePath and -InstalledTemplatePath as local folders.
+An empty templateSha is recovered from the repository's root commit (D50: the checkout, else GITHUB_REPOSITORY at
+GITHUB_SHA through the API).
 One notice (no updates, templateSha not recorded) or warning (updates available, check skipped) and the section
 '## Template update check' in the summary. Neither counts towards warnings= or -FailOnWarning, and the check never
 fails the step. UpdateCheck is { Status (none, sha-only, available, skipped), Reason, Plan }. The check works
@@ -221,7 +223,8 @@ if ($runUpdateCheck) {
         if ($TemplatePath) {
             $template = Get-RulebookTemplate -TemplatePath $TemplatePath -InstalledTemplatePath $InstalledTemplatePath -TemplateUrl $templateUrl
         } else {
-            $template = Get-RulebookTemplate -TemplateUrl $templateUrl -GitHubToken $env:GITHUB_TOKEN -DownloadLatest -InstalledSha ([string](& $value 'templateSha')) -WorkPath $work -ApiUrl $ApiUrl
+            $template = Get-RulebookTemplate -TemplateUrl $templateUrl -GitHubToken $env:GITHUB_TOKEN -DownloadLatest -InstalledSha ([string](& $value 'templateSha')) -WorkPath $work -ApiUrl $ApiUrl `
+                -RepositoryRoot $root -Repository $env:GITHUB_REPOSITORY -Ref $env:GITHUB_SHA -RepositoryToken $env:GITHUB_TOKEN
         }
         $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $work
         $status = Get-RulebookUpdateStatus -Plan $plan

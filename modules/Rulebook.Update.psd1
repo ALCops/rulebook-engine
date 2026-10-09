@@ -23,6 +23,7 @@
         'Get-ReleaseNotesDelta'
         'Get-EffectiveDiffBlock'
         'Get-RulebookFileClass'
+        'Get-RepositoryRootTree'
         'Get-RulebookTemplate'
         'Get-RulebookUpdatePlan'
         'Get-RulebookUpdateStatus'

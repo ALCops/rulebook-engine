@@ -187,12 +187,34 @@ Describe 'Validate.ps1' {
             }
             $run.Result.ExitCode | Should-Be 0
             @($run.Result.Annotations | Where-Object { $_ -like '::warning*Updates available*' }).Count | Should-Be 1
-            $run.Result.Annotations[-1] | Should-Be '::warning title=Update check::Updates available: run the Update Rulebook System Files workflow (20 files)'
+            $run.Result.Annotations[-1] | Should-Be '::warning title=Update check::Updates available: run the Update Rulebook System Files workflow (21 files)'
             $run.Result.UpdateCheck.Status | Should-Be 'available'
             $run.Summary | Should-MatchString '(?m)^## Template update check$'
             $run.Summary | Should-MatchString '(?m)^\| `base/recommended\.ruleset\.json` \| overwrite \| modified \|$'
             $warnings = @($run.Result.Findings | Where-Object Severity -EQ 'warning').Count
             (Get-Content -LiteralPath $outputFile -Raw) | Should-Be "errors=0`nwarnings=$warnings`n"
+        }
+
+        It 'passes the repository, GITHUB_SHA and GITHUB_TOKEN to the download for the recovery of templateSha (D50)' {
+            Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Update.psd1') -Force
+            # A mock in this scope outlives the -Force import of the entry script (an alias wins over the function).
+            Mock Get-RulebookTemplate { throw 'stop here' }
+            $saved = @{ Repository = $env:GITHUB_REPOSITORY; Sha = $env:GITHUB_SHA; Token = $env:GITHUB_TOKEN }
+            $env:GITHUB_REPOSITORY = 'Contoso/rulebook'
+            $env:GITHUB_SHA = 'f' * 40
+            $env:GITHUB_TOKEN = 'gh-read'
+            try {
+                $run = Invoke-Entry @{ RepositoryRoot = $org; CheckForUpdates = $true }
+            } finally {
+                $env:GITHUB_REPOSITORY = $saved.Repository
+                $env:GITHUB_SHA = $saved.Sha
+                $env:GITHUB_TOKEN = $saved.Token
+            }
+            $run.Result.Annotations[-1] | Should-Be '::warning title=Update check::update check skipped: stop here'
+            $resolved = (Resolve-Path -LiteralPath $org).ProviderPath
+            Should-Invoke Get-RulebookTemplate -Times 1 -Exactly -ParameterFilter {
+                $RepositoryRoot -eq $resolved -and $Repository -eq 'Contoso/rulebook' -and $Ref -eq ('f' * 40) -and $RepositoryToken -eq 'gh-read' -and $GitHubToken -eq 'gh-read'
+            }
         }
 
         It 'gives a notice when nothing but templateSha would change' {

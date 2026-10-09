@@ -176,6 +176,10 @@ Describe 'Get-RulebookFileClass' {
         @{ Path = 'base/strict.ruleset.json'; Class = 'overwrite' }
         @{ Path = 'base/twins.json'; Class = 'overwrite' }
         @{ Path = 'catalog/diagnostics.json'; Class = 'org-owned' }
+        @{ Path = 'docs/README.md'; Class = 'customizable' }
+        @{ Path = 'docs/getting-started.md'; Class = 'customizable' }
+        @{ Path = 'docs/images/badge.png'; Class = 'customizable' }
+        @{ Path = 'docs/images/logo.png'; Class = 'customizable' }
         @{ Path = 'overrides.json'; Class = 'org-owned' }
         @{ Path = 'quarantine.ci.json'; Class = 'org-owned' }
         @{ Path = 'quarantine.default.json'; Class = 'org-owned' }
@@ -216,6 +220,19 @@ Describe 'Get-RulebookFileClass' {
         $overwrite = @{ site = @{ updateMode = 'overwrite' } }
         (Get-RulebookFileClass -Path 'site/layouts/index.html' -TemplatePaths $v2Paths -Settings $overwrite).Class | Should-Be 'overwrite'
         (Get-RulebookFileClass -Path 'site/data/x.json' -TemplatePaths @('site/data/x.json') -Settings $overwrite).Class | Should-Be 'org-owned'
+        (Get-RulebookFileClass -Path 'docs/README.md' -TemplatePaths $v2Paths -Settings $overwrite).Class | Should-Be 'customizable'
+    }
+
+    It 'gives docs/** the kind docs and README.md stays org-owned (D50)' {
+        Get-RulebookFileClass -Path 'docs/images/logo.png' -TemplatePaths $v2Paths -Settings $settings | Should-BeEquivalent ([pscustomobject]@{ Class = 'customizable'; Kind = 'docs' })
+        Get-RulebookFileClass -Path 'README.md' -TemplatePaths $v2Paths -Settings $settings | Should-BeEquivalent ([pscustomobject]@{ Class = 'org-owned'; Kind = 'org' })
+        (Get-RulebookFileClass -Path 'docs/README.md' -TemplatePaths $v2Paths -Settings $null).Class | Should-Be 'customizable'
+    }
+
+    It 'makes docs/** overwrite with docs.updateMode overwrite and leaves site/** alone' {
+        $overwrite = @{ site = @{ updateMode = 'skip' }; docs = @{ updateMode = 'overwrite' } }
+        Get-RulebookFileClass -Path 'docs/getting-started.md' -TemplatePaths $v2Paths -Settings $overwrite | Should-BeEquivalent ([pscustomobject]@{ Class = 'overwrite'; Kind = 'docs' })
+        (Get-RulebookFileClass -Path 'site/layouts/index.html' -TemplatePaths $v2Paths -Settings $overwrite).Class | Should-Be 'customizable'
     }
 }
 
@@ -438,6 +455,7 @@ Describe 'Get-RulebookUpdatePlan: update-org against v2 (installed v1)' {
             'modified .github/Rulebook-Settings.json'
             'modified .github/workflows/ChangeRule.yaml'
             'modified base/recommended.ruleset.json'
+            'created docs/images/badge.png'
             'modified rulesets/complete.ci.ruleset.json'
             'modified rulesets/complete.ruleset.json'
             'modified rulesets/complete.vnext.ruleset.json'
@@ -475,8 +493,9 @@ Describe 'Get-RulebookUpdatePlan: update-org against v2 (installed v1)' {
         @($endpoint.rules | Where-Object id -EQ 'AC0001').action | Should-Be 'Error'
     }
 
-    It 'skips the site file changed on both sides and lists it, keeps style.css' {
-        @($plan.Skipped | ForEach-Object { "$($_.File) $($_.Reason)" }) | Should-BeCollection @('site/layouts/index.html local changes')
+    It 'skips the site and docs files changed on both sides and lists them, keeps style.css' {
+        @($plan.Skipped | ForEach-Object { "$($_.File) $($_.Kind) $($_.Reason)" }) | Should-BeCollection @('docs/getting-started.md docs local changes', 'site/layouts/index.html site local changes')
+        Get-CandidateText -Plan $plan -Path 'docs/getting-started.md' | Should-BeLikeString '*Tell the platform team.*'
         Get-CandidateText -Plan $plan -Path 'site/layouts/index.html' | Should-BeLikeString '*Contoso banner*'
         Get-CandidateText -Plan $plan -Path 'site/static/style.css' | Should-BeLikeString '*Contoso Sans*'
         Get-CandidateText -Plan $plan -Path 'site/layouts/rule.html' | Should-BeLikeString '*Rule page, v2.*'
@@ -603,7 +622,11 @@ Describe 'Get-RulebookUpdatePlan: variants' {
         $root = Copy-Org
         Edit-OrgSetting -Root $root -Script { $_.templateSha = '' }
         $plan = Get-Plan -Org $root -Installed ''
-        @($plan.Skipped | ForEach-Object { "$($_.File) $($_.Reason)" }) | Should-BeCollection @('site/layouts/index.html no installed template', 'site/layouts/rule.html no installed template', 'site/static/style.css no installed template')
+        @($plan.Skipped | ForEach-Object { "$($_.File) $($_.Reason)" }) | Should-BeCollection @(
+            'docs/README.md no installed template', 'docs/getting-started.md no installed template'
+            'site/layouts/index.html no installed template', 'site/layouts/rule.html no installed template', 'site/static/style.css no installed template'
+        )
+        $plan.InstalledSource | Should-Be 'none'
         Assert-ItemPresent -Actual (Get-ChangeList $plan) -Expected @('created site/layouts/footer.html')
         @($plan.Changes | Where-Object File -CEQ 'site/layouts/rule.html') | Should-BeCollection @()
     }
@@ -613,7 +636,8 @@ Describe 'Get-RulebookUpdatePlan: variants' {
         Edit-OrgSetting -Root $root -Script { $_.site.updateMode = 'overwrite' }
         $plan = Get-Plan -Org $root
         Assert-ItemPresent -Actual (Get-ChangeList $plan) -Expected @('modified site/layouts/index.html', 'modified site/static/style.css', 'modified site/layouts/rule.html')
-        @($plan.Skipped) | Should-BeCollection @()
+        # The two keys are independent: the docs page changed on both sides is still skipped.
+        @($plan.Skipped | ForEach-Object File) | Should-BeCollection @('docs/getting-started.md')
         Get-CandidateText -Plan $plan -Path 'site/static/style.css' | Should-Be ([System.IO.File]::ReadAllText((Join-Path $v2 'site' 'static' 'style.css')))
     }
 
@@ -622,9 +646,68 @@ Describe 'Get-RulebookUpdatePlan: variants' {
         @($plan.Changes | Where-Object File -CEQ 'site/static/style.css') | Should-BeCollection @()
     }
 
+    It 'keeps a docs page changed only by the organization without a diff (D50)' {
+        $plan = Get-Plan
+        @($plan.Changes | Where-Object File -CEQ 'docs/README.md') | Should-BeCollection @()
+        Get-CandidateText -Plan $plan -Path 'docs/README.md' | Should-BeLikeString '*Ask the platform team*'
+    }
+
+    It 'copies a docs image the template added by its bytes (D50)' {
+        $plan = Get-Plan
+        $change = $plan.Changes | Where-Object File -CEQ 'docs/images/badge.png'
+        $change.Class | Should-Be 'customizable'
+        $change.Kind | Should-Be 'docs'
+        [System.Linq.Enumerable]::SequenceEqual([byte[]]$change.Bytes, [byte[]][System.IO.File]::ReadAllBytes((Join-Path $v2 'docs' 'images' 'badge.png'))) | Should-BeTrue
+    }
+
+    It 'overwrites a locally changed docs page with docs.updateMode overwrite and still skips the site page' {
+        $root = Copy-Org
+        Edit-OrgSetting -Root $root -Script { $_.docs.updateMode = 'overwrite' }
+        $plan = Get-Plan -Org $root
+        ($plan.Changes | Where-Object File -CEQ 'docs/getting-started.md').Class | Should-Be 'overwrite'
+        Get-CandidateText -Plan $plan -Path 'docs/getting-started.md' | Should-Be ([System.IO.File]::ReadAllText((Join-Path $v2 'docs' 'getting-started.md')))
+        # docs/README.md: v2 did not change it, but overwrite means the template version (the pull request shows the revert).
+        Assert-ItemPresent -Actual (Get-ChangeList $plan) -Expected @('modified docs/getting-started.md', 'modified docs/README.md')
+        @($plan.Skipped | ForEach-Object File) | Should-BeCollection @('site/layouts/index.html')
+    }
+
+    It 'removes a shipped docs page listed in unusedRulebookFiles' {
+        $root = Copy-Org
+        Edit-OrgSetting -Root $root -Script { $_.unusedRulebookFiles = @($_.unusedRulebookFiles) + 'docs/README.md' }
+        $plan = Get-Plan -Org $root
+        Assert-ItemPresent -Actual (Get-ChangeList $plan) -Expected @('deleted docs/README.md')
+        Test-Path -LiteralPath (Join-Path $plan.CandidatePath 'docs' 'README.md') | Should-BeFalse
+    }
+
+    It 'lists skipped site and docs files under one heading that names both keys' {
+        $plan = Get-Plan
+        $body = ConvertTo-UpdatePullRequestBody -Plan $plan -Diff @() -Branch 'main'
+        $body | Should-BeLikeString '*## Skipped: local changes*'
+        $body | Should-BeLikeString '*set docs.updateMode or site.updateMode to overwrite.*'
+        $body | Should-MatchString '(?m)^- `docs/getting-started\.md`: local changes$'
+        $body | Should-NotMatchString 'could not be recovered'
+    }
+
+    It 'names only the key of the kinds that were skipped' {
+        $root = Copy-Org
+        Edit-OrgSetting -Root $root -Script { $_.site.updateMode = 'overwrite' }
+        $summary = ConvertTo-UpdateSummary -Plan (Get-Plan -Org $root)
+        $summary | Should-BeLikeString '*set docs.updateMode to overwrite.*'
+        $summary | Should-NotMatchString 'site\.updateMode'
+    }
+
+    It 'says that the installed commit could not be recovered when files were skipped for that reason' {
+        $root = Copy-Org
+        Edit-OrgSetting -Root $root -Script { $_.templateSha = '' }
+        $summary = ConvertTo-UpdateSummary -Plan (Get-Plan -Org $root -Installed '')
+        $summary | Should-BeLikeString '*The installed template commit is not recorded in templateSha and could not be recovered*'
+    }
+
     It 'ignores CRLF in the organization copy of an unchanged file' {
         $root = Copy-Org
-        foreach ($path in '.github/workflows/Validate.yaml', 'base/essential.ruleset.json', 'site/layouts/rule.html') {
+        # The docs pages back at v1 (the organization edited both), then CRLF like the other files.
+        foreach ($page in 'README.md', 'getting-started.md') { Copy-Item -LiteralPath (Join-Path $v1 'docs' $page) -Destination (Join-Path $root 'docs' $page) -Force }
+        foreach ($path in '.github/workflows/Validate.yaml', 'base/essential.ruleset.json', 'site/layouts/rule.html', 'docs/README.md', 'docs/getting-started.md') {
             $full = Join-Path $root $path
             [System.IO.File]::WriteAllText($full, [System.IO.File]::ReadAllText($full).Replace("`n", "`r`n"))
         }
@@ -867,6 +950,206 @@ Describe 'Get-RulebookTemplate (download)' {
         }
         { Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -WorkPath (Get-TestFolder) } | Should-Throw -ExceptionMessage 'Could not get the latest commit of https://github.com/Contoso/rulebook-template@main (HTTP 404: Not Found)'
     }
+
+    Context 'recovery of the installed commit from the root tree (D50)' {
+        BeforeAll {
+            $script:recover = @{ TemplateUrl = 'Contoso/rulebook-template'; GitHubToken = 'gh'; DownloadLatest = $true; InstalledSha = ''; RepositoryRoot = 'C:\org'; Repository = 'Contoso/rulebook'; Ref = 'f' * 40; RepositoryToken = 'gh-org' }
+            function Get-CommitItem {
+                param([string]$Sha, [string]$Tree)
+                return @{ sha = $Sha; commit = @{ tree = @{ sha = $Tree } } }
+            }
+        }
+
+        BeforeEach {
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like 'repos/Contoso/rulebook-template/commits?*' } {
+                [pscustomobject]@{ StatusCode = 200; Body = @((Get-CommitItem $script:headSha 'T2'), (Get-CommitItem $script:oldSha 'T1')); Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+            Mock Get-RepositoryRootTree -ModuleName Rulebook.Update { [pscustomobject]@{ TreeShas = [string[]]@('T1'); Source = 'git'; Note = $null } }
+        }
+
+        It 'recovers the installed commit and downloads its zipball once' {
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $template.Sha | Should-Be $headSha
+            $template.InstalledSha | Should-Be $oldSha
+            $template.InstalledSource | Should-Be 'recovered'
+            Split-Path -Leaf $template.InstalledPath | Should-Be 'Contoso-rulebook-template-aaaaaaa'
+            @($template.Notes) | Should-BeCollection @("templateSha is empty; the installed template commit aaaaaaa was recovered from the repository's root commit (tree T1).")
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$($script:oldSha)" }
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/commits?sha=main&per_page=100&page=1' -and $Token -eq 'gh' }
+            Should-Invoke Get-RepositoryRootTree -ModuleName Rulebook.Update -Times 1 -Exactly -ParameterFilter { $RepositoryRoot -eq 'C:\org' -and $Repository -eq 'Contoso/rulebook' -and $Ref -eq ('f' * 40) -and $Token -eq 'gh-org' }
+        }
+
+        It 'takes the newest commit when two share the root tree' {
+            $middle = 'c' * 40
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like 'repos/Contoso/rulebook-template/commits?*' } {
+                [pscustomobject]@{ StatusCode = 200; Body = @((Get-CommitItem $script:headSha 'T2'), (Get-CommitItem ('c' * 40) 'T1'), (Get-CommitItem $script:oldSha 'T1')); Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$('c' * 40)" } {
+                Copy-Item -LiteralPath $script:v1Zip -Destination $OutFile
+                [pscustomobject]@{ StatusCode = 200; Body = $null; Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $template.InstalledSha | Should-Be $middle
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Path -like "*/zipball/$($script:oldSha)" }
+        }
+
+        It 'takes the head path when the root tree is the tree of the head' {
+            Mock Get-RepositoryRootTree -ModuleName Rulebook.Update { [pscustomobject]@{ TreeShas = [string[]]@('T2'); Source = 'api'; Note = $null } }
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $template.InstalledSha | Should-Be $headSha
+            $template.InstalledSource | Should-Be 'recovered'
+            $template.InstalledPath | Should-Be $template.Path
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/zipball/*' }
+        }
+
+        It 'keeps the behaviour without an installed template when no commit has the root tree' {
+            Mock Get-RepositoryRootTree -ModuleName Rulebook.Update { [pscustomobject]@{ TreeShas = [string[]]@('T9'); Source = 'git'; Note = $null } }
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $template.InstalledSha | Should-BeNull
+            $template.InstalledPath | Should-BeNull
+            $template.InstalledSource | Should-Be 'none'
+            @($template.Notes) | Should-BeCollection @("templateSha is empty and the installed template commit could not be recovered: no commit of Contoso/rulebook-template@main in the last 2 commits has the tree of the repository's root commit; site and docs files that differ from the new template are kept and listed, and files the template dropped get no note.")
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/zipball/*' }
+        }
+
+        It 'notes a root commit that could not be found' {
+            Mock Get-RepositoryRootTree -ModuleName Rulebook.Update { [pscustomobject]@{ TreeShas = $null; Source = $null; Note = "The repository's root commit could not be found (HTTP 403)." } }
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $template.InstalledSource | Should-Be 'none'
+            $template.Notes[0] | Should-BeLikeString "templateSha is empty and the installed template commit could not be recovered: The repository's root commit could not be found (HTTP 403). The site and docs files*"
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Path -like '*/commits?*' }
+        }
+
+        It 'turns a failing commits call into a note' {
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like 'repos/Contoso/rulebook-template/commits?*' } {
+                [pscustomobject]@{ StatusCode = 500; Body = @{ message = 'Server Error' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $template.InstalledSource | Should-Be 'none'
+            $template.Notes[0] | Should-BeLikeString '*could not be recovered: the commits of Contoso/rulebook-template@main could not be listed (*HTTP 500: Server Error*'
+        }
+
+        It 'lists the template commits with the write token the template needed' {
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like '*/branches/main' -and $Token -eq 'gh' } {
+                [pscustomobject]@{ StatusCode = 404; Body = @{ message = 'Not Found' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+            $template = Get-RulebookTemplate @recover -Token 'ghp_write' -WorkPath (Get-TestFolder)
+            $template.InstalledSource | Should-Be 'recovered'
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/commits?*' -and $Token -eq 'ghp_write' }
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Path -like '*/commits?*' -and $Token -eq 'gh' }
+        }
+
+        It 'does not look for the root without the repository (another template)' {
+            $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -InstalledSha '' -WorkPath (Get-TestFolder)
+            $template.InstalledSource | Should-Be 'none'
+            @($template.Notes) | Should-BeCollection @()
+            Should-Invoke Get-RepositoryRootTree -ModuleName Rulebook.Update -Times 0 -Exactly
+        }
+
+        It 'never looks for the root when templateSha is recorded' {
+            $recorded = $recover.Clone()
+            $recorded.InstalledSha = $oldSha
+            $template = Get-RulebookTemplate @recorded -WorkPath (Get-TestFolder)
+            $template.InstalledSource | Should-Be 'recorded'
+            Should-Invoke Get-RepositoryRootTree -ModuleName Rulebook.Update -Times 0 -Exactly
+        }
+
+        It 'compares three ways with the recovered commit and writes the head into templateSha' {
+            $root = Copy-Org
+            Edit-OrgSetting -Root $root -Script { $_.templateSha = '' }
+            $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
+            $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath (Get-TestFolder)
+            $plan.InstalledSource | Should-Be 'recovered'
+            $plan.InstalledSha | Should-Be $oldSha
+            @($plan.Skipped | ForEach-Object { "$($_.File) $($_.Reason)" }) | Should-BeCollection @('docs/getting-started.md local changes', 'site/layouts/index.html local changes')
+            (Get-CandidateText -Plan $plan -Path '.github/Rulebook-Settings.json' | ConvertFrom-Json).templateSha | Should-Be $headSha
+            ConvertTo-UpdatePullRequestBody -Plan $plan -Diff @() -Branch 'main' | Should-BeLikeString "*/compare/$($oldSha)...$($headSha)*the installed template commit aaaaaaa was recovered from the repository's root commit*"
+        }
+    }
+}
+
+Describe 'Get-RepositoryRootTree' -Skip:$gitMissing {
+    BeforeAll {
+        function New-GitCopy {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+            param()
+            # A copy of the v1 template as a git repository with one root commit; returns the folder.
+            $root = Get-TestFolder
+            Copy-FixtureTree -Source $v1 -Destination $root
+            $null = New-FixtureGitRepo -Root $root -Message 'Initial commit'
+            return $root
+        }
+        $script:orgRepo = New-GitCopy
+        $script:rootTree = ([string](Invoke-FixtureGit -Root $orgRepo -Arguments @('rev-parse', 'HEAD^{tree}'))).Trim()
+        $script:otherRepo = New-GitCopy
+        # The organization's own edits as a second commit, as update-org has them.
+        Copy-Item -LiteralPath (Join-Path $orgFixture 'docs' 'README.md') -Destination (Join-Path $orgRepo 'docs' 'README.md') -Force
+        $null = New-FixtureGitRepo -Root $orgRepo -Message 'Contoso edits'
+        $script:shallowRepo = Join-Path (Get-TestFolder) 'shallow'
+        $null = New-Item -ItemType Directory -Path (Split-Path -Parent $shallowRepo) -Force
+        Invoke-FixtureGit -Root (Split-Path -Parent $shallowRepo) -Arguments @('clone', '--quiet', '--depth', '1', ([System.Uri]::new($orgRepo)).AbsoluteUri, $shallowRepo) | Out-Null
+        function Get-PageItem {
+            param([int]$Count, [string]$LastTree = 'Tx')
+            return @(for ($i = 1; $i -le $Count; $i++) { @{ sha = ('{0:x40}' -f $i); commit = @{ tree = @{ sha = $(if ($i -eq $Count) { $LastTree } else { 'Tx' }) } } } })
+        }
+    }
+
+    BeforeEach {
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like 'repos/Contoso/rulebook/commits?*page=1' } {
+            [pscustomobject]@{ StatusCode = 200; Body = (Get-PageItem -Count 100); Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like 'repos/Contoso/rulebook/commits?*page=2' } {
+            [pscustomobject]@{ StatusCode = 200; Body = (Get-PageItem -Count 7 -LastTree $script:rootTree); Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
+    }
+
+    It 'gives the same root tree for every repository created from the same template commit' {
+        $script:rootTree | Should-MatchString '^[0-9a-f]{40}$'
+        (Get-RepositoryRootTree -RepositoryRoot $otherRepo).TreeShas | Should-BeCollection @($rootTree)
+    }
+
+    It 'finds the root tree in the local history without an API call' {
+        $result = Get-RepositoryRootTree -RepositoryRoot $orgRepo -Repository 'Contoso/rulebook' -Ref 'main' -Token 'gh'
+        $result.TreeShas | Should-BeCollection @($rootTree)
+        $result.Source | Should-Be 'git'
+        $result.Note | Should-BeNull
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly
+    }
+
+    It 'walks the commits of the repository to the last page when the clone is shallow' {
+        Get-GitRootTree -Root $shallowRepo | Should-BeNull
+        $result = Get-RepositoryRootTree -RepositoryRoot $shallowRepo -Repository 'Contoso/rulebook' -Ref ('f' * 40) -Token 'gh'
+        $result.TreeShas | Should-BeCollection @($rootTree)
+        $result.Source | Should-Be 'api'
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq "repos/Contoso/rulebook/commits?sha=$('f' * 40)&per_page=100&page=2" -and $Token -eq 'gh' }
+    }
+
+    It 'notes the page cap instead of guessing a root' {
+        $result = Get-RepositoryRootTree -RepositoryRoot $shallowRepo -Repository 'Contoso/rulebook' -Ref 'main' -MaxPages 1
+        $result.TreeShas | Should-BeNull
+        $result.Source | Should-BeNull
+        $result.Note | Should-Be "The repository's root commit could not be found (Contoso/rulebook has more than 100 commits, the most the update reads)."
+    }
+
+    It 'notes a failing API call' {
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like 'repos/Contoso/rulebook/commits?*' } {
+            [pscustomobject]@{ StatusCode = 403; Body = @{ message = 'Resource not accessible by integration' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
+        $result = Get-RepositoryRootTree -RepositoryRoot $shallowRepo -Repository 'Contoso/rulebook' -Ref 'main'
+        $result.TreeShas | Should-BeNull
+        $result.Note | Should-BeLikeString "The repository's root commit could not be found (Could not list the commits of https://github.com/Contoso/rulebook@main (HTTP 403: Resource not accessible by integration))."
+    }
+
+    It 'gives no tree and a note without git history and without a repository name' {
+        $plain = Get-TestFolder
+        $null = New-Item -ItemType Directory -Path $plain
+        foreach ($folder in $plain, '') {
+            $result = Get-RepositoryRootTree -RepositoryRoot $folder
+            $result.TreeShas | Should-BeNull
+            $result.Note | Should-BeLikeString "The repository's root commit could not be found (no full git history*"
+        }
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 0 -Exactly
+    }
 }
 
 Describe 'Publish-RulebookUpdate against a bare repository' -Skip:$gitMissing {
@@ -927,7 +1210,7 @@ Describe 'Publish-RulebookUpdate against a bare repository' -Skip:$gitMissing {
         $tables | Should-BeCollection @($result.Diff | ForEach-Object Endpoint | Select-Object -Unique)
         [array]::IndexOf($tables, 'recommended.default') | Should-BeLessThan ([array]::IndexOf($tables, 'complete.default'))
         $headings = @([regex]::Matches($result.Body, '(?m)^## (.+)$') | ForEach-Object { $_.Groups[1].Value })
-        $headings | Should-BeCollection @('Changes', 'Effective diff', 'Skipped: local changes in site/', 'Notes', 'Release notes')
+        $headings | Should-BeCollection @('Changes', 'Effective diff', 'Skipped: local changes', 'Notes', 'Release notes')
         $result.Body | Should-MatchString '(?m)^\| AC0001 \| Warning \| Error \| level:recommended \|$'
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'POST' -and $Path -eq 'repos/Contoso/rulebook/pulls' -and $Body.title -eq $title -and $Body.head -eq 'update-rulebook-system-files/main/261007123045' -and $Body.base -eq 'main' }
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq 'repos/Contoso/rulebook/issues/12/labels' -and (@($Body.labels) -join ',') -eq 'rulebook' }
