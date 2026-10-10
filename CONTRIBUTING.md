@@ -83,7 +83,7 @@ $config.CodeCoverage.OutputPath = Join-Path $scratch 'coverage.xml'
 $config.CodeCoverage.UseBreakpoints = $false
 $config.CodeCoverage.CoveragePercentTarget = 0
 Invoke-Pester -Configuration $config
-./tools/ci/Write-TestSummary.ps1 -TestResultsPath (Join-Path $scratch 'testResults.xml') -CoveragePath (Join-Path $scratch 'coverage.xml') -SummaryPath '' -NoAnnotations
+$null = ./tools/ci/Write-TestSummary.ps1 -TestResultsPath (Join-Path $scratch 'testResults.xml') -CoveragePath (Join-Path $scratch 'coverage.xml') -SummaryPath '' -NoAnnotations
 ```
 
 The analyzer must print nothing. Outside GitHub Actions the Linux smoke case is skipped (it runs only when `$env:GITHUB_ACTIONS` is set). The effective-diff tests of the Generate suite and the diff tests of the Validate action suite need `git` on the path and are skipped without it.

@@ -71,7 +71,7 @@ jobs:
       - name: Test summary
         if: always()
         shell: pwsh
-        run: ./tools/ci/Write-TestSummary.ps1 -TestResultsPath testResults.xml -CoveragePath coverage.xml
+        run: $null = ./tools/ci/Write-TestSummary.ps1 -TestResultsPath testResults.xml -CoveragePath coverage.xml
 
       - name: Upload test results
         if: always()
