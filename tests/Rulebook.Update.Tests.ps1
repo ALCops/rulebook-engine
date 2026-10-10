@@ -1018,8 +1018,23 @@ Describe 'Get-RulebookTemplate (download)' {
             }
             $template = Get-RulebookTemplate @recover -WorkPath (Get-TestFolder)
             $template.InstalledSource | Should-Be 'none'
-            $template.Notes[0] | Should-BeLikeString '*in the last 1000 commits (list capped at 1000 commits) has the tree*'
+            $template.Notes[0] | Should-BeLikeString '*in the last 1000 commits of the list (capped) has the tree*'
             Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 10 -Exactly -ParameterFilter { $Path -like '*/commits?*' }
+        }
+
+        It 'leaves out the not-recovered line when a recorded commit failed to download' {
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$($script:oldSha)" } {
+                [pscustomobject]@{ StatusCode = 404; Body = $null; Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+            $recorded = $recover.Clone()
+            $recorded.InstalledSha = $oldSha
+            $template = Get-RulebookTemplate @recorded -WorkPath (Get-TestFolder)
+            $plan = Get-RulebookUpdatePlan -RepositoryRoot (Copy-Org) -Template $template -WorkPath (Get-TestFolder)
+            $plan.InstalledSource | Should-Be 'recorded'
+            @($plan.Skipped | Where-Object Reason -CEQ 'no installed template').Count | Should-BeGreaterThan 0
+            $summary = ConvertTo-UpdateSummary -Plan $plan
+            $summary | Should-NotMatchString 'could not be recovered'
+            $summary | Should-BeLikeString '*aaaaaaa*not available (HTTP 404)*'
         }
 
         It 'gives the log line on the installed template' -ForEach @(
@@ -1153,7 +1168,7 @@ Describe 'Get-RepositoryRootTree' -Skip:$gitMissing {
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq "repos/Contoso/rulebook/commits?sha=$('f' * 40)&per_page=100&page=2" -and $Token -eq 'gh' }
     }
 
-    It 'notes the page cap instead of guessing a root' {
+    It 'notes the page cap instead of guessing a root, as at least N commits when exactly N were read' {
         $result = Get-RepositoryRootTree -RepositoryRoot $shallowRepo -Repository 'Contoso/rulebook' -Ref 'main' -MaxPages 1
         $result.TreeShas | Should-BeNull
         $result.Source | Should-BeNull

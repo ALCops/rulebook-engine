@@ -587,7 +587,8 @@ function Get-GitRootTree {
     git rev-list --max-parents=0 HEAD, then rev-parse <sha>^{tree} for each. $null when git is not installed, -Root
     is not a git repository, the repository is shallow (rev-parse --is-shallow-repository; its oldest commit is not
     the root), -Root is a folder inside a repository rather than its top level, or any git call fails. A repository created with "Use this template" has one root commit whose tree is
-    the tree of the template commit it copied (D50).
+    the tree of the template commit it copied (D50). A bare repository answers like a clone. Tree ids are compared as
+    git prints them, so a SHA-256 repository never matches the SHA-1 trees of the REST API (accepted limitation).
     #>
     [CmdletBinding()]
     [OutputType([string[]])]

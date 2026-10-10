@@ -342,6 +342,16 @@ Describe 'Get-GitRootTree' -Skip:$gitMissing {
         Get-GitRootTree -Root (Join-Path $parent 'shallow') | Should-BeNull
     }
 
+    It 'gives the root tree of a bare clone and of a detached HEAD' {
+        $parent = Get-TestFolder
+        $null = New-Item -ItemType Directory -Path $parent
+        Invoke-FixtureGit -Root $parent -Arguments @('clone', '--quiet', '--bare', ([System.Uri]::new($repo)).AbsoluteUri, 'bare.git') | Out-Null
+        Get-GitRootTree -Root (Join-Path $parent 'bare.git') | Should-BeCollection @($tree)
+        Invoke-FixtureGit -Root $parent -Arguments @('clone', '--quiet', ([System.Uri]::new($repo)).AbsoluteUri, 'detached') | Out-Null
+        Invoke-FixtureGit -Root (Join-Path $parent 'detached') -Arguments @('checkout', '--quiet', '--detach', 'HEAD~1') | Out-Null
+        Get-GitRootTree -Root (Join-Path $parent 'detached') | Should-BeCollection @($tree)
+    }
+
     It 'gives $null for a folder inside a repository' {
         $sub = Join-Path $repo 'sub'
         $null = New-Item -ItemType Directory -Path $sub -Force

@@ -569,7 +569,7 @@ function Get-RulebookTemplate {
                     $installedSource = 'recovered'
                     $notes.Add("templateSha is empty; the installed template commit $(Get-ShortSha $installed) was recovered from the repository's root commit (tree $(Get-ShortSha $match[0].TreeSha)).")
                 } else {
-                    $cap = if ($list.Truncated) { " (list capped at $(@($list.Commits).Count) commits)" } else { '' }
+                    $cap = if ($list.Truncated) { ' of the list (capped)' } else { '' }
                     $notes.Add("$unrecovered no commit of $($info.Repo)@$($info.Branch) in the last $(@($list.Commits).Count) commits$cap has the tree of the repository's root commit; $consequence")
                 }
             } catch {
@@ -1168,7 +1168,10 @@ function Get-PlanSection {
                 Sort-Object -Unique -CaseSensitive | ForEach-Object { "$_.updateMode" })
         [void]$skipped.AppendLine('## Skipped: local changes').AppendLine()
         [void]$skipped.AppendLine("These files differ from the template and were kept. Compare them with the template and take over what you need, or set $($keys -join ' or ') to overwrite.").AppendLine()
-        if (@($Plan.Skipped | Where-Object Reason -CEQ 'no installed template').Count -gt 0) {
+        # Only when no installed commit is known at all; a recorded or recovered commit whose zipball failed has its
+        # own note.
+        $source = if ($Plan.PSObject.Properties['InstalledSource']) { [string]$Plan.InstalledSource } else { '' }
+        if ($source -ceq 'none' -and @($Plan.Skipped | Where-Object Reason -CEQ 'no installed template').Count -gt 0) {
             [void]$skipped.AppendLine('The installed template commit is not recorded in templateSha and could not be recovered, so every file that differs from the template counts as changed here.').AppendLine()
         }
         foreach ($item in $Plan.Skipped) { [void]$skipped.AppendLine(('- `{0}`: {1}' -f $item.File, $item.Reason)) }
