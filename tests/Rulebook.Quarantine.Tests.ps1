@@ -2,6 +2,9 @@
 # TestDrive (docs/reference/scan-mechanics.md section 4).
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
@@ -34,6 +37,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     Remove-Module Rulebook.Quarantine, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 

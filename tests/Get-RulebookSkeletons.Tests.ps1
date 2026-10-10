@@ -5,9 +5,8 @@
 
 BeforeAll {
     # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
-    $script:savedActionRef = $env:GITHUB_ACTION_REF
-    $script:savedActionPath = $env:GITHUB_ACTION_PATH
-    Remove-Item Env:GITHUB_ACTION_REF, Env:GITHUB_ACTION_PATH -ErrorAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:entry = Join-Path $script:repoRoot 'scripts' 'Get-RulebookSkeletons.ps1'
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
@@ -53,8 +52,7 @@ BeforeAll {
 }
 
 AfterAll {
-    $env:GITHUB_ACTION_REF = $script:savedActionRef
-    $env:GITHUB_ACTION_PATH = $script:savedActionPath
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
@@ -361,5 +359,9 @@ Describe 'Get-RulebookSkeletons.ps1 parameter binding' {
     It 'rejects a stray positional value' {
         # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
         { & $script:entry -BaseUrl 'https://127.0.0.1:9/rulebook' -Level strict -OutputPath $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
+    }
+
+    It 'rejects a -Ref with ..' {
+        { & $script:entry -BaseUrl 'https://127.0.0.1:9/rulebook' -Level strict -OutputPath $TestDrive -Ref 'v1/../main' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*Ref*'
     }
 }

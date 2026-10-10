@@ -4,9 +4,8 @@
 
 BeforeAll {
     # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
-    $script:savedActionRef = $env:GITHUB_ACTION_REF
-    $script:savedActionPath = $env:GITHUB_ACTION_PATH
-    Remove-Item Env:GITHUB_ACTION_REF, Env:GITHUB_ACTION_PATH -ErrorAction SilentlyContinue
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:templateDir = Join-Path $repoRoot 'template'
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
@@ -48,8 +47,7 @@ BeforeAll {
 }
 
 AfterAll {
-    $env:GITHUB_ACTION_REF = $script:savedActionRef
-    $env:GITHUB_ACTION_PATH = $script:savedActionPath
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
@@ -393,6 +391,20 @@ Describe 'ConvertTo-RulebookIndexHtml' {
         $v1Html | Should-MatchString ([regex]::Escape('<pre><code>Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1'))
         $v1Html | Should-MatchString ([regex]::Escape("./Get-RulebookSkeletons.ps1 -BaseUrl $baseUrl -Level essential -Ref v1</code></pre>"))
         $v1Html | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/v1/docs/al-project.md">'))
+    }
+
+    It 'downloads the init script at a commit sha but passes -Ref main, like the docs link (the template repository has no engine sha)' {
+        $sha = '0123456789abcdef0123456789abcdef01234567'
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = $sha
+            $shaHtml = ConvertTo-RulebookIndexHtml -Inputs $inputs -BaseUrl $baseUrl -Endpoints @($endpoints)
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        $shaHtml | Should-MatchString ([regex]::Escape("https://raw.githubusercontent.com/ALCops/rulebook-engine/$sha/scripts/Get-RulebookSkeletons.ps1"))
+        $shaHtml | Should-MatchString ([regex]::Escape("./Get-RulebookSkeletons.ps1 -BaseUrl $baseUrl -Level essential -Ref main</code></pre>"))
+        $shaHtml | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/main/docs/al-project.md">'))
     }
 
     It 'encodes the base URL and the level in the AL project section' {

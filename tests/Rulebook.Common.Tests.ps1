@@ -183,6 +183,9 @@ Describe 'Get-RulebookEngineRef and the URL builders' {
         @{ Value = 'v1/../main' }
         @{ Value = '-v1' }
         @{ Value = 'v1"' }
+        @{ Value = 'v1/' }
+        @{ Value = 'wp13//references' }
+        @{ Value = 'wp13/.references' }
     ) {
         $env:GITHUB_ACTION_REF = $Value
         Get-RulebookEngineRef | Should-Be 'main'
@@ -193,6 +196,9 @@ Describe 'Get-RulebookEngineRef and the URL builders' {
     It 'refuses an unusable -Ref in every builder: <Value>' -ForEach @(
         @{ Value = 'v1 x' }
         @{ Value = 'v1/../main' }
+        @{ Value = 'v1/' }
+        @{ Value = 'wp13//references' }
+        @{ Value = 'wp13/.references' }
     ) {
         { Get-RulebookSchemaUrl -Name 'rulebook-settings.schema.json' -Ref $Value } | Should-Throw -ExceptionMessage '*is not a usable engine ref*'
         { Get-RulebookScriptUrl -Name 'Get-RulebookSkeletons.ps1' -Ref $Value } | Should-Throw -ExceptionMessage '*is not a usable engine ref*'

@@ -64,7 +64,7 @@ param(
     [Parameter(Mandatory)][string]$Level,
     [string]$OutputPath = '.rulebook',
     [switch]$Force,
-    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._/-]*\z')][string]$Ref = 'v1'
+    [ValidatePattern('^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._/-]*\z')][string]$Ref = 'v1'
 )
 
 Set-StrictMode -Version 3.0

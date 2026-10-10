@@ -5,6 +5,9 @@
 # committed template/ with docs/levels/.
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
     Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Validate.psd1') -Force
@@ -88,6 +91,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     Remove-Module Rulebook.Levels, Rulebook.Catalog, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 

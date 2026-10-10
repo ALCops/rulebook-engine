@@ -22,10 +22,12 @@ $script:PathTextPattern = '^[A-Za-z0-9][A-Za-z0-9._/-]*\z'
 #region Internal helpers
 
 function Test-RulebookPathText {
-    # True when Value is a usable ref or docs page: the path text pattern and no '..' (git refuses it in a ref name,
-    # and in a page it would leave docs/).
+    # True when Value is a usable ref or docs page: the path text pattern, no '..' (git refuses it in a ref name, and
+    # in a page it would leave docs/), no empty segment ('//', a trailing '/') and no segment starting with '.' (git
+    # refuses both in a ref name).
     param([AllowNull()][AllowEmptyString()][string]$Value)
-    return (-not [string]::IsNullOrEmpty($Value)) -and $Value -match $script:PathTextPattern -and -not $Value.Contains('..')
+    if ([string]::IsNullOrEmpty($Value) -or $Value -notmatch $script:PathTextPattern) { return $false }
+    return -not ($Value.Contains('..') -or $Value.Contains('//') -or $Value.EndsWith('/') -or $Value.Contains('/.'))
 }
 
 function Resolve-RulebookRef {
