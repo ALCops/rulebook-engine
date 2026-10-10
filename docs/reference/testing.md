@@ -84,7 +84,7 @@ Real packages and real deploys run only in CI jobs and live runs: `scan-action` 
 
 Every line the coverage report lists as missed, with the reason no test reaches it. The list is the coverage pass of WP12: the paths worth a test got one (the exported functions no suite named, the in-process `Get-AnalyzerDescriptor` call, the publish results and token failures of the action scripts, the reader errors and the files that are not JSON), one function nobody called was removed (`ConvertFrom-JsonFile` of `Rulebook.Generate`), and what is left is defensive (a fault after an earlier check passed), platform or runner-dependent, interactive, or a live-run path. Spin-offs for the gaps worth closing later: sharing the effective-diff renderer of `Validate.ps1` with `Get-EffectiveDiffBlock`, and a stub scenario for the scan body sections.
 
-The line numbers are those of the WP12 testing-docs pull request on a local Windows run (171 of 5720 lines, 97.0 percent). The Linux CI report can differ by a few platform-dependent lines; when this table and the job summary of a later run disagree, the job summary is the current picture and this table is the reasoning.
+The line numbers are those of the WP12 testing-docs pull request on its Linux CI run (176 of 5720 lines, 96.9 percent); a local Windows run also covers the five lines of the assembly-resolve handler, so it reports 171. When this table and the job summary of a later run disagree, the job summary is the current picture and this table is the reasoning.
 
 | File | Lines | Missed | Reason |
 |---|---|---|---|
@@ -118,6 +118,7 @@ The line numbers are those of the WP12 testing-docs pull request on a local Wind
 | `modules/Rulebook.Edit.psm1` | 975 | 1 | The effective diff fails in the clone after the push; the result carries a note instead. |
 | `modules/Rulebook.Extract.psm1` | 65-67 | 3 | pwsh not in `$PSHOME` (a .NET global tool install); the suites run the pwsh of `$PSHOME`. |
 | `modules/Rulebook.Extract.psm1` | 122, 129 | 2 | Defensive fallbacks for an assembly or package id outside the two known packages. |
+| `modules/Rulebook.Extract.psm1` | 205-208, 210 | 5 | The body of the `AssemblyResolve` handler of the in-process extraction: on `ubuntu-latest` the runtime finds the stub dependencies next to the loading assembly on its own and never asks the handler; on Windows it asks, and the in-process case covers these lines there. |
 | `modules/Rulebook.Extract.psm1` | 219, 265, 271-274, 284 | 7 | An assembly that does not load or a type that cannot be instantiated, in the in-process call; the child-process cases (BrokenCop, MissingDependency) prove the same failures, but the coverage tracer does not see the child. |
 | `modules/Rulebook.Extract.psm1` | 401 | 1 | The child wrote a result file that is not JSON; not reproducible with the stubs. |
 | `modules/Rulebook.Generate.psm1` | 1008 | 1 | A change declined at a `-Confirm` prompt; interactive only. |
