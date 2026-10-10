@@ -557,9 +557,10 @@ Describe 'Publish-RulebookChange against a bare repository' -Skip:$gitMissing {
 
     It 'falls back to the pull request when the direct push is refused' {
         $bare = New-Origin -Reject
-        $result = Publish-RulebookChange -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -BranchPrefix 'change-rule/LC0015' -DirectCommit -WorkPath (Get-TestFolder) -Now $now 3>$null
+        $result = Publish-RulebookChange -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -BranchPrefix 'change-rule/LC0015' -DirectCommit -WorkPath (Get-TestFolder) -Now $now
         $result.Result | Should-Be 'pull-request'
         $result.Fallback | Should-BeTrue
+        $result.FallbackReason | Should-BeLikeString '*main is protected*'
         $result.Branch | Should-Be 'change-rule/LC0015/261008091530'
     }
 

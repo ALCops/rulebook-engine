@@ -899,9 +899,10 @@ function Publish-RulebookChange {
     and pushes <BranchPrefix>/<yyMMddHHmmss UTC> (-Now), or -BaseBranch with -DirectCommit, falling back to the new
     branch when the push is refused (D47). Diff is the effective diff of the commit against the cloned head. Opens
     the pull request with -Labels and the body of ConvertTo-ChangePullRequestBody. Returns { Result (pull-request,
-    direct-commit, no-changes), PullRequestUrl, Number, Branch, Sha, Fallback, Diff, DiffNote, Body, Title }. A
-    failure throws with Data['Stage']: push for the clone, commit and push; pull-request for the opening, naming the
-    pushed branch and its tree link.
+    direct-commit, no-changes), PullRequestUrl, Number, Branch, Sha, Fallback, FallbackReason (the git output of a
+    refused direct push, else $null), Diff, DiffNote, Body, Title }. A failure throws with Data['Stage']: push for the
+    clone, commit and push; pull-request for the opening, naming the pushed branch and its tree link (Data['Branch'],
+    and Data['FallbackReason'] after a refused direct push).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -961,7 +962,7 @@ function Publish-RulebookChange {
         if ($_.Exception.Data['Reason']) { $exception.Data['Reason'] = $_.Exception.Data['Reason'] }
         throw $exception
     }
-    $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
+    $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; FallbackReason = $pushed.FallbackReason; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
     if (-not $pushed.Pushed) {
         $result.Result = 'no-changes'
         return $result
@@ -988,6 +989,8 @@ function Publish-RulebookChange {
         $exception = [System.InvalidOperationException]::new($message, $_.Exception)
         $exception.Data['Stage'] = 'pull-request'
         $exception.Data['Branch'] = $pushed.Branch
+        # The refused direct push is reported even when the pull request then fails (#77).
+        if ($pushed.Fallback) { $exception.Data['FallbackReason'] = $pushed.FallbackReason }
         throw $exception
     }
     $result.Result = 'pull-request'

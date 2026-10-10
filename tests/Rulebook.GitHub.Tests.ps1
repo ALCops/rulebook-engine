@@ -508,6 +508,7 @@ Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
         $result = Publish-GitHubChange -Clone $clone -Message 'Direct' -NewBranch 'unused' -DirectCommit
         $result.Direct | Should-BeTrue
         $result.Fallback | Should-BeFalse
+        $result.FallbackReason | Should-BeNull
         $result.Branch | Should-Be 'main'
         (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/main')).Trim() | Should-Be $result.Sha
     }
@@ -516,8 +517,11 @@ Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
         Add-RejectPushHook -BarePath $bare -Branch 'main'
         $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
         Write-FixtureText -Path (Join-Path $clone.Path 'overrides.json') -Text '{ "rules": [] }'
-        $result = Publish-GitHubChange -Clone $clone -Message 'Direct' -NewBranch 'update-rulebook-system-files/main/261007120001' -DirectCommit -WarningAction SilentlyContinue
+        $result = Publish-GitHubChange -Clone $clone -Message 'Direct' -NewBranch 'update-rulebook-system-files/main/261007120001' -DirectCommit -WarningVariable warnings
         $result.Fallback | Should-BeTrue
+        $result.FallbackReason | Should-BeLikeString '*main is protected*'
+        # The module writes no warning; the action reports the refusal as an annotation (#77).
+        @($warnings).Count | Should-Be 0
         $result.Direct | Should-BeFalse
         $result.Branch | Should-Be 'update-rulebook-system-files/main/261007120001'
         (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/main')).Trim() | Should-Be $mainSha
@@ -530,6 +534,7 @@ Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
         $result = Publish-GitHubChange -Clone $clone -Message 'Nothing' -NewBranch 'update-rulebook-system-files/main/261007120002'
         $result.Pushed | Should-BeFalse
         $result.Reason | Should-Be 'no-changes'
+        $result.FallbackReason | Should-BeNull
         (Get-GitText -Root $bare -Arguments @('branch', '--list')) | Should-NotMatchString 'update-rulebook-system-files'
     }
 
@@ -575,8 +580,9 @@ Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
         Add-RejectPushHook -BarePath $bare -Branch 'main'
         $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
         Write-FixtureText -Path (Join-Path $clone.Path 'c.txt') -Text 'direct'
-        $result = Publish-GitHubChange -Clone $clone -Message 'Scan' -NewBranch 'scan-diagnostics/main' -DirectCommit -Force -WarningAction SilentlyContinue
+        $result = Publish-GitHubChange -Clone $clone -Message 'Scan' -NewBranch 'scan-diagnostics/main' -DirectCommit -Force
         $result.Fallback | Should-BeTrue
+        $result.FallbackReason | Should-BeLikeString '*main is protected*'
         $result.Branch | Should-Be 'scan-diagnostics/main'
         (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/main')).Trim() | Should-Be $mainSha
     }

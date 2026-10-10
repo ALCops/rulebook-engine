@@ -355,9 +355,10 @@ Describe 'Publish-RulebookScan against a bare repository' -Skip:$gitMissing {
     It 'falls back to the scan branch and a pull request when the direct push is refused' {
         $bare = New-BareFixtureRepo -Source $org -Destination (Join-Path (Get-TestFolder) 'protected.git')
         Add-RejectPushHook -BarePath $bare -Branch 'main'
-        $result = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) -WarningAction SilentlyContinue
+        $result = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -DirectCommit -WorkPath (Get-TestFolder)
         $result.Result | Should-Be 'pull-request'
         $result.Fallback | Should-BeTrue
+        $result.FallbackReason | Should-BeLikeString '*main is protected*'
         $result.Branch | Should-Be 'scan-diagnostics/main'
     }
 

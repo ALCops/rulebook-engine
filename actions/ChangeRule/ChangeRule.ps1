@@ -154,11 +154,19 @@ try {
         } catch {
             $stage = [string]$_.Exception.Data['Stage']
             if ($stage -cnotin 'push', 'pull-request') { $stage = 'push' }
+            # A refused direct push is reported even when the pull request then failed (#77).
+            $fallbackReason = [string]$_.Exception.Data['FallbackReason']
+            if ($fallbackReason) { Add-Annotation -Context $ctx -Command warning -Message "The direct push to $BaseBranch was refused; the branch was pushed instead. ($(ConvertTo-SingleLine $fallbackReason))" }
             Add-Failure -Context $ctx -Kind $stage
             # The base branch moved between plan and publish: nothing is wrong with the token; run the workflow again.
             if ([string]$_.Exception.Data['Reason'] -ceq 'base-moved') { throw $_.Exception.Message }
             $what = if ($stage -eq 'pull-request') { 'Failed to create the pull request for the rule change' } else { 'Failed to push the rule change' }
             throw "$what. Make sure that the token in the secret $secretName is not expired and may write contents and pull requests of $Repository. Read $docsUrl (Error was: $($_.Exception.Message))"
+        }
+        # The refused direct push as one warning annotation with the git output (#77); the notice below keeps its suffix.
+        if ($publish.PSObject.Properties['Fallback'] -and $publish.Fallback) {
+            $fallbackReason = if ($publish.PSObject.Properties['FallbackReason'] -and $publish.FallbackReason) { " ($(ConvertTo-SingleLine $publish.FallbackReason))" } else { '' }
+            Add-Annotation -Context $ctx -Command warning -Message "The direct push to $BaseBranch was refused; a pull request was created instead.$fallbackReason"
         }
         $result = $publish.Result
         switch ($publish.Result) {

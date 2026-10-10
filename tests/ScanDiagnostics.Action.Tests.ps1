@@ -247,6 +247,20 @@ Describe 'ScanDiagnostics.ps1' {
         }
     }
 
+    It 'reports a refused direct push as one single-line warning annotation and keeps the notice suffix' {
+        $reason = "remote: error: GH006: Protected branch update failed for refs/heads/main.`nremote: error: Changes must be made through a pull request.`nTo https://github.com/Contoso/rulebook`n ! [remote rejected] HEAD -> main (protected branch hook declined)`nerror: failed to push some refs to 'https://github.com/Contoso/rulebook'"
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/21'; Number = 21; Branch = 'scan-diagnostics/main'; Sha = '0123456789abcdef'; Fallback = $true; FallbackReason = $reason; Diff = @(); DiffNote = $null; Body = 'body'; Title = 'T' }
+        }.GetNewClosure()
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 0
+        $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ScanDiagnostics::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=ScanDiagnostics::The direct push to main was refused; a pull request was created instead. (' + $reason.Replace("`n", ' ') + ')')
+        $run.Result.Annotations[-1] | Should-Be '::notice title=ScanDiagnostics::Pull request: https://github.com/Contoso/rulebook/pull/21 (the direct commit was refused)'
+    }
+
     It 'reports a base branch that moved as it is, without the token advice' {
         $publish = {
             param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)

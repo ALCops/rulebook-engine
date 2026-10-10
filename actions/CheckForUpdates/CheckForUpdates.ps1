@@ -189,9 +189,17 @@ try {
                 } catch {
                     $stage = [string]$_.Exception.Data['Stage']
                     if ($stage -cnotin 'push', 'pull-request') { $stage = 'push' }
+                    # A refused direct push is reported even when the pull request then failed (#77).
+                    $fallbackReason = [string]$_.Exception.Data['FallbackReason']
+                    if ($fallbackReason) { Add-Annotation -Context $ctx -Command warning -Message "The direct push to $UpdateBranch was refused; the branch was pushed instead. ($(ConvertTo-SingleLine $fallbackReason))" }
                     Add-Failure -Context $ctx -Kind $stage
                     $what = if ($stage -eq 'pull-request') { 'Failed to create the pull request for the Rulebook system files' } else { 'Failed to update the Rulebook system files' }
                     throw "$what. Make sure that the token in the secret $secretName is not expired and may write contents, pull requests and workflows of $Repository. Read $docsUrl (Error was: $($_.Exception.Message))"
+                }
+                # The refused direct push as one warning annotation with the git output (#77); the notice below keeps its suffix.
+                if ($publish.PSObject.Properties['Fallback'] -and $publish.Fallback) {
+                    $fallbackReason = if ($publish.PSObject.Properties['FallbackReason'] -and $publish.FallbackReason) { " ($(ConvertTo-SingleLine $publish.FallbackReason))" } else { '' }
+                    Add-Annotation -Context $ctx -Command warning -Message "The direct push to $UpdateBranch was refused; a pull request was created instead.$fallbackReason"
                 }
                 switch ($publish.Result) {
                     'exists' {
