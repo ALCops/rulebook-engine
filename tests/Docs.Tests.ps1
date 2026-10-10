@@ -15,9 +15,6 @@ BeforeDiscovery {
     # The troubleshooting rule of the user pages is on since PR B of WP11 (#13, ALCops/rulebook#8) brought every user
     # page to the required shape; $true skips it with the reason below.
     $troubleshootingPending = $false
-    # Pages template/README.md links that WP11 (#13) writes later: PR C (migration). Tolerated as missing for that
-    # README only; PR C removes the entry.
-    $pendingUserPages = @('docs/migration.md')
 
     $userRoot = $null
     $userReason = $null
@@ -65,7 +62,7 @@ BeforeDiscovery {
     # documentation its docs/* targets cannot be checked; everything else still is.
     $templateCase = @{
         Root = $templateRoot; Files = @(Join-Path $templateRoot 'README.md'); Name = 'template/README.md'; NoEscape = $true
-        Overlay = @(if ($null -ne $userRoot) { $userRoot }); Pending = @($pendingUserPages) + @(if ($null -eq $userRoot) { 'docs/*' })
+        Overlay = @(if ($null -ne $userRoot) { $userRoot }); Pending = @(if ($null -eq $userRoot) { 'docs/*' })
     }
     $script:roots = @(@{ Name = 'engine'; Pages = @(Get-PageCase -Root $repoRoot -Files $engineFiles) + @(Get-PageCase @templateCase); Pending = $false })
     if ($null -ne $userRoot) {
