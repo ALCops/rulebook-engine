@@ -57,17 +57,15 @@ The usual way is the **Change Rule** workflow (Actions > Change Rule > Run workf
 
 ## Documentation
 
-- `docs/getting-started.md`
-- `docs/hosting.md`
-- `docs/al-go.md`
-- `docs/azure-devops.md`
-- `docs/vscode.md`
-- `docs/al-project.md`
-- `docs/pte-or-appsource.md`
-- `docs/overrides.md`
-- `docs/changing-a-rule.md`
-- `docs/quarantine.md`
+- [Getting started](docs/getting-started.md): from "Use this template" to the first published endpoints.
+- [Hosting](docs/hosting.md): GitHub Pages and what the plan and the repository visibility allow.
+- [AL-Go for GitHub](docs/al-go.md), [Azure DevOps](docs/azure-devops.md) and [VS Code](docs/vscode.md): pointing each consumer at an endpoint.
+- [The AL project side](docs/al-project.md): the skeletons, one file per stage, exceptions and `suppressWarnings`.
+- [PTE or AppSource](docs/pte-or-appsource.md): the rules written for the other kind of extension.
+- [Levels and stages](docs/levels.md): picking a starting point and adding, renaming or removing levels and stages.
+- [Overrides](docs/overrides.md) and [Changing a rule](docs/changing-a-rule.md): your own rule changes.
+- [Quarantine](docs/quarantine.md): new analyzer rules and the daily scan.
+- [Updating](docs/updating.md) and [the GHTOKENWORKFLOW secret](docs/ghtokenworkflow.md): taking new template versions.
+- [Migrating an existing ruleset](docs/migration.md) and [Frequently asked questions](docs/faq.md).
 
-Updating the rulebook: [docs/updating.md](https://github.com/ALCops/rulebook/blob/main/docs/updating.md). The token the update writes with: [docs/ghtokenworkflow.md](https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md).
-
-The pages in the list above arrive with a later version of the template. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).
+These pages are in `docs/` of your repository, and **Update Rulebook System Files** keeps them current unless you edit one (D50): then it keeps your page and lists it in the update pull request (set `docs.updateMode` to `overwrite` in `.github/Rulebook-Settings.json` to take the template's pages always). The current pages are at https://github.com/ALCops/rulebook/tree/main/docs. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).

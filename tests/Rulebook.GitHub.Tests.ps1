@@ -266,6 +266,106 @@ Describe 'Get-GitHubBranchSha and Save-GitHubZipball' {
     }
 }
 
+Describe 'Get-GitHubCommitList' {
+    BeforeAll {
+        function Get-CommitPage {
+            param([int]$Count, [int]$Offset = 0)
+            return @(for ($i = 1; $i -le $Count; $i++) { @{ sha = ('{0:x40}' -f ($Offset + $i)); commit = @{ tree = @{ sha = ('{0:x40}' -f (1000 + $Offset + $i)) } } } })
+        }
+    }
+
+    It 'reads pages of 100 until a shorter page and keeps the order' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*&page=1' } { Get-MockResponse -Json (Get-CommitPage -Count 100) }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*&page=2' } { Get-MockResponse -Json (Get-CommitPage -Count 3 -Offset 100) }
+        $list = Get-GitHubCommitList -Repository 'Contoso/rule%book' -Ref 'feature/x#1' -Token 'gh'
+        $list.Commits.Count | Should-Be 103
+        $list.Commits[0].Sha | Should-Be ('{0:x40}' -f 1)
+        $list.Commits[-1].Sha | Should-Be ('{0:x40}' -f 103)
+        $list.Commits[-1].TreeSha | Should-Be ('{0:x40}' -f 1103)
+        $list.Truncated | Should-BeFalse
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rule%25book/commits?sha=feature%2Fx%231&per_page=100&page=1' }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly
+    }
+
+    It 'stops after the page that holds one of -TreeSha' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json (Get-CommitPage -Count 100) }
+        $list = Get-GitHubCommitList -Repository 'Contoso/rulebook' -Ref 'main' -TreeSha @('nothing', ('{0:x40}' -f 1050))
+        $list.Commits.Count | Should-Be 100
+        $list.Truncated | Should-BeFalse
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly
+    }
+
+    It 'stops at -MaxPages and says the list is truncated' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json (Get-CommitPage -Count 100) }
+        $list = Get-GitHubCommitList -Repository 'Contoso/rulebook' -Ref 'main' -MaxPages 2
+        $list.Commits.Count | Should-Be 200
+        $list.Truncated | Should-BeTrue
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly
+    }
+
+    It 'ends on an empty page and leaves sha= out without a ref' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json '[]' }
+        $list = Get-GitHubCommitList -Repository 'Contoso/rulebook' -Ref ''
+        @($list.Commits) | Should-BeCollection @()
+        $list.Truncated | Should-BeFalse
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rulebook/commits?per_page=100&page=1' }
+    }
+
+    It 'throws with the status on a 404' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+        $caught = $null
+        try { $null = Get-GitHubCommitList -Repository 'Contoso/rulebook' -Ref 'main' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not list the commits of https://github.com/Contoso/rulebook@main (HTTP 404: Not Found)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 404
+    }
+}
+
+Describe 'Get-GitRootTree' -Skip:$gitMissing {
+    BeforeAll {
+        $script:repo = Get-TestFolder
+        Write-FixtureText -Path (Join-Path $repo 'README.md') -Text "# root`n"
+        $null = New-FixtureGitRepo -Root $repo -Message 'Initial commit'
+        $script:tree = (Get-GitText -Root $repo -Arguments @('rev-parse', 'HEAD^{tree}')).Trim()
+        Write-FixtureText -Path (Join-Path $repo 'README.md') -Text "# changed`n"
+        $null = New-FixtureGitRepo -Root $repo -Message 'Second commit'
+    }
+
+    It 'gives the tree of the root commit, not of the head' {
+        Get-GitRootTree -Root $repo | Should-BeCollection @($tree)
+        (Get-GitText -Root $repo -Arguments @('rev-parse', 'HEAD^{tree}')).Trim() | Should-NotBe $tree
+    }
+
+    It 'gives $null for a shallow clone' {
+        $parent = Get-TestFolder
+        $null = New-Item -ItemType Directory -Path $parent
+        Invoke-FixtureGit -Root $parent -Arguments @('clone', '--quiet', '--depth', '1', ([System.Uri]::new($repo)).AbsoluteUri, 'shallow') | Out-Null
+        Get-GitRootTree -Root (Join-Path $parent 'shallow') | Should-BeNull
+    }
+
+    It 'gives the root tree of a bare clone and of a detached HEAD' {
+        $parent = Get-TestFolder
+        $null = New-Item -ItemType Directory -Path $parent
+        Invoke-FixtureGit -Root $parent -Arguments @('clone', '--quiet', '--bare', ([System.Uri]::new($repo)).AbsoluteUri, 'bare.git') | Out-Null
+        Get-GitRootTree -Root (Join-Path $parent 'bare.git') | Should-BeCollection @($tree)
+        Invoke-FixtureGit -Root $parent -Arguments @('clone', '--quiet', ([System.Uri]::new($repo)).AbsoluteUri, 'detached') | Out-Null
+        Invoke-FixtureGit -Root (Join-Path $parent 'detached') -Arguments @('checkout', '--quiet', '--detach', 'HEAD~1') | Out-Null
+        Get-GitRootTree -Root (Join-Path $parent 'detached') | Should-BeCollection @($tree)
+    }
+
+    It 'gives $null for a folder inside a repository' {
+        $sub = Join-Path $repo 'sub'
+        $null = New-Item -ItemType Directory -Path $sub -Force
+        Get-GitRootTree -Root $sub | Should-BeNull
+    }
+
+    It 'gives $null for a folder that is not a repository or does not exist' {
+        $plain = Get-TestFolder
+        $null = New-Item -ItemType Directory -Path $plain
+        Get-GitRootTree -Root $plain | Should-BeNull
+        Get-GitRootTree -Root (Join-Path $plain 'missing') | Should-BeNull
+    }
+}
+
 Describe 'Find-GitHubPullRequest and New-GitHubPullRequest' {
     It 'finds the open pull request with the same title across pages, ordinally' {
         $title = '[main@1234567] Update Rulebook System Files from ALCops/rulebook - abcdef0'

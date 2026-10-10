@@ -146,6 +146,14 @@
       },
       "additionalProperties": false
     },
+    "docs": {
+      "description": "The organization documentation in docs/ (D50): updateMode skip keeps a page the organization edited and lists it in the update pull request, overwrite replaces it with the template version. Absent means skip.",
+      "type": "object",
+      "properties": {
+        "updateMode": { "enum": ["skip", "overwrite"] }
+      },
+      "additionalProperties": false
+    },
     "update": {
       "description": "The update workflow (WP07): schedule is a five-field cron expression the update writes into UpdateRulebookSystemFiles.yaml as its schedule trigger, or null for none.",
       "type": "object",

@@ -5,7 +5,8 @@ Entry script of the CheckForUpdates action: check an organization rulebook repos
 the new template version into a pull request (-Update).
 .DESCRIPTION
 Resolves the template URL (-TemplateUrl, else templateUrl of the settings) and the template (Get-RulebookTemplate:
-the zipball download, or -TemplatePath and -InstalledTemplatePath as local folders), builds the update plan
+the zipball download, or -TemplatePath and -InstalledTemplatePath as local folders; an empty templateSha of the same
+template is recovered from the repository's root commit, D50), builds the update plan
 (Get-RulebookUpdatePlan) and then:
 
 - check mode: one notice (no updates; templateSha not recorded) or warning (updates available; check skipped) and the
@@ -133,9 +134,19 @@ try {
             $latest = $DownloadLatest -or [string]::IsNullOrWhiteSpace($installedSha)
             # Check mode reads with GITHUB_TOKEN only, as Validate does; the write token is for update mode.
             $readToken = if ($Update) { $Token } else { '' }
-            $template = Get-RulebookTemplate -TemplateUrl $info.Url -Token $readToken -GitHubToken $GitHubToken -DownloadLatest:$latest -InstalledSha $installedSha -WorkPath $WorkPath -ApiUrl $ApiUrl -OnToken $maskToken
+            $templateParameters = @{
+                TemplateUrl = $info.Url; Token = $readToken; GitHubToken = $GitHubToken; DownloadLatest = $latest; InstalledSha = $installedSha
+                WorkPath = $WorkPath; ApiUrl = $ApiUrl; OnToken = $maskToken
+            }
+            # An empty templateSha of this template is recovered from the root commit (D50); the root of a repository
+            # moved to another template belongs to the old one.
+            if ($sameTemplate) {
+                $templateParameters += @{ RepositoryRoot = $root; Repository = $Repository; Ref = $env:GITHUB_SHA; RepositoryToken = $GitHubToken }
+            }
+            $template = Get-RulebookTemplate @templateParameters
         }
         Write-Host "Template: $($template.Repo) at $($template.Sha) ($($template.Source))"
+        Write-Host (Get-InstalledTemplateLine -Template $template)
         $plan = Get-RulebookUpdatePlan -RepositoryRoot $root -Template $template -WorkPath $WorkPath
     } catch {
         if ($Update) {

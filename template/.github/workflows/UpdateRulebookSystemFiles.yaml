@@ -33,6 +33,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # The full history: the update finds the repository's root commit in it when templateSha is empty (D50).
+          fetch-depth: 0
 
       # The secret name comes from ghTokenWorkflowSecretName; a scheduled run has no inputs and follows
       # commitOptions.createPullRequest instead.

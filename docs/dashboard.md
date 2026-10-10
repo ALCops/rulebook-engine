@@ -88,7 +88,7 @@ site/
   data/                      gitignored; written by the publish action
 ```
 
-No Hugo theme and no Hugo modules, so no Go toolchain and no submodule. Everything the site needs is in these files. `site/**` is the only member of the **customizable** file class (section 9).
+No Hugo theme and no Hugo modules, so no Go toolchain and no submodule. Everything the site needs is in these files. `site/**` is in the **customizable** file class (section 9), with `docs/**` ([D50](adr/0050-docs-is-a-customizable-file-class-and-the-installed-commit-is-recovered.md)).
 
 ### Build
 
@@ -300,7 +300,7 @@ Rules:
 
 ## 9. Update behaviour for site files
 
-`site/**` is the **customizable** file class (D35, WP07). The update compares three versions of every file: the organization's file, the template version at the installed `templateSha` (the old template), and the template version being installed (the new template).
+`site/**` is a **customizable** file class (D35, WP07), as is `docs/**` (D50, WP11). The update compares three versions of every file: the organization's file, the template version at the installed `templateSha` (the old template), and the template version being installed (the new template).
 
 | Organization vs old template | New vs old template | Result |
 |---|---|---|
@@ -310,7 +310,7 @@ Rules:
 | absent | new | add |
 | any | removed | remove only when listed in `unusedRulebookFiles`, as for system files |
 
-The old template is one extra zipball download at `templateSha`; when `templateSha` is empty (first run) every differing file counts as a local change and is skipped with a note. `site.updateMode: "overwrite"` turns the class into plain system files for organizations that never customise. Workflows, the issue form and the schemas stay in the overwrite class, so the choice-list rewrite of D30 and the apply workflow are always current. Implemented in WP07: the decision table as coded, with the empty-`templateSha` row and `updateMode`, is [reference/update-mechanics.md](reference/update-mechanics.md) section 3.
+The old template is one extra zipball download at `templateSha`; when `templateSha` is empty (first run) the update recovers the installed commit from the tree of the repository's root commit (D50), and only when that fails does every differing file count as a local change, skipped with a note. `site.updateMode: "overwrite"` turns the class into plain system files for organizations that never customise. Workflows, the issue form and the schemas stay in the overwrite class, so the choice-list rewrite of D30 and the apply workflow are always current. Implemented in WP07: the decision table as coded, with the empty-`templateSha` row and `updateMode`, is [reference/update-mechanics.md](reference/update-mechanics.md) section 3.
 
 ## 10. Exposure
 

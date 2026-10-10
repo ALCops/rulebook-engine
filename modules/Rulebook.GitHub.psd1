@@ -13,6 +13,8 @@
         'Find-GitHubPullRequestByHead'
         'Get-GitHubAccessToken'
         'Get-GitHubBranchSha'
+        'Get-GitHubCommitList'
+        'Get-GitRootTree'
         'Invoke-GitHubApi'
         'New-GitHubAppJwt'
         'New-GitHubClone'

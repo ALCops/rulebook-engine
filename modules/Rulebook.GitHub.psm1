@@ -354,6 +354,56 @@ function Get-GitHubBranchSha {
     return $sha
 }
 
+function Get-GitHubCommitList {
+    <#
+    .SYNOPSIS
+    The commits of -Ref in -Repository (owner/name), newest first: { Commits = @({ Sha, TreeSha }), Truncated }.
+    .DESCRIPTION
+    GET /repos/{r}/commits?sha=<ref>&per_page=100&page=N for N = 1 to -MaxPages (no sha= for an empty -Ref: the
+    default branch); a page with fewer than 100 commits is the last one. With -TreeSha the walk also stops after the
+    page that holds a commit with one of those trees (the newest match is on the first such page). Truncated is $true
+    when -MaxPages full pages were read without such a stop, so older commits may exist. A non-2xx
+    answer throws with the status in Data['StatusCode'], as Get-GitHubBranchSha does. Used to recover the installed
+    template commit from the tree of an organization repository's root commit (D50).
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [AllowNull()][AllowEmptyString()][string]$Ref,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl,
+        [ValidateRange(1, 1000)][int]$MaxPages = 10,
+        [AllowNull()][AllowEmptyCollection()][string[]]$TreeSha
+    )
+    $pageSize = 100
+    $wanted = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($tree in @($TreeSha)) { if (-not [string]::IsNullOrEmpty($tree)) { [void]$wanted.Add($tree) } }
+    $matched = $false
+    $commits = [System.Collections.Generic.List[object]]::new()
+    $truncated = $false
+    for ($page = 1; $page -le $MaxPages; $page++) {
+        $query = if ([string]::IsNullOrWhiteSpace($Ref)) { '' } else { "sha=$([System.Uri]::EscapeDataString($Ref.Trim()))&" }
+        $path = (Join-ApiPath -Part 'repos', $Repository, 'commits') + "?$($query)per_page=$pageSize&page=$page"
+        $response = Invoke-GitHubApi -Method GET -Path $path -Token $Token -ApiUrl $ApiUrl
+        if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 300 -or $response.Body -isnot [System.Collections.IList]) {
+            $exception = [System.InvalidOperationException]::new("Could not list the commits of $(Get-DefaultServerUrl)/$Repository$(if ($Ref) { "@$Ref" }) (HTTP $($response.StatusCode): $(Get-ApiMessage $response))")
+            $exception.Data['StatusCode'] = $response.StatusCode
+            throw $exception
+        }
+        foreach ($item in $response.Body) {
+            if ($item -isnot [System.Collections.IDictionary]) { continue }
+            $commit = $item['commit']
+            $tree = if ($commit -is [System.Collections.IDictionary] -and $commit['tree'] -is [System.Collections.IDictionary]) { [string]$commit['tree']['sha'] } else { $null }
+            $commits.Add([pscustomobject]@{ Sha = [string]$item['sha']; TreeSha = $tree })
+            if ($null -ne $tree -and $wanted.Contains($tree)) { $matched = $true }
+        }
+        if ($matched -or $response.Body.Count -lt $pageSize) { break }
+        if ($page -eq $MaxPages) { $truncated = $true }
+    }
+    return [pscustomobject]@{ Commits = $commits.ToArray(); Truncated = $truncated }
+}
+
 function Save-GitHubZipball {
     <#
     .SYNOPSIS
@@ -529,6 +579,44 @@ function New-GitHubPullRequest {
 
 #region Git
 
+function Get-GitRootTree {
+    <#
+    .SYNOPSIS
+    The tree shas of every root commit reachable from HEAD in the git repository -Root; $null when there is none.
+    .DESCRIPTION
+    git rev-list --max-parents=0 HEAD, then rev-parse <sha>^{tree} for each. $null when git is not installed, -Root
+    is not a git repository, the repository is shallow (rev-parse --is-shallow-repository; its oldest commit is not
+    the root), -Root is a folder inside a repository rather than its top level, or any git call fails. A repository created with "Use this template" has one root commit whose tree is
+    the tree of the template commit it copied (D50). A bare repository answers like a clone. Tree ids are compared as
+    git prints them, so a SHA-256 repository never matches the SHA-1 trees of the REST API (accepted limitation).
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param([Parameter(Mandatory)][string]$Root)
+    if ($null -eq (Get-Command git -CommandType Application -ErrorAction SilentlyContinue)) { return $null }
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) { return $null }
+    try {
+        # A folder inside another repository is not the repository: its root commit would be the other one's. The
+        # prefix of the top level is empty (a path comparison with --show-toplevel trips over 8.3 names and links).
+        $prefix = Invoke-Git -Root $Root -Arguments @('rev-parse', '--show-prefix')
+        if ($prefix.ExitCode -ne 0 -or $prefix.Output.Trim() -ne '') { return $null }
+        $shallow = Invoke-Git -Root $Root -Arguments @('rev-parse', '--is-shallow-repository')
+        if ($shallow.ExitCode -ne 0 -or $shallow.Output.Trim() -cne 'false') { return $null }
+        $roots = Invoke-Git -Root $Root -Arguments @('rev-list', '--max-parents=0', 'HEAD')
+        if ($roots.ExitCode -ne 0) { return $null }
+        $trees = [System.Collections.Generic.List[string]]::new()
+        foreach ($sha in @($roots.Output -split '\r?\n' | Where-Object { $_ -match '^[0-9a-f]{40}$' })) {
+            $tree = Invoke-Git -Root $Root -Arguments @('rev-parse', "$sha^{tree}")
+            if ($tree.ExitCode -ne 0) { return $null }
+            $trees.Add($tree.Output.Trim())
+        }
+        if ($trees.Count -eq 0) { return $null }
+        return [string[]]$trees.ToArray()
+    } catch {
+        return $null
+    }
+}
+
 function New-GitHubClone {
     <#
     .SYNOPSIS
@@ -649,6 +737,8 @@ Export-ModuleMember -Function @(
     'Find-GitHubPullRequestByHead'
     'Get-GitHubAccessToken'
     'Get-GitHubBranchSha'
+    'Get-GitHubCommitList'
+    'Get-GitRootTree'
     'Invoke-GitHubApi'
     'New-GitHubAppJwt'
     'New-GitHubClone'
