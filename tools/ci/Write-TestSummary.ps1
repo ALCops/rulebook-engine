@@ -71,6 +71,14 @@ function Get-FirstLine {
     return $Text.Replace("`r", '').Split("`n")[0].Trim()
 }
 
+function Get-ReadError {
+    # The XML reader's own message ("Root element is missing."), not PowerShell's 'Exception calling "Load"' wrapper.
+    param([Parameter(Mandatory)][System.Management.Automation.ErrorRecord]$Record)
+    $exception = $Record.Exception
+    if ($null -ne $exception.InnerException) { $exception = $exception.InnerException }
+    return ConvertTo-SingleLine $exception.Message
+}
+
 function Format-Number {
     param([double]$Value)
     return $Value.ToString('0.0', $invariant)
@@ -99,7 +107,7 @@ if (-not (Test-Path -LiteralPath $resultsFile -PathType Leaf)) {
         $results = Read-XmlFile -Path $resultsFile
     } catch {
         # An empty or cut file: one line, and the rest of the summary is still written.
-        [void]$summary.AppendLine("Test results could not be read ($(Split-Path -Leaf $TestResultsPath)): $(ConvertTo-SingleLine $_.Exception.Message)").AppendLine()
+        [void]$summary.AppendLine("Test results could not be read ($(Split-Path -Leaf $TestResultsPath)): $(Get-ReadError $_)").AppendLine()
     }
 }
 if ($null -ne $results) {
@@ -161,7 +169,7 @@ if ([string]::IsNullOrEmpty($coverageFile) -or -not (Test-Path -LiteralPath $cov
     try {
         $report = Read-XmlFile -Path $coverageFile
     } catch {
-        [void]$summary.AppendLine("Coverage report could not be read ($(Split-Path -Leaf $CoveragePath)): $(ConvertTo-SingleLine $_.Exception.Message)").AppendLine()
+        [void]$summary.AppendLine("Coverage report could not be read ($(Split-Path -Leaf $CoveragePath)): $(Get-ReadError $_)").AppendLine()
     }
 }
 if ($null -ne $report) {

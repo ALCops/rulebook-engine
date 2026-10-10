@@ -109,7 +109,9 @@ Missing closing '}' in statement block or type definition.</message>
         $run = Invoke-Entry @{ TestResultsPath = $truncated; CoveragePath = $coverage; SummaryPath = $path }
         $run.Result | Should-NotBeNull
         $run.Result.Suites.Count | Should-Be 0
-        $run.Result.Summary | Should-MatchString '(?m)^Test results could not be read \(testResults\.xml\): .+$'
+        # The XML reader's message, not PowerShell's 'Exception calling "Load"' wrapper.
+        $run.Result.Summary | Should-MatchString '(?m)^Test results could not be read \(testResults\.xml\): Unexpected end of file has occurred\..*$'
+        $run.Result.Summary | Should-NotMatchString 'Exception calling'
         $run.Result.Files.Count | Should-Be 3
         [System.IO.File]::ReadAllText($path) | Should-Be $run.Result.Summary
     }
@@ -145,7 +147,7 @@ Describe 'Write-TestSummary.ps1 Coverage section' {
         $run = Invoke-Entry @{ TestResultsPath = $results; CoveragePath = $truncated }
         $run.Result.Suites.Count | Should-Be 3
         $run.Result.Summary | Should-MatchString '(?m)^\*\*7 tests\*\*: 4 passed, 1 failed, 2 skipped in 2\.5 s\.$'
-        $run.Result.Summary | Should-MatchString '(?m)^Coverage report could not be read \(coverage\.xml\): .+$'
+        $run.Result.Summary | Should-MatchString '(?m)^Coverage report could not be read \(coverage\.xml\): Root element is missing\.$'
         $run.Result.CoverageTotals | Should-BeNull
     }
 

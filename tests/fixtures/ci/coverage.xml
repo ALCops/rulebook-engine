@@ -5,8 +5,8 @@
   <package name="modules">
     <class name="modules/Rulebook.Common" sourcefilename="Rulebook.Common.psm1">
       <method name="Get-OrdinalMap" desc="()" line="74">
-        <counter type="INSTRUCTION" missed="0" covered="2" />
-        <counter type="LINE" missed="0" covered="2" />
+        <counter type="INSTRUCTION" missed="0" covered="4" />
+        <counter type="LINE" missed="0" covered="4" />
         <counter type="METHOD" missed="0" covered="1" />
       </method>
       <counter type="INSTRUCTION" missed="0" covered="4" />

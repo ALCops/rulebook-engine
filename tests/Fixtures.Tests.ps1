@@ -176,11 +176,13 @@ Describe 'Fixture folders' {
     }
 
     It '<Group>/<Name> is used by a suite, a helper or ci.yml' -ForEach $folderCases {
-        # A use is the quoted name ('v1', "v1") or a path to the folder (templates/v1, 'templates' 'v1',
-        # 'templates', 'v1'), not the bare word, which comments and unrelated text contain too.
+        # A use is a path to the folder (templates/v1, 'templates' 'v1', 'templates', 'v1'), not the bare word, which
+        # comments and unrelated text contain too. A repository fixture is also used by its quoted name alone (the
+        # New-FixtureRepo and Copy-Fixture calls); 'v1' or 'tiny' alone says nothing about the folder.
         $name = [regex]::Escape($Name)
         $group = [regex]::Escape($Group)
-        $pattern = "(['`"])$name\1|$group/$name(?![\w-])|'$group',?\s+'$name'"
+        $pattern = "$group/$name(?![\w-])|'$group',?\s+'$name'"
+        if ($Group -eq 'repos') { $pattern = "(['`"])$name\1|" + $pattern }
         $sourceText | Should-MatchString $pattern
     }
 }
