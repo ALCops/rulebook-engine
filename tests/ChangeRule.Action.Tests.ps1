@@ -434,3 +434,12 @@ Describe 'ChangeRule.ps1 parameter binding' {
         { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }
+
+Describe 'ChangeRule.ps1 token exchange' {
+    It 'reports a token secret that cannot be exchanged as failure token' {
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'LC0015'; Action = 'None'; Levels = 'strict'; Stages = 'ci'; Token = '{not json' }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'token'
+        $run.Result.Annotations[-1] | Should-BeLikeString "::error title=ChangeRule::The GHTOKENWORKFLOW secret could not be used: The token secret starts with '{' but is not JSON.*"
+    }
+}

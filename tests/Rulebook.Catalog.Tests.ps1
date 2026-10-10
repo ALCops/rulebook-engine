@@ -303,3 +303,29 @@ Describe 'Scan state' {
         @(Get-NewPackageVersion -State $state -Channels @([pscustomobject]@{ PackageId = 'alcops.analyzers'; Stable = '1.3.1'; Prerelease = $null })).Count | Should-Be 1
     }
 }
+
+Describe 'ConvertFrom-ScanStateText' {
+    It 'reads both channels of every package' {
+        $text = '{ "$schema": "https://example.invalid/s.json", "version": 1, "packages": { "alcops.analyzers": { "stable": { "version": "1.3.1", "scannedAt": "2026-10-08T04:17:31Z" }, "prerelease": { "version": "1.4.0-beta.1", "scannedAt": "2026-10-08T04:17:31Z" } } } }'
+        $state = ConvertFrom-ScanStateText -Text $text
+        $state.Schema | Should-Be 'https://example.invalid/s.json'
+        $state.Version | Should-Be 1
+        $state.Packages['alcops.analyzers'].Stable.Version | Should-Be '1.3.1'
+        $state.Packages['alcops.analyzers'].Prerelease.Version | Should-Be '1.4.0-beta.1'
+        $state.Packages['alcops.analyzers'].Stable.ScannedAt | Should-Be '2026-10-08T04:17:31Z'
+    }
+
+    It 'leaves a channel without a version $null and takes version 1 when absent' {
+        $state = ConvertFrom-ScanStateText -Text '{ "packages": { "alcops.analyzers": { "stable": { "version": "1.3.1" }, "prerelease": {} } } }'
+        $state.Version | Should-Be 1
+        $state.Packages['alcops.analyzers'].Prerelease | Should-BeNull
+        $state.Packages['alcops.analyzers'].Stable.ScannedAt | Should-BeNull
+    }
+
+    It 'throws on <Case>' -ForEach @(
+        @{ Case = 'text that is not JSON'; Text = '{ "packages": '; Message = 'Invalid JSON in catalog/scan-state.json*' }
+        @{ Case = 'a JSON array'; Text = '[]'; Message = 'catalog/scan-state.json is not a JSON object' }
+    ) {
+        { ConvertFrom-ScanStateText -Text $Text } | Should-Throw -ExceptionMessage $Message
+    }
+}

@@ -44,7 +44,7 @@ The requirements as gathered on 2026-09-29:
 | R10 | Guided opt-in and opt-out of a rule without hand-editing files. | Section 7.5, WP09 |
 | R11 | AL-Go walkthrough, Azure DevOps documentation. | WP11; the organization documentation lives in `docs/` of ALCops/rulebook and is a customizable file class on update ([D50](adr/0050-docs-is-a-customizable-file-class-and-the-installed-commit-is-recovered.md)) |
 | R12 | A dashboard where a maintainer changes rules by clicking, without editing JSON and without any component outside GitHub (added 2026-10-03). | Sections 6.4 and 7.6, [dashboard.md](dashboard.md), WP14, WP15 |
-| Non-functional | Automated tests; Linux runners only. | D9, D12, WP12 |
+| Non-functional | Automated tests; Linux runners only. | D9, D12, D51, WP12, [reference/testing.md](reference/testing.md) |
 
 ## 2. Principles
 
@@ -654,6 +654,10 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | generated | `rulesets/`, `skeletons/*.ruleset.json` | Regenerated after every update from the new level and stage files and the org's inputs (the skeletons from the settings). |
 | org-owned | `README.md`, `overrides.json` (written by the ChangeRule workflow or by hand), quarantine files, catalog (with `catalog/scan-state.json`), level and stage files the org added, the org's own workflows and documentation pages | Never touched by the update; the scan writes the quarantine files and the catalog. |
 | customizable | `site/**` (except `site/data/**`), the shipped `docs/**` | Overwritten only when unchanged since the installed template version (recorded in `templateSha`, or recovered from the root commit's tree); otherwise kept and listed in the PR (D35, D50). `site.updateMode` and `docs.updateMode` `overwrite` make each class system. |
+
+### Testing
+
+Pester 6 suites in `tests/`, one per module, action and script, on copies of the fixtures in `tests/fixtures/` (`tests/Fixtures.Tests.ps1` says what each repository fixture proves). The `test` job of `ci.yml` writes JaCoCo line coverage of `modules/`, `actions/` and `scripts/` and a job summary with a Pester and a coverage table; coverage is a report, not a gate (D51). No test talks to a server outside the runner. Conventions, fixtures, helpers, the accepted untested paths and the later layers (end-to-end compile, template smoke test): [reference/testing.md](reference/testing.md).
 
 ### Actions in the engine
 

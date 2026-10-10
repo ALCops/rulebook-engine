@@ -21,4 +21,4 @@ names the assembly randomly, and the cops must reference the compiler stub as `M
 prepends `#define STUB_<VARIANT>` to every source, lays the DLLs out like the real packages (`tools/<tfm>/any/`,
 `lib/<tfm>/`) and writes a NuGet flat container (`<id>/index.json`, `<id>/<version>/<id>.<version>.nupkg`) that
 `Get-NuGetVersionIndex -Source` reads as a folder. Run it in its own pwsh process so the stub types never load into the
-test session; `tests/Helpers/StubFeed.ps1` does that once per source hash and caches the result in the temp folder.
+test session; `tests/Helpers/StubFeed.ps1` does that once per source hash and caches the result in the temp folder. The suites read the stubs in child processes too (`Invoke-DescriptorExtraction`), with one deliberate exception: `Describe 'Get-AnalyzerDescriptor in-process'` in `tests/Rulebook.Extract.Tests.ps1` loads `tools-stable` and `alcops-v1` once into the test session (from copies in the temp folder, because Windows locks a loaded file), so the coverage report sees the extraction; it is skipped when the stub compiler assembly is loaded already.

@@ -205,3 +205,54 @@ Describe 'Update-QuarantineFromScan' {
         }
     }
 }
+
+Describe 'ConvertFrom-QuarantineFileText' {
+    It 'reads the ids in file order with their justifications' {
+        $file = ConvertFrom-QuarantineFileText -Text '{ "$schema": "s", "rules": [ { "id": "LC0100", "justification": "New in 1.4.0" }, { "id": "AA0003" } ] }' -Path 'quarantine.ci.json'
+        @($file.Rules.Keys) | Should-BeCollection @('LC0100', 'AA0003')
+        $file.Rules['LC0100'] | Should-Be 'New in 1.4.0'
+        $file.Rules['AA0003'] | Should-BeNull
+        $file.Schema | Should-Be 's'
+        $file.Exists | Should-BeTrue
+    }
+
+    It 'throws on <Case>' -ForEach @(
+        @{ Case = 'text that is not JSON'; Text = '{ "rules": '; Message = 'Invalid JSON in quarantine.ci.json*' }
+        @{ Case = 'no rules array'; Text = '{ "rules": {} }'; Message = 'quarantine.ci.json has no rules array' }
+        @{ Case = 'an entry without an id'; Text = '{ "rules": [ { "justification": "x" } ] }'; Message = 'quarantine.ci.json has an entry without an id' }
+        @{ Case = 'an id listed twice'; Text = '{ "rules": [ { "id": "LC0100" }, { "id": "LC0100" } ] }'; Message = 'quarantine.ci.json lists LC0100 twice (C2)' }
+    ) {
+        { ConvertFrom-QuarantineFileText -Text $Text -Path 'quarantine.ci.json' } | Should-Throw -ExceptionMessage $Message
+    }
+}
+
+Describe 'Write-QuarantineFile' {
+    BeforeAll {
+        $script:sample = ConvertFrom-QuarantineFileText -Text '{ "rules": [ { "id": "LC0100", "justification": "New in 1.4.0" } ] }' -Path 'quarantine.ci.json'
+    }
+
+    It 'creates the file, then finds it current and leaves the bytes alone' {
+        $path = Join-Path $TestDrive "created-$([guid]::NewGuid().ToString('n')).json"
+        $change = Write-QuarantineFile -Path $path -File $sample -Name 'quarantine.ci.json'
+        "$($change.File) $($change.Change)" | Should-Be 'quarantine.ci.json created'
+        $bytes = [System.IO.File]::ReadAllBytes($path)
+        Write-QuarantineFile -Path $path -File $sample | Should-BeNull
+        [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($path)) | Should-Be ([System.Convert]::ToBase64String($bytes))
+    }
+
+    It 'round-trips what it wrote' {
+        $path = Join-Path $TestDrive "round-$([guid]::NewGuid().ToString('n')).json"
+        $null = Write-QuarantineFile -Path $path -File $sample
+        $back = ConvertFrom-QuarantineFileText -Text ([System.IO.File]::ReadAllText($path)) -Path 'quarantine.ci.json'
+        @($back.Rules.Keys) | Should-BeCollection @('LC0100')
+        $back.Rules['LC0100'] | Should-Be 'New in 1.4.0'
+    }
+
+    It 'reports a modified file and writes nothing with -WhatIf' {
+        $path = Join-Path $TestDrive "whatif-$([guid]::NewGuid().ToString('n')).json"
+        [System.IO.File]::WriteAllText($path, '{ "rules": [] }')
+        $change = Write-QuarantineFile -Path $path -File $sample -WhatIf
+        $change.Change | Should-Be 'modified'
+        [System.IO.File]::ReadAllText($path) | Should-Be '{ "rules": [] }'
+    }
+}

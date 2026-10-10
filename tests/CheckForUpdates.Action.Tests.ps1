@@ -409,3 +409,29 @@ Describe 'CheckForUpdates.ps1 parameter binding' {
         { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }
+
+Describe 'CheckForUpdates.ps1 publish results' {
+    It 'reports the publish result <Result> as <Command> annotation' -ForEach @(
+        @{ Result = 'exists'; Command = 'warning'; Annotation = 'Pull request already exists: https://github.com/Contoso/rulebook/pull/3'; Summary = 'Pull request already exists: https://github.com/Contoso/rulebook/pull/3' }
+        @{ Result = 'no-changes'; Command = 'notice'; Annotation = 'No updates available'; Summary = 'No updates available' }
+        @{ Result = 'direct-commit'; Command = 'notice'; Annotation = 'Rulebook system files updated in main (0123456789abcdef0123456789abcdef01234567)'; Summary = 'Committed to main' }
+    ) {
+        $publishResult = [pscustomobject]@{ Result = $Result; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/3'; Branch = 'main'; Sha = '0123456789abcdef0123456789abcdef01234567'; Fallback = $false; FallbackReason = $null; Diff = @(); DiffNote = $null; Body = $null; Title = 't' }
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $publishResult
+        }.GetNewClosure()
+        $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); Update = $true; Token = 'ghp_x'; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.Annotations[-1] | Should-Be "::$Command title=CheckForUpdates::$Annotation"
+        $run.Summary | Should-MatchString "(?m)^\*\*$([regex]::Escape($Summary))\*\*$"
+    }
+
+    It 'reports a token secret that cannot be exchanged as failure token' {
+        $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); Update = $true; Token = '{not json' }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'token'
+        $run.Result.Annotations[-1] | Should-BeLikeString "::error title=CheckForUpdates::The GHTOKENWORKFLOW secret could not be used: The token secret starts with '{' but is not JSON.*"
+    }
+}

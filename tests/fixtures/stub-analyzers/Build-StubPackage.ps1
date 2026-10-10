@@ -11,7 +11,7 @@ Development.Tools package, lib/<tfm>/ for ALCops.Analyzers), writes a minimal nu
 <OutputPath>/<id>/<version>/<id>.<version>.nupkg and adds the version to <OutputPath>/<id>/index.json.
 A variant selects the package, the version and the sources; '#define STUB_<VARIANT>' is prepended to every source
 so one file can carry the differences between versions. Run it in its own pwsh process (the suites do): the
-compiled types must not be loaded into the test session. -ExtraTfm adds folders the resolver must never pick
+compiled types must not be loaded into the test session (one Extract case does so on purpose). -ExtraTfm adds folders the resolver must never pick
 (tools/net99.0/any/, lib/netstandard2.1/) holding text files named like the DLLs. Returns the nupkg path.
 #>
 [CmdletBinding()]

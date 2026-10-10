@@ -962,6 +962,16 @@ Describe 'Compare-RulebookEndpoints' -Skip:$gitMissing {
         $row.File | Should-Be 'rulesets/paranoid.ci.ruleset.json'
     }
 
+    It 'shows a removed level as endpoint-removed rows' {
+        $root = Initialize-DiffRepo
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.levels = @($_.levels | Where-Object { $_.name -ne 'Complete' }) }
+        $rows = @(Compare-RulebookEndpoints -RepositoryRoot $root -Ref 'HEAD')
+        $rows.Count | Should-BeGreaterThan 0
+        @($rows | ForEach-Object Change | Sort-Object -Unique) | Should-BeCollection @('endpoint-removed')
+        @($rows | ForEach-Object Endpoint | Sort-Object -Unique) | Should-BeCollection @('complete.ci', 'complete.default', 'complete.vnext')
+        @($rows | Where-Object { $null -ne $_.After }).Count | Should-Be 0
+    }
+
     It 'treats a ref without settings as an empty rulebook' {
         $root = Join-Path $TestDrive 'late'
         $null = New-Item -ItemType Directory -Path $root
@@ -1023,5 +1033,41 @@ Describe 'Performance' {
         $script:syntheticChanges.Count | Should-Be 9
         $elapsed.TotalSeconds | Should-BeLessThan 60
         @(Update-RulebookEndpoints -RepositoryRoot $root -WhatIf).Count | Should-Be 0
+    }
+}
+
+Describe 'Read-Quarantine' {
+    It 'reads the ids with their justifications' {
+        $path = Join-Path $TestDrive 'read-quarantine.json'
+        Write-FixtureText -Path $path -Text '{ "rules": [ { "id": "LC0099", "justification": "New in 1.3.1" }, { "id": "AA0003" } ] }'
+        $rules = Read-Quarantine -Path $path
+        @($rules.Keys) | Should-BeCollection @('LC0099', 'AA0003')
+        $rules['LC0099'] | Should-Be 'New in 1.3.1'
+        $rules['AA0003'] | Should-BeNull
+    }
+
+    It 'throws on a missing file' {
+        $path = Join-Path $TestDrive 'no-such-quarantine.json'
+        { Read-Quarantine -Path $path } | Should-Throw -ExceptionMessage "File not found: $path"
+    }
+}
+
+Describe 'Reader input errors' {
+    It '<Reader> throws on <Case>' -ForEach @(
+        @{ Reader = 'Read-RulesetFile'; Case = 'a ruleset without a rules array'; Text = '{ "name": "x" }'; Message = '*has no rules array' }
+        @{ Reader = 'Read-Overrides'; Case = 'overrides without a rules array'; Text = '{ "rules": {} }'; Message = '*has no rules array' }
+        @{ Reader = 'Read-Quarantine'; Case = 'a quarantine file without a rules array'; Text = '{}'; Message = '*has no rules array' }
+        @{ Reader = 'Read-Twins'; Case = 'a pair without an appsource id'; Text = '{ "pairs": [ { "pte": "PTE0001" } ] }'; Message = '*has a pair without a pte or an appsource id' }
+        @{ Reader = 'Read-Catalog'; Case = 'a catalog without a diagnostics array'; Text = '{ "diagnostics": {} }'; Message = '*has no diagnostics array' }
+        @{ Reader = 'Read-Catalog'; Case = 'an entry without a boolean enabledByDefault'; Text = '{ "diagnostics": [ { "id": "AA0001", "defaultSeverity": "Warning", "enabledByDefault": "yes" } ] }'; Message = '*AA0001 has no boolean enabledByDefault (C14)' }
+    ) {
+        $path = Join-Path $TestDrive ('reader-' + [guid]::NewGuid().ToString('n').Substring(0, 8) + '.json')
+        Write-FixtureText -Path $path -Text $Text
+        { & $Reader -Path $path } | Should-Throw -ExceptionMessage $Message
+    }
+
+    It 'Read-RulesetFile throws on a missing file' {
+        $path = Join-Path $TestDrive 'no-such-ruleset.json'
+        { Read-RulesetFile -Path $path } | Should-Throw -ExceptionMessage "File not found: $path"
     }
 }

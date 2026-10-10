@@ -172,7 +172,7 @@ function Resolve-AnalyzerFolder {
 function Get-AnalyzerDescriptor {
     <#
     .SYNOPSIS
-    Every diagnostic descriptor of one package version by reflection; run it in a child process only.
+    Every diagnostic descriptor of one package version by reflection; run it in a child process (one test calls it in-process).
     .DESCRIPTION
     Loads Microsoft.Dynamics.Nav.CodeAnalysis.dll from -ToolsDir, then every Microsoft.Dynamics.Nav.*Cop.dll there and
     every ALCops.*.dll in -AlcopsDir, with an AssemblyResolve handler that probes -AlcopsDir and then -ToolsDir.

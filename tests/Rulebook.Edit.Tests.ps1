@@ -240,6 +240,8 @@ Describe 'ConvertTo-RulebookChangeSet and Test-RulebookChangeSet' {
         @{ Name = 'a bad action'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'Default'; levels = @('*'); stages = @('*') }) }; Message = "action 'Default': use Error, Warning, Info, Hidden or None" }
         @{ Name = 'an unknown slug (C10 wording)'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('house'); stages = @('*') }) }; Message = "change 0 names unknown level 'house'; use a slug from the settings or *" }
         @{ Name = 'the reserved release op'; Set = @{ changes = @(@{ op = 'release'; id = 'LC0015'; levels = @('*'); stages = @('*') }) }; Message = "*op 'release' is reserved; it arrives with WP15" }
+        @{ Name = 'an unsupported op'; Set = @{ changes = @(@{ op = 'rename'; id = 'LC0015'; levels = @('*'); stages = @('*') }) }; Message = "change 0: op 'rename' is not supported; use set or remove" }
+        @{ Name = 'a wildcard mixed with slugs'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('*', 'strict'); stages = @('ci') }) }; Message = "change 0 mixes '*' with other values in levels; use *" }
         @{ Name = 'an empty change list'; Set = @{ changes = @() }; Message = 'The change set has no changes.' }
         @{ Name = 'a duplicate'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('strict', 'complete'); stages = @('ci') }, @{ op = 'set'; id = 'LC0015'; action = 'Info'; levels = @('complete', 'strict'); stages = @('ci') }) }; Message = 'change 1 repeats an earlier change*' }
     ) {
@@ -601,5 +603,16 @@ Describe 'Publish-RulebookChange against a bare repository' -Skip:$gitMissing {
         { Publish-RulebookChange -Plan $invalid -Repository 'Contoso/rulebook' -BaseBranch 'main' -BranchPrefix 'change-rule/LC9999' } | Should-Throw -ExceptionMessage 'The change plan does not validate; nothing is pushed.'
         $noop = Invoke-Change -Root (Copy-Minimal) -RuleId 'AA0072' -Action 'Info' -Justification 'House style'
         { Publish-RulebookChange -Plan $noop -Repository 'Contoso/rulebook' -BaseBranch 'main' -BranchPrefix 'change-rule/AA0072' } | Should-Throw -ExceptionMessage 'The change is a no-op; nothing is pushed.'
+    }
+}
+
+Describe 'Get-RulebookChangeTitle' {
+    It 'titles <Case>' -ForEach @(
+        @{ Case = 'a set'; Items = @([pscustomobject]@{ Op = 'set'; Id = 'LC0015'; Action = 'None'; Levels = @('strict'); Stages = @('ci') }); Expected = 'Change LC0015 to None (levels: strict, stages: ci)' }
+        @{ Case = 'a remove'; Items = @([pscustomobject]@{ Op = 'remove'; Id = 'LC0015'; Action = $null; Levels = @('strict', 'complete'); Stages = @('ci') }); Expected = 'Remove override for LC0015 (levels: strict, complete, stages: ci)' }
+        @{ Case = 'every level and stage'; Items = @([pscustomobject]@{ Op = 'set'; Id = 'AA0072'; Action = 'Info'; Levels = @('*'); Stages = @('*') }); Expected = 'Change AA0072 to Info (levels: *, stages: *)' }
+        @{ Case = 'several items'; Items = @([pscustomobject]@{ Op = 'set'; Id = 'A' }, [pscustomobject]@{ Op = 'set'; Id = 'B' }); Expected = 'Rulebook change: 2 changes' }
+    ) {
+        Get-RulebookChangeTitle -Plan ([pscustomobject]@{ Items = $Items }) | Should-Be $Expected
     }
 }

@@ -539,3 +539,34 @@ Describe 'C16 quarantine file that names no stage' {
         @(Test-Rulebook -RepositoryRoot $root | Where-Object Rule -EQ 'C16').Count | Should-Be 0
     }
 }
+
+Describe 'Files that are not JSON' {
+    It 'reports <File> that is not JSON as <Expected>' -ForEach @(
+        @{ File = '.github/Rulebook-Settings.json'; Expected = 'C5 error .github/Rulebook-Settings.json -'; Only = $true }
+        @{ File = 'catalog/diagnostics.json'; Expected = 'C14 error catalog/diagnostics.json -'; Only = $false }
+        @{ File = 'base/twins.json'; Expected = 'C14 error base/twins.json -'; Only = $false }
+        @{ File = 'quarantine.ci.json'; Expected = 'C1 error quarantine.ci.json -'; Only = $false }
+        @{ File = 'overrides.json'; Expected = 'C10 error overrides.json -'; Only = $false }
+    ) {
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root $File) -Text '{ "broken": '
+        $texts = Get-FindingText (Test-Rulebook -RepositoryRoot $root)
+        if ($Only) {
+            # A settings file that is not JSON stops everything: it is the only finding.
+            $texts | Should-BeCollection @($Expected)
+        } else {
+            $texts | Should-ContainCollection @($Expected)
+            # The generator cannot run on it, so C12 is skipped with its warning.
+            $texts | Should-ContainCollection @('C12 warning - -')
+        }
+    }
+}
+
+Describe 'C3 skeleton shape' {
+    It 'reports a skeleton with a generalAction and an include that is not Default' {
+        $root = Copy-Fixture
+        Write-FixtureText -Path (Join-Path $root 'skeletons' 'strict.default.ruleset.json') -Text '{ "name": "Rulebook Strict", "generalAction": "Warning", "includedRuleSets": [ { "action": "Error", "path": "https://contoso.example/rulesets/strict.ruleset.json" } ], "rules": [] }'
+        $messages = @(Test-Rulebook -RepositoryRoot $root | Where-Object { $_.Rule -eq 'C3' -and $_.File -eq 'skeletons/strict.default.ruleset.json' } | ForEach-Object Message)
+        $messages | Should-ContainCollection @('a skeleton has no generalAction', 'the include of a skeleton has action Default')
+    }
+}
