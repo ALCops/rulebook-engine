@@ -116,6 +116,17 @@ Describe 'Get-NuGetVersionIndex' {
         $caught.Exception.Data['Stage'] | Should-Be 'nuget'
     }
 
+    It 'throws with the nuget stage on an index that is <Case>' -ForEach @(
+        @{ Case = 'not JSON'; Text = '{ "versions": '; Message = 'The NuGet index of alcops.analyzers is not JSON:*' }
+        @{ Case = 'without a versions array'; Text = '{ "items": [] }'; Message = 'The NuGet index of alcops.analyzers has no versions array' }
+    ) {
+        $feed = Join-Path $TestDrive ('bad-feed-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
+        Write-FixtureText -Path (Join-Path $feed 'alcops.analyzers' 'index.json') -Text $Text
+        $caught = $null
+        try { $null = Get-NuGetVersionIndex -PackageId 'alcops.analyzers' -Source $feed } catch { $caught = $_ }
+        $caught.Exception.Message | Should-BeLikeString $Message
+        $caught.Exception.Data['Stage'] | Should-Be 'nuget'
+    }
     It 'throws on a missing index in a folder source' {
         { Get-NuGetVersionIndex -PackageId 'missing.package' -Source $TestDrive } | Should-Throw -ExceptionMessage 'Could not read the NuGet index of missing.package (HTTP 404)'
     }

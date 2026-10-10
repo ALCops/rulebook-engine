@@ -341,3 +341,45 @@ Describe 'ScanDiagnostics.ps1 parameter binding' {
         { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }
+
+Describe 'ScanDiagnostics.ps1 publish results and the token guard' {
+    It 'reports the publish result <Result>' -ForEach @(
+        @{ Result = 'no-changes'; Notice = 'No changes to commit' }
+        @{ Result = 'direct-commit'; Notice = 'Scan committed to main (0123456)' }
+        @{ Result = 'pull-request-updated'; Notice = 'Pull request updated: https://github.com/Contoso/rulebook/pull/21' }
+    ) {
+        $publishResult = [pscustomobject]@{ Result = $Result; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/21'; Number = 21; Branch = 'main'; Sha = '0123456789abcdef'; Fallback = $false; FallbackReason = $null; Diff = @(); DiffNote = $null; Body = 'body'; Title = 'T' }
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $publishResult
+        }.GetNewClosure()
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.Result | Should-Be $Result
+        @($run.Result.Annotations) | Should-ContainCollection @("::notice title=ScanDiagnostics::$Notice")
+    }
+
+    It 'reports a token secret that cannot be exchanged as failure token' {
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = '{not json' }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'token'
+        $run.Result.Annotations[-1] | Should-BeLikeString "::error title=ScanDiagnostics::The GHTOKENWORKFLOW secret could not be used: The token secret starts with '{' but is not JSON.*"
+    }
+
+    It 'refuses an invalid ghTokenWorkflowSecretName before any request' {
+        $root = New-Org
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.ghTokenWorkflowSecretName = '1TOKEN' }
+        $run = Invoke-Entry @{ RepositoryRoot = $root; Token = 'ghp_x' }
+        $run.Result.Failure | Should-Be 'token'
+        $run.Result.Annotations[-1] | Should-BeLikeString "::error title=ScanDiagnostics::ghTokenWorkflowSecretName '1TOKEN' in .github/Rulebook-Settings.json is not a valid secret name*"
+    }
+
+    It 'reports settings that are not JSON' {
+        $root = New-Org
+        [System.IO.File]::WriteAllText((Join-Path $root '.github' 'Rulebook-Settings.json'), '{ "levels": ')
+        $run = Invoke-Entry @{ RepositoryRoot = $root; DryRun = $true }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Annotations[-1] | Should-BeLikeString '::error title=ScanDiagnostics::Invalid JSON in .github/Rulebook-Settings.json*'
+    }
+}

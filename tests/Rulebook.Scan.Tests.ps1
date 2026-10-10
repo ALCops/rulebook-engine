@@ -440,3 +440,44 @@ Describe 'Publish-RulebookScan against a bare repository' -Skip:$gitMissing {
         { Publish-RulebookScan -Plan ([pscustomobject]@{ Valid = $true; Failure = $null; Mode = 'nothing-new' }) -Repository 'Contoso/rulebook' -BaseBranch 'main' } | Should-Throw -ExceptionMessage 'The scan found nothing new; nothing is pushed.'
     }
 }
+
+Describe 'Get-ScanCount' {
+    It 'counts the first run' {
+        $counts = Get-ScanCount -Plan $first
+        $counts.NewIds | Should-Be 5
+        $counts.Quarantined | Should-Be 5
+        $counts.Unadvertised | Should-Be 2
+        $counts.Changes | Should-Be @($first.Changes).Count
+    }
+
+    It 'counts a fake plan by its parts' {
+        $plan = New-FakePlan -Scanned @(New-FakeScan -NewIds 'LC0100', 'LC0101' -Promoted 'LC0090') -Added @([pscustomobject]@{ Stage = 'default'; Id = 'LC0100' }) -Removed @([pscustomobject]@{ Stage = 'ci'; Id = 'LC0050' })
+        $plan | Add-Member -NotePropertyName Changes -NotePropertyValue @('a', 'b')
+        $counts = Get-ScanCount -Plan $plan
+        '{0} {1} {2} {3} {4} {5}' -f $counts.NewIds, $counts.Quarantined, $counts.RecordedNew, $counts.Promoted, $counts.Released, $counts.Changes | Should-Be '2 1 1 1 1 2'
+    }
+}
+
+Describe 'ConvertTo-ScanSummary' {
+    It 'opens with the heading, the message and the newest versions, and says when the diff is computed' {
+        $summary = ConvertTo-ScanSummary -Plan $first -Result $null -Message 'Dry run'
+        $summary | Should-MatchString '\A## Diagnostic scan\n\n\*\*Dry run\*\*\n\n'
+        $summary | Should-MatchString '(?m)^Newest versions on NuGet: '
+        $summary | Should-MatchString 'The effective diff is computed when the scan is published\.'
+    }
+
+    It 'names the result <Result>' -ForEach @(
+        @{ Result = 'pull-request-updated'; Line = 'Pull request updated: https://github.com/Contoso/rulebook/pull/21' }
+        @{ Result = 'direct-commit'; Line = 'Committed 0123456 to main.' }
+        @{ Result = 'no-changes'; Line = 'No changes to commit.' }
+        @{ Result = 'dry-run'; Line = 'dry-run' }
+    ) {
+        $result = [pscustomobject]@{ Result = $Result; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/21'; Sha = '0123456789abcdef'; Branch = 'main'; Fallback = $false; Diff = @(); DiffNote = $null }
+        ConvertTo-ScanSummary -Plan $first -Result $result | Should-MatchString "(?m)^$([regex]::Escape($Line))$"
+    }
+
+    It 'gives only the failure message for a failed plan' {
+        $failed = [pscustomobject]@{ Failure = 'nuget'; FailureMessage = 'The NuGet index could not be read' }
+        ConvertTo-ScanSummary -Plan $failed -Result $null -Message 'Scan failed' | Should-Be "## Diagnostic scan`n`n**Scan failed**`n`nThe NuGet index could not be read`n`n"
+    }
+}

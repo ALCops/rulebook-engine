@@ -69,12 +69,6 @@ function ConvertFrom-JsonText {
     return $json
 }
 
-function ConvertFrom-JsonFile {
-    param([Parameter(Mandatory)][string]$Path)
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "File not found: $Path" }
-    return ConvertFrom-JsonText -Text (Get-Content -LiteralPath $Path -Raw) -Path $Path
-}
-
 function Assert-RuleAction {
     param([AllowNull()][string]$Action, [string]$Id, [string]$Path)
     if ($Action -cnotin $script:Actions) {

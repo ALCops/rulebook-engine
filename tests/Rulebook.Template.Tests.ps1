@@ -635,3 +635,35 @@ Describe 'Build-Template.ps1' {
         }
     }
 }
+
+Describe 'Sync-GeneratedFolder' {
+    BeforeEach {
+        $script:folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('n').Substring(0, 12)) 'pages'
+        [void][System.IO.Directory]::CreateDirectory($folder)
+        [System.IO.File]::WriteAllText((Join-Path $folder 'same.md'), "same`n")
+        [System.IO.File]::WriteAllText((Join-Path $folder 'old.md'), "old`n")
+        [System.IO.File]::WriteAllText((Join-Path $folder 'changed.md'), "before`n")
+        [System.IO.File]::WriteAllText((Join-Path $folder 'notes.txt'), "kept`n")
+        $script:files = [ordered]@{ 'same.md' = "same`n"; 'changed.md' = "after`n"; 'new.md' = "new`n" }
+    }
+
+    It 'deletes the orphan, writes the changed and new files, leaves the unchanged file and other files alone' {
+        $stamp = [datetime]::new(2020, 1, 1, 0, 0, 0, [System.DateTimeKind]::Utc)
+        [System.IO.File]::SetLastWriteTimeUtc((Join-Path $folder 'same.md'), $stamp)
+        $changes = @(Sync-GeneratedFolder -Directory $folder -Filter '*.md' -Files $files)
+        @($changes | ForEach-Object { '{0} {1}' -f $_.File, $_.Change }) | Should-BeCollection @('pages/old.md deleted', 'pages/changed.md modified', 'pages/new.md created')
+        Test-Path -LiteralPath (Join-Path $folder 'old.md') | Should-BeFalse
+        [System.IO.File]::ReadAllText((Join-Path $folder 'changed.md')) | Should-Be "after`n"
+        [System.IO.File]::GetLastWriteTimeUtc((Join-Path $folder 'same.md')) | Should-Be $stamp
+        [System.IO.File]::ReadAllText((Join-Path $folder 'notes.txt')) | Should-Be "kept`n"
+        @(Sync-GeneratedFolder -Directory $folder -Filter '*.md' -Files $files) | Should-BeCollection @()
+    }
+
+    It 'returns the same list and writes nothing with -WhatIf' {
+        $changes = @(Sync-GeneratedFolder -Directory $folder -Filter '*.md' -Files $files -WhatIf)
+        @($changes | ForEach-Object { '{0} {1}' -f $_.File, $_.Change }) | Should-BeCollection @('pages/old.md deleted', 'pages/changed.md modified', 'pages/new.md created')
+        Test-Path -LiteralPath (Join-Path $folder 'old.md') | Should-BeTrue
+        Test-Path -LiteralPath (Join-Path $folder 'new.md') | Should-BeFalse
+        [System.IO.File]::ReadAllText((Join-Path $folder 'changed.md')) | Should-Be "before`n"
+    }
+}

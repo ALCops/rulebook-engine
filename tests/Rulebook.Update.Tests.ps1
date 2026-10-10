@@ -1402,3 +1402,99 @@ Describe 'ConvertTo-UpdatePullRequestBody and ConvertTo-UpdateSummary' {
         $summary | Should-MatchString '(?m)^- `site/layouts/index\.html`: local changes$'
     }
 }
+
+Describe 'Update helpers' {
+    BeforeAll {
+        function New-Folder {
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+            param()
+            $folder = Join-Path $TestDrive ([guid]::NewGuid().ToString('n').Substring(0, 12))
+            [void][System.IO.Directory]::CreateDirectory($folder)
+            return $folder
+        }
+    }
+
+    It 'Get-ShortSha keeps the first seven characters (<Case>)' -ForEach @(
+        @{ Case = 'a full sha'; Sha = '0123456789abcdef0123456789abcdef01234567'; Expected = '0123456' }
+        @{ Case = 'a short value'; Sha = 'abc'; Expected = 'abc' }
+        @{ Case = 'empty'; Sha = ''; Expected = '' }
+        @{ Case = 'null'; Sha = $null; Expected = '' }
+    ) {
+        Get-ShortSha -Sha $Sha | Should-Be $Expected
+    }
+
+    It 'Test-BinaryFile knows a binary extension, a NUL byte, and plain text' {
+        $folder = New-Folder
+        Test-BinaryFile -Path (Join-Path $folder 'missing.png') | Should-BeTrue
+        Test-BinaryFile -Path (Join-Path $folder 'missing.txt') | Should-BeFalse
+        $nul = Join-Path $folder 'data.bin.txt'
+        [System.IO.File]::WriteAllBytes($nul, [byte[]](0x41, 0x00, 0x42))
+        Test-BinaryFile -Path $nul | Should-BeTrue
+        $text = Join-Path $folder 'notes.md'
+        [System.IO.File]::WriteAllText($text, "# Notes`n")
+        Test-BinaryFile -Path $text | Should-BeFalse
+    }
+
+    It 'Get-ComparableContent gives normalised text, base64 for a binary file and $null when absent' {
+        $folder = New-Folder
+        [System.IO.File]::WriteAllBytes((Join-Path $folder 'a.md'), [byte[]](0xEF, 0xBB, 0xBF) + [System.Text.Encoding]::UTF8.GetBytes("one`r`ntwo`r`n`r`n"))
+        [System.IO.File]::WriteAllBytes((Join-Path $folder 'logo.png'), [byte[]](0x89, 0x50, 0x4E, 0x47))
+        Get-ComparableContent -Root $folder -Path 'a.md' | Should-Be "one`ntwo`n"
+        Get-ComparableContent -Root $folder -Path 'logo.png' | Should-Be ([System.Convert]::ToBase64String([byte[]](0x89, 0x50, 0x4E, 0x47)))
+        Get-ComparableContent -Root $folder -Path 'missing.md' | Should-BeNull
+    }
+
+    It 'Copy-UpdateTree copies every file except .git/ and site/data/' {
+        $source = New-Folder
+        foreach ($path in 'README.md', 'base/strict.ruleset.json', '.git/config', 'site/data/rules.json', 'site/config.yaml') {
+            $full = Join-Path $source $path
+            [void][System.IO.Directory]::CreateDirectory((Split-Path -Parent $full))
+            [System.IO.File]::WriteAllText($full, $path)
+        }
+        $destination = Join-Path (New-Folder) 'copy'
+        Copy-UpdateTree -Source $source -Destination $destination
+        [string[]]$copied = @(Get-ChildItem -LiteralPath $destination -Recurse -File -Force | ForEach-Object { [System.IO.Path]::GetRelativePath($destination, $_.FullName).Replace('\', '/') } | Sort-Object)
+        Should-BeCollection -Actual $copied -Expected ([string[]]@('base/strict.ruleset.json', 'README.md', 'site/config.yaml'))
+        [System.IO.File]::ReadAllText((Join-Path $destination 'base' 'strict.ruleset.json')) | Should-Be 'base/strict.ruleset.json'
+    }
+
+    It 'Get-DefaultWorkPath names a fresh folder under RUNNER_TEMP, else the temp folder' {
+        $saved = $env:RUNNER_TEMP
+        try {
+            $env:RUNNER_TEMP = Join-Path $TestDrive 'runner-temp'
+            $first = Get-DefaultWorkPath -Prefix 'rulebook-scan'
+            Split-Path -Parent $first | Should-Be $env:RUNNER_TEMP
+            Split-Path -Leaf $first | Should-MatchString '^rulebook-scan-[0-9a-f]{8}$'
+            Get-DefaultWorkPath -Prefix 'rulebook-scan' | Should-NotBe $first
+            $env:RUNNER_TEMP = $null
+            $other = Get-DefaultWorkPath
+            Split-Path -Parent $other | Should-Be ([System.IO.Path]::GetTempPath().TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))
+            Split-Path -Leaf $other | Should-MatchString '^rulebook-update-[0-9a-f]{8}$'
+        } finally {
+            $env:RUNNER_TEMP = $saved
+        }
+    }
+
+    It 'Get-EffectiveDiffBlock writes one block per endpoint in diff order with the listing notes' {
+        $diff = @(
+            [pscustomobject]@{ Endpoint = 'strict.ci'; File = 'rulesets/strict.ci.ruleset.json'; Id = 'LC0015'; Change = 'listing'; ListedAfter = $true; Before = 'Info'; After = 'Info'; BeforeSource = 'default'; AfterSource = 'stage:ci'; AfterDetail = $null }
+            [pscustomobject]@{ Endpoint = 'essential.default'; File = 'rulesets/essential.ruleset.json'; Id = 'AA0001'; Change = 'listing'; ListedAfter = $false; Before = 'Warning'; After = 'Warning'; BeforeSource = 'level:essential'; AfterSource = 'default'; AfterDetail = $null }
+            [pscustomobject]@{ Endpoint = 'strict.ci'; File = 'rulesets/strict.ci.ruleset.json'; Id = 'LC0029'; Change = 'action'; ListedAfter = $true; Before = $null; After = 'None'; BeforeSource = $null; AfterSource = 'override'; AfterDetail = 'Backlog | DEV-1' }
+        )
+        $blocks = Get-EffectiveDiffBlock -Diff $diff -Heading '####'
+        # StringBuilder.AppendLine writes the platform line ending; compare on LF.
+        $blocks = [string[]]@($blocks | ForEach-Object { $_.Replace("`r`n", "`n") })
+        $blocks.Count | Should-Be 2
+        $blocks[0] | Should-MatchString '(?m)^#### `strict\.ci` \(`rulesets/strict\.ci\.ruleset\.json`\)$'
+        $blocks[0] | Should-MatchString '(?m)^\| LC0015 \| Info \| Info \| stage:ci \(the analyzer default moved; now listed\) \|$'
+        $blocks[0] | Should-MatchString '(?m)^\| LC0029 \| \(absent\) \| None \| override, "Backlog \\\| DEV-1" \|$'
+        $blocks[1] | Should-MatchString '(?m)^\| AA0001 \| Warning \| Warning \| default \(now the analyzer default; no longer listed\) \|$'
+    }
+
+    It 'Get-EffectiveDiffBlock keeps one block an array and gives none for no rows' {
+        $one = Get-EffectiveDiffBlock -Diff @([pscustomobject]@{ Endpoint = 'strict.ci'; File = 'rulesets/strict.ci.ruleset.json'; Id = 'LC0015'; Change = 'action'; ListedAfter = $true; Before = 'Info'; After = 'None'; BeforeSource = 'default'; AfterSource = 'override'; AfterDetail = $null })
+        Should-HaveType -Actual $one -Expected ([string[]])
+        $one.Count | Should-Be 1
+        (Get-EffectiveDiffBlock -Diff @()).Count | Should-Be 0
+    }
+}

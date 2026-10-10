@@ -2,6 +2,11 @@
 # tests/fixtures/stub-analyzers/ (compiled at test time, tests/Helpers/StubFeed.ps1). Offline: the real packages run
 # only in the CI job scan-action and the live end-to-end run (docs/reference/scan-mechanics.md section 10).
 
+BeforeDiscovery {
+    # Get-AnalyzerDescriptor in-process loads the stub assemblies into this session; a second run skips it.
+    $script:stubLoaded = $null -ne ([System.AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -ceq 'Microsoft.Dynamics.Nav.CodeAnalysis' } | Select-Object -First 1)
+}
+
 BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
@@ -245,5 +250,46 @@ Describe 'ConvertTo-DiagnosticRecord' {
         $record = (ConvertTo-DiagnosticRecord -Result $result -PackageId 'alcops.analyzers').Records['PC0000']
         $record.Advertised | Should-BeFalse
         $record.DescriptorCount | Should-Be 0
+    }
+}
+
+Describe 'Get-AnalyzerDescriptor in-process' -Skip:$stubLoaded {
+    # The one in-process extraction (the stub README says so): the child pwsh of Invoke-DescriptorExtraction runs this
+    # function, which the coverage tracer of the test session cannot see. Assembly.LoadFrom keeps the stub assemblies
+    # loaded for the rest of the session, so this is one call on the folders the suite expanded, and the fault
+    # variants stay in child processes. Skipped when the stub compiler assembly is loaded already (a second run of the
+    # suite in the same session).
+    BeforeAll {
+        # Windows locks a loaded assembly file, and TestDrive is removed after the suite: the in-process call reads
+        # copies of the two analyzer folders in the temp folder, which stay until the next temp cleanup.
+        $copy = Join-Path ([System.IO.Path]::GetTempPath()) ('rulebook-stub-in-process-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
+        $script:inProcessTools = Join-Path $copy 'tools'
+        $script:inProcessAlcops = Join-Path $copy 'alcops'
+        Copy-FixtureTree -Source $toolsStable -Destination $inProcessTools
+        Copy-FixtureTree -Source $alcopsV1 -Destination $inProcessAlcops
+        $script:outFile = Join-Path $TestDrive 'in-process-descriptors.json'
+        $script:inProcess = Get-AnalyzerDescriptor -ToolsDir $inProcessTools -AlcopsDir $inProcessAlcops -ExpectedAssembly (Get-ExpectedAssembly -PackageId $alcops) -OutFile $outFile
+    }
+
+    It 'finds the ids the child process finds' {
+        [string[]]$ids = @($inProcess['rows'] | ForEach-Object { [string]$_.id } | Sort-Object -Unique -CaseSensitive)
+        [string[]]$childIds = @($v1Result['rows'] | ForEach-Object { [string]$_['id'] } | Sort-Object -Unique -CaseSensitive)
+        $ids.Count | Should-BeGreaterThan 0
+        Should-BeCollection -Actual $ids -Expected $childIds
+    }
+
+    It 'finds the same field-only descriptors and the missing compiler titles' {
+        [string[]]$fieldOnly = @($inProcess['fieldOnly'] | ForEach-Object { [string]$_.id } | Sort-Object -CaseSensitive)
+        [string[]]$childFieldOnly = @($v1Result['fieldOnly'] | ForEach-Object { [string]$_['id'] } | Sort-Object -CaseSensitive)
+        Should-BeCollection -Actual $fieldOnly -Expected $childFieldOnly
+        $inProcess['compilerTitlesMissing'] | Should-Be $v1Result['compilerTitlesMissing']
+        $inProcess['compilerTitlesMissing'] | Should-BeTrue
+    }
+
+    It 'writes the result file as JSON without a byte order mark' {
+        $bytes = [System.IO.File]::ReadAllBytes($outFile)
+        ($bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) | Should-BeFalse
+        $json = [System.Text.Encoding]::UTF8.GetString($bytes) | ConvertFrom-Json -AsHashtable
+        @($json['rows']).Count | Should-Be @($inProcess['rows']).Count
     }
 }
