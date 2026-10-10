@@ -14,6 +14,7 @@ function New-GitStartInfo {
     # The start info of one git process: 'git -C <Root> <Arguments>', output and error redirected and decoded as UTF-8
     # independent of the console code page, no credential prompt, then the extra environment of this process only
     # (the token header of Rulebook.GitHub).
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds a ProcessStartInfo object; changes no state')]
     param(
         [Parameter(Mandatory)][string]$Root,
         [Parameter(Mandatory)][string[]]$Arguments,

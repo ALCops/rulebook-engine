@@ -36,11 +36,14 @@ Describe 'Invoke-Git' -Skip:$gitMissing {
     }
 
     It 'decodes UTF-8 output independent of the console code page' {
+        # A subject with Latin-1 letters and a check mark (U+2713), from code points: the suite stays ASCII
+        # (PSUseBOMForUnicodeEncodedFile).
+        $subject = -join ([char[]]@(0x00DC, 0x6E, 0x00EF, 0x63, 0x00F6, 0x64, 0x00E9, 0x20, 0x2713))
         $unicodeRoot = Get-TestFolder
-        $null = New-FixtureGitRepo -Root $unicodeRoot -Message 'Ünïcödé ✓'
+        $null = New-FixtureGitRepo -Root $unicodeRoot -Message $subject
         $result = Invoke-Git -Root $unicodeRoot -Arguments @('log', '-1', '--format=%s')
         $result.ExitCode | Should-Be 0
-        $result.Output.Trim() | Should-Be 'Ünïcödé ✓'
+        $result.Output.Trim() | Should-Be $subject
     }
 
     It 'returns a non-zero exit code with the error text and does not throw' {
