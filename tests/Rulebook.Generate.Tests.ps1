@@ -756,6 +756,58 @@ Describe 'Update-RulebookEndpoints' {
     }
 }
 
+Describe 'Get-RulebookEndpointChange' {
+    BeforeAll {
+        function Get-ChangeText {
+            param([object[]]$Changes)
+            # The comma keeps a one-item list a collection for Should-BeCollection.
+            return , [string[]]@($Changes | ForEach-Object { '{0} {1}' -f $_.File, $_.Change })
+        }
+    }
+
+    It 'returns the Update-RulebookEndpoints -WhatIf list on <Case>' -ForEach @(
+        @{ Case = 'stale-endpoints'; Name = 'stale-endpoints'; Stray = $false; Expected = @('rulesets/recommended.ci.ruleset.json modified') }
+        @{ Case = 'custom-level'; Name = 'custom-level'; Stray = $false; Expected = $null }
+        @{ Case = 'valid-minimal with a stray endpoint'; Name = 'valid-minimal'; Stray = $true; Expected = @('rulesets/Extra.ruleset.json deleted') }
+        @{ Case = 'stale-endpoints with a stray endpoint'; Name = 'stale-endpoints'; Stray = $true; Expected = @('rulesets/recommended.ci.ruleset.json modified', 'rulesets/Extra.ruleset.json deleted') }
+    ) {
+        $root = Copy-Fixture $Name
+        if ($Stray) { Write-FixtureText -Path (Join-Path $root 'rulesets' 'Extra.ruleset.json') -Text '{ "name": "x", "rules": [] }' }
+        $before = Get-TreeHash $root
+        $changes = @(Get-RulebookEndpointChange -RepositoryRoot $root)
+        Get-TreeHash $root | Should-Be $before
+        $whatIf = @(Update-RulebookEndpoints -RepositoryRoot $root -WhatIf)
+        Get-TreeHash $root | Should-Be $before
+        Should-BeCollection -Actual (Get-ChangeText $changes) -Expected (Get-ChangeText $whatIf)
+        if ($null -ne $Expected) {
+            Should-BeCollection -Actual (Get-ChangeText $changes) -Expected $Expected
+        } else {
+            $changes.Count | Should-BeGreaterThan 0
+            @($changes | Where-Object Change -EQ 'created').Count | Should-BeGreaterThan 0
+        }
+        foreach ($change in $changes) { $change.PSObject.TypeNames[0] | Should-Be 'Rulebook.EndpointChange' }
+    }
+
+    It 'returns nothing when the endpoints are current' {
+        @(Get-RulebookEndpointChange -RepositoryRoot $validMinimal).Count | Should-Be 0
+    }
+
+    It 'reuses -Inputs without reading them again' {
+        $root = Copy-Fixture 'stale-endpoints'
+        $inputs = Read-RulebookInputs -RepositoryRoot $root
+        Mock Read-RulebookInputs -ModuleName Rulebook.Generate { throw 'parsed twice' }
+        Should-BeCollection -Actual (Get-ChangeText @(Get-RulebookEndpointChange -RepositoryRoot $root -Inputs $inputs)) -Expected @('rulesets/recommended.ci.ruleset.json modified')
+        Should-BeCollection -Actual (Get-ChangeText @(Update-RulebookEndpoints -RepositoryRoot $root -Inputs $inputs -WhatIf)) -Expected @('rulesets/recommended.ci.ruleset.json modified')
+        Should-Invoke Read-RulebookInputs -ModuleName Rulebook.Generate -Times 0 -Exactly
+    }
+
+    It 'throws without settings' {
+        $root = Join-Path $TestDrive 'empty-change'
+        $null = New-Item -ItemType Directory -Path $root
+        { Get-RulebookEndpointChange -RepositoryRoot $root } | Should-Throw -ExceptionMessage 'Settings missing*'
+    }
+}
+
 Describe 'Fixtures' {
     It 'valid-minimal <Key> lists exactly the derived entries' -ForEach $fixtureTables {
         $level, $stage = $Key.Split('.')
@@ -836,6 +888,20 @@ Describe 'Compare-RulebookEndpoints' -Skip:$gitMissing {
     It 'returns no rows when nothing changed' {
         $root = Initialize-DiffRepo
         @(Compare-RulebookEndpoints -RepositoryRoot $root -Ref 'HEAD').Count | Should-Be 0
+    }
+
+    It 'gives the same rows with -Inputs as without, and does not read the working tree again' {
+        $root = Initialize-DiffRepo
+        Edit-FixtureJson -Path (Join-Path $root 'overrides.json') -Script { $_.rules = @($_.rules | Where-Object { $_.id -ne 'LC0029' }) }
+        $expected = @(Compare-RulebookEndpoints -RepositoryRoot $root -Ref 'HEAD' | ForEach-Object Text)
+        $expected.Count | Should-BeGreaterThan 0
+        $inputs = Read-RulebookInputs -RepositoryRoot $root
+        $script:refInputs = Read-RulebookInputs -RepositoryRoot $root -Ref 'HEAD'
+        # Only the ref side may be read: a working-tree read would throw.
+        Mock Read-RulebookInputs -ModuleName Rulebook.Generate -ParameterFilter { [string]::IsNullOrEmpty($Ref) } { throw 'parsed twice' }
+        Mock Read-RulebookInputs -ModuleName Rulebook.Generate -ParameterFilter { -not [string]::IsNullOrEmpty($Ref) } { $script:refInputs }
+        Should-BeCollection -Actual @(Compare-RulebookEndpoints -RepositoryRoot $root -Ref 'HEAD' -Inputs $inputs | ForEach-Object Text) -Expected $expected
+        Should-Invoke Read-RulebookInputs -ModuleName Rulebook.Generate -ParameterFilter { [string]::IsNullOrEmpty($Ref) } -Times 0 -Exactly
     }
 
     It 'shows an override change with its provenance' {

@@ -409,6 +409,22 @@ Describe 'C12 regeneration check' {
         @(Test-Rulebook -RepositoryRoot $root).Count | Should-Be 0
     }
 
+    It 'uses the endpoint query, not the writer' {
+        Mock Update-RulebookEndpoints -ModuleName Rulebook.Validate { throw 'the writer was called' }
+        $findings = @(Test-Rulebook -RepositoryRoot (Copy-Fixture 'stale-endpoints'))
+        (Get-FindingText $findings) | Should-BeCollection @('C12 error rulesets/recommended.ci.ruleset.json -')
+        Should-Invoke Update-RulebookEndpoints -ModuleName Rulebook.Validate -Times 0 -Exactly
+    }
+
+    It 'reuses -Inputs without reading them again' {
+        $root = Copy-Fixture 'stale-endpoints'
+        $inputs = Read-RulebookInputs -RepositoryRoot $root
+        Mock Read-RulebookInputs -ModuleName Rulebook.Generate { throw 'parsed twice' }
+        $findings = @(Test-Rulebook -RepositoryRoot $root -Inputs $inputs)
+        (Get-FindingText $findings) | Should-BeCollection @('C12 error rulesets/recommended.ci.ruleset.json -')
+        Should-Invoke Read-RulebookInputs -ModuleName Rulebook.Generate -Times 0 -Exactly
+    }
+
     It 'is skipped with one warning when the catalog is missing' {
         $root = Copy-Fixture
         Remove-Item -LiteralPath (Join-Path $root 'catalog' 'diagnostics.json')
