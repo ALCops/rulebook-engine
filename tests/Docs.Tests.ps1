@@ -12,13 +12,12 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'MarkdownCheck.ps1')
 
-    # The troubleshooting rule of the user pages is pending until PR B of WP11 (#13) brings the existing pages to the
-    # required shape (overrides.md has no troubleshooting section, ghtokenworkflow.md and hosting.md name theirs
-    # differently, hosting.md and quarantine.md have two-column tables). PR B sets this to $false.
-    $troubleshootingPending = $true
-    # Pages template/README.md links that WP11 (#13) writes later: PR B (getting-started, al-go, azure-devops, vscode,
-    # faq) and PR C (migration). Tolerated as missing for that README only; PR B and PR C remove their entries.
-    $pendingUserPages = @('docs/getting-started.md', 'docs/al-go.md', 'docs/azure-devops.md', 'docs/vscode.md', 'docs/faq.md', 'docs/migration.md')
+    # The troubleshooting rule of the user pages is on since PR B of WP11 (#13, ALCops/rulebook#8) brought every user
+    # page to the required shape; $true skips it with the reason below.
+    $troubleshootingPending = $false
+    # Pages template/README.md links that WP11 (#13) writes later: PR C (migration). Tolerated as missing for that
+    # README only; PR C removes the entry.
+    $pendingUserPages = @('docs/migration.md')
 
     $userRoot = $null
     $userReason = $null
@@ -90,7 +89,7 @@ Describe 'Documentation pages' {
         }
 
         It '<Page>: troubleshooting section present' -ForEach @($Pages | Where-Object { $_.Shaped }) -AllowNullOrEmptyForEach {
-            if ($Pending) { Set-ItResult -Skipped -Because 'pending until PR B of WP11 (#13) brings the existing user pages to the troubleshooting shape' }
+            if ($Pending) { Set-ItResult -Skipped -Because 'the troubleshooting rule is switched off ($troubleshootingPending in BeforeDiscovery)' }
             $Troubleshooting | Should-BeCollection @()
         }
 
