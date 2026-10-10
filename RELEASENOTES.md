@@ -1,0 +1,36 @@
+# Release notes
+
+<!-- The top ## vX.Y.Z heading is the version the next deploy releases (branch v<major>, tag vX.Y.Z on both repositories; the deploy refuses a tag that exists). Every pull request adds its release line at the end of that section, and the first pull request after a release adds the next heading (D52). -->
+
+## v1.0.0-beta.1
+
+- WP00: Repository bootstrap ([#32](https://github.com/ALCops/rulebook-engine/pull/32))
+- Spike (c): alc runs on ubuntu-latest from the stable NuGet tool ([#3](https://github.com/ALCops/rulebook-engine/issues/3))
+- Spike (b): analyzer ids are extracted by reflection in pwsh from tools/net10.0/any and lib/net10.0 ([#3](https://github.com/ALCops/rulebook-engine/issues/3))
+- Spike (h): Hugo 0.167.0 builds the 628 rule pages from one content adapter in 0.2 s ([#3](https://github.com/ALCops/rulebook-engine/issues/3))
+- Spike (d): Pages on GitHub Free serves only public repos, and needs the org's Pages creation privilege and a pre-enabled site ([#3](https://github.com/ALCops/rulebook-engine/issues/3))
+- Spike (a): Pages and raw both pass the compiler, one fetch per compile, the skeleton's own rules win, and a failing include aborts alc ([#3](https://github.com/ALCops/rulebook-engine/issues/3))
+- Spike (f): suppressWarnings removes analyzer errors a sparse endpoint does not list, and is a no-op for listed ids ([#3](https://github.com/ALCops/rulebook-engine/issues/3))
+- Spike (g): GitHub rejects prefilled issue URLs from 8192 bytes; render: json textareas prefill intact ([#3](https://github.com/ALCops/rulebook-engine/issues/3))
+- Spike (e): VS Code re-reads a remote ruleset only on an app.json save, an al.* setting change, Reload Window or reopen ([#3](https://github.com/ALCops/rulebook-engine/issues/3))
+- WP02: JSON schemas and naming reference for the organization rulebook layout ([#44](https://github.com/ALCops/rulebook-engine/pull/44))
+- WP03 part 1: Rulebook.Generate, D41 precedence, sparse endpoints and the effective diff ([#45](https://github.com/ALCops/rulebook-engine/pull/45))
+- WP03 part 2: Rulebook.Validate and the Validate action with checks C1 to C15, annotations and the effective diff on every pull request ([#46](https://github.com/ALCops/rulebook-engine/pull/46))
+- tools/rulebook: shared sort key from Rulebook.Generate, portable paths, sorted twin pairs and the matrix checks in CI ([#53](https://github.com/ALCops/rulebook-engine/pull/53))
+- WP04: template content, Rulebook.Template generators and the organization README ([#54](https://github.com/ALCops/rulebook-engine/pull/54))
+- WP05: Publish action for GitHub Pages, reachability check and the template Publish workflow ([#59](https://github.com/ALCops/rulebook-engine/pull/59))
+- WP06: AL project skeletons, the init script, rulebook.json and the C11 README exemption ([#60](https://github.com/ALCops/rulebook-engine/pull/60))
+- Update Rulebook System Files: CheckForUpdates action, update workflow, GHTOKENWORKFLOW (D44), unusedRulebookFiles as paths ([#66](https://github.com/ALCops/rulebook-engine/pull/66))
+- Validate: C16 reports a quarantine file that names no stage of the settings ([#68](https://github.com/ALCops/rulebook-engine/pull/68))
+- Scan Diagnostics: daily NuGet scan with quarantine, catalog defaults and one living pull request ([#69](https://github.com/ALCops/rulebook-engine/pull/69))
+- Share the action helpers in a Rulebook.Action module ([#73](https://github.com/ALCops/rulebook-engine/pull/73))
+- Validate: update.check in the settings turns the template update check off ([#74](https://github.com/ALCops/rulebook-engine/pull/74))
+- WP09: ChangeRule workflow, Rulebook.Edit change-set engine and the ChangeRule action ([#76](https://github.com/ALCops/rulebook-engine/pull/76))
+- Update: the job summary renders the effective diff tables instead of System.String[] ([#79](https://github.com/ALCops/rulebook-engine/pull/79))
+- WP10: Rulebook.Levels, the off-level script, generated level pages and the authoring guide ([#80](https://github.com/ALCops/rulebook-engine/pull/80))
+- Update: docs/ is a customizable file class and the installed template commit is recovered from the initial commit ([#85](https://github.com/ALCops/rulebook-engine/pull/85))
+- Tests: the user-docs troubleshooting rule is on and only migration.md is pending ([#86](https://github.com/ALCops/rulebook-engine/pull/86))
+- Tests: every user page is checked now that the WP11 pages are merged ([#89](https://github.com/ALCops/rulebook-engine/pull/89))
+- Modules and actions: one Rulebook.Common, C12 without What if lines, the refused push as a warning annotation, name-only binding ([#90](https://github.com/ALCops/rulebook-engine/pull/90))
+- CI: coverage as a report (D51), the test summary step and one fixture guard suite ([#91](https://github.com/ALCops/rulebook-engine/pull/91))
+- Tests: the coverage pass, docs/reference/testing.md and the WP12 close-out ([#94](https://github.com/ALCops/rulebook-engine/pull/94))

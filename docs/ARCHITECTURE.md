@@ -70,18 +70,18 @@ flowchart LR
         proj1[AL project repo A<br/>.rulebook/default, ci, vnext .ruleset.json]
         proj2[AL project repo B]
     end
-    eng -->|deploy: generate base/ and stages/ from the matrix,<br/>copy template/, pin @main to @v1| tpl
-    tpl -->|Use this template| orgrepo
+    eng -->|release deploy: template/ to rulebook@v1, @main rewritten to @v1,<br/>tag v1.x.y on both<br/>refresh: template/ to rulebook@main| tpl
+    tpl -->|Use this template<br/>default branch v1| orgrepo
     orgrepo -.->|uses: ALCops/rulebook-engine/actions/X@v1| eng
-    orgrepo -->|Update Rulebook System Files<br/>zipball of rulebook@main| tpl
+    orgrepo -->|Update Rulebook System Files<br/>zipball of rulebook@v1| tpl
     orgrepo -->|Publish: validate, deploy, verify| host
     host -->|one URL per endpoint| proj1 & proj2
 ```
 
 | Repository | Role | Versioning |
 |---|---|---|
-| `ALCops/rulebook-engine` | Logic: composite actions, PowerShell modules, tests, contributor docs, the level matrix (`docs/rulebook/`) and the `template/` source folder. | Branch `v1` (and later `v2`) receives releases; `main` is development. Org workflows reference `@v1`. |
-| `ALCops/rulebook` | The template. Default branch `main` is what "Use this template" copies and what the update workflow downloads. | `main` = latest. Optional version branches later, AL-Go style (`templateUrl@branch`). |
+| `ALCops/rulebook-engine` | Logic: composite actions, PowerShell modules, tests, contributor docs, the level matrix (`docs/rulebook/`) and the `template/` source folder, which says `main` in every engine reference. | `main` is development. The floating branch `v1` is moved to a commit of `main` by every 1.x deploy, which also writes the tag `v1.x.y`; the version is the top heading of `RELEASENOTES.md`. Org workflows reference `@v1` (D52). |
+| `ALCops/rulebook` | The template, written only by the deploy. Default branch `v1` is what "Use this template" copies and what the update workflow downloads: the engine's `template/` with every engine reference and `templateUrl` rewritten to `v1`, tagged like the engine. `main` is the engine's `template/` verbatim (only `templateUrl` says `@main`), refreshed on every push to engine `main` that touches it. | `v1` = latest 1.x release; `main` = bleeding edge, followed only by the canary rulebook. Latest major only: when `v2` ships, `v1` is frozen and becomes a pin (D52). |
 | org rulebook repo | Created from the template. Holds the level and stage files, the org's overrides, quarantine, the generated endpoints and skeletons. Runs the six workflows. | The org's git history. |
 | AL project repo | Holds one small skeleton file per stage that includes one endpoint and lists project exceptions. | Not managed by Rulebook. |
 
@@ -117,7 +117,7 @@ Everything an org repo contains after "Use this template". The **class** column 
 
 The `rulesets/` folder is flat and every endpoint is self-contained, so the whole set is relocatable to any host without editing a file.
 
-Every JSON file in this table except the files under `site/` has a schema in the engine under `schemas/`, served from the release branch as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (section 5.4). The `v1` URLs go live with WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)); until then they return 404 and the tests use the local files. The ruleset profile follows the folder: `base/` and `stages/` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. The generator never writes `$schema` into an endpoint or a skeleton; the compiler fetches them and they stay minimal. File names, slugs and the schema list are in [reference/naming.md](reference/naming.md).
+Every JSON file in this table except the files under `site/` has a schema in the engine under `schemas/`, served from the branch the organization follows as `https://raw.githubusercontent.com/ALCops/rulebook-engine/<branch>/schemas/<name>.schema.json` (section 5.4): `v1` from the first WP13 deploy ([#15](https://github.com/ALCops/rulebook-engine/issues/15)), `main` for the canary rulebook. The engine's `template/` says `main` and the release deploy rewrites it to `v1`; the modules build the URLs they write from the engine ref the action was called with (`Get-RulebookSchemaUrl` of `Rulebook.Common`, D52). The tests use the local files. The ruleset profile follows the folder: `base/` and `stages/` are delta, `rulesets/` is endpoint, `skeletons/` is skeleton. The generator never writes `$schema` into an endpoint or a skeleton; the compiler fetches them and they stay minimal. File names, slugs and the schema list are in [reference/naming.md](reference/naming.md).
 
 ## 5. Generation model
 
@@ -388,7 +388,7 @@ The matrix shows every catalog id as a row, every published level as a column an
 
 ## 7. Workflows
 
-All six workflows run on `ubuntu-latest` and call composite actions from `ALCops/rulebook-engine/actions/<Name>@v1`. Write operations (branches, PRs) use the `GHTOKENWORKFLOW` secret in AL-Go's format (GitHub App JSON preferred, PAT accepted), named by `ghTokenWorkflowSecretName`; `GITHUB_TOKEN` stays read-only (D44); Publish adds only `pages: write` and `id-token: write`, which deploy to GitHub Pages and cannot push a commit (D42).
+All six workflows run on `ubuntu-latest` and call composite actions from `ALCops/rulebook-engine/actions/<Name>@v1` (`@main` in the canary rulebook, D52). Write operations (branches, PRs) use the `GHTOKENWORKFLOW` secret in AL-Go's format (GitHub App JSON preferred, PAT accepted), named by `ghTokenWorkflowSecretName`; `GITHUB_TOKEN` stays read-only (D44); Publish adds only `pages: write` and `id-token: write`, which deploy to GitHub Pages and cannot push a commit (D42).
 
 ### 7.1 Validate
 
@@ -509,11 +509,11 @@ A change set is `{ version, note?, changes[] }` with `set` (write an override en
 
 ## 8. Settings
 
-`.github/Rulebook-Settings.json`, schema `schemas/rulebook-settings.schema.json` (the `$schema` URL below goes live with WP13, [#15](https://github.com/ALCops/rulebook-engine/issues/15); until then it returns 404):
+`.github/Rulebook-Settings.json`, schema `schemas/rulebook-settings.schema.json`, as the engine's `template/` ships it (`main` in the `$schema` URL and in `templateUrl`; the release deploy rewrites both to `v1`, section 3):
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-settings.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-settings.schema.json",
   "templateUrl": "https://github.com/ALCops/rulebook@main",
   "templateSha": "",
   "baseUrl": "https://contoso.github.io/rulebook",
@@ -596,7 +596,7 @@ Every target ends with the same reachability check: `GET` each endpoint, skeleto
 
 ## 11. Open decisions
 
-See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinning. O4 (secret name) is closed by D44; O1 and O2 are closed by D19; O5 (third target name) is moot since D21; O6 (files per AL project) is closed by D28: one skeleton per stage.
+No decision is open; new ones are tracked in the open decisions table of [adr/README.md](adr/README.md). O3 (engine pinning) is closed by D52; O4 (secret name) is closed by D44; O1 and O2 are closed by D19; O5 (third target name) is moot since D21; O6 (files per AL project) is closed by D28: one skeleton per stage.
 
 ## 12. References
 
@@ -629,11 +629,11 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | AL project root | `.rulebook/<stage>.ruleset.json`, written by the init script or by hand | `.rulebook/ci.ruleset.json`, `.rulebook/default.ruleset.json` |
 | Published manifest | `<baseUrl>/rulebook.json`: levels and stages since WP06 (D43), extended by WP14 | `https://contoso.github.io/rulebook/rulebook.json` |
 | Level page | `docs/levels/<level>.md` and `docs/levels/README.md` in the engine, generated by `Build-Template.ps1` for the shipped levels (D49) | `docs/levels/strict.md` |
-| Off-level script | `scripts/New-RulebookOffLevel.ps1` in the engine, served from `raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/` (`v1` with WP13); writes `base/off.ruleset.json` | `./New-RulebookOffLevel.ps1` in a clone of the org repository |
-| Init script | `scripts/Get-RulebookSkeletons.ps1` in the engine, served from `raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/` (`v1` with WP13) | `./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level strict` |
+| Off-level script | `scripts/New-RulebookOffLevel.ps1` in the engine, served from `raw.githubusercontent.com/ALCops/rulebook-engine/<branch>/scripts/` (`v1` for organizations, `main` for the canary); `-Ref` (default `v1`) names the `$schema` branch; writes `base/off.ruleset.json` | `./New-RulebookOffLevel.ps1` in a clone of the org repository |
+| Init script | `scripts/Get-RulebookSkeletons.ps1` in the engine, served from `raw.githubusercontent.com/ALCops/rulebook-engine/<branch>/scripts/` (`v1` for organizations, `main` for the canary) | `./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level strict` |
 | Catalog | `catalog/diagnostics.json`; `catalog/scan-state.json` (created by the first scan, schema `rulebook-scan-state.schema.json`) | |
 | Slug | lowercased `name`, `^[a-z0-9-]+$` | `vNext` becomes `vnext` |
-| Schema file | `schemas/<name>.schema.json` in the engine, served as `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/<name>.schema.json` (live with WP13, #15; 404 until then) | `schemas/rulebook-settings.schema.json` |
+| Schema file | `schemas/<name>.schema.json` in the engine, served as `https://raw.githubusercontent.com/ALCops/rulebook-engine/<branch>/schemas/<name>.schema.json` (`v1` from the first WP13 deploy, `main` in the engine's `template/`; D52) | `schemas/rulebook-settings.schema.json` |
 | Ruleset schema profile | by folder: `base/`, `stages/` delta; `rulesets/` endpoint; `skeletons/` skeleton | `schemas/ruleset.delta.schema.json` |
 | Change set schema | `schemas/rulebook-changeset.schema.json`, name reserved for WP15 | |
 | Update branch | `update-rulebook-system-files/<branch>/<yyMMddHHmmss>` | |
@@ -643,7 +643,7 @@ See the open decisions table in [adr/README.md](adr/README.md): O3 engine pinnin
 | Change rule branch | `change-rule/<ruleId>/<yyMMddHHmmss>` (UTC) | `change-rule/LC0015/261008091530` |
 | Change rule PR title | `Change <ruleId> to <action> (levels: <levels>, stages: <stages>)`, or `Remove override for <ruleId> (...)` | `Change LC0015 to None (levels: strict, stages: ci)` |
 | Change branch | `rulebook-change/<issue>/<yyMMddHHmmss>` (WP15) | |
-| Dashboard | `<baseUrl>/`, `<baseUrl>/rules/<id>/`, `<baseUrl>/rulebook.json` | `https://contoso.github.io/rulebook/rules/AL0432/` |
+| Dashboard | `<baseUrl>/`, `<baseUrl>/rules/<id>/` (WP14; the manifest is the Published manifest row) | `https://contoso.github.io/rulebook/rules/AL0432/` |
 
 ### File classes for the update
 
