@@ -4,7 +4,7 @@
   Runs the checks V1 to V14 from docs/rulebook/verification.md against the inventory, the matrix and the docs.
   Exit code 1 when any check fails.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RulebookDir = (Join-Path $PSScriptRoot '..' '..' 'docs' 'rulebook')
 )

@@ -699,9 +699,10 @@ function Publish-RulebookScan {
     moved since (stage push, Data['Reason'] = 'base-moved'). With no changes or a direct commit an open scan pull request is closed
     (ClosedPullRequestUrl). Then the open pull request from that branch is updated (PATCH title and body,
     pull-request-updated) or a new one is opened with -Labels (pull-request). Returns { Result (pull-request,
-    pull-request-updated, direct-commit, no-changes), PullRequestUrl, Number, Branch, Sha, Fallback, Diff, DiffNote,
-    Body, Title }. A failure throws with Data['Stage']: push for the clone, commit and push; pull-request after the
-    push, naming the pushed branch and its tree link.
+    pull-request-updated, direct-commit, no-changes), PullRequestUrl, Number, Branch, Sha, Fallback, FallbackReason (the
+    git output of a refused direct push, else $null), Diff, DiffNote, Body, Title }. A failure throws with
+    Data['Stage']: push for the clone, commit and push; pull-request after the push, naming the pushed branch and its
+    tree link (Data['Branch']). After a refused direct push both stages carry Data['FallbackReason'].
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -757,9 +758,11 @@ function Publish-RulebookScan {
         $exception.Data['Stage'] = 'push'
         # A base that moved is no token problem; the entry script reports it as it is.
         if ($_.Exception.Data['Reason']) { $exception.Data['Reason'] = $_.Exception.Data['Reason'] }
+        # A refused direct push whose fallback branch failed too (#77).
+        if ($_.Exception.Data.Contains('FallbackReason')) { $exception.Data['FallbackReason'] = $_.Exception.Data['FallbackReason'] }
         throw $exception
     }
-    $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; Diff = @(); DiffNote = $null; Body = $null; Title = $title; ClosedPullRequestUrl = $null }
+    $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; FallbackReason = $pushed.FallbackReason; Diff = @(); DiffNote = $null; Body = $null; Title = $title; ClosedPullRequestUrl = $null }
     # An open scan pull request is stale once the base holds the result (no changes, or a direct commit): close it.
     $closeStale = {
         param([string]$Reason)
@@ -816,6 +819,8 @@ function Publish-RulebookScan {
         $exception = [System.InvalidOperationException]::new($message, $_.Exception)
         $exception.Data['Stage'] = 'pull-request'
         $exception.Data['Branch'] = $pushed.Branch
+        # The refused direct push is reported even when the pull request then fails (#77).
+        if ($pushed.Fallback) { $exception.Data['FallbackReason'] = $pushed.FallbackReason }
         throw $exception
     }
     return $result

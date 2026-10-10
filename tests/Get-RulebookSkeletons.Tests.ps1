@@ -49,7 +49,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Publish, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Get-RulebookSkeletons.ps1' {
@@ -327,5 +327,12 @@ Describe 'Get-RulebookSkeletons.ps1 source' {
         @($bytes | Where-Object { $_ -gt 0x7F }).Count | Should-Be 0
         $source.Contains("`r") | Should-BeFalse
         $source | Should-NotMatchString '(?m)^\s*exit\b'
+    }
+}
+
+Describe 'Get-RulebookSkeletons.ps1 parameter binding' {
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
+        { & $script:entry -BaseUrl 'https://127.0.0.1:9/rulebook' -Level strict -OutputPath $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }

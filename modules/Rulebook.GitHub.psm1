@@ -2,13 +2,15 @@
 # Rulebook.GitHub: the GitHub plumbing of the update workflow (WP07). One REST wrapper (Invoke-GitHubApi, the single
 # mock point of the suites), the GHTOKENWORKFLOW exchange (a personal access token passes through, GitHub App JSON
 # becomes a short-lived installation token, D44), the template download as a zipball, the pull request helpers,
-# and the clone, commit and push of the update and of the scan (WP08: the living pull request, a lease push). No
-# engine imports. The token never enters a git URL or git config:
+# and the clone, commit and push of the update and of the scan (WP08: the living pull request, a lease push).
+# Imports only Rulebook.Common (git runner, ordinal collections), nothing from the rulebook logic or the action
+# layer. The token never enters a git URL or git config:
 # git receives it as an http.<server>/.extraheader through GIT_CONFIG_COUNT in the environment of each git call.
 # Contract: docs/reference/update-mechanics.md section 6 and 8. Ported from AL-Go (Github-Helper.psm1,
 # AL-Go-Helper.ps1), behaviour only: docs/reference/al-go-template-mechanics.md sections 5.5 and 8.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:DefaultPermissions = [ordered]@{
@@ -102,34 +104,6 @@ function Get-NextLink {
         if ($part -match '<([^>]+)>\s*;\s*rel="next"') { return $Matches[1] }
     }
     return $null
-}
-
-function Invoke-Git {
-    # Runs git with UTF-8 output decoding, independent of the console code page, with extra environment variables
-    # for this process only (the token header). A copy of the Rulebook.Generate helper plus the environment hook.
-    param(
-        [Parameter(Mandatory)][string]$Root,
-        [Parameter(Mandatory)][string[]]$Arguments,
-        [System.Collections.IDictionary]$Environment
-    )
-    $info = [System.Diagnostics.ProcessStartInfo]::new('git')
-    $info.ArgumentList.Add('-C')
-    $info.ArgumentList.Add($Root)
-    foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
-    $info.RedirectStandardOutput = $true
-    $info.RedirectStandardError = $true
-    $info.UseShellExecute = $false
-    $info.StandardOutputEncoding = $script:Utf8NoBom
-    $info.StandardErrorEncoding = $script:Utf8NoBom
-    $info.Environment['GIT_TERMINAL_PROMPT'] = '0'
-    if ($null -ne $Environment) {
-        foreach ($key in $Environment.Keys) { $info.Environment[[string]$key] = [string]$Environment[$key] }
-    }
-    $process = [System.Diagnostics.Process]::Start($info)
-    $errorTask = $process.StandardError.ReadToEndAsync()
-    $output = $process.StandardOutput.ReadToEnd()
-    $process.WaitForExit()
-    return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $output; Error = $errorTask.Result }
 }
 
 function Assert-Git {
@@ -673,15 +647,18 @@ function New-GitHubClone {
 function Publish-GitHubChange {
     <#
     .SYNOPSIS
-    Commits everything in the clone and pushes it: { Pushed, Branch, Direct, Fallback, Sha, Reason }.
+    Commits everything in the clone and pushes it: { Pushed, Branch, Direct, Fallback, FallbackReason, Sha, Reason }.
     .DESCRIPTION
     git add -A; nothing to commit gives Pushed $false and Reason no-changes. -DirectCommit commits on the cloned
     branch and pushes it; a rejected push (branch protection) moves the commit to -NewBranch (reset --soft HEAD~,
-    checkout -b, commit) and pushes that instead, Fallback $true. Otherwise the commit goes to -NewBranch, pushed
-    with -u. AL-Go behaviour (CommitFromNewFolder). -Force rebuilds -NewBranch from the cloned head instead (the scan's
-    living branch, also after a refused direct push): the remote head of -NewBranch is read with git ls-remote, the
-    branch is created with checkout -B and pushed with --force-with-lease against that head (absent: the branch must
-    not exist), so a push someone made in between is rejected, never overwritten.
+    checkout -b, commit) and pushes that instead, Fallback $true and FallbackReason the trimmed git error and output
+    of the refused push ($null without a fallback; nothing is written here, the caller reports it, #77). When that
+    fallback branch fails too, the exception carries the refusal in Data['FallbackReason']. Otherwise the commit
+    goes to -NewBranch, pushed with -u. AL-Go behaviour (CommitFromNewFolder). -Force rebuilds -NewBranch from the
+    cloned head instead (the scan's living branch, also after a refused direct push): the remote head of
+    -NewBranch is read with git ls-remote, the branch is created with checkout -B and pushed with --force-with-lease
+    against that head (absent: the branch must not exist), so a push someone made in between is rejected, never
+    overwritten.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -697,37 +674,45 @@ function Publish-GitHubChange {
     $null = Assert-Git -Root $root -Arguments @('add', '-A') -Environment $environment -What 'git add'
     $status = Assert-Git -Root $root -Arguments @('status', '--porcelain=v1') -Environment $environment -What 'git status'
     if ([string]::IsNullOrWhiteSpace($status.Output)) {
-        return [pscustomobject]@{ Pushed = $false; Branch = $Clone.Branch; Direct = [bool]$DirectCommit; Fallback = $false; Sha = $Clone.BaseSha; Reason = 'no-changes' }
+        return [pscustomobject]@{ Pushed = $false; Branch = $Clone.Branch; Direct = [bool]$DirectCommit; Fallback = $false; FallbackReason = $null; Sha = $Clone.BaseSha; Reason = 'no-changes' }
     }
     $fallback = $false
+    $fallbackReason = $null
     if ($DirectCommit) {
         $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
         $push = Invoke-Git -Root $root -Arguments @('push', '--quiet', 'origin', "HEAD:refs/heads/$($Clone.Branch)") -Environment $environment
         if ($push.ExitCode -eq 0) {
             $sha = (Assert-Git -Root $root -Arguments @('rev-parse', 'HEAD') -What 'git rev-parse').Output.Trim()
-            return [pscustomobject]@{ Pushed = $true; Branch = $Clone.Branch; Direct = $true; Fallback = $false; Sha = $sha; Reason = 'direct-commit' }
+            return [pscustomobject]@{ Pushed = $true; Branch = $Clone.Branch; Direct = $true; Fallback = $false; FallbackReason = $null; Sha = $sha; Reason = 'direct-commit' }
         }
-        Write-Warning "The direct push to $($Clone.Branch) was refused; creating a pull request instead. ($(($push.Error + $push.Output).Trim()))"
-        $null = Assert-Git -Root $root -Arguments @('reset', '--soft', 'HEAD~') -Environment $environment -What 'git reset'
+        $fallbackReason = ($push.Error + $push.Output).Trim()
         $fallback = $true
     }
-    if ($Force) {
-        $remote = Assert-Git -Root $root -Arguments @('ls-remote', '--heads', 'origin', "refs/heads/$NewBranch") -Environment $environment -What 'git ls-remote'
-        $lease = ''
-        foreach ($line in $remote.Output.Split("`n")) {
-            $parts = @($line.Trim() -split '\s+')
-            if ($parts.Count -ge 2 -and $parts[1] -ceq "refs/heads/$NewBranch") { $lease = $parts[0] }
+    try {
+        # The refused commit moves to the new branch; inside the try, so a failed reset keeps the refusal too.
+        if ($fallback) { $null = Assert-Git -Root $root -Arguments @('reset', '--soft', 'HEAD~') -Environment $environment -What 'git reset' }
+        if ($Force) {
+            $remote = Assert-Git -Root $root -Arguments @('ls-remote', '--heads', 'origin', "refs/heads/$NewBranch") -Environment $environment -What 'git ls-remote'
+            $lease = ''
+            foreach ($line in $remote.Output.Split("`n")) {
+                $parts = @($line.Trim() -split '\s+')
+                if ($parts.Count -ge 2 -and $parts[1] -ceq "refs/heads/$NewBranch") { $lease = $parts[0] }
+            }
+            $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-B', $NewBranch) -Environment $environment -What 'git checkout -B'
+            $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
+            $null = Assert-Git -Root $root -Arguments @('push', '--quiet', "--force-with-lease=refs/heads/$($NewBranch):$lease", 'origin', "HEAD:refs/heads/$NewBranch") -Environment $environment -What "git push --force-with-lease $NewBranch"
+        } else {
+            $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-b', $NewBranch) -Environment $environment -What 'git checkout -b'
+            $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
+            $null = Assert-Git -Root $root -Arguments @('push', '--quiet', '-u', 'origin', $NewBranch) -Environment $environment -What "git push $NewBranch"
         }
-        $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-B', $NewBranch) -Environment $environment -What 'git checkout -B'
-        $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
-        $null = Assert-Git -Root $root -Arguments @('push', '--quiet', "--force-with-lease=refs/heads/$($NewBranch):$lease", 'origin', "HEAD:refs/heads/$NewBranch") -Environment $environment -What "git push --force-with-lease $NewBranch"
-    } else {
-        $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-b', $NewBranch) -Environment $environment -What 'git checkout -b'
-        $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
-        $null = Assert-Git -Root $root -Arguments @('push', '--quiet', '-u', 'origin', $NewBranch) -Environment $environment -What "git push $NewBranch"
+    } catch {
+        # After a refused direct push the refusal is reported even when the fallback branch fails too (#77).
+        if ($fallback) { $_.Exception.Data['FallbackReason'] = $fallbackReason }
+        throw
     }
     $sha = (Assert-Git -Root $root -Arguments @('rev-parse', 'HEAD') -What 'git rev-parse').Output.Trim()
-    return [pscustomobject]@{ Pushed = $true; Branch = $NewBranch; Direct = $false; Fallback = $fallback; Sha = $sha; Reason = 'branch' }
+    return [pscustomobject]@{ Pushed = $true; Branch = $NewBranch; Direct = $false; Fallback = $fallback; FallbackReason = $fallbackReason; Sha = $sha; Reason = 'branch' }
 }
 
 #endregion

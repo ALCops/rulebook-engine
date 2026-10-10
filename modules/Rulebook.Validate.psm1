@@ -1,8 +1,9 @@
 #requires -Version 7.4
 # Rulebook.Validate: checks C1 to C16 of docs/ARCHITECTURE.md section 5.3 on an organization rulebook repository.
 # Each check reads the files on its own and never throws on bad input: a problem is a finding. The readers and the
-# precedence come from Rulebook.Generate; the regeneration check C12 is Update-RulebookEndpoints -WhatIf, run only
-# when the generator's prerequisites have no error findings.
+# precedence come from Rulebook.Generate; the regeneration check C12 is Get-RulebookEndpointChange (the list
+# Update-RulebookEndpoints -WhatIf returns, without writing and without What if lines), run only when the generator's
+# prerequisites have no error findings.
 
 Set-StrictMode -Version 3.0
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
@@ -444,10 +445,12 @@ function Test-Rulebook {
     .DESCRIPTION
     Returns findings { Rule, Severity ('error' or 'warning'), File (repository-relative with '/', $null for the
     repository), Id ($null when the finding is not about one id), Message }, ordered by rule, file and id. With
-    -Json the list is also written to that path. Never throws on bad repository content.
+    -Json the list is also written to that path. -Inputs reuses a Read-RulebookInputs result of the same working tree
+    for the regeneration check C12 (the Validate action reads the inputs once); without it C12 reads them. Never
+    throws on bad repository content.
     #>
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$RepositoryRoot, [string]$Json)
+    param([Parameter(Mandatory)][string]$RepositoryRoot, [string]$Json, [AllowNull()]$Inputs)
     if (-not (Test-Path -LiteralPath $RepositoryRoot -PathType Container)) { throw "Repository root not found: $RepositoryRoot" }
     $context = [pscustomobject]@{
         Root     = (Resolve-Path -LiteralPath $RepositoryRoot).ProviderPath
@@ -456,7 +459,7 @@ function Test-Rulebook {
         Texts    = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::Ordinal)
     }
     $settings = Test-SettingsFile -Context $context
-    if ($null -ne $settings) { Invoke-RulebookChecks -Context $context -Settings $settings }
+    if ($null -ne $settings) { Invoke-RulebookChecks -Context $context -Settings $settings -Inputs $Inputs }
 
     $findings = @(Get-SortedFinding -Findings $context.Findings.ToArray())
     if ($Json) {
@@ -472,7 +475,7 @@ function Test-Rulebook {
 
 function Invoke-RulebookChecks {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Runs every check after C5')]
-    param([Parameter(Mandatory)]$Context, [Parameter(Mandatory)]$Settings)
+    param([Parameter(Mandatory)]$Context, [Parameter(Mandatory)]$Settings, [AllowNull()]$Inputs)
     $root = $Context.Root
 
     # C14: catalog and twins
@@ -693,7 +696,7 @@ function Invoke-RulebookChecks {
         Add-Finding -Context $Context -Rule C12 -Severity warning -Message "Regeneration check skipped: fix the $rules errors first; the generator cannot run on these inputs"
     } else {
         try {
-            foreach ($change in @(Update-RulebookEndpoints -RepositoryRoot $root -WhatIf)) {
+            foreach ($change in @(Get-RulebookEndpointChange -RepositoryRoot $root -Inputs $Inputs)) {
                 Add-Finding -Context $Context -Rule C12 -Severity error -File $change.File -Message "$($change.File) would be $($change.Change); run Update-RulebookEndpoints and commit the result"
             }
         } catch {

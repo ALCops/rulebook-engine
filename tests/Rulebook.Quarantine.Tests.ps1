@@ -34,7 +34,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Quarantine, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Quarantine, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Get-QuarantinePolicy' {

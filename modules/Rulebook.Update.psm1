@@ -7,6 +7,7 @@
 # Contract: docs/reference/update-mechanics.md. Design: docs/ARCHITECTURE.md section 7.3, docs/dashboard.md section 9.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Validate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Template.psd1')
@@ -49,14 +50,6 @@ function Get-SettingValue {
         $value = $value[$key]
     }
     return $value
-}
-
-function Get-OrdinalSet {
-    param([AllowNull()][AllowEmptyCollection()][string[]]$Items)
-    $set = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-    foreach ($item in @($Items)) { if ($null -ne $item) { [void]$set.Add($item) } }
-    # The comma keeps PowerShell from unrolling the set.
-    return , $set
 }
 
 function Test-BinaryFile {
@@ -1372,9 +1365,11 @@ function Publish-RulebookUpdate {
     commits with the title and pushes update-rulebook-system-files/<branch>/<yyMMddHHmmss UTC> (or -UpdateBranch
     with -DirectCommit, falling back to the branch when the push is refused). Diff is the effective diff of the
     commit against the cloned head. Returns { Result (pull-request, direct-commit, exists, no-changes),
-    PullRequestUrl, Branch, Sha, Fallback, Diff, DiffNote, Body, Title }. A failure throws with Data['Stage']: push for
-    the clone, commit and push; pull-request for the duplicate guard, the body and the opening (then naming the
-    pushed branch and its tree link).
+    PullRequestUrl, Branch, Sha, Fallback, FallbackReason, Diff, DiffNote, Body, Title }; FallbackReason is the git
+    output of the refused direct push ($null without a fallback). A failure throws with Data['Stage']: push for the
+    clone, commit and push; pull-request for the duplicate guard, the body and the opening (then naming the pushed
+    branch and its tree link, with Data['Branch']). After a refused direct push both stages carry
+    Data['FallbackReason'] (push: the fallback branch failed too).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -1402,6 +1397,8 @@ function Publish-RulebookUpdate {
         param([string]$Stage, [System.Management.Automation.ErrorRecord]$Record)
         $exception = [System.InvalidOperationException]::new($Record.Exception.Message, $Record.Exception)
         $exception.Data['Stage'] = $Stage
+        # A refused direct push whose fallback branch failed too (#77).
+        if ($Record.Exception.Data.Contains('FallbackReason')) { $exception.Data['FallbackReason'] = $Record.Exception.Data['FallbackReason'] }
         return $exception
     }
 
@@ -1424,7 +1421,7 @@ function Publish-RulebookUpdate {
             throw (& $stageError 'pull-request' $_)
         }
         if ($null -ne $existing) {
-            return [pscustomobject]@{ Result = 'exists'; PullRequestUrl = $existing.Url; Branch = $null; Sha = $null; Fallback = $false; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
+            return [pscustomobject]@{ Result = 'exists'; PullRequestUrl = $existing.Url; Branch = $null; Sha = $null; Fallback = $false; FallbackReason = $null; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
         }
     }
 
@@ -1446,7 +1443,7 @@ function Publish-RulebookUpdate {
         throw (& $stageError 'push' $_)
     }
     if (-not $pushed.Pushed) {
-        return [pscustomobject]@{ Result = 'no-changes'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
+        return [pscustomobject]@{ Result = 'no-changes'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; FallbackReason = $null; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
     }
 
     $diff = @()
@@ -1457,7 +1454,7 @@ function Publish-RulebookUpdate {
         $diffNote = "The effective diff could not be computed: $($_.Exception.Message)"
     }
     if ($pushed.Direct) {
-        return [pscustomobject]@{ Result = 'direct-commit'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; Diff = $diff; DiffNote = $diffNote; Body = $null; Title = $title }
+        return [pscustomobject]@{ Result = 'direct-commit'; PullRequestUrl = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $false; FallbackReason = $null; Diff = $diff; DiffNote = $diffNote; Body = $null; Title = $title }
     }
     # The branch is pushed from here on: a failure names it, so the pull request can be opened by hand.
     try {
@@ -1473,9 +1470,11 @@ function Publish-RulebookUpdate {
         $exception = [System.InvalidOperationException]::new($message, $_.Exception)
         $exception.Data['Stage'] = 'pull-request'
         $exception.Data['Branch'] = $pushed.Branch
+        # The refused direct push is reported even when the pull request then fails (#77).
+        if ($pushed.Fallback) { $exception.Data['FallbackReason'] = $pushed.FallbackReason }
         throw $exception
     }
-    return [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = $pull.Url; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $pushed.Fallback; Diff = $diff; DiffNote = $diffNote; Body = $body; Title = $title }
+    return [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = $pull.Url; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = $pushed.Fallback; FallbackReason = $pushed.FallbackReason; Diff = $diff; DiffNote = $diffNote; Body = $body; Title = $title }
 }
 
 #endregion

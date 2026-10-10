@@ -25,7 +25,7 @@ pull_request_target event (fetched when absent); on a push, the commit before th
 (GITHUB_EVENT_PATH, 'before'), else HEAD~1 (fetched or deepened when absent). -DiffRef '' disables it. Any other
 event, a ref that does not resolve, or a diff that fails is a note in the summary, never a failure.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RepositoryRoot = '.',
     [switch]$FailOnWarning,
@@ -81,7 +81,15 @@ if (-not [string]::IsNullOrWhiteSpace($CheckForUpdates)) {
 }
 
 # 1. Checks
-$testParameters = @{ RepositoryRoot = $root }
+# The inputs are read once, for the regeneration check C12 and for the effective diff (#52); a repository the
+# generator cannot read leaves them $null, and each of the two reads and reports on its own.
+$inputs = $null
+try {
+    $inputs = Read-RulebookInputs -RepositoryRoot $root
+} catch {
+    Write-Verbose "Rulebook inputs not readable: $($_.Exception.Message)"
+}
+$testParameters = @{ RepositoryRoot = $root; Inputs = $inputs }
 if ($JsonPath) { $testParameters.Json = $JsonPath }
 $findings = @(Test-Rulebook @testParameters)
 $errorCount = @($findings | Where-Object Severity -EQ 'error').Count
@@ -138,7 +146,7 @@ if ([string]::IsNullOrEmpty($DiffRef)) {
         $diffNote = "No diff: $DiffRef does not resolve in this checkout."
     } else {
         try {
-            $diff = @(Compare-RulebookEndpoints -RepositoryRoot $root -Ref $DiffRef)
+            $diff = @(Compare-RulebookEndpoints -RepositoryRoot $root -Ref $DiffRef -Inputs $inputs)
         } catch {
             $diffNote = "No diff: the comparison with $DiffRef failed: $($_.Exception.Message)"
         }

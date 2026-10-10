@@ -50,7 +50,7 @@ BeforeAll {
 AfterAll {
     $env:GITHUB_API_URL = $script:savedApiUrl
     $env:GITHUB_SERVER_URL = $script:savedServerUrl
-    Remove-Module Rulebook.Edit, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Edit, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'overrides.json I/O' {
@@ -557,10 +557,21 @@ Describe 'Publish-RulebookChange against a bare repository' -Skip:$gitMissing {
 
     It 'falls back to the pull request when the direct push is refused' {
         $bare = New-Origin -Reject
-        $result = Publish-RulebookChange -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -BranchPrefix 'change-rule/LC0015' -DirectCommit -WorkPath (Get-TestFolder) -Now $now 3>$null
+        $result = Publish-RulebookChange -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -BranchPrefix 'change-rule/LC0015' -DirectCommit -WorkPath (Get-TestFolder) -Now $now
         $result.Result | Should-Be 'pull-request'
         $result.Fallback | Should-BeTrue
+        $result.FallbackReason | Should-BeLikeString '*main is protected*'
         $result.Branch | Should-Be 'change-rule/LC0015/261008091530'
+    }
+
+    It 'keeps the refusal on the push-stage failure when the change branch is refused too' {
+        $bare = New-Origin
+        Add-RejectPushHook -BarePath $bare -All
+        $caught = $null
+        try { $null = Publish-RulebookChange -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -BranchPrefix 'change-rule/LC0015' -DirectCommit -WorkPath (Get-TestFolder) -Now $now } catch { $caught = $_ }
+        $caught | Should-NotBeNull
+        $caught.Exception.Data['Stage'] | Should-Be 'push'
+        $caught.Exception.Data['FallbackReason'] | Should-BeLikeString '*every branch is protected*'
     }
 
     It 'refuses a base branch that moved since the plan' {

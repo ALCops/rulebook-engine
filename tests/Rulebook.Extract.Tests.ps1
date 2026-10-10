@@ -30,7 +30,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Extract, Rulebook.Catalog -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Extract, Rulebook.Catalog, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'stub packages' {

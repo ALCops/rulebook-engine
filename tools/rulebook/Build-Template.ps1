@@ -17,7 +17,7 @@
   quarantine files, README.md and the workflows) are never touched. See docs/reference/template-content.md and
   docs/authoring-levels.md.
 #>
-[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding(SupportsShouldProcess, PositionalBinding = $false)]
 param(
     [string]$RulebookDir = (Join-Path $PSScriptRoot '..' '..' 'docs' 'rulebook'),
     [string]$TemplateDir = (Join-Path $PSScriptRoot '..' '..' 'template'),

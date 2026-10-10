@@ -60,7 +60,7 @@ AfterAll {
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository
     $env:GITHUB_TOKEN = $script:saved.Token
-    Remove-Module Rulebook.Edit, Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Edit, Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/ChangeRule/action.yaml' {
@@ -273,6 +273,21 @@ Describe 'ChangeRule.ps1' {
         $run.Summary | Should-MatchString '(?m)^## Effective diff\n\n### `strict\.ci` \(`rulesets/strict\.ci\.ruleset\.json`\)$'
     }
 
+    It 'reports a refused direct push as one warning annotation before the notice' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/8'; Number = 8; Branch = 'change-rule/LC0015/261008091530'; Sha = 'a' * 40; Fallback = $true; FallbackReason = 'remote: main is protected'; Diff = @(); DiffNote = $null; Body = 'body'; Title = 't' }
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'LC0015'; Action = 'None'; Levels = 'strict'; Stages = 'ci'; Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 0
+        $annotations = @($run.Result.Annotations)
+        $refused = @($annotations | Where-Object { $_ -like '::warning title=ChangeRule::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=ChangeRule::The direct push to main was refused; a pull request was created instead. (remote: main is protected)')
+        $annotations[-1] | Should-Be '::notice title=ChangeRule::Pull request: https://github.com/Contoso/rulebook/pull/8 (the direct commit was refused)'
+        [array]::IndexOf($annotations, $refused[0]) | Should-BeLessThan ($annotations.Count - 1)
+    }
+
     It 'writes the full summary when the effective diff is empty (a justification-only change)' {
         $publish = {
             param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
@@ -391,6 +406,31 @@ Describe 'ChangeRule.ps1' {
             (& git -C $bare rev-parse --verify --quiet refs/heads/change-rule/LC0015/261008091530) | Should-NotBeNull
             # The pull request call goes nowhere in the test; the branch is named for opening it by hand.
             $run.Result.Failure | Should-Be 'pull-request'
+            # The refusal is one warning annotation with the git output, before the error annotation (#77).
+            $annotations = @($run.Result.Annotations)
+            $refused = @($annotations | Where-Object { $_ -like '::warning title=ChangeRule::The direct push to *' })
+            $refused.Count | Should-Be 1
+            $refused[0] | Should-BeLikeString '::warning title=ChangeRule::The direct push to main was refused; the branch was pushed instead. (*main is protected*)'
+            [array]::IndexOf($annotations, $refused[0]) | Should-BeLessThan ([array]::IndexOf($annotations, $annotations[-1]))
+            $annotations[-1] | Should-BeLikeString '::error title=ChangeRule::*'
         }
+
+        It 'reports the refusal with the push failure when the change branch is refused too' {
+            $bare = New-Origin
+            Add-RejectPushHook -BarePath $bare -All
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'LC0015'; Action = 'None'; Levels = 'strict'; Stages = 'ci'; Token = 'ghp_x'; DirectCommit = $true; RemoteUrl = $bare }
+            $run.Result.Failure | Should-Be 'push'
+            $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ChangeRule::The direct push to *' })
+            $refused.Count | Should-Be 1
+            $refused[0] | Should-BeLikeString '::warning title=ChangeRule::The direct push to main was refused; the fallback branch could not be pushed. (*every branch is protected*)'
+            $run.Result.Annotations[-1] | Should-BeLikeString '::error title=ChangeRule::Failed to push the rule change.*'
+        }
+    }
+}
+
+Describe 'ChangeRule.ps1 parameter binding' {
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
+        { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }

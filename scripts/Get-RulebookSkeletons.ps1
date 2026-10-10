@@ -53,7 +53,7 @@ settings it prints are relative to ./MyApp, for example "al.ruleSetPath": ".rule
 .LINK
 https://github.com/ALCops/rulebook/blob/main/docs/al-project.md
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Mandatory)][string]$BaseUrl,
     [Parameter(Mandatory)][string]$Level,

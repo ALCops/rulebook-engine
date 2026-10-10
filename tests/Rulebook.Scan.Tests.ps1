@@ -81,7 +81,7 @@ BeforeAll {
 AfterAll {
     $env:GITHUB_SERVER_URL = $script:savedServerUrl
     $env:GITHUB_API_URL = $script:savedApiUrl
-    Remove-Module Rulebook.Scan, Rulebook.Quarantine, Rulebook.Extract, Rulebook.Catalog, Rulebook.NuGet, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Scan, Rulebook.Quarantine, Rulebook.Extract, Rulebook.Catalog, Rulebook.NuGet, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Get-RulebookScanPlan, first run' {
@@ -355,10 +355,21 @@ Describe 'Publish-RulebookScan against a bare repository' -Skip:$gitMissing {
     It 'falls back to the scan branch and a pull request when the direct push is refused' {
         $bare = New-BareFixtureRepo -Source $org -Destination (Join-Path (Get-TestFolder) 'protected.git')
         Add-RejectPushHook -BarePath $bare -Branch 'main'
-        $result = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) -WarningAction SilentlyContinue
+        $result = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -DirectCommit -WorkPath (Get-TestFolder)
         $result.Result | Should-Be 'pull-request'
         $result.Fallback | Should-BeTrue
+        $result.FallbackReason | Should-BeLikeString '*main is protected*'
         $result.Branch | Should-Be 'scan-diagnostics/main'
+    }
+
+    It 'keeps the refusal on the push-stage failure when the scan branch is refused too' {
+        $bare = New-BareFixtureRepo -Source $org -Destination (Join-Path (Get-TestFolder) 'locked.git')
+        Add-RejectPushHook -BarePath $bare -All
+        $caught = $null
+        try { $null = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) } catch { $caught = $_ }
+        $caught | Should-NotBeNull
+        $caught.Exception.Data['Stage'] | Should-Be 'push'
+        $caught.Exception.Data['FallbackReason'] | Should-BeLikeString '*every branch is protected*'
     }
 
     It 'names the pushed branch when the pull request cannot be opened' {

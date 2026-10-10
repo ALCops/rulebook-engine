@@ -11,7 +11,7 @@
   Hand-maintained columns (Family, Config, extra Flags) are merged from docs/rulebook/inventory/annotations.json
   so a refresh never loses a judgment. The id order (Get-DiagnosticSortKey) comes from modules/Rulebook.Generate.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$SdkRoot = (Join-Path $PSScriptRoot '..' '..' '..' 'nav-sdk-source'),
     [string]$AnalyzersRoot = (Join-Path $PSScriptRoot '..' '..' '..' 'Analyzers'),

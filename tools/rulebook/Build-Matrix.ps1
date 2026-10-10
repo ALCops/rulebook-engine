@@ -16,7 +16,7 @@
   every rule has one ladder for every AL project. Levels and stages are named by their slug (lowercased name)
   in every generated key and file name (D28): essential, recommended, strict, complete; default, ci, vnext.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RulebookDir = (Join-Path $PSScriptRoot '..' '..' 'docs' 'rulebook')
 )

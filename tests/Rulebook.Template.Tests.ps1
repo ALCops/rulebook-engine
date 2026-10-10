@@ -93,7 +93,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Levels, Rulebook.Template, Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Levels, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Build-RulebookBase' {
@@ -560,6 +560,16 @@ Describe 'Build-Template.ps1' {
             'quarantine.vnext.json'
             'skeletons/README.md'
         )
+    }
+
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61); binding fails before the script reads anything.
+        { & $script:wrapper 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
+    }
+
+    It '<Name> rejects a stray positional value' -ForEach @(@{ Name = 'Test-Rulebook.ps1' }, @{ Name = 'Build-Matrix.ps1' }, @{ Name = 'Extract-Inventory.ps1' }) {
+        # Binding fails before the scripts look for the sibling clones or read docs/rulebook/.
+        { & (Join-Path $repoRoot 'tools' 'rulebook' $Name) 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 
     It 'reports no change with -WhatIf on the committed template/ and docs/levels/' {

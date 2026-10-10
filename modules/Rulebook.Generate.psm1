@@ -5,6 +5,7 @@
 # Contract: docs/rulebook/composition.md. Worked examples: docs/reference/effective-diff.md.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 
 $script:Actions = @('Error', 'Warning', 'Info', 'Hidden', 'None')
 # Prefix order of Get-DiagnosticSortKey, the inventory order. The tools under tools/rulebook/ import this module
@@ -22,17 +23,6 @@ function Get-Slug {
     param([AllowNull()][string]$Name)
     if ([string]::IsNullOrEmpty($Name)) { return $null }
     return $Name.ToLowerInvariant()
-}
-
-function Get-OrdinalSet {
-    # The comma keeps PowerShell from unrolling the empty set into $null.
-    return , [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-}
-
-function Get-OrdinalMap {
-    # An insertion-ordered map with ordinal keys. [ordered]@{} compares keys case-insensitively, so AL0001 and
-    # al0001 would collide; the catalog map is ordinal too.
-    return , [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
 }
 
 function ConvertTo-TextValue {
@@ -288,25 +278,6 @@ function ConvertTo-LevelEntry {
         BasedOn     = Get-Slug $basedOn
         Description = Get-MemberValue $Level 'description'
     }
-}
-
-function Invoke-Git {
-    # Runs git with UTF-8 output decoding, independent of the console code page.
-    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string[]]$Arguments)
-    $info = [System.Diagnostics.ProcessStartInfo]::new('git')
-    $info.ArgumentList.Add('-C')
-    $info.ArgumentList.Add($Root)
-    foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
-    $info.RedirectStandardOutput = $true
-    $info.RedirectStandardError = $true
-    $info.UseShellExecute = $false
-    $info.StandardOutputEncoding = $script:Utf8NoBom
-    $info.StandardErrorEncoding = $script:Utf8NoBom
-    $process = [System.Diagnostics.Process]::Start($info)
-    $errorTask = $process.StandardError.ReadToEndAsync()
-    $output = $process.StandardOutput.ReadToEnd()
-    $process.WaitForExit()
-    return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $output; Error = $errorTask.Result }
 }
 
 function Get-FileSource {
@@ -936,21 +907,14 @@ function Get-RulebookEndpoint {
     }
 }
 
-function Update-RulebookEndpoints {
-    <#
-    .SYNOPSIS
-    Regenerates every levels x stages endpoint in rulesets/ and removes the endpoint files no entry produces.
-    .DESCRIPTION
-    Writes only files whose bytes differ (UTF-8 without BOM, LF, trailing newline). Returns one object per changed
-    file: File (repository-relative, '/') and Change (created, modified, deleted). With -WhatIf nothing is written
-    and the same list is returned, which is the regeneration check C12.
-    #>
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Name fixed by issue #5; it writes the whole endpoint set')]
-    [CmdletBinding(SupportsShouldProcess)]
-    param([Parameter(Mandatory)][string]$RepositoryRoot)
-    $inputs = Read-RulebookInputs -RepositoryRoot $RepositoryRoot
-    if (-not $inputs.SettingsPresent) { throw "Settings missing: $($script:SettingsPath) in $($inputs.Root)" }
-    $directory = Join-Path $inputs.Root 'rulesets'
+function Get-EndpointPlan {
+    # The plan of Update-RulebookEndpoints and Get-RulebookEndpointChange for one Rulebook.Inputs of the working
+    # tree: Existing (file name to full path of each rulesets/*.ruleset.json), Planned ({File, Change, Path, Bytes}
+    # per levels x stages endpoint whose bytes differ, in levels x stages order), Orphans (the existing file names no
+    # endpoint produces, ordinal order) and Directory. Reads the existing endpoints, writes nothing.
+    param([Parameter(Mandatory)]$Inputs)
+    if (-not $Inputs.SettingsPresent) { throw "Settings missing: $($script:SettingsPath) in $($Inputs.Root)" }
+    $directory = Join-Path $Inputs.Root 'rulesets'
 
     $existing = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::Ordinal)
     if (Test-Path -LiteralPath $directory -PathType Container) {
@@ -961,9 +925,9 @@ function Update-RulebookEndpoints {
 
     $planned = [System.Collections.Generic.List[object]]::new()
     $expected = Get-OrdinalSet
-    foreach ($level in $inputs.Levels) {
-        foreach ($stage in $inputs.Stages) {
-            $endpoint = Get-RulebookEndpoint -Inputs $inputs -Level $level.Slug -Stage $stage.Slug
+    foreach ($level in $Inputs.Levels) {
+        foreach ($stage in $Inputs.Stages) {
+            $endpoint = Get-RulebookEndpoint -Inputs $Inputs -Level $level.Slug -Stage $stage.Slug
             $text = ConvertTo-RulesetJson -Name $endpoint.Name -Description $endpoint.Description -Rules $endpoint.Entries
             $bytes = $script:Utf8NoBom.GetBytes($text)
             $leaf = Split-Path -Leaf $endpoint.File
@@ -981,6 +945,51 @@ function Update-RulebookEndpoints {
     }
     [string[]]$orphans = @($existing.Keys | Where-Object { -not $expected.Contains($_) })
     [System.Array]::Sort($orphans, [System.StringComparer]::Ordinal)
+    return [pscustomobject]@{ Existing = $existing; Planned = $planned.ToArray(); Orphans = $orphans; Directory = $directory }
+}
+
+function Get-RulebookEndpointChange {
+    <#
+    .SYNOPSIS
+    The endpoint files Update-RulebookEndpoints would write or delete, without writing anything: the regeneration
+    check C12.
+    .DESCRIPTION
+    Returns one Rulebook.EndpointChange per file, File (repository-relative, '/') and Change (created, modified,
+    deleted), in the order of the Update-RulebookEndpoints -WhatIf list: the written endpoints in levels x stages
+    order, the deletions last. -Inputs reuses a Read-RulebookInputs result of the working tree of the same
+    repository; without it the inputs are read. Throws when the settings file is missing.
+    #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$RepositoryRoot, [AllowNull()]$Inputs)
+    if ($null -eq $Inputs) { $Inputs = Read-RulebookInputs -RepositoryRoot $RepositoryRoot }
+    $plan = Get-EndpointPlan -Inputs $Inputs
+    $changes = [System.Collections.Generic.List[object]]::new()
+    foreach ($item in $plan.Planned) {
+        $changes.Add([pscustomobject]@{ PSTypeName = 'Rulebook.EndpointChange'; File = $item.File; Change = $item.Change })
+    }
+    foreach ($leaf in $plan.Orphans) {
+        $changes.Add([pscustomobject]@{ PSTypeName = 'Rulebook.EndpointChange'; File = "rulesets/$leaf"; Change = 'deleted' })
+    }
+    return $changes.ToArray()
+}
+
+function Update-RulebookEndpoints {
+    <#
+    .SYNOPSIS
+    Regenerates every levels x stages endpoint in rulesets/ and removes the endpoint files no entry produces.
+    .DESCRIPTION
+    Writes only files whose bytes differ (UTF-8 without BOM, LF, trailing newline). Returns one object per changed
+    file: File (repository-relative, '/') and Change (created, modified, deleted). With -WhatIf nothing is written
+    and the same list is returned (the list Get-RulebookEndpointChange returns without the What if lines). -Inputs
+    reuses a Read-RulebookInputs result of the working tree of the same repository.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Name fixed by issue #5; it writes the whole endpoint set')]
+    [CmdletBinding(SupportsShouldProcess)]
+    param([Parameter(Mandatory)][string]$RepositoryRoot, [AllowNull()]$Inputs)
+    if ($null -eq $Inputs) { $Inputs = Read-RulebookInputs -RepositoryRoot $RepositoryRoot }
+    $plan = Get-EndpointPlan -Inputs $Inputs
+    $directory = $plan.Directory
+    $existing = $plan.Existing
 
     $changes = [System.Collections.Generic.List[object]]::new()
     # Deletions first: on a case-insensitive file system an orphan 'Strict.ruleset.json' is the same file as the
@@ -988,7 +997,7 @@ function Update-RulebookEndpoints {
     # A change is reported when it was made, or under -WhatIf (that list is the C12 contract); a change declined at
     # a -Confirm prompt is not reported.
     $deleted = [System.Collections.Generic.List[string]]::new()
-    foreach ($leaf in $orphans) {
+    foreach ($leaf in $plan.Orphans) {
         $file = "rulesets/$leaf"
         if ($PSCmdlet.ShouldProcess($file, 'Delete endpoint no levels x stages entry produces')) {
             [System.IO.File]::Delete($existing[$leaf])
@@ -997,7 +1006,7 @@ function Update-RulebookEndpoints {
             $deleted.Add($file)
         }
     }
-    foreach ($item in $planned) {
+    foreach ($item in $plan.Planned) {
         if ($PSCmdlet.ShouldProcess($item.File, "Write endpoint ($($item.Change))")) {
             if (-not (Test-Path -LiteralPath $directory -PathType Container)) { [void][System.IO.Directory]::CreateDirectory($directory) }
             [System.IO.File]::WriteAllBytes($item.Path, $item.Bytes)
@@ -1022,11 +1031,12 @@ function Compare-RulebookEndpoints {
     per listed id with Change 'endpoint-added' or 'endpoint-removed' (one row with Id $null when it lists none).
     Every catalog id whose default differs between the two sides is compared too, so a changed default surfaces with
     'default' provenance on both sides. Rows are ordered by endpoint (settings order) and Get-DiagnosticSortKey.
+    -Inputs reuses a Read-RulebookInputs result of the working tree (the after side); the ref side is always read.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Name fixed by issue #5; it compares the whole endpoint set')]
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$RepositoryRoot, [Parameter(Mandatory)][string]$Ref)
-    $after = Read-RulebookInputs -RepositoryRoot $RepositoryRoot
+    param([Parameter(Mandatory)][string]$RepositoryRoot, [Parameter(Mandatory)][string]$Ref, [AllowNull()]$Inputs)
+    $after = if ($null -ne $Inputs) { $Inputs } else { Read-RulebookInputs -RepositoryRoot $RepositoryRoot }
     $before = Read-RulebookInputs -RepositoryRoot $RepositoryRoot -Ref $Ref
 
     $changedDefaults = [System.Collections.Generic.List[string]]::new()
@@ -1200,6 +1210,7 @@ Export-ModuleMember -Function @(
     'Get-EffectiveAction'
     'Get-EndpointFileName'
     'Get-RulebookEndpoint'
+    'Get-RulebookEndpointChange'
     'Get-SkeletonFileName'
     'Read-Catalog'
     'Read-Overrides'

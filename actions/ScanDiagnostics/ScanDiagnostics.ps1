@@ -22,7 +22,7 @@ it in-process; action.yaml exits with ExitCode. -PackageSource (a flat container
 -WorkPath, -SummaryLimit, -Now and -PublishCommand are test seams; a -WorkPath the caller passes is left in place,
 the temporary work folder the script names itself is removed at the end except after a dry run.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RepositoryRoot = '.',
     [AllowEmptyString()][string]$Token,
@@ -171,11 +171,24 @@ try {
         } catch {
             $stage = [string]$_.Exception.Data['Stage']
             if ($stage -cnotin 'push', 'pull-request') { $stage = 'push' }
+            # A refused direct push is reported even when the fallback branch or the pull request then failed (#77).
+            if ($_.Exception.Data.Contains('FallbackReason')) {
+                $fallbackReason = [string]$_.Exception.Data['FallbackReason']
+                $fallbackSuffix = if ($fallbackReason) { " ($(ConvertTo-SingleLine $fallbackReason))" } else { '' }
+                $fallbackOutcome = if ($stage -eq 'pull-request') { 'the branch was pushed instead.' } else { 'the fallback branch could not be pushed.' }
+                Add-Annotation -Context $ctx -Command warning -Message "The direct push to $BaseBranch was refused; $fallbackOutcome$fallbackSuffix"
+            }
             Add-Failure -Context $ctx -Kind $stage
             # The base branch moved between plan and publish: nothing is wrong with the token, the next run picks it up.
             if ([string]$_.Exception.Data['Reason'] -ceq 'base-moved') { throw $_.Exception.Message }
             $what = if ($stage -eq 'pull-request') { 'Failed to create or update the scan pull request' } else { 'Failed to push the scan' }
             throw "$what. Make sure that the token in the secret $secretName is not expired and may write contents and pull requests of $Repository. Read $docsUrl (Error was: $($_.Exception.Message))"
+        }
+        # The refused direct push as one warning annotation with the git output (#77); the notice below keeps its suffix.
+        if ($publish.PSObject.Properties['Fallback'] -and $publish.Fallback) {
+            $instead = if ($publish.Result -eq 'pull-request-updated') { 'the scan pull request was updated' } else { 'a pull request was created' }
+            $fallbackReason = if ($publish.PSObject.Properties['FallbackReason'] -and $publish.FallbackReason) { " ($(ConvertTo-SingleLine $publish.FallbackReason))" } else { '' }
+            Add-Annotation -Context $ctx -Command warning -Message "The direct push to $BaseBranch was refused; $instead instead.$fallbackReason"
         }
         $result = $publish.Result
         switch ($publish.Result) {

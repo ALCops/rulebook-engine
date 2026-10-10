@@ -87,7 +87,7 @@ BeforeAll {
 AfterAll {
     $env:GITHUB_API_URL = $script:savedApiUrl
     $env:GITHUB_SERVER_URL = $script:savedServerUrl
-    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Fixture consistency' {
@@ -1285,11 +1285,22 @@ Describe 'Publish-RulebookUpdate against a bare repository' -Skip:$gitMissing {
 
     It 'falls back to a pull request when the direct push is refused' {
         $bare = New-Origin -Reject
-        $result = Publish-RulebookUpdate -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -UpdateBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) -Now $now -WarningAction SilentlyContinue
+        $result = Publish-RulebookUpdate -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -UpdateBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) -Now $now
         $result.Result | Should-Be 'pull-request'
         $result.Fallback | Should-BeTrue
+        $result.FallbackReason | Should-BeLikeString '*main is protected*'
         (& git -C $bare rev-parse refs/heads/main).Trim() | Should-Be $originSha
         (& git -C $bare rev-parse "refs/heads/$($result.Branch)").Trim() | Should-Be $result.Sha
+    }
+
+    It 'keeps the refusal on the push-stage failure when the fallback branch is refused too' {
+        $bare = New-Origin
+        Add-RejectPushHook -BarePath $bare -All
+        $caught = $null
+        try { $null = Publish-RulebookUpdate -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -UpdateBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) -Now $now } catch { $caught = $_ }
+        $caught | Should-NotBeNull
+        $caught.Exception.Data['Stage'] | Should-Be 'push'
+        $caught.Exception.Data['FallbackReason'] | Should-BeLikeString '*every branch is protected*'
     }
 
     It 'refuses an invalid plan before anything else' {

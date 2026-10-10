@@ -59,7 +59,7 @@ AfterAll {
     $env:GITHUB_REPOSITORY = $script:saved.Repository
     $env:GITHUB_TOKEN = $script:saved.Token
     $env:RUNNER_TEMP = $script:saved.RunnerTemp
-    Remove-Module Rulebook.Scan, Rulebook.Quarantine, Rulebook.Extract, Rulebook.Catalog, Rulebook.NuGet, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Scan, Rulebook.Quarantine, Rulebook.Extract, Rulebook.Catalog, Rulebook.NuGet, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/ScanDiagnostics/action.yaml' {
@@ -247,6 +247,54 @@ Describe 'ScanDiagnostics.ps1' {
         }
     }
 
+    It 'reports a refused direct push as one single-line warning annotation and keeps the notice suffix' {
+        $reason = "remote: error: GH006: Protected branch update failed for refs/heads/main.`nremote: error: Changes must be made through a pull request.`nTo https://github.com/Contoso/rulebook`n ! [remote rejected] HEAD -> main (protected branch hook declined)`nerror: failed to push some refs to 'https://github.com/Contoso/rulebook'"
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/21'; Number = 21; Branch = 'scan-diagnostics/main'; Sha = '0123456789abcdef'; Fallback = $true; FallbackReason = $reason; Diff = @(); DiffNote = $null; Body = 'body'; Title = 'T' }
+        }.GetNewClosure()
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 0
+        $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ScanDiagnostics::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=ScanDiagnostics::The direct push to main was refused; a pull request was created instead. (' + $reason.Replace("`n", ' ') + ')')
+        $run.Result.Annotations[-1] | Should-Be '::notice title=ScanDiagnostics::Pull request: https://github.com/Contoso/rulebook/pull/21 (the direct commit was refused)'
+    }
+
+    It 'reports the refusal without a suffix when the fallback branch failed and git said nothing' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('git push --force-with-lease scan-diagnostics/main failed: rejected')
+            $exception.Data['Stage'] = 'push'
+            $exception.Data['FallbackReason'] = ''
+            throw $exception
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'push'
+        $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ScanDiagnostics::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=ScanDiagnostics::The direct push to main was refused; the fallback branch could not be pushed.')
+    }
+
+    It 'reports the refusal with the pull request failure when the branch was pushed instead' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('Branch scan-diagnostics/main was pushed. Could not create the pull request (HTTP 403).')
+            $exception.Data['Stage'] = 'pull-request'
+            $exception.Data['Branch'] = 'scan-diagnostics/main'
+            $exception.Data['FallbackReason'] = 'remote: main is protected'
+            throw $exception
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'pull-request'
+        $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ScanDiagnostics::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=ScanDiagnostics::The direct push to main was refused; the branch was pushed instead. (remote: main is protected)')
+        $run.Result.Annotations[-1] | Should-BeLikeString '::error title=ScanDiagnostics::Failed to create or update the scan pull request.*'
+    }
+
     It 'reports a base branch that moved as it is, without the token advice' {
         $publish = {
             param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
@@ -284,5 +332,12 @@ Describe 'ScanDiagnostics.ps1' {
         $run.Result.ExitCode | Should-Be 1
         $run.Result.Failure | Should-Be 'pull-request'
         $run.Result.Annotations[-1] | Should-BeLikeString '::error title=ScanDiagnostics::Failed to create or update the scan pull request.*https://github.com/Contoso/rulebook/tree/scan-diagnostics/main*'
+    }
+}
+
+Describe 'ScanDiagnostics.ps1 parameter binding' {
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
+        { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }

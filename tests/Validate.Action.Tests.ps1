@@ -43,7 +43,7 @@ AfterAll {
     $env:GITHUB_BASE_REF = $script:savedEvent.Base
     $env:GITHUB_OUTPUT = $script:savedOutput
     $env:GITHUB_STEP_SUMMARY = $script:savedSummary
-    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/Validate/action.yaml' {
@@ -403,5 +403,12 @@ Describe 'Validate.ps1' {
         $run = Invoke-Entry @{ RepositoryRoot = $root; DiffRef = 'HEAD~5' }
         $run.Result.ExitCode | Should-Be 0
         $run.Summary | Should-MatchString 'No diff: HEAD~5 does not resolve'
+    }
+}
+
+Describe 'Validate.ps1 parameter binding' {
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
+        { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }

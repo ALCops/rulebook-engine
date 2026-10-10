@@ -165,11 +165,15 @@ function New-BareFixtureRepo {
 
 function Add-RejectPushHook {
     # A pre-receive hook in the bare repository BarePath that refuses every push to refs/heads/<Branch>, the stand-in
-    # for branch protection.
+    # for branch protection. -All refuses every push ("every branch is protected"), so a fallback branch fails too.
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
-    param([Parameter(Mandatory)][string]$BarePath, [string]$Branch = 'main')
+    param([Parameter(Mandatory)][string]$BarePath, [string]$Branch = 'main', [switch]$All)
     $hook = Join-Path $BarePath 'hooks' 'pre-receive'
-    $script = "#!/bin/sh`nwhile read old new ref; do`n  if [ `"`$ref`" = `"refs/heads/$Branch`" ]; then echo `"$Branch is protected`" >&2; exit 1; fi`ndone`nexit 0`n"
+    $script = if ($All) {
+        "#!/bin/sh`ncat > /dev/null`necho `"every branch is protected`" >&2`nexit 1`n"
+    } else {
+        "#!/bin/sh`nwhile read old new ref; do`n  if [ `"`$ref`" = `"refs/heads/$Branch`" ]; then echo `"$Branch is protected`" >&2; exit 1; fi`ndone`nexit 0`n"
+    }
     [System.IO.File]::WriteAllText($hook, $script, [System.Text.UTF8Encoding]::new($false))
     if (-not $IsWindows) { [System.IO.File]::SetUnixFileMode($hook, [System.IO.UnixFileMode]'UserRead, UserWrite, UserExecute, GroupRead, GroupExecute, OtherRead, OtherExecute') }
 }

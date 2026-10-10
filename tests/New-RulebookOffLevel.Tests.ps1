@@ -56,7 +56,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Levels -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Levels, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'New-RulebookOffLevel.ps1' {
@@ -228,5 +228,12 @@ Describe 'New-RulebookOffLevel.ps1' {
         $written[0] | Should-Be "$($prefixes[0])0001"
         $written[-3..-1] | Should-BeCollection @('ZZ0001', 'AL1234567', 'al-x')
         [array]::IndexOf($written, 'LC0089i') | Should-Be ([array]::IndexOf($written, 'LC0089') + 1)
+    }
+}
+
+Describe 'New-RulebookOffLevel.ps1 parameter binding' {
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
+        { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }

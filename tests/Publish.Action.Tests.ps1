@@ -52,7 +52,7 @@ AfterAll {
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository
     $env:INPUT_TOKEN = $script:saved.Token
-    Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/Publish/action.yaml' {
@@ -277,5 +277,12 @@ Describe 'Publish.ps1 -Phase Check' {
         $run = Invoke-Entry @{ Phase = 'Check'; ManifestPath = (Join-Path $TestDrive 'missing.json') }
         $run.Result.ExitCode | Should-Be 1
         $run.Result.Annotations[0] | Should-BeLikeString '::error title=Publish::Manifest not found*'
+    }
+}
+
+Describe 'Publish.ps1 parameter binding' {
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
+        { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
     }
 }
