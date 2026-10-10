@@ -971,6 +971,7 @@ Describe 'Compare-RulebookEndpoints' -Skip:$gitMissing {
         @($rows | ForEach-Object Endpoint | Sort-Object -Unique) | Should-BeCollection @('complete.ci', 'complete.default', 'complete.vnext')
         @($rows | Where-Object { $null -ne $_.After }).Count | Should-Be 0
     }
+
     It 'treats a ref without settings as an empty rulebook' {
         $root = Join-Path $TestDrive 'late'
         $null = New-Item -ItemType Directory -Path $root

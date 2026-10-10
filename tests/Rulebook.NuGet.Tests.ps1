@@ -127,6 +127,7 @@ Describe 'Get-NuGetVersionIndex' {
         $caught.Exception.Message | Should-BeLikeString $Message
         $caught.Exception.Data['Stage'] | Should-Be 'nuget'
     }
+
     It 'throws on a missing index in a folder source' {
         { Get-NuGetVersionIndex -PackageId 'missing.package' -Source $TestDrive } | Should-Throw -ExceptionMessage 'Could not read the NuGet index of missing.package (HTTP 404)'
     }

@@ -261,14 +261,20 @@ Describe 'Get-AnalyzerDescriptor in-process' -Skip:$stubLoaded {
     # suite in the same session).
     BeforeAll {
         # Windows locks a loaded assembly file, and TestDrive is removed after the suite: the in-process call reads
-        # copies of the two analyzer folders in the temp folder, which stay until the next temp cleanup.
-        $copy = Join-Path ([System.IO.Path]::GetTempPath()) ('rulebook-stub-in-process-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
+        # copies of the two analyzer folders in the temp folder. AfterAll removes them; on Windows the loaded DLLs stay
+        # locked, so the removal fails silently there and the copies wait for the next temp cleanup.
+        $script:inProcessCopy = Join-Path ([System.IO.Path]::GetTempPath()) ('rulebook-stub-in-process-' + [guid]::NewGuid().ToString('n').Substring(0, 8))
+        $copy = $script:inProcessCopy
         $script:inProcessTools = Join-Path $copy 'tools'
         $script:inProcessAlcops = Join-Path $copy 'alcops'
         Copy-FixtureTree -Source $toolsStable -Destination $inProcessTools
         Copy-FixtureTree -Source $alcopsV1 -Destination $inProcessAlcops
         $script:outFile = Join-Path $TestDrive 'in-process-descriptors.json'
         $script:inProcess = Get-AnalyzerDescriptor -ToolsDir $inProcessTools -AlcopsDir $inProcessAlcops -ExpectedAssembly (Get-ExpectedAssembly -PackageId $alcops) -OutFile $outFile
+    }
+
+    AfterAll {
+        Remove-Item -LiteralPath $script:inProcessCopy -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     It 'finds the ids the child process finds' {

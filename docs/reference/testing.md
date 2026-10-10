@@ -40,7 +40,7 @@ Everything under `tests/fixtures/`:
 | `repos/` | Organization rulebook repositories. `valid-minimal`, `stale-endpoints` and `update-org` are complete on disk (`$CompleteFixtures` in `RepoFixture.ps1`); every other folder is an overlay holding only the files it changes, laid over `valid-minimal` by `New-FixtureRepo`. | The module and action suites; `scan-org` by the `scan-action` job. |
 | `templates/` | `v1` and `v2`, two versions of a mini template, with the exact difference list and the derivation of `repos/update-org` in its [README](../../tests/fixtures/templates/README.md). | The update suites, the `update-action` job. |
 | `schemas/` | `<valid\|invalid>/<schema>/<reason>.json`, each invalid file a one-change mutation of a valid one. | `Schemas.Tests.ps1`. |
-| `stub-analyzers/` | C# stubs of the compiler and the cop assemblies, compiled with the Roslyn of pwsh into fixture packages once per source hash into the temp folder ([README](../../tests/fixtures/stub-analyzers/README.md)). | The NuGet, Extract, Catalog and Scan suites. |
+| `stub-analyzers/` | C# stubs of the compiler and the cop assemblies, compiled with the Roslyn of pwsh into fixture packages once per source hash into the temp folder ([README](../../tests/fixtures/stub-analyzers/README.md)). | The Extract, Scan and ScanDiagnostics action suites. |
 | `matrix/tiny` | A six-id level content in the layout of `docs/rulebook/`. | The Template and Levels suites. |
 | `ci/` | Trimmed captures of the NUnit and JaCoCo files Pester writes. | `Write-TestSummary.Tests.ps1`. |
 
@@ -75,7 +75,7 @@ No test talks to a server outside the runner. That is a rule kept by review, not
 - **GitHub:** `Invoke-GitHubApi` of `Rulebook.GitHub` is the one mock point of every REST call the other modules make, the template zipball included (`Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub`); the GitHub suite tests `Invoke-GitHubApi` itself and the GitHub App token exchange with `Invoke-WebRequest` mocked.
 - **NuGet:** `Invoke-NuGetRequest` of `Rulebook.NuGet` is mocked, or `-Source` points at a folder (a stub feed from `New-StubFeed`, built offline).
 - **Publish and the init script:** the reachability and preflight requests of `Rulebook.Publish` and the downloads of `scripts/Get-RulebookSkeletons.ps1` are mocked at `Invoke-WebRequest`.
-- **Actions:** the entry scripts get `-ApiUrl 'http://127.0.0.1:9'` (a port that refuses every connection), so an unmocked call fails at once; the update reads `-TemplatePath` folders instead of downloading.
+- **Actions:** four of the five action suites pass `-ApiUrl 'http://127.0.0.1:9'` (a port that refuses every connection), so an unmocked call fails at once; the ScanDiagnostics suite stops at the token guard or the `-PublishCommand` seam before any request. The update reads `-TemplatePath` folders instead of downloading.
 - **git:** real git runs only against repositories in `TestDrive`: bare origins from `New-BareFixtureRepo`, with `Add-RejectPushHook` standing in for branch protection. The token reaches git only as an environment header, and the GitHub suite checks that it never lands in the git config of a clone.
 
 Real packages and real deploys run only in CI jobs and live runs: `scan-action` scans the real packages on nuget.org, `publish-action` stages without deploying and serves the site on `127.0.0.1`, and the live runs of the mechanics pages ([update](update-mechanics.md), [scan](scan-mechanics.md), [change](change-mechanics.md)) exercised GitHub itself.
@@ -85,19 +85,20 @@ Real packages and real deploys run only in CI jobs and live runs: `scan-action` 
 Every line the coverage report lists as missed, with the reason no test reaches it. The list is the coverage pass of WP12: the paths worth a test got one (the exported functions no suite named, the in-process `Get-AnalyzerDescriptor` call, the publish results and token failures of the action scripts, the reader errors and the files that are not JSON), one function nobody called was removed (`ConvertFrom-JsonFile` of `Rulebook.Generate`), and what is left is defensive (a fault after an earlier check passed), platform or runner-dependent, interactive, or a live-run path. Spin-offs for the gaps worth closing later: sharing the effective-diff renderer of `Validate.ps1` with `Get-EffectiveDiffBlock`, and a stub scenario for the scan body sections.
 
 The line numbers are those of the WP12 testing-docs pull request on a local Windows run (171 of 5720 lines, 97.0 percent). The Linux CI report can differ by a few platform-dependent lines; when this table and the job summary of a later run disagree, the job summary is the current picture and this table is the reasoning.
+
 | File | Lines | Missed | Reason |
 |---|---|---|---|
-| `actions/ChangeRule/ChangeRule.ps1` | 41 | 1 | Parameter default from `GITHUB_API_URL`; the suites always pass `-ApiUrl`. |
+| `actions/ChangeRule/ChangeRule.ps1` | 41 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/ChangeRule/ChangeRule.ps1` | 127-128 | 2 | Defensive: the settings schema check of the plan rejects the name first (the ChangeRule suite proves that order). |
 | `actions/ChangeRule/ChangeRule.ps1` | 202 | 1 | The job summary file cannot be written (a runner fault); not reproducible in-process. |
-| `actions/CheckForUpdates/CheckForUpdates.ps1` | 40 | 1 | Parameter default from `GITHUB_API_URL`; the suites always pass `-ApiUrl`. |
+| `actions/CheckForUpdates/CheckForUpdates.ps1` | 40 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/CheckForUpdates/CheckForUpdates.ps1` | 246 | 1 | The job summary file cannot be written (a runner fault); not reproducible in-process. |
-| `actions/Publish/Publish.ps1` | 32 | 1 | Parameter default from `GITHUB_API_URL`; the suites always pass `-ApiUrl`. |
+| `actions/Publish/Publish.ps1` | 32 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/Publish/Publish.ps1` | 95-97 | 3 | Pages preflight of a real deploy (`-Deploy`); the module function is tested, the action branch runs in the live publish runs only. |
 | `actions/Publish/Publish.ps1` | 159-162 | 4 | Reachability reasons of a deployed site; `Test-PublishedEndpoint` is tested in the Publish suite, the action wording only in live runs. |
-| `actions/ScanDiagnostics/ScanDiagnostics.ps1` | 36 | 1 | Parameter default from `GITHUB_API_URL`; the suites always pass `-ApiUrl`. |
+| `actions/ScanDiagnostics/ScanDiagnostics.ps1` | 36 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/ScanDiagnostics/ScanDiagnostics.ps1` | 218 | 1 | The job summary file cannot be written (a runner fault); not reproducible in-process. |
-| `actions/Validate/Validate.ps1` | 39 | 1 | Parameter default from `GITHUB_API_URL`; the suites always pass `-ApiUrl`. |
+| `actions/Validate/Validate.ps1` | 39 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/Validate/Validate.ps1` | 78, 123 | 2 | Verbose note when an optional file is unreadable; the check goes on without it. |
 | `actions/Validate/Validate.ps1` | 114, 136-142 | 8 | Event-derived refs and their fetches (`pull_request` base, `push` before-sha) need the GitHub checkout and its remote; the `validate-action` job runs the pull request path. |
 | `actions/Validate/Validate.ps1` | 133 | 1 | git missing from the path; every runner and the suites have git. |
@@ -135,7 +136,7 @@ The line numbers are those of the WP12 testing-docs pull request on a local Wind
 | `modules/Rulebook.Scan.psm1` | 183, 221 | 2 | An input the plan cannot read after the settings passed (C5 or later); the Validate suite covers the same inputs. |
 | `modules/Rulebook.Scan.psm1` | 206-207 | 2 | A NuGet index without a stable version; both real packages have one. |
 | `modules/Rulebook.Scan.psm1` | 324 | 1 | Regeneration throws after the plan validated; defensive. |
-| `modules/Rulebook.Scan.psm1` | 453-454, 461-466, 516-520, 561-567, 624-626 | 22 | Scan body sections for newly advertised ids, released quarantine entries, validation warnings and more than the row limit of new ids; the stub packages produce none of these (spin-off: a stub variant for them). |
+| `modules/Rulebook.Scan.psm1` | 453-454, 461-466, 516-520, 561-565, 567, 624-626 | 22 | Scan body sections for newly advertised ids, released quarantine entries, validation warnings and more than the row limit of new ids; the stub packages produce none of these (spin-off: a stub variant for them). |
 | `modules/Rulebook.Scan.psm1` | 542 | 1 | Rendering of a plan with no file changes; no suite renders the sections of such a plan (the runs end as nothing-new or no-op first). |
 | `modules/Rulebook.Scan.psm1` | 733-734 | 2 | A rulebook nested below the repository root at publish time; the scan always runs at the root. |
 | `modules/Rulebook.Scan.psm1` | 748 | 1 | A planned deletion whose file is already gone in the clone (someone deleted it in between). |
@@ -172,7 +173,7 @@ The line numbers are those of the WP12 testing-docs pull request on a local Wind
 
 ## 7. Later layers
 
-D12 keeps v1 at Pester unit tests. Three heavier layers were considered and are documented here, not built. The issue numbers are placeholders until the spin-off issues are filed.
+D12 keeps v1 at Pester unit tests. Three heavier layers were considered and are documented here, not built.
 
 ### 7.1 End-to-end compile
 
@@ -181,10 +182,10 @@ Compile a fixture AL project against the published endpoints with the real compi
 - Install the stable `Microsoft.Dynamics.BusinessCentral.Development.Tools` as a global dotnet tool, pinned.
 - Download `System.app` from the MSSymbols flat2 feed (the index lists the newest version first).
 - Take the analyzers from the same TFM folder as the `alc.dll` the shim loads, resolved at run time.
-- AL1003 (a ruleset that cannot be read) does not change the exit code: grep the compile log for it. AL1022, AL1033 and AL0767 end the compile with exit 1 on their own.
+- AL1003 (an analyzer instance that cannot be created, for example analyzers taken from another TFM folder than the running `alc.dll`) leaves the exit code at 0 and drops the rules of that analyzer: grep the compile log for it. AL1022, AL1033 and AL0767 end the compile with exit 1 on their own.
 - Re-check the recipe after `ubuntu-latest` moves to Ubuntu 26 on 2026-10-19.
 
-Spin-off: "E2E compile layer: compile a fixture project against the published endpoints" (#TBD), post-v1.
+Spin-off: [#92](https://github.com/ALCops/rulebook-engine/issues/92), post-v1.
 
 ### 7.2 Endpoint snapshots
 
@@ -194,4 +195,4 @@ Comparing generated endpoints with committed snapshots adds nothing: the committ
 
 Create a repository from the template (`gh repo create --template`), run its four workflows, assert their results, and delete the repository. It needs a token that may create and delete repositories, and the ALCops organization policy does not allow GitHub Actions to create or approve pull requests, so the test would run under a personal account, as the live runs of WP07 to WP11 did.
 
-Spin-off: "Template smoke test: create a repository from the template and run its workflows" (#TBD), post-v1.
+Spin-off: [#93](https://github.com/ALCops/rulebook-engine/issues/93), post-v1.
