@@ -864,7 +864,6 @@ Describe 'Levels and overrides on the fixtures' {
         }
         @(Update-RulebookEndpoints -RepositoryRoot $root -WhatIf).Count | Should-Be 0
     }
-
 }
 
 Describe 'Compare-RulebookEndpoints' -Skip:$gitMissing {

@@ -16,11 +16,11 @@
     </class>
     <class name="modules/Rulebook.Action" sourcefilename="Rulebook.Action.psm1">
       <method name="ConvertTo-SingleLine" desc="()" line="34">
-        <counter type="INSTRUCTION" missed="1" covered="2" />
+        <counter type="INSTRUCTION" missed="2" covered="2" />
         <counter type="LINE" missed="1" covered="2" />
         <counter type="METHOD" missed="0" covered="1" />
       </method>
-      <counter type="INSTRUCTION" missed="1" covered="2" />
+      <counter type="INSTRUCTION" missed="2" covered="2" />
       <counter type="LINE" missed="1" covered="2" />
       <counter type="METHOD" missed="0" covered="1" />
       <counter type="CLASS" missed="0" covered="1" />
@@ -39,12 +39,12 @@
       <line nr="34" mi="1" ci="1" mb="0" cb="0" />
       <line nr="35" mi="0" ci="1" mb="0" cb="0" />
       <line nr="36" mi="1" ci="0" mb="0" cb="0" />
-      <counter type="INSTRUCTION" missed="1" covered="2" />
+      <counter type="INSTRUCTION" missed="2" covered="2" />
       <counter type="LINE" missed="1" covered="2" />
       <counter type="METHOD" missed="0" covered="1" />
       <counter type="CLASS" missed="0" covered="1" />
     </sourcefile>
-    <counter type="INSTRUCTION" missed="1" covered="6" />
+    <counter type="INSTRUCTION" missed="2" covered="6" />
     <counter type="LINE" missed="1" covered="6" />
     <counter type="METHOD" missed="0" covered="2" />
     <counter type="CLASS" missed="0" covered="2" />
@@ -77,7 +77,7 @@
     <counter type="METHOD" missed="1" covered="0" />
     <counter type="CLASS" missed="1" covered="0" />
   </package>
-  <counter type="INSTRUCTION" missed="6" covered="6" />
+  <counter type="INSTRUCTION" missed="7" covered="6" />
   <counter type="LINE" missed="6" covered="6" />
   <counter type="METHOD" missed="1" covered="2" />
   <counter type="CLASS" missed="1" covered="2" />

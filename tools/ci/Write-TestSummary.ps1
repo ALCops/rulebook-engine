@@ -60,7 +60,8 @@ function Get-RelativePath {
     # A path relative to the repository root with '/' separators; a path outside it keeps its full form.
     param([Parameter(Mandatory)][string]$Path)
     $relative = [System.IO.Path]::GetRelativePath($root, $Path)
-    if ($relative.StartsWith('..') -or [System.IO.Path]::IsPathRooted($relative)) { $relative = $Path }
+    $parent = $relative -eq '..' -or $relative.StartsWith('../') -or $relative.StartsWith('..' + [System.IO.Path]::DirectorySeparatorChar)
+    if ($parent -or [System.IO.Path]::IsPathRooted($relative)) { $relative = $Path }
     return $relative.Replace('\', '/')
 }
 
@@ -75,6 +76,13 @@ function Format-Number {
     return $Value.ToString('0.0', $invariant)
 }
 
+function Format-Percent {
+    # One decimal, rounded down below 100, so only a fully covered file shows 100.0.
+    param([double]$Value)
+    if ($Value -lt 100) { $Value = [Math]::Floor($Value * 10) / 10 }
+    return Format-Number $Value
+}
+
 $summary = [System.Text.StringBuilder]::new()
 $suites = [System.Collections.Generic.List[object]]::new()
 $failedTests = [System.Collections.Generic.List[object]]::new()
@@ -82,12 +90,19 @@ $totals = [pscustomobject]@{ Tests = 0; Passed = 0; Failed = 0; Skipped = 0; Sec
 
 # 1. Pester
 [void]$summary.AppendLine('## Pester').AppendLine()
+$results = $null
 $resultsFile = Resolve-ActionPath $TestResultsPath
 if (-not (Test-Path -LiteralPath $resultsFile -PathType Leaf)) {
     [void]$summary.AppendLine("No test results ($(Split-Path -Leaf $TestResultsPath) not found).").AppendLine()
 } else {
-    $results = Read-XmlFile -Path $resultsFile
-    $failedCases = 0
+    try {
+        $results = Read-XmlFile -Path $resultsFile
+    } catch {
+        # An empty or cut file: one line, and the rest of the summary is still written.
+        [void]$summary.AppendLine("Test results could not be read ($(Split-Path -Leaf $TestResultsPath)): $(ConvertTo-SingleLine $_.Exception.Message)").AppendLine()
+    }
+}
+if ($null -ne $results) {
     # The test files are the suites directly under the root suite 'Pester'.
     foreach ($fileSuite in @($results.SelectNodes('/test-results/test-suite/results/test-suite'))) {
         $path = Get-RelativePath -Path $fileSuite.GetAttribute('name')
@@ -99,16 +114,17 @@ if (-not (Test-Path -LiteralPath $resultsFile -PathType Leaf)) {
             switch ($case.GetAttribute('result')) {
                 'Failure' {
                     $row.Failed++
-                    $failedCases++
                     $message = $case.SelectSingleNode('failure/message')
                     $failedTests.Add([pscustomobject]@{ Suite = $path; Name = $case.GetAttribute('name'); Message = Get-FirstLine $(if ($message) { $message.InnerText } else { '' }) })
                 }
                 { $_ -in 'Ignored', 'Inconclusive' } { $row.Skipped++ }
             }
         }
-        # A file that failed outside its tests: a parse error or a failed setup at file level.
+        # A file that failed outside its tests (a parse error or a failed setup at file level) counts as one failed
+        # test of that file, so the totals add up.
         $ownFailure = $fileSuite.SelectSingleNode('failure/message')
         if ($null -ne $ownFailure) {
+            $row.Tests++
             $row.Failed++
             $failedTests.Add([pscustomobject]@{ Suite = $path; Name = $path; Message = Get-FirstLine $ownFailure.InnerText })
         }
@@ -118,7 +134,7 @@ if (-not (Test-Path -LiteralPath $resultsFile -PathType Leaf)) {
         $totals.Skipped += $row.Skipped
         $totals.Seconds += $row.Seconds
     }
-    $totals.Passed = $totals.Tests - $totals.Skipped - $failedCases
+    $totals.Passed = $totals.Tests - $totals.Skipped - $totals.Failed
     [void]$summary.AppendLine(('**{0} tests**: {1} passed, {2} failed, {3} skipped in {4} s.' -f $totals.Tests, $totals.Passed, $totals.Failed, $totals.Skipped, (Format-Number $totals.Seconds))).AppendLine()
     [void]$summary.AppendLine('| Suite | Tests | Failed | Skipped | Seconds |').AppendLine('|---|---|---|---|---|')
     foreach ($row in $suites) {
@@ -136,12 +152,19 @@ if (-not (Test-Path -LiteralPath $resultsFile -PathType Leaf)) {
 $files = [System.Collections.Generic.List[object]]::new()
 $coverageTotals = $null
 [void]$summary.AppendLine('## Coverage').AppendLine()
+$report = $null
 $coverageFile = if ([string]::IsNullOrEmpty($CoveragePath)) { '' } else { Resolve-ActionPath $CoveragePath }
 if ([string]::IsNullOrEmpty($coverageFile) -or -not (Test-Path -LiteralPath $coverageFile -PathType Leaf)) {
     $name = if ([string]::IsNullOrEmpty($CoveragePath)) { 'coverage.xml' } else { Split-Path -Leaf $CoveragePath }
     [void]$summary.AppendLine("No coverage report ($name not found).").AppendLine()
 } else {
-    $report = Read-XmlFile -Path $coverageFile
+    try {
+        $report = Read-XmlFile -Path $coverageFile
+    } catch {
+        [void]$summary.AppendLine("Coverage report could not be read ($(Split-Path -Leaf $CoveragePath)): $(ConvertTo-SingleLine $_.Exception.Message)").AppendLine()
+    }
+}
+if ($null -ne $report) {
     $newRow = {
         param([string]$File, $Counter)
         $covered = if ($Counter) { [int]$Counter.GetAttribute('covered') } else { 0 }
@@ -162,7 +185,7 @@ if ([string]::IsNullOrEmpty($coverageFile) -or -not (Test-Path -LiteralPath $cov
     [void]$summary.AppendLine('Line coverage of the files Pester ran; a report, not a gate (D51).').AppendLine()
     [void]$summary.AppendLine('| File | Covered | Missed | Percent |').AppendLine('|---|---|---|---|')
     foreach ($row in @($files) + @($coverageTotals)) {
-        $percent = if ($null -eq $row.Percent) { '-' } else { Format-Number $row.Percent }
+        $percent = if ($null -eq $row.Percent) { '-' } else { Format-Percent $row.Percent }
         $name = if ($row -eq $coverageTotals) { '**Total**' } else { '`' + (Format-TableCell $row.File) + '`' }
         [void]$summary.AppendLine(('| {0} | {1} | {2} | {3} |' -f $name, $row.Covered, $row.Missed, $percent))
     }

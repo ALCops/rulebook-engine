@@ -94,9 +94,24 @@ Missing closing '}' in statement block or type definition.</message>
 '@
         [System.IO.File]::WriteAllText($broken, $xml.Replace("`r`n", "`n"))
         $run = Invoke-Entry @{ TestResultsPath = $broken; CoveragePath = '' }
+        $run.Result.Totals.Tests | Should-Be 1
         $run.Result.Totals.Failed | Should-Be 1
         $run.Result.Totals.Passed | Should-Be 0
+        $run.Result.Summary | Should-MatchString '(?m)^\*\*1 tests\*\*: 0 passed, 1 failed, 0 skipped in 0\.0 s\.$'
+        $run.Result.Summary | Should-MatchString '(?m)^\| `tests/Broken\.Tests\.ps1` \| 1 \| 1 \| 0 \| 0\.0 \|$'
         @($run.Lines | Where-Object { $_ -like '::*' }) | Should-BeCollection @('::error file=tests/Broken.Tests.ps1,title=Pester::tests/Broken.Tests.ps1: ParseException: At /repo/tests/Broken.Tests.ps1:1 char:18')
+    }
+
+    It 'reports an unreadable results file in its section and still writes the coverage section' {
+        $truncated = Join-Path (Get-TestFolder) 'testResults.xml'
+        [System.IO.File]::WriteAllText($truncated, "<?xml version=`"1.0`" encoding=`"utf-8`"?>`n<test-results name=`"Pester`">`n  <test-suite type=`"TestFixture`"")
+        $path = Join-Path (Get-TestFolder) 'summary.md'
+        $run = Invoke-Entry @{ TestResultsPath = $truncated; CoveragePath = $coverage; SummaryPath = $path }
+        $run.Result | Should-NotBeNull
+        $run.Result.Suites.Count | Should-Be 0
+        $run.Result.Summary | Should-MatchString '(?m)^Test results could not be read \(testResults\.xml\): .+$'
+        $run.Result.Files.Count | Should-Be 3
+        [System.IO.File]::ReadAllText($path) | Should-Be $run.Result.Summary
     }
 
     It 'reports a missing results file in the summary without throwing or exiting' {
@@ -117,11 +132,44 @@ Describe 'Write-TestSummary.ps1 Coverage section' {
         $run.Result.CoverageTotals.Covered | Should-Be 6
         $run.Result.CoverageTotals.Missed | Should-Be 6
         $table = "| File | Covered | Missed | Percent |`n|---|---|---|---|`n" +
-        "| ``modules/Rulebook.Action.psm1`` | 2 | 1 | 66.7 |`n" +
+        "| ``modules/Rulebook.Action.psm1`` | 2 | 1 | 66.6 |`n" +
         "| ``modules/Rulebook.Common.psm1`` | 4 | 0 | 100.0 |`n" +
         "| ``scripts/New-RulebookOffLevel.ps1`` | 0 | 5 | 0.0 |`n" +
         "| **Total** | 6 | 6 | 50.0 |`n"
         $run.Result.Summary.Contains($table) | Should-BeTrue
+    }
+
+    It 'reports an unreadable coverage file in its section and keeps the Pester section' {
+        $truncated = Join-Path (Get-TestFolder) 'coverage.xml'
+        [System.IO.File]::WriteAllText($truncated, '')
+        $run = Invoke-Entry @{ TestResultsPath = $results; CoveragePath = $truncated }
+        $run.Result.Suites.Count | Should-Be 3
+        $run.Result.Summary | Should-MatchString '(?m)^\*\*7 tests\*\*: 4 passed, 1 failed, 2 skipped in 2\.5 s\.$'
+        $run.Result.Summary | Should-MatchString '(?m)^Coverage report could not be read \(coverage\.xml\): .+$'
+        $run.Result.CoverageTotals | Should-BeNull
+    }
+
+    It 'shows 100.0 only for a fully covered file' {
+        $file = Join-Path (Get-TestFolder) 'coverage.xml'
+        $xml = @"
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<report name="Pester ()">
+  <package name="modules">
+    <sourcefile name="Almost.psm1">
+      <counter type="LINE" missed="1" covered="19999" />
+    </sourcefile>
+    <sourcefile name="Full.psm1">
+      <counter type="LINE" missed="0" covered="5" />
+    </sourcefile>
+  </package>
+  <counter type="LINE" missed="1" covered="20004" />
+</report>
+"@
+        [System.IO.File]::WriteAllText($file, $xml.Replace("`r`n", "`n"))
+        $run = Invoke-Entry @{ TestResultsPath = $results; CoveragePath = $file }
+        $run.Result.Summary | Should-MatchString '(?m)^\| `modules/Almost\.psm1` \| 19999 \| 1 \| 99\.9 \|$'
+        $run.Result.Summary | Should-MatchString '(?m)^\| `modules/Full\.psm1` \| 5 \| 0 \| 100\.0 \|$'
+        $run.Result.Summary | Should-MatchString '(?m)^\| \*\*Total\*\* \| 20004 \| 1 \| 99\.9 \|$'
     }
 
     It 'says there is no coverage report when -CoveragePath is <Case>' -ForEach @(

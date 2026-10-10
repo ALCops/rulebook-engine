@@ -69,7 +69,7 @@ Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
 Invoke-Pester -Path ./tests -Output Normal
 ```
 
-The CI run with coverage, into a scratch folder outside the repository, and its job summary as Markdown on the console (coverage makes the run about twice as slow):
+The CI run with coverage, into a scratch folder outside the repository, and its job summary as Markdown on the console (with coverage the local run took about 1.5 times as long on Windows: 25 instead of 18 minutes):
 
 ```powershell
 $scratch = Join-Path ([System.IO.Path]::GetTempPath()) 'rulebook-tests'

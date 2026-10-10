@@ -35,13 +35,14 @@ BeforeDiscovery {
         if (-not $case.ContainsKey('Throws')) { $case.Throws = $null }
         if (-not $case.ContainsKey('Regenerate')) { $case.Regenerate = @() }
         $case.FindingsText = if ($case.Findings.Count) { $case.Findings -join ', ' } else { 'nothing' }
-        $case.RegenerateText = if ($case.ContainsKey('Throws')) { 'an error' } elseif ($case.Regenerate.Count) { "$($case.Regenerate.Count) change(s)" } else { 'nothing' }
+        $case.RegenerateText = if ($null -ne $case.Throws) { 'an error' } elseif ($case.Regenerate.Count) { "$($case.Regenerate.Count) change(s)" } else { 'nothing' }
     }
 
     $fixturesRoot = Join-Path $PSScriptRoot 'fixtures'
     $script:folderCases = @(foreach ($group in 'repos', 'templates', 'matrix') {
             foreach ($folder in Get-ChildItem -LiteralPath (Join-Path $fixturesRoot $group) -Directory) { @{ Group = $group; Name = $folder.Name } }
         })
+    $script:repoFolderCases = @($folderCases | Where-Object { $_.Group -eq 'repos' })
 }
 
 BeforeAll {
@@ -155,15 +156,31 @@ Describe 'Template fixtures' {
 
 Describe 'Fixture folders' {
     BeforeAll {
-        # Where a fixture folder can be named: the suites (this one aside, it lists every folder), the helpers and
-        # the CI workflow (scan-org is used by the scan-action job only).
+        # Where a fixture folder can be used: the suites (this one aside, it lists every folder), the helpers and the
+        # CI workflow (scan-org is used by the scan-action job only).
         $sources = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.Tests.ps1' -File | Where-Object Name -NE 'Fixtures.Tests.ps1') +
         @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'Helpers') -Filter '*.ps1' -File) +
         @(Get-Item -LiteralPath (Join-Path $repoRoot '.github' 'workflows' 'ci.yml'))
         $script:sourceText = ($sources | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        $script:tableNames = [string[]]@($repoCases | ForEach-Object { $_.Name })
+    }
+
+    It 'repos/<Name> has a row in the fixture table' -ForEach $repoFolderCases {
+        $Name -cin $tableNames | Should-BeTrue
+    }
+
+    It 'every row of the fixture table names a folder under repos/' {
+        foreach ($name in $tableNames) {
+            Test-Path -LiteralPath (Join-Path $fixturesRoot 'repos' $name) -PathType Container | Should-BeTrue -Because "the table lists $name"
+        }
     }
 
     It '<Group>/<Name> is used by a suite, a helper or ci.yml' -ForEach $folderCases {
-        $sourceText | Should-MatchString "(?<![\w.-])$([regex]::Escape($Name))(?![\w-])"
+        # A use is the quoted name ('v1', "v1") or a path to the folder (templates/v1, 'templates' 'v1',
+        # 'templates', 'v1'), not the bare word, which comments and unrelated text contain too.
+        $name = [regex]::Escape($Name)
+        $group = [regex]::Escape($Group)
+        $pattern = "(['`"])$name\1|$group/$name(?![\w-])|'$group',?\s+'$name'"
+        $sourceText | Should-MatchString $pattern
     }
 }
