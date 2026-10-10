@@ -2,6 +2,9 @@
 # TestDrive (docs/reference/scan-mechanics.md section 4).
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
@@ -34,6 +37,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     Remove-Module Rulebook.Quarantine, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
@@ -79,7 +83,7 @@ Describe 'Quarantine files' {
         $file = Read-QuarantineFile -Path (Join-Path $TestDrive 'quarantine.none.json')
         $file.Exists | Should-BeFalse
         $file.Rules.Count | Should-Be 0
-        ConvertTo-QuarantineJson -File $file | Should-Be "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-quarantine.schema.json`",`n  `"rules`": []`n}`n"
+        ConvertTo-QuarantineJson -File $file | Should-Be "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-quarantine.schema.json`",`n  `"rules`": []`n}`n"
     }
 
     It 'writes the justification of New-QuarantineJustification' {
@@ -172,7 +176,7 @@ Describe 'Update-QuarantineFromScan' {
         $result = Update-QuarantineFromScan -RepositoryRoot $root -Settings $nightlySettings -Policy (Get-QuarantinePolicy -Settings $nightlySettings) -Diffs @(New-Diff -NewIds 'LC0100') -Chains $chains -Now $now
         $result.Created | Should-BeCollection @('quarantine.nightly.json')
         $text = [System.IO.File]::ReadAllText((Join-Path $root 'quarantine.nightly.json'), $utf8)
-        $text | Should-BeLikeString '*"$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-quarantine.schema.json"*'
+        $text | Should-BeLikeString '*"$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-quarantine.schema.json"*'
         Get-Rules $root 'nightly' | Should-BeCollection @('LC0100')
     }
 

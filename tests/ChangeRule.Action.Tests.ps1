@@ -7,6 +7,9 @@ BeforeDiscovery {
 }
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:actionDir = Join-Path $script:repoRoot 'actions' 'ChangeRule'
     $script:entry = Join-Path $script:actionDir 'ChangeRule.ps1'
@@ -56,6 +59,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     $env:GITHUB_OUTPUT = $script:saved.Output
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository
@@ -235,6 +239,17 @@ Describe 'ChangeRule.ps1' {
         $run.Result.Failure | Should-Be 'token'
         @($run.Result.Annotations) | Should-BeCollection @('::error title=ChangeRule::The GHTOKENWORKFLOW secret is needed to change a rule. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md')
         $run.Result.Plan.Valid | Should-BeTrue
+    }
+
+    It 'points at the user page on the branch the action runs from (GITHUB_ACTION_REF v1)' {
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'AA0001'; Action = 'None' }
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        @($run.Result.Annotations) | Should-BeCollection @('::error title=ChangeRule::The GHTOKENWORKFLOW secret is needed to change a rule. Read https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md')
     }
 
     It 'fails validation on an invalid ghTokenWorkflowSecretName (the settings schema, before the token guard)' {

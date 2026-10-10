@@ -114,20 +114,20 @@ An organization that adds or removes levels or stages gets exactly `levels x sta
 
 ## 6. Schemas
 
-The schemas live in the engine under `schemas/` and are served from the `v1` release branch over raw URLs. Draft 2020-12. The `v1` URLs go live with WP13 ([#15](https://github.com/ALCops/rulebook-engine/issues/15)); until then they return 404, and the tests validate against the local files.
+The schemas live in the engine under `schemas/` and are served over raw URLs from the branch the organization follows. Draft 2020-12. The URLs below are the ones the engine's `template/` ships, on `main`; the release deploy rewrites them to the release branch `v1` ([D52](../adr/0052-releases-are-a-floating-major-branch-cut-from-hand-written-release-notes.md); the `v1` URLs go live with the first WP13 deploy, [#15](https://github.com/ALCops/rulebook-engine/issues/15)), and a file the engine writes names the ref the action was called with (`Get-RulebookSchemaUrl`). The tests validate against the local files.
 
 | File | URL | Validates |
 |---|---|---|
-| `ruleset.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.schema.json` | Any ruleset file (hub: holds the three profiles as `$defs` and accepts a file that matches any of them) |
-| `ruleset.delta.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json` | `base/<level>.ruleset.json`, `stages/<stage>.json` |
-| `ruleset.endpoint.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.endpoint.schema.json` | `rulesets/*.ruleset.json` |
-| `ruleset.skeleton.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.skeleton.schema.json` | `skeletons/*.ruleset.json`, `.rulebook/*.ruleset.json` |
-| `rulebook-overrides.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json` | `overrides.json` |
-| `rulebook-quarantine.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-quarantine.schema.json` | `quarantine.<stage>.json` |
-| `rulebook-twins.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json` | `base/twins.json` and the engine's `docs/rulebook/matrix/twins.json` |
-| `rulebook-catalog.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json` | `catalog/diagnostics.json` |
-| `rulebook-settings.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-settings.schema.json` | `.github/Rulebook-Settings.json` |
-| `rulebook-scan-state.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-scan-state.schema.json` | `catalog/scan-state.json` (closed) |
+| `ruleset.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.schema.json` | Any ruleset file (hub: holds the three profiles as `$defs` and accepts a file that matches any of them) |
+| `ruleset.delta.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json` | `base/<level>.ruleset.json`, `stages/<stage>.json` |
+| `ruleset.endpoint.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.endpoint.schema.json` | `rulesets/*.ruleset.json` |
+| `ruleset.skeleton.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.skeleton.schema.json` | `skeletons/*.ruleset.json`, `.rulebook/*.ruleset.json` |
+| `rulebook-overrides.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-overrides.schema.json` | `overrides.json` |
+| `rulebook-quarantine.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-quarantine.schema.json` | `quarantine.<stage>.json` |
+| `rulebook-twins.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-twins.schema.json` | `base/twins.json` and the engine's `docs/rulebook/matrix/twins.json` |
+| `rulebook-catalog.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-catalog.schema.json` | `catalog/diagnostics.json` |
+| `rulebook-settings.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-settings.schema.json` | `.github/Rulebook-Settings.json` |
+| `rulebook-scan-state.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-scan-state.schema.json` | `catalog/scan-state.json` (closed) |
 
 A tool that validates files in an organization repository uses the profile file for the folder; the hub accepts a file that matches any profile (an endpoint rule with a `justification` passes it through the delta profile), so it is for editors only and is never the `$schema` of a generated file.
 
@@ -189,7 +189,7 @@ Stage file, `tests/fixtures/schemas/valid/ruleset.delta/stage-ci.json`:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook stage CI",
   "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",
   "rules": [
@@ -227,7 +227,7 @@ Overrides, `tests/fixtures/schemas/valid/rulebook-overrides/entries-with-justifi
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-overrides.schema.json",
   "rules": [
     { "id": "AA0072", "action": "Warning", "levels": ["*"], "stages": ["*"], "justification": "House style" },
     { "id": "AL0432", "action": "None", "levels": ["essential", "recommended"], "stages": ["ci"], "justification": "Backlog DEV-1234" }
@@ -239,7 +239,7 @@ Quarantine, `tests/fixtures/schemas/valid/rulebook-quarantine/one-entry.json`:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-quarantine.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-quarantine.schema.json",
   "rules": [
     { "id": "LC0099", "justification": "New in alcops.analyzers 1.4.0-beta.1 (prerelease), quarantined 2026-10-01. Review and adopt." }
   ]

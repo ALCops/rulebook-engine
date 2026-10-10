@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-catalog.schema.json",
   "version": 1,
   "diagnostics": [
     { "id": "AL0200", "analyzer": "Compiler", "defaultSeverity": "Warning", "enabledByDefault": true, "title": "Property '{0}' is obsolete and will be removed in a future version. Update your code to use the recommended alternative.", "docs": "https://learn.microsoft.com/dynamics365/business-central/dev-itpro/developer/diagnostics/diagnostic-al200" },

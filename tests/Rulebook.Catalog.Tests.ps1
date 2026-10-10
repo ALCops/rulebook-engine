@@ -3,6 +3,9 @@
 # scan state round trips with the schema fixtures.
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Catalog.psd1') -Force
@@ -47,6 +50,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     Remove-Module Rulebook.Catalog, Rulebook.NuGet, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
@@ -260,7 +264,7 @@ Describe 'Scan state' {
     It 'reads a missing file as an empty state' {
         $state = Read-ScanState -Path (Join-Path $TestDrive 'none' 'scan-state.json')
         $state.Packages.Count | Should-Be 0
-        ConvertTo-ScanStateJson -State $state | Should-Be "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-scan-state.schema.json`",`n  `"version`": 1,`n  `"packages`": {}`n}`n"
+        ConvertTo-ScanStateJson -State $state | Should-Be "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-scan-state.schema.json`",`n  `"version`": 1,`n  `"packages`": {}`n}`n"
     }
 
     It 'writes the tools package first and reports the change' {

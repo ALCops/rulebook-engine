@@ -3,6 +3,9 @@
 # docs/reference/publish-targets.md.
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:templateDir = Join-Path $repoRoot 'template'
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
@@ -44,6 +47,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
@@ -369,11 +373,38 @@ Describe 'ConvertTo-RulebookIndexHtml' {
         $section | Should-BeGreaterThan $html.IndexOf('</dl>')
         $section | Should-BeLessThan $html.IndexOf('<h2 id="stage-default">')
         $html | Should-MatchString ([regex]::Escape('<pre><code>Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1'))
-        $html | Should-MatchString ([regex]::Escape("./Get-RulebookSkeletons.ps1 -BaseUrl $baseUrl -Level essential</code></pre>"))
+        $html | Should-MatchString ([regex]::Escape("./Get-RulebookSkeletons.ps1 -BaseUrl $baseUrl -Level essential -Ref main</code></pre>"))
         $html | Should-MatchString ([regex]::Escape('<code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code>'))
         $html | Should-MatchString ([regex]::Escape('<code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>'))
         $html | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/main/docs/al-project.md">'))
         $html | Should-MatchString ([regex]::Escape("<a href=`"$baseUrl/rulebook.json`"><code>$baseUrl/rulebook.json</code></a>"))
+    }
+
+    It 'names the init script and the user page on the branch Publish runs from (GITHUB_ACTION_REF v1)' {
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            $v1Html = ConvertTo-RulebookIndexHtml -Inputs $inputs -BaseUrl $baseUrl -Endpoints @($endpoints)
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        $v1Html | Should-MatchString ([regex]::Escape('<pre><code>Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1'))
+        $v1Html | Should-MatchString ([regex]::Escape("./Get-RulebookSkeletons.ps1 -BaseUrl $baseUrl -Level essential -Ref v1</code></pre>"))
+        $v1Html | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/v1/docs/al-project.md">'))
+    }
+
+    It 'downloads the init script at a commit sha but passes -Ref main, like the docs link (the template repository has no engine sha)' {
+        $sha = '0123456789abcdef0123456789abcdef01234567'
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = $sha
+            $shaHtml = ConvertTo-RulebookIndexHtml -Inputs $inputs -BaseUrl $baseUrl -Endpoints @($endpoints)
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        $shaHtml | Should-MatchString ([regex]::Escape("https://raw.githubusercontent.com/ALCops/rulebook-engine/$sha/scripts/Get-RulebookSkeletons.ps1"))
+        $shaHtml | Should-MatchString ([regex]::Escape("./Get-RulebookSkeletons.ps1 -BaseUrl $baseUrl -Level essential -Ref main</code></pre>"))
+        $shaHtml | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/main/docs/al-project.md">'))
     }
 
     It 'encodes the base URL and the level in the AL project section' {

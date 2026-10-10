@@ -92,7 +92,7 @@ The job summary lists every URL with its result, HTTP status, attempts and secon
 
 ## 5. Action reference
 
-`ALCops/rulebook-engine/actions/Publish` (composite; `@main` in `template/`, pinned to `@v1` by the deploy step of WP13).
+`ALCops/rulebook-engine/actions/Publish` (composite; `@main` in `template/`, rewritten to `@v1` by the release deploy, D52).
 
 | Input | Default | Meaning |
 |---|---|---|

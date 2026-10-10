@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook Essential",
   "description": "Level essential, the root. Lists the ids whose action differs from the analyzer default. Generated from docs/rulebook; do not edit.",
   "rules": [

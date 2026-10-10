@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-catalog.schema.json",
   "version": 1,
   "diagnostics": [
     { "id": "LC0099", "analyzer": "LinterCop", "defaultSeverity": "Warning", "enabledByDefault": true, "title": "A rule", "docs": "https://alcops.dev/docs/analyzers/lintercop/lc0099/", "package": "alcops.analyzers", "firstSeenVersion": "1.4.0-beta.1", "firstSeenChannel": "prerelease", "firstStableVersion": "1.4.0", "lastSeenVersion": "1.5.0", "deprecated": true, "defaultChanges": [ { "version": "1.5.0", "field": "defaultSeverity", "from": "Info", "to": "Warning" }, { "version": "1.5.0", "field": "enabledByDefault", "from": false, "to": true } ] },

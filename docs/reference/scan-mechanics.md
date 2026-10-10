@@ -80,7 +80,7 @@ The docs URL (`Get-CatalogDocsUrl`): a compiler id gets `https://learn.microsoft
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-scan-state.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-scan-state.schema.json",
   "version": 1,
   "packages": {
     "microsoft.dynamics.businesscentral.development.tools": {
