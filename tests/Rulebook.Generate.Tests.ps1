@@ -204,7 +204,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Read-RulesetFile and Read-StageFile' {

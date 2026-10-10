@@ -6,6 +6,7 @@
 # writer; Rulebook.Template uses it for the seed. Contract: docs/reference/scan-mechanics.md section 3.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.NuGet.psd1')
 
@@ -81,10 +82,6 @@ function Copy-CatalogEntry {
     $copy.DefaultChanges = @($Entry.DefaultChanges | ForEach-Object { [ordered]@{ version = $_['version']; field = $_['field']; from = $_['from']; to = $_['to'] } })
     foreach ($key in $Entry.Extra.Keys) { $copy.Extra[$key] = $Entry.Extra[$key] }
     return $copy
-}
-
-function Get-OrdinalMap {
-    return , [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
 }
 
 function Get-FileChange {

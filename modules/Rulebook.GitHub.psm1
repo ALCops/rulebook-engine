@@ -2,13 +2,15 @@
 # Rulebook.GitHub: the GitHub plumbing of the update workflow (WP07). One REST wrapper (Invoke-GitHubApi, the single
 # mock point of the suites), the GHTOKENWORKFLOW exchange (a personal access token passes through, GitHub App JSON
 # becomes a short-lived installation token, D44), the template download as a zipball, the pull request helpers,
-# and the clone, commit and push of the update and of the scan (WP08: the living pull request, a lease push). No
-# engine imports. The token never enters a git URL or git config:
+# and the clone, commit and push of the update and of the scan (WP08: the living pull request, a lease push).
+# Imports only Rulebook.Common (git runner, ordinal collections), nothing from the rulebook logic or the action
+# layer. The token never enters a git URL or git config:
 # git receives it as an http.<server>/.extraheader through GIT_CONFIG_COUNT in the environment of each git call.
 # Contract: docs/reference/update-mechanics.md section 6 and 8. Ported from AL-Go (Github-Helper.psm1,
 # AL-Go-Helper.ps1), behaviour only: docs/reference/al-go-template-mechanics.md sections 5.5 and 8.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:DefaultPermissions = [ordered]@{
@@ -102,34 +104,6 @@ function Get-NextLink {
         if ($part -match '<([^>]+)>\s*;\s*rel="next"') { return $Matches[1] }
     }
     return $null
-}
-
-function Invoke-Git {
-    # Runs git with UTF-8 output decoding, independent of the console code page, with extra environment variables
-    # for this process only (the token header). A copy of the Rulebook.Generate helper plus the environment hook.
-    param(
-        [Parameter(Mandatory)][string]$Root,
-        [Parameter(Mandatory)][string[]]$Arguments,
-        [System.Collections.IDictionary]$Environment
-    )
-    $info = [System.Diagnostics.ProcessStartInfo]::new('git')
-    $info.ArgumentList.Add('-C')
-    $info.ArgumentList.Add($Root)
-    foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
-    $info.RedirectStandardOutput = $true
-    $info.RedirectStandardError = $true
-    $info.UseShellExecute = $false
-    $info.StandardOutputEncoding = $script:Utf8NoBom
-    $info.StandardErrorEncoding = $script:Utf8NoBom
-    $info.Environment['GIT_TERMINAL_PROMPT'] = '0'
-    if ($null -ne $Environment) {
-        foreach ($key in $Environment.Keys) { $info.Environment[[string]$key] = [string]$Environment[$key] }
-    }
-    $process = [System.Diagnostics.Process]::Start($info)
-    $errorTask = $process.StandardError.ReadToEndAsync()
-    $output = $process.StandardOutput.ReadToEnd()
-    $process.WaitForExit()
-    return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $output; Error = $errorTask.Result }
 }
 
 function Assert-Git {

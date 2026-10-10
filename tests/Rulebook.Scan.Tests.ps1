@@ -81,7 +81,7 @@ BeforeAll {
 AfterAll {
     $env:GITHUB_SERVER_URL = $script:savedServerUrl
     $env:GITHUB_API_URL = $script:savedApiUrl
-    Remove-Module Rulebook.Scan, Rulebook.Quarantine, Rulebook.Extract, Rulebook.Catalog, Rulebook.NuGet, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Scan, Rulebook.Quarantine, Rulebook.Extract, Rulebook.Catalog, Rulebook.NuGet, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Get-RulebookScanPlan, first run' {

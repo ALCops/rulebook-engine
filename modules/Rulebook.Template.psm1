@@ -5,6 +5,7 @@
 # Contract: docs/rulebook/composition.md section 3. File by file: docs/reference/template-content.md.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 # The catalog writer (ConvertTo-CatalogJson) is shared with the scan.
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Catalog.psd1')
@@ -19,11 +20,6 @@ $script:TwinsGeneratedBy = 'tools/rulebook/Build-Template.ps1'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 
 #region Internal helpers
-
-function Get-OrdinalMap {
-    # An insertion-ordered map with ordinal keys ([ordered]@{} compares keys case-insensitively).
-    return , [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
-}
 
 function Get-TextValue {
     # A text field of the matrix input. ConvertFrom-Json -AsHashtable turns an ISO date-time string into a

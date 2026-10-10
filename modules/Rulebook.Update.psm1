@@ -7,6 +7,7 @@
 # Contract: docs/reference/update-mechanics.md. Design: docs/ARCHITECTURE.md section 7.3, docs/dashboard.md section 9.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Validate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Template.psd1')
@@ -49,14 +50,6 @@ function Get-SettingValue {
         $value = $value[$key]
     }
     return $value
-}
-
-function Get-OrdinalSet {
-    param([AllowNull()][AllowEmptyCollection()][string[]]$Items)
-    $set = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-    foreach ($item in @($Items)) { if ($null -ne $item) { [void]$set.Add($item) } }
-    # The comma keeps PowerShell from unrolling the set.
-    return , $set
 }
 
 function Test-BinaryFile {

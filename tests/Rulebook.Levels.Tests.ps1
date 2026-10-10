@@ -88,7 +88,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Levels, Rulebook.Catalog, Rulebook.Template, Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Levels, Rulebook.Catalog, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Get-RulebookOffLevelEntry' {

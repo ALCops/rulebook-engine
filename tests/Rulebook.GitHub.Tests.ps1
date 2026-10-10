@@ -42,7 +42,7 @@ BeforeAll {
 
 AfterAll {
     $env:GITHUB_API_URL = $script:savedApiUrl
-    Remove-Module Rulebook.GitHub -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.GitHub, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'New-GitHubAppJwt' {

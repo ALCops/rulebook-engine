@@ -50,7 +50,7 @@ BeforeAll {
 AfterAll {
     $env:GITHUB_API_URL = $script:savedApiUrl
     $env:GITHUB_SERVER_URL = $script:savedServerUrl
-    Remove-Module Rulebook.Edit, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Edit, Rulebook.Update, Rulebook.Template, Rulebook.GitHub, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'overrides.json I/O' {

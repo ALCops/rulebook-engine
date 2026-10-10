@@ -6,6 +6,7 @@
 # the settings (#48, C16). Contract: docs/reference/scan-mechanics.md section 4.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 
 $script:QuarantineSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-quarantine.schema.json'
@@ -25,10 +26,6 @@ function New-PolicyException {
 function Get-SettingsStageSlug {
     param([Parameter(Mandatory)][System.Collections.IDictionary]$Settings)
     return [string[]]@($Settings['stages'] | Where-Object { $_ -is [System.Collections.IDictionary] -and $_['name'] -is [string] } | ForEach-Object { ([string]$_['name']).ToLowerInvariant() })
-}
-
-function Get-OrdinalMap {
-    return , [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
 }
 
 #endregion

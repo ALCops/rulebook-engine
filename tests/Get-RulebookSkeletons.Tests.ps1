@@ -49,7 +49,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Publish, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Get-RulebookSkeletons.ps1' {

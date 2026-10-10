@@ -44,7 +44,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Publish, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'New-RulebookPublishStage on template/' {

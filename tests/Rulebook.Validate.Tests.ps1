@@ -34,7 +34,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Validate, Rulebook.Generate -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Validate, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Test-Rulebook on valid-minimal' {

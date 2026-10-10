@@ -5,6 +5,7 @@
 # Contract: docs/rulebook/composition.md. Worked examples: docs/reference/effective-diff.md.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 
 $script:Actions = @('Error', 'Warning', 'Info', 'Hidden', 'None')
 # Prefix order of Get-DiagnosticSortKey, the inventory order. The tools under tools/rulebook/ import this module
@@ -22,17 +23,6 @@ function Get-Slug {
     param([AllowNull()][string]$Name)
     if ([string]::IsNullOrEmpty($Name)) { return $null }
     return $Name.ToLowerInvariant()
-}
-
-function Get-OrdinalSet {
-    # The comma keeps PowerShell from unrolling the empty set into $null.
-    return , [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-}
-
-function Get-OrdinalMap {
-    # An insertion-ordered map with ordinal keys. [ordered]@{} compares keys case-insensitively, so AL0001 and
-    # al0001 would collide; the catalog map is ordinal too.
-    return , [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
 }
 
 function ConvertTo-TextValue {
@@ -288,25 +278,6 @@ function ConvertTo-LevelEntry {
         BasedOn     = Get-Slug $basedOn
         Description = Get-MemberValue $Level 'description'
     }
-}
-
-function Invoke-Git {
-    # Runs git with UTF-8 output decoding, independent of the console code page.
-    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string[]]$Arguments)
-    $info = [System.Diagnostics.ProcessStartInfo]::new('git')
-    $info.ArgumentList.Add('-C')
-    $info.ArgumentList.Add($Root)
-    foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
-    $info.RedirectStandardOutput = $true
-    $info.RedirectStandardError = $true
-    $info.UseShellExecute = $false
-    $info.StandardOutputEncoding = $script:Utf8NoBom
-    $info.StandardErrorEncoding = $script:Utf8NoBom
-    $process = [System.Diagnostics.Process]::Start($info)
-    $errorTask = $process.StandardError.ReadToEndAsync()
-    $output = $process.StandardOutput.ReadToEnd()
-    $process.WaitForExit()
-    return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $output; Error = $errorTask.Result }
 }
 
 function Get-FileSource {

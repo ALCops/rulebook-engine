@@ -87,7 +87,7 @@ BeforeAll {
 AfterAll {
     $env:GITHUB_API_URL = $script:savedApiUrl
     $env:GITHUB_SERVER_URL = $script:savedServerUrl
-    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Fixture consistency' {
