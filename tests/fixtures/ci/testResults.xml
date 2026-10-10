@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="7" errors="0" failures="1" not-run="0" inconclusive="0" ignored="0" skipped="2" invalid="0" date="2026-10-10" time="17:26:33">
+  <environment machine-name="runner" clr-version="9.0.10" user="runner" user-domain="" os-version="6.11.0" platform="Linux" cwd="/repo" nunit-version="2.5.8.0" />
+  <culture-info current-culture="" current-uiculture="" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Failure" success="False" time="2.4567" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="/repo/tests/Smoke.Tests.ps1" executed="True" result="Ignored" success="True" time="0.6046" asserts="0" description="/repo/tests/Smoke.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Smoke" executed="True" result="Ignored" success="True" time="0.111" asserts="0" description="Smoke">
+            <results>
+              <test-case description="runs on PowerShell 7 or later" name="Smoke.runs on PowerShell 7 or later" time="0.0737" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="runs on Linux when executed on GitHub Actions" name="Smoke.runs on Linux when executed on GitHub Actions" time="0.0035" asserts="0" success="False" result="Ignored" executed="False" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="/repo/tests/Rulebook.Action.Tests.ps1" executed="True" result="Failure" success="False" time="1.2269" asserts="0" description="/repo/tests/Rulebook.Action.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="ConvertTo-SingleLine" executed="True" result="Failure" success="False" time="0.1147" asserts="0" description="ConvertTo-SingleLine">
+            <results>
+              <test-case description="joins the lines" name="ConvertTo-SingleLine.joins the lines" time="0.0069" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps a percent sign" name="ConvertTo-SingleLine.keeps a percent sign" time="0.1007" asserts="0" success="False" result="Failure" executed="True">
+                <failure>
+                  <message>RuntimeException: 100% broken: first line
+second: line</message>
+                  <stack-trace>at &lt;ScriptBlock&gt;, /repo/tests/Rulebook.Action.Tests.ps1:4</stack-trace>
+                </failure>
+              </test-case>
+              <test-case description="is skipped" name="ConvertTo-SingleLine.is skipped" time="0.0013" asserts="0" success="False" result="Ignored" executed="False" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="/repo/tests/Rulebook.Common.Tests.ps1" executed="True" result="Success" success="True" time="0.6252" asserts="0" description="/repo/tests/Rulebook.Common.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Get-OrdinalMap" executed="True" result="Success" success="True" time="0.0412" asserts="0" description="Get-OrdinalMap">
+            <results>
+              <test-case description="keeps AL0001 and al0001 as two keys" name="Get-OrdinalMap.keeps AL0001 and al0001 as two keys" time="0.026" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="keeps the insertion order" name="Get-OrdinalMap.keeps the insertion order" time="0.003" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>
