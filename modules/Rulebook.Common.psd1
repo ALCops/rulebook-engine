@@ -5,7 +5,7 @@
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook common helpers: the git runner with UTF-8 output and a per-process environment, the ordinal (case-sensitive) map and set several engine modules share, and the engine ref with the schema, script and docs URL builders. Imports nothing.'
+    Description          = 'Rulebook common helpers: the git runner with UTF-8 output and a per-process environment, the ordinal (case-sensitive) map and set several engine modules share, and the engine ref (GITHUB_ACTION_REF, else the ref folder of GITHUB_ACTION_PATH, else main) with the schema, script and docs URL builders. Imports nothing.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(

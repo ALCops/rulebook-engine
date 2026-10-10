@@ -6,6 +6,10 @@ BeforeDiscovery {
 }
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    $script:savedActionRef = $env:GITHUB_ACTION_REF
+    $script:savedActionPath = $env:GITHUB_ACTION_PATH
+    Remove-Item Env:GITHUB_ACTION_REF, Env:GITHUB_ACTION_PATH -ErrorAction SilentlyContinue
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.GitHub.psd1') -Force
@@ -41,6 +45,8 @@ BeforeAll {
 }
 
 AfterAll {
+    $env:GITHUB_ACTION_REF = $script:savedActionRef
+    $env:GITHUB_ACTION_PATH = $script:savedActionPath
     $env:GITHUB_API_URL = $script:savedApiUrl
     Remove-Module Rulebook.GitHub, Rulebook.Common -ErrorAction SilentlyContinue
 }

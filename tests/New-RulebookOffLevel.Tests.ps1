@@ -3,6 +3,10 @@
 # Rulebook.Levels, on the fixture catalog (28 of 30 ids enabled) and on the shipped catalog (605 of 628).
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    $script:savedActionRef = $env:GITHUB_ACTION_REF
+    $script:savedActionPath = $env:GITHUB_ACTION_PATH
+    Remove-Item Env:GITHUB_ACTION_REF, Env:GITHUB_ACTION_PATH -ErrorAction SilentlyContinue
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:entry = Join-Path $script:repoRoot 'scripts' 'New-RulebookOffLevel.ps1'
     Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
@@ -57,6 +61,8 @@ BeforeAll {
 }
 
 AfterAll {
+    $env:GITHUB_ACTION_REF = $script:savedActionRef
+    $env:GITHUB_ACTION_PATH = $script:savedActionPath
     Remove-Module Rulebook.Levels, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 

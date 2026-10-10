@@ -4,6 +4,10 @@
 # path is exercised by the publish-action job in ci.yml, which serves the staged site with python3 -m http.server.
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    $script:savedActionRef = $env:GITHUB_ACTION_REF
+    $script:savedActionPath = $env:GITHUB_ACTION_PATH
+    Remove-Item Env:GITHUB_ACTION_REF, Env:GITHUB_ACTION_PATH -ErrorAction SilentlyContinue
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:entry = Join-Path $script:repoRoot 'scripts' 'Get-RulebookSkeletons.ps1'
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
@@ -49,6 +53,8 @@ BeforeAll {
 }
 
 AfterAll {
+    $env:GITHUB_ACTION_REF = $script:savedActionRef
+    $env:GITHUB_ACTION_PATH = $script:savedActionPath
     Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 

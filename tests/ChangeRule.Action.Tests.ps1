@@ -7,6 +7,10 @@ BeforeDiscovery {
 }
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    $script:savedActionRef = $env:GITHUB_ACTION_REF
+    $script:savedActionPath = $env:GITHUB_ACTION_PATH
+    Remove-Item Env:GITHUB_ACTION_REF, Env:GITHUB_ACTION_PATH -ErrorAction SilentlyContinue
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:actionDir = Join-Path $script:repoRoot 'actions' 'ChangeRule'
     $script:entry = Join-Path $script:actionDir 'ChangeRule.ps1'
@@ -56,6 +60,8 @@ BeforeAll {
 }
 
 AfterAll {
+    $env:GITHUB_ACTION_REF = $script:savedActionRef
+    $env:GITHUB_ACTION_PATH = $script:savedActionPath
     $env:GITHUB_OUTPUT = $script:saved.Output
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository

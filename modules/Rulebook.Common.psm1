@@ -2,7 +2,8 @@
 # Rulebook.Common: the leaf helpers several engine modules share (#78): the git runner with UTF-8 output decoding and
 # a per-process environment, the ordinal collections (an insertion-ordered map and a set, both case-sensitive), and
 # the engine ref with the URL builders for the schema, script and user docs URLs the engine prints or writes (D52,
-# #63): an action at @v1 names v1 URLs, engine CI and a local run name main.
+# #63): the ref is GITHUB_ACTION_REF, else the ref folder of GITHUB_ACTION_PATH, else main, so an action at @v1
+# names v1 URLs and engine CI and a local run name main.
 # Imports nothing; every module that calls one of these functions imports this module itself (a nested import is not
 # transitive).
 
@@ -12,10 +13,35 @@ $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:DefaultEngineRef = 'main'
 $script:EngineRawUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/{0}/{1}/{2}'
 $script:DocsUrl = 'https://github.com/ALCops/rulebook/blob/{0}/docs/{1}'
-# The checkout folder of an action used as ALCops/rulebook-engine/...@<ref>: <runner>/_actions/ALCops/rulebook-engine/<ref>/.
-$script:ActionPathPattern = '[\\/]_actions[\\/]ALCops[\\/]rulebook-engine[\\/]([^\\/]+)[\\/]'
+# The checkout folder of an action used as ALCops/rulebook-engine/actions/<Name>@<ref>:
+# <runner>/_actions/ALCops/rulebook-engine/<ref>/actions/<Name>; a ref with a slash spans several folders.
+$script:ActionPathPattern = '[\\/]_actions[\\/]ALCops[\\/]rulebook-engine[\\/](.+?)[\\/]actions[\\/]'
+# A ref or a docs page: starts with a letter or digit, then letters, digits, dot, underscore, slash and hyphen.
+$script:PathTextPattern = '^[A-Za-z0-9][A-Za-z0-9._/-]*\z'
 
 #region Internal helpers
+
+function Test-RulebookPathText {
+    # True when Value is a usable ref or docs page: the path text pattern and no '..' (git refuses it in a ref name,
+    # and in a page it would leave docs/).
+    param([AllowNull()][AllowEmptyString()][string]$Value)
+    return (-not [string]::IsNullOrEmpty($Value)) -and $Value -match $script:PathTextPattern -and -not $Value.Contains('..')
+}
+
+function Resolve-RulebookRef {
+    # The ref a builder uses: -Ref trimmed, or Get-RulebookEngineRef when it is empty; an unusable -Ref throws.
+    param([AllowNull()][AllowEmptyString()][string]$Ref)
+    if ([string]::IsNullOrWhiteSpace($Ref)) { return Get-RulebookEngineRef }
+    $value = $Ref.Trim()
+    if (-not (Test-RulebookPathText $value)) { throw "'$Ref' is not a usable engine ref" }
+    return $value
+}
+
+function Format-EngineRawUrl {
+    # https://raw.githubusercontent.com/ALCops/rulebook-engine/<ref>/<Folder>/<Name>, the ref from Resolve-RulebookRef.
+    param([Parameter(Mandatory)][string]$Folder, [Parameter(Mandatory)][string]$Name, [AllowNull()][AllowEmptyString()][string]$Ref)
+    return $script:EngineRawUrl -f (Resolve-RulebookRef $Ref), $Folder, $Name
+}
 
 function New-GitStartInfo {
     # The start info of one git process: 'git -C <Root> <Arguments>', output and error redirected and decoded as UTF-8
@@ -99,7 +125,8 @@ function Get-RulebookEngineRef {
     <#
     .SYNOPSIS
     The engine ref this run was called with: GITHUB_ACTION_REF trimmed when it is set, else the ref folder of
-    GITHUB_ACTION_PATH when that is a checkout of ALCops/rulebook-engine, else main.
+    GITHUB_ACTION_PATH when that is a checkout of ALCops/rulebook-engine, else main. A value that is no usable ref
+    (a character other than letters, digits, '.', '_', '/' and '-', a leading punctuation mark, or '..') is skipped.
     .DESCRIPTION
     The runner sets both variables for a step of an action used as ALCops/rulebook-engine/actions/<Name>@<ref>
     (v1 for an organization, main for the canary rulebook). Engine CI runs the actions as ./actions/<Name>, where
@@ -109,10 +136,13 @@ function Get-RulebookEngineRef {
     [CmdletBinding()]
     [OutputType([string])]
     param()
-    $ref = [string]$env:GITHUB_ACTION_REF
-    if (-not [string]::IsNullOrWhiteSpace($ref)) { return $ref.Trim() }
+    $ref = ([string]$env:GITHUB_ACTION_REF).Trim()
+    if (Test-RulebookPathText $ref) { return $ref }
     $path = [string]$env:GITHUB_ACTION_PATH
-    if ($path -match $script:ActionPathPattern) { return $Matches[1] }
+    if ($path -match $script:ActionPathPattern) {
+        $ref = $Matches[1].Replace('\', '/')
+        if (Test-RulebookPathText $ref) { return $ref }
+    }
     return $script:DefaultEngineRef
 }
 
@@ -122,7 +152,7 @@ function Get-RulebookSchemaUrl {
     The URL of an engine schema file at a ref: https://raw.githubusercontent.com/ALCops/rulebook-engine/<Ref>/schemas/<Name>.
     .DESCRIPTION
     -Name is the file name, for example ruleset.delta.schema.json. Without -Ref (or with an empty one) the ref is
-    Get-RulebookEngineRef.
+    Get-RulebookEngineRef; an unusable -Ref throws.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -130,8 +160,7 @@ function Get-RulebookSchemaUrl {
         [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]*\z')][string]$Name,
         [AllowEmptyString()][string]$Ref
     )
-    if ([string]::IsNullOrWhiteSpace($Ref)) { $Ref = Get-RulebookEngineRef }
-    return $script:EngineRawUrl -f $Ref.Trim(), 'schemas', $Name
+    return Format-EngineRawUrl -Folder 'schemas' -Name $Name -Ref $Ref
 }
 
 function Get-RulebookScriptUrl {
@@ -140,7 +169,7 @@ function Get-RulebookScriptUrl {
     The URL of an engine script at a ref: https://raw.githubusercontent.com/ALCops/rulebook-engine/<Ref>/scripts/<Name>.
     .DESCRIPTION
     -Name is the file name, for example Get-RulebookSkeletons.ps1. Without -Ref (or with an empty one) the ref is
-    Get-RulebookEngineRef.
+    Get-RulebookEngineRef; an unusable -Ref throws.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -148,8 +177,7 @@ function Get-RulebookScriptUrl {
         [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]*\z')][string]$Name,
         [AllowEmptyString()][string]$Ref
     )
-    if ([string]::IsNullOrWhiteSpace($Ref)) { $Ref = Get-RulebookEngineRef }
-    return $script:EngineRawUrl -f $Ref.Trim(), 'scripts', $Name
+    return Format-EngineRawUrl -Folder 'scripts' -Name $Name -Ref $Ref
 }
 
 function Get-RulebookDocsUrl {
@@ -165,11 +193,10 @@ function Get-RulebookDocsUrl {
     [CmdletBinding()]
     [OutputType([string])]
     param(
-        [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._/-]*\z')][string]$Page,
+        [Parameter(Mandatory)][ValidateScript({ Test-RulebookPathText $_ })][string]$Page,
         [AllowEmptyString()][string]$Ref
     )
-    if ([string]::IsNullOrWhiteSpace($Ref)) { $Ref = Get-RulebookEngineRef }
-    $Ref = $Ref.Trim()
+    $Ref = Resolve-RulebookRef $Ref
     if ($Ref -match '^[0-9a-fA-F]{40}\z') { $Ref = $script:DefaultEngineRef }
     return $script:DocsUrl -f $Ref, $Page
 }

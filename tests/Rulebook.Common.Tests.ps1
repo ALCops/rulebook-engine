@@ -163,6 +163,9 @@ Describe 'Get-RulebookEngineRef and the URL builders' {
         @{ Case = 'Windows runner'; Path = 'D:\a\_actions\ALCops\rulebook-engine\v2\actions\Validate'; Expected = 'v2' }
         @{ Case = 'engine CI, ./actions/Validate'; Path = '/home/runner/work/rulebook-engine/rulebook-engine/./actions/Validate'; Expected = 'main' }
         @{ Case = 'another repository'; Path = '/home/runner/work/_actions/contoso/rulebook-engine/v9/actions/Publish'; Expected = 'main' }
+        @{ Case = 'Linux runner, a ref with a slash'; Path = '/home/runner/work/_actions/ALCops/rulebook-engine/wp13/references/actions/Publish'; Expected = 'wp13/references' }
+        @{ Case = 'Windows runner, a ref with a slash'; Path = 'D:\a\_actions\ALCops\rulebook-engine\wp13\references\actions\Publish'; Expected = 'wp13/references' }
+        @{ Case = 'a folder that is no usable ref'; Path = '/home/runner/work/_actions/ALCops/rulebook-engine/v1/../x/actions/Publish'; Expected = 'main' }
     ) {
         $env:GITHUB_ACTION_PATH = $Path
         Get-RulebookEngineRef | Should-Be $Expected
@@ -172,6 +175,28 @@ Describe 'Get-RulebookEngineRef and the URL builders' {
         $env:GITHUB_ACTION_PATH = '/home/runner/work/_actions/ALCops/rulebook-engine/v1/actions/Publish'
         $env:GITHUB_ACTION_REF = 'v1.0.0-beta.1'
         Get-RulebookEngineRef | Should-Be 'v1.0.0-beta.1'
+    }
+
+    It 'skips a GITHUB_ACTION_REF that is no usable ref (<Value>) and falls through to GITHUB_ACTION_PATH, then main' -ForEach @(
+        @{ Value = 'v1 x' }
+        @{ Value = '../v1' }
+        @{ Value = 'v1/../main' }
+        @{ Value = '-v1' }
+        @{ Value = 'v1"' }
+    ) {
+        $env:GITHUB_ACTION_REF = $Value
+        Get-RulebookEngineRef | Should-Be 'main'
+        $env:GITHUB_ACTION_PATH = '/home/runner/work/_actions/ALCops/rulebook-engine/v1/actions/Publish'
+        Get-RulebookEngineRef | Should-Be 'v1'
+    }
+
+    It 'refuses an unusable -Ref in every builder: <Value>' -ForEach @(
+        @{ Value = 'v1 x' }
+        @{ Value = 'v1/../main' }
+    ) {
+        { Get-RulebookSchemaUrl -Name 'rulebook-settings.schema.json' -Ref $Value } | Should-Throw -ExceptionMessage '*is not a usable engine ref*'
+        { Get-RulebookScriptUrl -Name 'Get-RulebookSkeletons.ps1' -Ref $Value } | Should-Throw -ExceptionMessage '*is not a usable engine ref*'
+        { Get-RulebookDocsUrl -Page 'al-project.md' -Ref $Value } | Should-Throw -ExceptionMessage '*is not a usable engine ref*'
     }
 
     It 'builds the schema URL from the engine ref, or from -Ref' {
@@ -210,5 +235,9 @@ Describe 'Get-RulebookEngineRef and the URL builders' {
         { Get-RulebookSchemaUrl -Name $Value } | Should-Throw
         { Get-RulebookScriptUrl -Name $Value } | Should-Throw
         { Get-RulebookDocsUrl -Page $Value } | Should-Throw
+    }
+
+    It 'refuses a docs page that leaves docs/' {
+        { Get-RulebookDocsUrl -Page 'levels/../../README.md' } | Should-Throw
     }
 }

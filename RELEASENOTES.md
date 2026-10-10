@@ -1,7 +1,5 @@
 # Release notes
 
-<!-- The top ## vX.Y.Z heading is the version the next deploy releases (branch v<major>, tag vX.Y.Z on both repositories; the deploy refuses a tag that exists). Every pull request adds its release line at the end of that section, and the first pull request after a release adds the next heading (D52). -->
-
 ## v1.0.0-beta.1
 
 - WP00: Repository bootstrap ([#32](https://github.com/ALCops/rulebook-engine/pull/32))
@@ -34,3 +32,4 @@
 - Modules and actions: one Rulebook.Common, C12 without What if lines, the refused push as a warning annotation, name-only binding ([#90](https://github.com/ALCops/rulebook-engine/pull/90))
 - CI: coverage as a report (D51), the test summary step and one fixture guard suite ([#91](https://github.com/ALCops/rulebook-engine/pull/91))
 - Tests: the coverage pass, docs/reference/testing.md and the WP12 close-out ([#94](https://github.com/ALCops/rulebook-engine/pull/94))
+- Release model: D52, the engine ref helper and RELEASENOTES.md ([#27](https://github.com/ALCops/rulebook-engine/issues/27), [#63](https://github.com/ALCops/rulebook-engine/issues/63))

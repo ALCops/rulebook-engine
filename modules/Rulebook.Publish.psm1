@@ -204,9 +204,11 @@ function ConvertTo-RulebookIndexHtml {
     $manifestUrl = ConvertTo-HtmlText "$BaseUrl/rulebook.json"
     $lines.Add('<h2 id="al-project">Set up an AL project</h2>')
     $lines.Add('<p>An AL project keeps one file per stage in <code>.rulebook/</code>: the skeleton of its level, which includes the endpoint, with the project exceptions in its <code>rules</code>. The init script downloads the files of a level, for example:</p>')
-    $lines.Add('<pre><code>Invoke-WebRequest ' + (ConvertTo-HtmlText (Get-RulebookScriptUrl -Name $script:SkeletonScriptName)) + ' -OutFile Get-RulebookSkeletons.ps1')
-    $lines.Add('./Get-RulebookSkeletons.ps1 -BaseUrl ' + (ConvertTo-HtmlText $BaseUrl) + ' -Level ' + (ConvertTo-HtmlText $exampleLevel) + '</code></pre>')
-    $lines.Add('<p>Then point VS Code at the default stage with <code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code> and AL-Go at the CI stage with <code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>. Details: <a href="' + (ConvertTo-HtmlText (Get-RulebookDocsUrl -Page $script:AlProjectDocsPage)) + '">docs/al-project.md</a>. The levels and stages of this site, machine-readable: <a href="' + $manifestUrl + '"><code>' + $manifestUrl + '</code></a>.</p>')
+    # One ref for the download and for -Ref, so the script links the user page of the branch the site was published from.
+    $engineRef = Get-RulebookEngineRef
+    $lines.Add('<pre><code>Invoke-WebRequest ' + (ConvertTo-HtmlText (Get-RulebookScriptUrl -Name $script:SkeletonScriptName -Ref $engineRef)) + ' -OutFile Get-RulebookSkeletons.ps1')
+    $lines.Add('./Get-RulebookSkeletons.ps1 -BaseUrl ' + (ConvertTo-HtmlText $BaseUrl) + ' -Level ' + (ConvertTo-HtmlText $exampleLevel) + ' -Ref ' + (ConvertTo-HtmlText $engineRef) + '</code></pre>')
+    $lines.Add('<p>Then point VS Code at the default stage with <code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code> and AL-Go at the CI stage with <code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>. Details: <a href="' + (ConvertTo-HtmlText (Get-RulebookDocsUrl -Page $script:AlProjectDocsPage -Ref $engineRef)) + '">docs/al-project.md</a>. The levels and stages of this site, machine-readable: <a href="' + $manifestUrl + '"><code>' + $manifestUrl + '</code></a>.</p>')
     foreach ($stage in $Inputs.Stages) {
         $lines.Add('<h2 id="stage-' + (ConvertTo-HtmlText $stage.Slug) + '">Stage ' + (ConvertTo-HtmlText $stage.Name) + '</h2>')
         if (-not [string]::IsNullOrEmpty($stage.Description)) { $lines.Add('<p>' + (ConvertTo-HtmlText $stage.Description) + '</p>') }
