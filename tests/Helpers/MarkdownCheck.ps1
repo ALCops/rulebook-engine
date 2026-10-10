@@ -103,7 +103,7 @@ function Test-MarkdownLink {
     # anchor of the page itself or, for a link to another Markdown page, of that page, and a reference link without a
     # definition. -Overlay: further roots a path is looked up in, at the same place relative to -Root (the template
     # README resolves docs/ in the user documentation). -Pending: root-relative paths (wildcards allowed) that may be
-    # missing (pages not written yet, or docs/* without the user documentation). -NoEscape: a target whose path leaves
+    # missing (for example docs/* without the user documentation). -NoEscape: a target whose path leaves
     # -Root is broken (a template page would point outside the organization repository once shipped).
     param(
         [Parameter(Mandatory)][string]$Root,
