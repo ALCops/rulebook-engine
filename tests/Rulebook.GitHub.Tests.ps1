@@ -529,6 +529,27 @@ Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
         (Get-GitText -Root $bare -Arguments @('rev-parse', "$($result.Sha)~1")).Trim() | Should-Be $mainSha
     }
 
+    It 'carries the refusal on the exception when the fallback branch is refused too' {
+        Add-RejectPushHook -BarePath $bare -All
+        $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
+        Write-FixtureText -Path (Join-Path $clone.Path 'overrides.json') -Text '{ "rules": [] }'
+        $caught = $null
+        try { $null = Publish-GitHubChange -Clone $clone -Message 'Direct' -NewBranch 'update-rulebook-system-files/main/261007120003' -DirectCommit } catch { $caught = $_ }
+        $caught | Should-NotBeNull
+        $caught.Exception.Message | Should-BeLikeString 'git push update-rulebook-system-files/main/261007120003 failed*'
+        $caught.Exception.Data['FallbackReason'] | Should-BeLikeString '*every branch is protected*'
+    }
+
+    It 'carries no refusal when a branch push fails without -DirectCommit' {
+        Add-RejectPushHook -BarePath $bare -All
+        $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
+        Write-FixtureText -Path (Join-Path $clone.Path 'overrides.json') -Text '{ "rules": [] }'
+        $caught = $null
+        try { $null = Publish-GitHubChange -Clone $clone -Message 'Branch' -NewBranch 'update-rulebook-system-files/main/261007120004' } catch { $caught = $_ }
+        $caught | Should-NotBeNull
+        $caught.Exception.Data.Contains('FallbackReason') | Should-BeFalse
+    }
+
     It 'reports no-changes and pushes nothing when the clone is unchanged' {
         $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Get-TestFolder)
         $result = Publish-GitHubChange -Clone $clone -Message 'Nothing' -NewBranch 'update-rulebook-system-files/main/261007120002'

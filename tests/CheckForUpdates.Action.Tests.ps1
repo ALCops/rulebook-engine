@@ -300,6 +300,23 @@ Describe 'CheckForUpdates.ps1' {
         $run.Result.Annotations[-1] | Should-Be '::notice title=CheckForUpdates::Pull request: https://github.com/Contoso/rulebook/pull/3 (the direct commit was refused)'
     }
 
+    It 'reports the refusal with the push failure when the fallback branch could not be pushed' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('git push update-rulebook-system-files/main/261007123045 failed: remote: rejected')
+            $exception.Data['Stage'] = 'push'
+            $exception.Data['FallbackReason'] = "remote: main is protected`nerror: failed to push some refs"
+            throw $exception
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); Update = $true; Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'push'
+        $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=CheckForUpdates::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=CheckForUpdates::The direct push to main was refused; the fallback branch could not be pushed. (remote: main is protected error: failed to push some refs)')
+        $run.Result.Annotations[-1] | Should-BeLikeString '::error title=CheckForUpdates::Failed to update the Rulebook system files.*'
+    }
+
     It 'cuts an oversized summary at a line boundary inside a fence, closes it and names where the lists are' {
         $template = Get-TestFolder
         Copy-FixtureTree -Source (Join-Path $templates 'v2') -Destination $template

@@ -47,7 +47,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Catalog, Rulebook.NuGet -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Catalog, Rulebook.NuGet, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Catalog file' {

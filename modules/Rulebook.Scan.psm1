@@ -702,7 +702,7 @@ function Publish-RulebookScan {
     pull-request-updated, direct-commit, no-changes), PullRequestUrl, Number, Branch, Sha, Fallback, FallbackReason (the
     git output of a refused direct push, else $null), Diff, DiffNote, Body, Title }. A failure throws with
     Data['Stage']: push for the clone, commit and push; pull-request after the push, naming the pushed branch and its
-    tree link (Data['Branch'], and Data['FallbackReason'] after a refused direct push).
+    tree link (Data['Branch']). After a refused direct push both stages carry Data['FallbackReason'].
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -758,6 +758,8 @@ function Publish-RulebookScan {
         $exception.Data['Stage'] = 'push'
         # A base that moved is no token problem; the entry script reports it as it is.
         if ($_.Exception.Data['Reason']) { $exception.Data['Reason'] = $_.Exception.Data['Reason'] }
+        # A refused direct push whose fallback branch failed too (#77).
+        if ($_.Exception.Data.Contains('FallbackReason')) { $exception.Data['FallbackReason'] = $_.Exception.Data['FallbackReason'] }
         throw $exception
     }
     $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; FallbackReason = $pushed.FallbackReason; Diff = @(); DiffNote = $null; Body = $null; Title = $title; ClosedPullRequestUrl = $null }

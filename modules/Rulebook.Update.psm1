@@ -1366,9 +1366,10 @@ function Publish-RulebookUpdate {
     with -DirectCommit, falling back to the branch when the push is refused). Diff is the effective diff of the
     commit against the cloned head. Returns { Result (pull-request, direct-commit, exists, no-changes),
     PullRequestUrl, Branch, Sha, Fallback, FallbackReason, Diff, DiffNote, Body, Title }; FallbackReason is the git
-    output of the refused direct push ( without a fallback). A failure throws with Data['Stage']: push for the
+    output of the refused direct push ($null without a fallback). A failure throws with Data['Stage']: push for the
     clone, commit and push; pull-request for the duplicate guard, the body and the opening (then naming the pushed
-    branch and its tree link, with Data['Branch'], and Data['FallbackReason'] after a refused direct push).
+    branch and its tree link, with Data['Branch']). After a refused direct push both stages carry
+    Data['FallbackReason'] (push: the fallback branch failed too).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -1396,6 +1397,8 @@ function Publish-RulebookUpdate {
         param([string]$Stage, [System.Management.Automation.ErrorRecord]$Record)
         $exception = [System.InvalidOperationException]::new($Record.Exception.Message, $Record.Exception)
         $exception.Data['Stage'] = $Stage
+        # A refused direct push whose fallback branch failed too (#77).
+        if ($Record.Exception.Data.Contains('FallbackReason')) { $exception.Data['FallbackReason'] = $Record.Exception.Data['FallbackReason'] }
         return $exception
     }
 

@@ -261,6 +261,22 @@ Describe 'ScanDiagnostics.ps1' {
         $run.Result.Annotations[-1] | Should-Be '::notice title=ScanDiagnostics::Pull request: https://github.com/Contoso/rulebook/pull/21 (the direct commit was refused)'
     }
 
+    It 'reports the refusal without a suffix when the fallback branch failed and git said nothing' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('git push --force-with-lease scan-diagnostics/main failed: rejected')
+            $exception.Data['Stage'] = 'push'
+            $exception.Data['FallbackReason'] = ''
+            throw $exception
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'push'
+        $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ScanDiagnostics::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=ScanDiagnostics::The direct push to main was refused; the fallback branch could not be pushed.')
+    }
+
     It 'reports a base branch that moved as it is, without the token advice' {
         $publish = {
             param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)

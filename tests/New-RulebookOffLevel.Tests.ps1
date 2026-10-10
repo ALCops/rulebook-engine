@@ -56,7 +56,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Module Rulebook.Levels -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Levels, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'New-RulebookOffLevel.ps1' {

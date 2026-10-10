@@ -1293,6 +1293,16 @@ Describe 'Publish-RulebookUpdate against a bare repository' -Skip:$gitMissing {
         (& git -C $bare rev-parse "refs/heads/$($result.Branch)").Trim() | Should-Be $result.Sha
     }
 
+    It 'keeps the refusal on the push-stage failure when the fallback branch is refused too' {
+        $bare = New-Origin
+        Add-RejectPushHook -BarePath $bare -All
+        $caught = $null
+        try { $null = Publish-RulebookUpdate -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -UpdateBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) -Now $now } catch { $caught = $_ }
+        $caught | Should-NotBeNull
+        $caught.Exception.Data['Stage'] | Should-Be 'push'
+        $caught.Exception.Data['FallbackReason'] | Should-BeLikeString '*every branch is protected*'
+    }
+
     It 'refuses an invalid plan before anything else' {
         Mock New-GitHubClone -ModuleName Rulebook.Update { throw 'must not clone' }
         $invalid = $plan.PSObject.Copy()

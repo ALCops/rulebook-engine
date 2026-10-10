@@ -362,6 +362,16 @@ Describe 'Publish-RulebookScan against a bare repository' -Skip:$gitMissing {
         $result.Branch | Should-Be 'scan-diagnostics/main'
     }
 
+    It 'keeps the refusal on the push-stage failure when the scan branch is refused too' {
+        $bare = New-BareFixtureRepo -Source $org -Destination (Join-Path (Get-TestFolder) 'locked.git')
+        Add-RejectPushHook -BarePath $bare -All
+        $caught = $null
+        try { $null = Publish-RulebookScan -Plan $plan -Repository 'Contoso/rulebook' -RemoteUrl $bare -Token 'ghs_x' -BaseBranch 'main' -DirectCommit -WorkPath (Get-TestFolder) } catch { $caught = $_ }
+        $caught | Should-NotBeNull
+        $caught.Exception.Data['Stage'] | Should-Be 'push'
+        $caught.Exception.Data['FallbackReason'] | Should-BeLikeString '*every branch is protected*'
+    }
+
     It 'names the pushed branch when the pull request cannot be opened' {
         $bare = New-BareFixtureRepo -Source $org -Destination (Join-Path (Get-TestFolder) 'refused.git')
         Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Path -eq 'repos/Contoso/rulebook/pulls' } {

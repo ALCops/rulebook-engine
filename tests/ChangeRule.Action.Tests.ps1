@@ -414,6 +414,17 @@ Describe 'ChangeRule.ps1' {
             [array]::IndexOf($annotations, $refused[0]) | Should-BeLessThan ([array]::IndexOf($annotations, $annotations[-1]))
             $annotations[-1] | Should-BeLikeString '::error title=ChangeRule::*'
         }
+
+        It 'reports the refusal with the push failure when the change branch is refused too' {
+            $bare = New-Origin
+            Add-RejectPushHook -BarePath $bare -All
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'LC0015'; Action = 'None'; Levels = 'strict'; Stages = 'ci'; Token = 'ghp_x'; DirectCommit = $true; RemoteUrl = $bare }
+            $run.Result.Failure | Should-Be 'push'
+            $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ChangeRule::The direct push to *' })
+            $refused.Count | Should-Be 1
+            $refused[0] | Should-BeLikeString '::warning title=ChangeRule::The direct push to main was refused; the fallback branch could not be pushed. (*every branch is protected*)'
+            $run.Result.Annotations[-1] | Should-BeLikeString '::error title=ChangeRule::Failed to push the rule change.*'
+        }
     }
 }
 

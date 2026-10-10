@@ -652,9 +652,10 @@ function Publish-GitHubChange {
     git add -A; nothing to commit gives Pushed $false and Reason no-changes. -DirectCommit commits on the cloned
     branch and pushes it; a rejected push (branch protection) moves the commit to -NewBranch (reset --soft HEAD~,
     checkout -b, commit) and pushes that instead, Fallback $true and FallbackReason the trimmed git error and output
-    of the refused push ($null without a fallback; nothing is written here, the caller reports it, #77). Otherwise
-    the commit goes to -NewBranch, pushed with -u. AL-Go behaviour (CommitFromNewFolder). -Force rebuilds -NewBranch
-    from the cloned head instead (the scan's living branch, also after a refused direct push): the remote head of
+    of the refused push ($null without a fallback; nothing is written here, the caller reports it, #77). When that
+    fallback branch fails too, the exception carries the refusal in Data['FallbackReason']. Otherwise the commit
+    goes to -NewBranch, pushed with -u. AL-Go behaviour (CommitFromNewFolder). -Force rebuilds -NewBranch from the
+    cloned head instead (the scan's living branch, also after a refused direct push): the remote head of
     -NewBranch is read with git ls-remote, the branch is created with checkout -B and pushed with --force-with-lease
     against that head (absent: the branch must not exist), so a push someone made in between is rejected, never
     overwritten.
@@ -688,20 +689,26 @@ function Publish-GitHubChange {
         $null = Assert-Git -Root $root -Arguments @('reset', '--soft', 'HEAD~') -Environment $environment -What 'git reset'
         $fallback = $true
     }
-    if ($Force) {
-        $remote = Assert-Git -Root $root -Arguments @('ls-remote', '--heads', 'origin', "refs/heads/$NewBranch") -Environment $environment -What 'git ls-remote'
-        $lease = ''
-        foreach ($line in $remote.Output.Split("`n")) {
-            $parts = @($line.Trim() -split '\s+')
-            if ($parts.Count -ge 2 -and $parts[1] -ceq "refs/heads/$NewBranch") { $lease = $parts[0] }
+    try {
+        if ($Force) {
+            $remote = Assert-Git -Root $root -Arguments @('ls-remote', '--heads', 'origin', "refs/heads/$NewBranch") -Environment $environment -What 'git ls-remote'
+            $lease = ''
+            foreach ($line in $remote.Output.Split("`n")) {
+                $parts = @($line.Trim() -split '\s+')
+                if ($parts.Count -ge 2 -and $parts[1] -ceq "refs/heads/$NewBranch") { $lease = $parts[0] }
+            }
+            $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-B', $NewBranch) -Environment $environment -What 'git checkout -B'
+            $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
+            $null = Assert-Git -Root $root -Arguments @('push', '--quiet', "--force-with-lease=refs/heads/$($NewBranch):$lease", 'origin', "HEAD:refs/heads/$NewBranch") -Environment $environment -What "git push --force-with-lease $NewBranch"
+        } else {
+            $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-b', $NewBranch) -Environment $environment -What 'git checkout -b'
+            $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
+            $null = Assert-Git -Root $root -Arguments @('push', '--quiet', '-u', 'origin', $NewBranch) -Environment $environment -What "git push $NewBranch"
         }
-        $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-B', $NewBranch) -Environment $environment -What 'git checkout -B'
-        $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
-        $null = Assert-Git -Root $root -Arguments @('push', '--quiet', "--force-with-lease=refs/heads/$($NewBranch):$lease", 'origin', "HEAD:refs/heads/$NewBranch") -Environment $environment -What "git push --force-with-lease $NewBranch"
-    } else {
-        $null = Assert-Git -Root $root -Arguments @('checkout', '--quiet', '-b', $NewBranch) -Environment $environment -What 'git checkout -b'
-        $null = Assert-Git -Root $root -Arguments @('commit', '--quiet', '-m', $Message) -Environment $environment -What 'git commit'
-        $null = Assert-Git -Root $root -Arguments @('push', '--quiet', '-u', 'origin', $NewBranch) -Environment $environment -What "git push $NewBranch"
+    } catch {
+        # After a refused direct push the refusal is reported even when the fallback branch fails too (#77).
+        if ($fallback) { $_.Exception.Data['FallbackReason'] = $fallbackReason }
+        throw
     }
     $sha = (Assert-Git -Root $root -Arguments @('rev-parse', 'HEAD') -What 'git rev-parse').Output.Trim()
     return [pscustomobject]@{ Pushed = $true; Branch = $NewBranch; Direct = $false; Fallback = $fallback; FallbackReason = $fallbackReason; Sha = $sha; Reason = 'branch' }
