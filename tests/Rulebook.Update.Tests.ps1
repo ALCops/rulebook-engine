@@ -90,43 +90,6 @@ AfterAll {
     Remove-Module Rulebook.Update, Rulebook.GitHub, Rulebook.Template, Rulebook.Validate, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
-Describe 'Fixture consistency' {
-    It '<Name> validates without errors' -ForEach @(
-        @{ Name = 'templates/v1'; Path = (Join-Path $PSScriptRoot 'fixtures' 'templates' 'v1') }
-        @{ Name = 'templates/v2'; Path = (Join-Path $PSScriptRoot 'fixtures' 'templates' 'v2') }
-        @{ Name = 'repos/update-org'; Path = (Join-Path $PSScriptRoot 'fixtures' 'repos' 'update-org') }
-    ) {
-        @(Test-Rulebook -RepositoryRoot $Path | Where-Object Severity -EQ 'error') | Should-BeCollection @()
-    }
-
-    It 'v1 and v2 differ in exactly the paths the README lists' {
-        $readme = [System.IO.File]::ReadAllText((Join-Path $templates 'README.md'))
-        $section = [regex]::Match($readme, '(?ms)^## v2\n(.*?)^## ').Groups[1].Value
-        [string[]]$listed = @([regex]::Matches($section, '(?m)^\| `([^`]+)` \|') | ForEach-Object { $_.Groups[1].Value })
-        [System.Array]::Sort($listed, [System.StringComparer]::Ordinal)
-        $one = Get-RelativeFileList -Root $v1
-        $two = Get-RelativeFileList -Root $v2
-        [string[]]$differing = @(@($one) + @($two) | Sort-Object -Unique -CaseSensitive | Where-Object {
-                $a = Join-Path $v1 $_
-                $b = Join-Path $v2 $_
-                -not (Test-Path -LiteralPath $a) -or -not (Test-Path -LiteralPath $b) -or
-                -not [System.Linq.Enumerable]::SequenceEqual([byte[]][System.IO.File]::ReadAllBytes($a), [byte[]][System.IO.File]::ReadAllBytes($b))
-            })
-        [System.Array]::Sort($differing, [System.StringComparer]::Ordinal)
-        $listed.Count | Should-BeGreaterThan 0
-        $differing | Should-BeCollection $listed
-    }
-
-    It 'the generated folders equal what the engine writes' {
-        foreach ($root in $v1, $v2, $orgFixture) {
-            $copy = Get-TestFolder
-            Copy-FixtureTree -Source $root -Destination $copy
-            @(New-RulebookSkeleton -SettingsPath (Join-Path $copy '.github' 'Rulebook-Settings.json') -OutputPath (Join-Path $copy 'skeletons') -WhatIf:$false) | Should-BeCollection @()
-            @(Update-RulebookEndpoints -RepositoryRoot $copy) | Should-BeCollection @()
-        }
-    }
-}
-
 Describe 'ConvertTo-TemplateUrl' {
     It 'normalises <Value>' -ForEach @(
         @{ Value = 'ALCops/rulebook'; Url = 'https://github.com/ALCops/rulebook@main'; Branch = 'main' }

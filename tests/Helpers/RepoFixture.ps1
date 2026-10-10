@@ -5,6 +5,8 @@
 # Copy-FixtureTemplate; New-BareFixtureRepo and Add-RejectPushHook stand in for the GitHub side of the update.
 
 $script:FixtureReposRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'fixtures' 'repos'
+# The complete fixtures; every other folder under repos/ is an overlay (tests/Fixtures.Tests.ps1 checks both kinds).
+$script:CompleteFixtures = @('valid-minimal', 'stale-endpoints', 'update-org')
 
 function Copy-FixtureTree {
     param([Parameter(Mandatory)][string]$Source, [Parameter(Mandatory)][string]$Destination)
@@ -23,9 +25,8 @@ function New-FixtureRepo {
     # fixture copies just that folder). Returns the destination path.
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
     param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Destination)
-    $complete = @('valid-minimal', 'stale-endpoints', 'update-org')
     if (-not (Test-Path -LiteralPath $Destination)) { [void](New-Item -ItemType Directory -Path $Destination -Force) }
-    if ($Name -in $complete) {
+    if ($Name -in $script:CompleteFixtures) {
         Copy-FixtureTree -Source (Join-Path $script:FixtureReposRoot $Name) -Destination $Destination
     } else {
         $overlay = Join-Path $script:FixtureReposRoot $Name

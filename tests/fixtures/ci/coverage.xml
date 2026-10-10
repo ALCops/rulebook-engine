@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd"[]>
+<report name="Pester ()">
+  <sessioninfo id="this" start="1791645994322" dump="1791645995154" />
+  <package name="modules">
+    <class name="modules/Rulebook.Common" sourcefilename="Rulebook.Common.psm1">
+      <method name="Get-OrdinalMap" desc="()" line="74">
+        <counter type="INSTRUCTION" missed="0" covered="4" />
+        <counter type="LINE" missed="0" covered="4" />
+        <counter type="METHOD" missed="0" covered="1" />
+      </method>
+      <counter type="INSTRUCTION" missed="0" covered="4" />
+      <counter type="LINE" missed="0" covered="4" />
+      <counter type="METHOD" missed="0" covered="1" />
+      <counter type="CLASS" missed="0" covered="1" />
+    </class>
+    <class name="modules/Rulebook.Action" sourcefilename="Rulebook.Action.psm1">
+      <method name="ConvertTo-SingleLine" desc="()" line="34">
+        <counter type="INSTRUCTION" missed="2" covered="2" />
+        <counter type="LINE" missed="1" covered="2" />
+        <counter type="METHOD" missed="0" covered="1" />
+      </method>
+      <counter type="INSTRUCTION" missed="2" covered="2" />
+      <counter type="LINE" missed="1" covered="2" />
+      <counter type="METHOD" missed="0" covered="1" />
+      <counter type="CLASS" missed="0" covered="1" />
+    </class>
+    <sourcefile name="Rulebook.Common.psm1">
+      <line nr="74" mi="0" ci="1" mb="0" cb="0" />
+      <line nr="75" mi="0" ci="1" mb="0" cb="0" />
+      <line nr="86" mi="0" ci="1" mb="0" cb="0" />
+      <line nr="87" mi="0" ci="1" mb="0" cb="0" />
+      <counter type="INSTRUCTION" missed="0" covered="4" />
+      <counter type="LINE" missed="0" covered="4" />
+      <counter type="METHOD" missed="0" covered="1" />
+      <counter type="CLASS" missed="0" covered="1" />
+    </sourcefile>
+    <sourcefile name="Rulebook.Action.psm1">
+      <line nr="34" mi="1" ci="1" mb="0" cb="0" />
+      <line nr="35" mi="0" ci="1" mb="0" cb="0" />
+      <line nr="36" mi="1" ci="0" mb="0" cb="0" />
+      <counter type="INSTRUCTION" missed="2" covered="2" />
+      <counter type="LINE" missed="1" covered="2" />
+      <counter type="METHOD" missed="0" covered="1" />
+      <counter type="CLASS" missed="0" covered="1" />
+    </sourcefile>
+    <counter type="INSTRUCTION" missed="2" covered="6" />
+    <counter type="LINE" missed="1" covered="6" />
+    <counter type="METHOD" missed="0" covered="2" />
+    <counter type="CLASS" missed="0" covered="2" />
+  </package>
+  <package name="scripts">
+    <class name="scripts/New-RulebookOffLevel" sourcefilename="New-RulebookOffLevel.ps1">
+      <method name="&lt;script&gt;" desc="()" line="68">
+        <counter type="INSTRUCTION" missed="5" covered="0" />
+        <counter type="LINE" missed="5" covered="0" />
+        <counter type="METHOD" missed="1" covered="0" />
+      </method>
+      <counter type="INSTRUCTION" missed="5" covered="0" />
+      <counter type="LINE" missed="5" covered="0" />
+      <counter type="METHOD" missed="1" covered="0" />
+      <counter type="CLASS" missed="1" covered="0" />
+    </class>
+    <sourcefile name="New-RulebookOffLevel.ps1">
+      <line nr="68" mi="1" ci="0" mb="0" cb="0" />
+      <line nr="69" mi="1" ci="0" mb="0" cb="0" />
+      <line nr="70" mi="1" ci="0" mb="0" cb="0" />
+      <line nr="71" mi="1" ci="0" mb="0" cb="0" />
+      <line nr="72" mi="1" ci="0" mb="0" cb="0" />
+      <counter type="INSTRUCTION" missed="5" covered="0" />
+      <counter type="LINE" missed="5" covered="0" />
+      <counter type="METHOD" missed="1" covered="0" />
+      <counter type="CLASS" missed="1" covered="0" />
+    </sourcefile>
+    <counter type="INSTRUCTION" missed="5" covered="0" />
+    <counter type="LINE" missed="5" covered="0" />
+    <counter type="METHOD" missed="1" covered="0" />
+    <counter type="CLASS" missed="1" covered="0" />
+  </package>
+  <counter type="INSTRUCTION" missed="7" covered="6" />
+  <counter type="LINE" missed="6" covered="6" />
+  <counter type="METHOD" missed="1" covered="2" />
+  <counter type="CLASS" missed="1" covered="2" />
+</report>
