@@ -106,7 +106,7 @@ Quarantine entries carry `id` and an optional `justification` only; the action i
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook Recommended",
   "description": "Level recommended, basedOn essential. Lists the ids whose action differs from essential. Generated from docs/rulebook; do not edit.",
   "rules": [
@@ -124,7 +124,7 @@ AS0001 and PTE0001 are absent from this file because Recommended does not change
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook stage CI",
   "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",
   "rules": [

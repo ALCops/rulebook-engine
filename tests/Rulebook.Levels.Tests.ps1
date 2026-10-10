@@ -15,7 +15,7 @@ BeforeAll {
 
     $script:templateDir = Join-Path $script:repoRoot 'template'
     $script:levelDocsDir = Join-Path $script:repoRoot 'docs' 'levels'
-    $script:deltaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json'
+    $script:deltaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json'
 
     function Get-TestFolder {
         return Join-Path $TestDrive ([guid]::NewGuid().ToString('n').Substring(0, 12))

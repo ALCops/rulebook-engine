@@ -201,7 +201,7 @@ Describe 'Get-RulebookFileClass' {
 
 Describe 'Update-RulebookSettingsText' {
     BeforeAll {
-        $script:schema = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-settings.schema.json'
+        $script:schema = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-settings.schema.json'
         $script:url = 'https://github.com/Contoso/rulebook-template@main'
     }
 

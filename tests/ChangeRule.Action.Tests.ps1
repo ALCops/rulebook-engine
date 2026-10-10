@@ -237,6 +237,17 @@ Describe 'ChangeRule.ps1' {
         $run.Result.Plan.Valid | Should-BeTrue
     }
 
+    It 'points at the user page on the branch the action runs from (GITHUB_ACTION_REF v1)' {
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'AA0001'; Action = 'None' }
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        @($run.Result.Annotations) | Should-BeCollection @('::error title=ChangeRule::The GHTOKENWORKFLOW secret is needed to change a rule. Read https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md')
+    }
+
     It 'fails validation on an invalid ghTokenWorkflowSecretName (the settings schema, before the token guard)' {
         $root = Copy-Minimal
         Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.ghTokenWorkflowSecretName = 'github_token' }

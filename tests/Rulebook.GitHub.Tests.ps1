@@ -155,6 +155,17 @@ Describe 'Get-GitHubAccessToken' {
     It 'refuses JSON without the app fields' {
         { Get-GitHubAccessToken -Token '{"clientId":"x"}' -Repository 'Contoso/rulebook' } | Should-Throw -ExceptionMessage '*needs GitHubAppClientId and PrivateKey*'
     }
+
+    It 'points at the user page on main, or on the branch the action runs from (GITHUB_ACTION_REF v1)' {
+        { Get-GitHubAccessToken -Token '{"clientId":"x"}' -Repository 'Contoso/rulebook' } | Should-Throw -ExceptionMessage '*; see https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            { Get-GitHubAccessToken -Token '{"clientId":"x"}' -Repository 'Contoso/rulebook' } | Should-Throw -ExceptionMessage '*; see https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md'
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+    }
 }
 
 Describe 'Invoke-GitHubApi' {

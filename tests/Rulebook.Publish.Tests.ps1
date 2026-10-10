@@ -376,6 +376,18 @@ Describe 'ConvertTo-RulebookIndexHtml' {
         $html | Should-MatchString ([regex]::Escape("<a href=`"$baseUrl/rulebook.json`"><code>$baseUrl/rulebook.json</code></a>"))
     }
 
+    It 'names the init script and the user page on the branch Publish runs from (GITHUB_ACTION_REF v1)' {
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            $v1Html = ConvertTo-RulebookIndexHtml -Inputs $inputs -BaseUrl $baseUrl -Endpoints @($endpoints)
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        $v1Html | Should-MatchString ([regex]::Escape('<pre><code>Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1'))
+        $v1Html | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/v1/docs/al-project.md">'))
+    }
+
     It 'encodes the base URL and the level in the AL project section' {
         $custom = Read-RulebookInputs -RepositoryRoot $templateDir
         $page = ConvertTo-RulebookIndexHtml -Inputs $custom -BaseUrl 'https://contoso.github.io/a&b' -Endpoints @($endpoints)

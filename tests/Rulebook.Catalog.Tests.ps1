@@ -260,7 +260,7 @@ Describe 'Scan state' {
     It 'reads a missing file as an empty state' {
         $state = Read-ScanState -Path (Join-Path $TestDrive 'none' 'scan-state.json')
         $state.Packages.Count | Should-Be 0
-        ConvertTo-ScanStateJson -State $state | Should-Be "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-scan-state.schema.json`",`n  `"version`": 1,`n  `"packages`": {}`n}`n"
+        ConvertTo-ScanStateJson -State $state | Should-Be "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-scan-state.schema.json`",`n  `"version`": 1,`n  `"packages`": {}`n}`n"
     }
 
     It 'writes the tools package first and reports the change' {

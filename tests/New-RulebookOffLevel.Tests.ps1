@@ -44,11 +44,12 @@ BeforeAll {
     }
 
     function Assert-SameAsModule {
-        # Runs the script on Root and New-RulebookOffLevel on a copy of Root; the two files must be byte-identical.
+        # Runs the script with -Ref main on Root and New-RulebookOffLevel (engine ref main: no GITHUB_ACTION_REF) on a
+        # copy of Root; the two files must be byte-identical.
         param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][int]$Count)
         $copy = Get-TestFolder
         Copy-FixtureTree -Source $Root -Destination $copy
-        $run = Invoke-Script @{ RepositoryRoot = $Root }
+        $run = Invoke-Script @{ RepositoryRoot = $Root; Ref = 'main' }
         $run.Result[0].Count | Should-Be $Count
         (New-RulebookOffLevel -RepositoryRoot $copy).Count | Should-Be $Count
         Get-FileBase64 (Join-Path $Root 'base' 'off.ruleset.json') | Should-Be (Get-FileBase64 (Join-Path $copy 'base' 'off.ruleset.json'))
@@ -79,7 +80,47 @@ Describe 'New-RulebookOffLevel.ps1' {
         $run.Lines | Should-ContainCollection 'Wrote base/off.ruleset.json (28 ids at None)'
         $run.Lines | Should-ContainCollection '    { "name": "Off", "description": "Every known diagnostic off. Opt in through overrides." },'
         ($run.Lines -join "`n") | Should-MatchString 'Update Rulebook System Files" with "Resolve the latest commit" off'
-        ($run.Lines -join "`n") | Should-MatchString 'https://github\.com/ALCops/rulebook/blob/main/docs/levels\.md'
+        ($run.Lines -join "`n") | Should-MatchString 'https://github\.com/ALCops/rulebook/blob/v1/docs/levels\.md'
+    }
+
+    It 'names v1 by default and the -Ref branch otherwise, in $schema and in the docs link' {
+        $root = Copy-Fixture
+        $null = Invoke-Script @{ RepositoryRoot = $root }
+        $path = Join-Path $root 'base' 'off.ruleset.json'
+        (Get-Content -LiteralPath $path -Raw | ConvertFrom-Json).'$schema' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json'
+        $root = Copy-Fixture
+        $run = Invoke-Script @{ RepositoryRoot = $root; Ref = 'v2' }
+        (Get-Content -LiteralPath (Join-Path $root 'base' 'off.ruleset.json') -Raw | ConvertFrom-Json).'$schema' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v2/schemas/ruleset.delta.schema.json'
+        ($run.Lines -join "`n") | Should-MatchString 'https://github\.com/ALCops/rulebook/blob/v2/docs/levels\.md'
+    }
+
+    It 'writes the same bytes as the module run from the same ref (GITHUB_ACTION_REF v1, the script default)' {
+        $root = Copy-Fixture
+        $copy = Get-TestFolder
+        Copy-FixtureTree -Source $root -Destination $copy
+        $null = Invoke-Script @{ RepositoryRoot = $root }
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            $null = New-RulebookOffLevel -RepositoryRoot $copy
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        Get-FileBase64 (Join-Path $root 'base' 'off.ruleset.json') | Should-Be (Get-FileBase64 (Join-Path $copy 'base' 'off.ruleset.json'))
+    }
+
+    It 'defaults -Ref to the major of the top heading of RELEASENOTES.md' {
+        # The default is the literal current major (D52), raised by hand at a major: this guard fails until it is.
+        $heading = @(Get-Content -LiteralPath (Join-Path $script:repoRoot 'RELEASENOTES.md') | Where-Object { $_ -like '## *' })[0]
+        $heading | Should-MatchString '^## v(\d+)\.\d+\.\d+'
+        $null = $heading -match '^## v(\d+)\.'
+        $major = 'v' + $Matches[1]
+        $tokens = $null
+        $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:entry, [ref]$tokens, [ref]$parseErrors)
+        $parameter = @($ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'Ref' })
+        $parameter.Count | Should-Be 1
+        $parameter[0].DefaultValue.Value | Should-Be $major
     }
 
     It 'says the file is current on a second run and does not write it' {
@@ -158,7 +199,7 @@ Describe 'New-RulebookOffLevel.ps1' {
     It 'warns before replacing the file of a published level, like the module' {
         $root = Copy-Fixture
         $message = "'Strict' is already a published level; -Force would replace base/strict.ruleset.json with an everything-off file"
-        $output = @(& $script:entry -RepositoryRoot $root -Name 'Strict' -Force 6>$null 3>&1)
+        $output = @(& $script:entry -RepositoryRoot $root -Name 'Strict' -Force -Ref main 6>$null 3>&1)
         @($output | Where-Object { $_ -is [System.Management.Automation.WarningRecord] } | ForEach-Object { [string]$_.Message }) | Should-ContainCollection $message
         @($output | Where-Object { $_ -isnot [System.Management.Automation.WarningRecord] })[0].SettingsListed | Should-BeTrue
         $copy = Copy-Fixture

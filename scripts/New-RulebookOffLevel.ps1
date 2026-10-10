@@ -24,8 +24,8 @@ request, then let the update workflow run from that branch, or a local regenerat
 dropdown line of the new level on the pull request branch, so Validate passes before the merge.
 
 The script is self-contained (PowerShell 7, no module, no download) and writes the same bytes as the function
-New-RulebookOffLevel of the engine module Rulebook.Levels. The details are on the user page docs/levels.md in the
-ALCops/rulebook repository, linked below.
+New-RulebookOffLevel of the engine module Rulebook.Levels run from the same ref. The details are on the user page docs/levels.md in the
+ALCops/rulebook repository, linked below, on the branch -Ref names.
 
 .PARAMETER RepositoryRoot
 The root of the clone. Default: the current folder.
@@ -37,27 +37,34 @@ The display name of the level. Its lowercase form is the slug that names the fil
 .PARAMETER Force
 Overwrites a differing base/<slug>.ruleset.json. Your own edits in that file are lost.
 
+.PARAMETER Ref
+The engine branch the $schema URL of the written file names, and the ALCops/rulebook branch of the user page the
+closing hint links: v1, the release branch every organization follows (D52). The default is the current major and
+is raised by hand when a new major ships; main is the development branch (the canary rulebook passes -Ref main).
+
 .EXAMPLE
-iwr https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/New-RulebookOffLevel.ps1 -OutFile ../New-RulebookOffLevel.ps1
+iwr https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/scripts/New-RulebookOffLevel.ps1 -OutFile ../New-RulebookOffLevel.ps1
 ../New-RulebookOffLevel.ps1
 
 Downloads the script next to the clone and writes base/off.ruleset.json in the current folder.
 
 .LINK
-https://github.com/ALCops/rulebook/blob/main/docs/levels.md
+https://github.com/ALCops/rulebook/blob/v1/docs/levels.md
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RepositoryRoot = '.',
     [string]$Name = 'Off',
-    [switch]$Force
+    [switch]$Force,
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._/-]*\z')][string]$Ref = 'v1'
 )
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
-$docsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/levels.md'
-$deltaSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json'
+# Self-contained: the URLs are formatted here, not by Get-RulebookSchemaUrl and Get-RulebookDocsUrl of Rulebook.Common.
+$docsUrl = 'https://github.com/ALCops/rulebook/blob/{0}/docs/levels.md' -f $Ref
+$deltaSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/{0}/schemas/ruleset.delta.schema.json' -f $Ref
 $settingsDescription = 'Every known diagnostic off. Opt in through overrides.'
 $utf8 = [System.Text.UTF8Encoding]::new($false)
 # Prefix order of the diagnostic sort key (Get-DiagnosticSortKey of Rulebook.Generate).

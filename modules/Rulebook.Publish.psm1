@@ -6,6 +6,7 @@
 # Contract: docs/ARCHITECTURE.md sections 7.2 and 9. Setup per target: docs/reference/publish-targets.md.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 
 $script:SettingsPath = '.github/Rulebook-Settings.json'
@@ -16,10 +17,10 @@ $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 # of baseUrl says the same.
 $script:BaseUrlPattern = '^https://[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*(:[0-9]{1,5})?(/(?!\.\.?(/|\z))[^\s/?#"\\\u0000-\u001F]+)*\z'
 $script:Placeholder = '{BASEURL}'
-# The init script the index page tells AL projects to download: main until WP13 switches the URL to the v1 release
-# branch (https://github.com/ALCops/rulebook-engine/issues/15).
-$script:SkeletonScriptUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1'
-$script:AlProjectDocsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/al-project.md'
+# The init script the index page tells AL projects to download and the user page it links; both URLs are built at call
+# time from the engine ref (D52): v1 when Publish runs at @v1, main for the canary and in engine CI.
+$script:SkeletonScriptName = 'Get-RulebookSkeletons.ps1'
+$script:AlProjectDocsPage = 'al-project.md'
 # The targets of the settings schema that WP05 does not implement, with their backlog issues.
 $script:PendingTargets = [ordered]@{
     'dist-repo'  = 'https://github.com/ALCops/rulebook-engine/issues/55'
@@ -203,9 +204,9 @@ function ConvertTo-RulebookIndexHtml {
     $manifestUrl = ConvertTo-HtmlText "$BaseUrl/rulebook.json"
     $lines.Add('<h2 id="al-project">Set up an AL project</h2>')
     $lines.Add('<p>An AL project keeps one file per stage in <code>.rulebook/</code>: the skeleton of its level, which includes the endpoint, with the project exceptions in its <code>rules</code>. The init script downloads the files of a level, for example:</p>')
-    $lines.Add('<pre><code>Invoke-WebRequest ' + (ConvertTo-HtmlText $script:SkeletonScriptUrl) + ' -OutFile Get-RulebookSkeletons.ps1')
+    $lines.Add('<pre><code>Invoke-WebRequest ' + (ConvertTo-HtmlText (Get-RulebookScriptUrl -Name $script:SkeletonScriptName)) + ' -OutFile Get-RulebookSkeletons.ps1')
     $lines.Add('./Get-RulebookSkeletons.ps1 -BaseUrl ' + (ConvertTo-HtmlText $BaseUrl) + ' -Level ' + (ConvertTo-HtmlText $exampleLevel) + '</code></pre>')
-    $lines.Add('<p>Then point VS Code at the default stage with <code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code> and AL-Go at the CI stage with <code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>. Details: <a href="' + (ConvertTo-HtmlText $script:AlProjectDocsUrl) + '">docs/al-project.md</a>. The levels and stages of this site, machine-readable: <a href="' + $manifestUrl + '"><code>' + $manifestUrl + '</code></a>.</p>')
+    $lines.Add('<p>Then point VS Code at the default stage with <code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code> and AL-Go at the CI stage with <code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>. Details: <a href="' + (ConvertTo-HtmlText (Get-RulebookDocsUrl -Page $script:AlProjectDocsPage)) + '">docs/al-project.md</a>. The levels and stages of this site, machine-readable: <a href="' + $manifestUrl + '"><code>' + $manifestUrl + '</code></a>.</p>')
     foreach ($stage in $Inputs.Stages) {
         $lines.Add('<h2 id="stage-' + (ConvertTo-HtmlText $stage.Slug) + '">Stage ' + (ConvertTo-HtmlText $stage.Name) + '</h2>')
         if (-not [string]::IsNullOrEmpty($stage.Description)) { $lines.Add('<p>' + (ConvertTo-HtmlText $stage.Description) + '</p>') }

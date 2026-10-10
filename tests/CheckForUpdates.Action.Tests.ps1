@@ -220,6 +220,17 @@ Describe 'CheckForUpdates.ps1' {
         $run.Result.Plan | Should-BeNull
     }
 
+    It 'points at the user page on the branch the action runs from (GITHUB_ACTION_REF v1)' {
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            $run = Invoke-Entry @{ RepositoryRoot = $org; Update = $true; ApiUrl = 'http://127.0.0.1:9' }
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        @($run.Result.Annotations) | Should-BeCollection @('::error title=CheckForUpdates::The GHTOKENWORKFLOW secret is needed to update system files. Read https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md')
+    }
+
     It 'names the secret from ghTokenWorkflowSecretName' {
         $root = New-FixtureRepo -Name 'update-org' -Destination (Get-TestFolder)
         Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.ghTokenWorkflowSecretName = 'RULEBOOK_TOKEN' }

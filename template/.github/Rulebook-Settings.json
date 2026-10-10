@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-settings.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-settings.schema.json",
   "templateUrl": "https://github.com/ALCops/rulebook@main",
   "templateSha": "",
   "baseUrl": "",

@@ -48,6 +48,7 @@ param(
 Set-StrictMode -Version 3.0
 $watch = [System.Diagnostics.Stopwatch]::StartNew()
 $modules = Join-Path $PSScriptRoot '..' '..' 'modules'
+Import-Module (Join-Path $modules 'Rulebook.Common.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Generate.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.GitHub.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Update.psd1') -Force
@@ -55,7 +56,8 @@ Import-Module (Join-Path $modules 'Rulebook.Quarantine.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Scan.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
-$docsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
+# The user page of the token, on the branch this action runs from (v1 at @v1, main in engine CI; D52).
+$docsUrl = Get-RulebookDocsUrl -Page 'ghtokenworkflow.md'
 
 $ownWork = [string]::IsNullOrEmpty($WorkPath)
 if ($ownWork) {

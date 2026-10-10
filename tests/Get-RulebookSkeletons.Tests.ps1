@@ -286,7 +286,28 @@ Describe 'Get-RulebookSkeletons.ps1' {
         $text | Should-MatchString ([regex]::Escape('"al.ruleSetPath": ".rulebook/default.ruleset.json"'))
         $text | Should-MatchString ([regex]::Escape('"rulesetFile": ".rulebook/ci.ruleset.json", "enableExternalRulesets": true'))
         $text | Should-MatchString ([regex]::Escape('.github/NextMajor.settings.json: "rulesetFile": ".rulebook/vnext.ruleset.json"'))
-        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/main/docs/al-project.md'))
+        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/v1/docs/al-project.md'))
+    }
+
+    It 'links the user page on the -Ref branch' {
+        $run = Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = (Get-TestFolder); Ref = 'v2' }
+        $text = $run.Lines -join "`n"
+        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/v2/docs/al-project.md'))
+        $text | Should-NotMatchString ([regex]::Escape('/blob/v1/'))
+    }
+
+    It 'defaults -Ref to the major of the top heading of RELEASENOTES.md' {
+        # The default is the literal current major (D52), raised by hand at a major: this guard fails until it is.
+        $heading = @(Get-Content -LiteralPath (Join-Path $script:repoRoot 'RELEASENOTES.md') | Where-Object { $_ -like '## *' })[0]
+        $heading | Should-MatchString '^## v(\d+)\.\d+\.\d+'
+        $null = $heading -match '^## v(\d+)\.'
+        $major = 'v' + $Matches[1]
+        $tokens = $null
+        $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:entry, [ref]$tokens, [ref]$parseErrors)
+        $parameter = @($ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'Ref' })
+        $parameter.Count | Should-Be 1
+        $parameter[0].DefaultValue.Value | Should-Be $major
     }
 
     It 'accepts http for the loopback host <Value>' -ForEach @(

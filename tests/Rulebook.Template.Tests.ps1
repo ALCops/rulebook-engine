@@ -15,7 +15,7 @@ BeforeAll {
     $script:templateDir = Join-Path $script:repoRoot 'template'
     $script:schemaDir = Join-Path $script:repoRoot 'schemas'
     $script:settingsFixture = Join-Path $PSScriptRoot 'fixtures' 'schemas' 'valid' 'rulebook-settings' 'template-default.json'
-    $script:deltaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json'
+    $script:deltaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json'
 
     function Get-TestFolder {
         return Join-Path $TestDrive ([guid]::NewGuid().ToString('n').Substring(0, 12))
@@ -135,7 +135,7 @@ Describe 'Build-RulebookBase' {
     It 'writes base/twins.json with $schema, one pair per line' {
         [System.IO.File]::ReadAllText((Join-Path $baseOut 'twins.json')) | Should-Be (@(
                 '{'
-                '  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json",'
+                '  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-twins.schema.json",'
                 '  "generatedBy": "tools/rulebook/Build-Template.ps1",'
                 '  "setting": "twins",'
                 '  "values": ["both", "appsource", "pte"],'
@@ -283,7 +283,7 @@ Describe 'Build-RulebookCatalog' {
     }
 
     It 'writes $schema and version 1 before the entries' {
-        $catalogLines[1] | Should-Be '  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json",'
+        $catalogLines[1] | Should-Be '  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-catalog.schema.json",'
         $catalogLines[2] | Should-Be '  "version": 1,'
         $catalogLines[3] | Should-Be '  "diagnostics": ['
     }
@@ -468,7 +468,7 @@ Describe 'Shipped template content' {
         $twins.count | Should-Be $matrixTwins.count
         @($twins.pairs).Count | Should-Be @($matrixTwins.pairs).Count
         @($twins.pairs | ForEach-Object { $_.pte + '/' + $_.appsource } | Sort-Object) | Should-BeCollection @($matrixTwins.pairs | ForEach-Object { $_.pte + '/' + $_.appsource } | Sort-Object)
-        $twins.'$schema' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json'
+        $twins.'$schema' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-twins.schema.json'
     }
 
     It 'seeds the catalog with every inventory id in inventory order at its analyzer default' {

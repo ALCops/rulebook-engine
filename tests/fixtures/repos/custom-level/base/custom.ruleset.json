@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook Custom",
   "description": "Level custom, basedOn recommended. Organization level between Recommended and Strict. Test fixture.",
   "rules": [

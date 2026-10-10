@@ -9,7 +9,8 @@ Set-StrictMode -Version 3.0
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 
-$script:QuarantineSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-quarantine.schema.json'
+# The schema file name; the URL is built at call time from the engine ref (Get-RulebookSchemaUrl, D52).
+$script:QuarantineSchemaName = 'rulebook-quarantine.schema.json'
 $script:PolicyMessage = 'Set quarantine.stages and quarantine.prereleaseStages in .github/Rulebook-Settings.json. Typical choice: quarantine default and ci, leave vnext out so it shows new rules at their default severity.'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 
@@ -94,7 +95,7 @@ function Read-QuarantineFile {
     param([Parameter(Mandatory)][string]$Path)
     $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
-        return [pscustomobject]@{ PSTypeName = 'Rulebook.QuarantineFile'; Schema = $script:QuarantineSchemaUrl; Rules = (Get-OrdinalMap); Path = $full; Exists = $false }
+        return [pscustomobject]@{ PSTypeName = 'Rulebook.QuarantineFile'; Schema = (Get-RulebookSchemaUrl -Name $script:QuarantineSchemaName); Rules = (Get-OrdinalMap); Path = $full; Exists = $false }
     }
     $file = ConvertFrom-QuarantineFileText -Text ([System.IO.File]::ReadAllText($full, $script:Utf8NoBom)) -Path $full
     return $file
@@ -109,7 +110,7 @@ function ConvertTo-QuarantineJson {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)]$File)
-    $schema = if ([string]::IsNullOrEmpty($File.Schema)) { $script:QuarantineSchemaUrl } else { $File.Schema }
+    $schema = if ([string]::IsNullOrEmpty($File.Schema)) { Get-RulebookSchemaUrl -Name $script:QuarantineSchemaName } else { $File.Schema }
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add('{')
     $lines.Add('  "$schema": ' + (ConvertTo-JsonString $schema) + ',')

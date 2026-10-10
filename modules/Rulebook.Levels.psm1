@@ -13,7 +13,8 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Catalog.psd1')
 # Sync-GeneratedFolder, the folder writer of the template generators.
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Template.psd1')
 
-$script:DeltaSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json'
+# The schema file name; the URL is built at call time from the engine ref (Get-RulebookSchemaUrl, D52).
+$script:DeltaSchemaName = 'ruleset.delta.schema.json'
 $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:CatalogPath = 'catalog/diagnostics.json'
 $script:OffSettingsDescription = 'Every known diagnostic off. Opt in through overrides.'
@@ -194,9 +195,10 @@ function New-RulebookOffLevel {
     Writes base/<slug>.ruleset.json, a root level that sets every diagnostic enabled by default to None (D25).
     .DESCRIPTION
     Reads catalog/diagnostics.json of -RepositoryRoot and writes the level file under the name 'Rulebook <Name>',
-    with the delta profile URL in $schema, the entries of Get-RulebookOffLevelEntry and no justification. The file
-    is owned by the organization (the update never overwrites it). Byte-stable: equal bytes return nothing; a
-    differing file throws unless -Force is set. Does not edit the settings; SettingsListed reports whether the
+    with the delta profile URL of the engine ref in $schema (Get-RulebookSchemaUrl), the entries of
+    Get-RulebookOffLevelEntry and no justification. The file is owned by the organization (the update never
+    overwrites it). Byte-stable: equal bytes return nothing; a differing file throws unless -Force is set. Does not
+    edit the settings; SettingsListed reports whether the
     settings already list the level, and SettingsEntry is the JSON line to paste first into levels. Returns a
     Rulebook.OffLevel { File, Path, Change (created, modified), Name, Slug, Count, SettingsListed, SettingsEntry }.
     -WhatIf writes nothing and still returns the object. On a current file (equal bytes, or equal apart from CRLF line
@@ -226,7 +228,7 @@ function New-RulebookOffLevel {
     $catalog = Read-CatalogFile -Path $catalogPath
     $entries = Get-RulebookOffLevelEntry -Catalog $catalog
     if ($entries.Count -eq 0) { Write-Warning "$($script:CatalogPath) lists no diagnostic enabled by default; base/$slug.ruleset.json gets an empty rules array" }
-    $text = ConvertTo-RulesetJson -Name "Rulebook $Name" -Description (Get-OffLevelDescription -Slug $slug -Count $entries.Count) -Rules $entries -Schema $script:DeltaSchemaUrl
+    $text = ConvertTo-RulesetJson -Name "Rulebook $Name" -Description (Get-OffLevelDescription -Slug $slug -Count $entries.Count) -Rules $entries -Schema (Get-RulebookSchemaUrl -Name $script:DeltaSchemaName)
     $bytes = $script:Utf8NoBom.GetBytes($text)
 
     $file = "base/$slug.ruleset.json"

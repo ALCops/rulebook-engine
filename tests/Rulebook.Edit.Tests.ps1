@@ -67,7 +67,7 @@ Describe 'overrides.json I/O' {
         $file = Get-EmptyFile
         $file.Exists | Should-BeFalse
         $file.Rules.Count | Should-Be 0
-        $file.Schema | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json'
+        $file.Schema | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-overrides.schema.json'
     }
 
     It 'reads comments and trailing commas as ConvertFrom-Json does' {
@@ -104,7 +104,7 @@ Describe 'Set-RulebookOverride and Remove-RulebookOverride' {
         $file = Get-EmptyFile
         $result = Set-RulebookOverride -File $file -Id 'LC0015' -Action 'None' -Levels 'strict' -Stages 'ci' -Justification 'Legacy tables'
         $result.Change | Should-Be 'added'
-        ConvertTo-OverridesJson -File $file | Should-Be "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json`",`n  `"rules`": [`n    { `"id`": `"LC0015`", `"action`": `"None`", `"levels`": [`"strict`"], `"stages`": [`"ci`"], `"justification`": `"Legacy tables`" }`n  ]`n}`n"
+        ConvertTo-OverridesJson -File $file | Should-Be "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-overrides.schema.json`",`n  `"rules`": [`n    { `"id`": `"LC0015`", `"action`": `"None`", `"levels`": [`"strict`"], `"stages`": [`"ci`"], `"justification`": `"Legacy tables`" }`n  ]`n}`n"
     }
 
     It 'replaces action and justification of an entry with the same selectors in place (order-insensitive)' {
