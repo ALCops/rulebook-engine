@@ -46,7 +46,7 @@ Downloads the script next to the clone and writes base/off.ruleset.json in the c
 .LINK
 https://github.com/ALCops/rulebook/blob/main/docs/levels.md
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RepositoryRoot = '.',
     [string]$Name = 'Off',

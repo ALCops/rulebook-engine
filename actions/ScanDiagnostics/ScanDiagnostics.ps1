@@ -22,7 +22,7 @@ it in-process; action.yaml exits with ExitCode. -PackageSource (a flat container
 -WorkPath, -SummaryLimit, -Now and -PublishCommand are test seams; a -WorkPath the caller passes is left in place,
 the temporary work folder the script names itself is removed at the end except after a dry run.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RepositoryRoot = '.',
     [AllowEmptyString()][string]$Token,

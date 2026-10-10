@@ -24,7 +24,7 @@ run it in-process; action.yaml exits with ExitCode. -RemoteUrl, -ApiUrl, -WorkPa
 -PublishCommand are test seams; a -WorkPath the caller passes is left in place, the temporary work folder the script
 names itself is removed at the end.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RepositoryRoot = '.',
     [AllowEmptyString()][string]$RuleId,

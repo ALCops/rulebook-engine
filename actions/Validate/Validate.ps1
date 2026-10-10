@@ -25,7 +25,7 @@ pull_request_target event (fetched when absent); on a push, the commit before th
 (GITHUB_EVENT_PATH, 'before'), else HEAD~1 (fetched or deepened when absent). -DiffRef '' disables it. Any other
 event, a ref that does not resolve, or a diff that fails is a note in the summary, never a failure.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$RepositoryRoot = '.',
     [switch]$FailOnWarning,

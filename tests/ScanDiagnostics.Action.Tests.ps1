@@ -300,3 +300,10 @@ Describe 'ScanDiagnostics.ps1' {
         $run.Result.Annotations[-1] | Should-BeLikeString '::error title=ScanDiagnostics::Failed to create or update the scan pull request.*https://github.com/Contoso/rulebook/tree/scan-diagnostics/main*'
     }
 }
+
+Describe 'ScanDiagnostics.ps1 parameter binding' {
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
+        { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
+    }
+}

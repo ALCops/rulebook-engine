@@ -562,6 +562,16 @@ Describe 'Build-Template.ps1' {
         )
     }
 
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61); binding fails before the script reads anything.
+        { & $script:wrapper 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
+    }
+
+    It '<Name> rejects a stray positional value' -ForEach @(@{ Name = 'Test-Rulebook.ps1' }, @{ Name = 'Build-Matrix.ps1' }, @{ Name = 'Extract-Inventory.ps1' }) {
+        # Binding fails before the scripts look for the sibling clones or read docs/rulebook/.
+        { & (Join-Path $repoRoot 'tools' 'rulebook' $Name) 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
+    }
+
     It 'reports no change with -WhatIf on the committed template/ and docs/levels/' {
         # -WhatIf writes nothing, so the default -LevelDocsDir (docs/levels/ of this repository) is safe here.
         @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()

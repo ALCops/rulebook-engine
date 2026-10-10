@@ -16,7 +16,7 @@ differs after -WindowSeconds, and the result table in the job summary.
 Both phases return { ExitCode, Phase, Annotations, Summary, ... } and never call exit, so tests run the script
 in-process; action.yaml exits with ExitCode.
 #>
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [ValidateSet('Stage', 'Check')][string]$Phase = 'Stage',
     [string]$RepositoryRoot = '.',

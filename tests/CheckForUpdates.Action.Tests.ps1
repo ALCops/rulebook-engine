@@ -367,3 +367,10 @@ Describe 'CheckForUpdates.ps1' {
         @(Get-ChildItem -LiteralPath $runnerTemp -Force) | Should-BeCollection @()
     }
 }
+
+Describe 'CheckForUpdates.ps1 parameter binding' {
+    It 'rejects a stray positional value' {
+        # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
+        { & $script:entry -RepositoryRoot $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
+    }
+}
