@@ -686,10 +686,11 @@ function Publish-GitHubChange {
             return [pscustomobject]@{ Pushed = $true; Branch = $Clone.Branch; Direct = $true; Fallback = $false; FallbackReason = $null; Sha = $sha; Reason = 'direct-commit' }
         }
         $fallbackReason = ($push.Error + $push.Output).Trim()
-        $null = Assert-Git -Root $root -Arguments @('reset', '--soft', 'HEAD~') -Environment $environment -What 'git reset'
         $fallback = $true
     }
     try {
+        # The refused commit moves to the new branch; inside the try, so a failed reset keeps the refusal too.
+        if ($fallback) { $null = Assert-Git -Root $root -Arguments @('reset', '--soft', 'HEAD~') -Environment $environment -What 'git reset' }
         if ($Force) {
             $remote = Assert-Git -Root $root -Arguments @('ls-remote', '--heads', 'origin', "refs/heads/$NewBranch") -Environment $environment -What 'git ls-remote'
             $lease = ''

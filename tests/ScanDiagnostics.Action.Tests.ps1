@@ -277,6 +277,24 @@ Describe 'ScanDiagnostics.ps1' {
         $refused | Should-BeCollection @('::warning title=ScanDiagnostics::The direct push to main was refused; the fallback branch could not be pushed.')
     }
 
+    It 'reports the refusal with the pull request failure when the branch was pushed instead' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('Branch scan-diagnostics/main was pushed. Could not create the pull request (HTTP 403).')
+            $exception.Data['Stage'] = 'pull-request'
+            $exception.Data['Branch'] = 'scan-diagnostics/main'
+            $exception.Data['FallbackReason'] = 'remote: main is protected'
+            throw $exception
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'pull-request'
+        $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ScanDiagnostics::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=ScanDiagnostics::The direct push to main was refused; the branch was pushed instead. (remote: main is protected)')
+        $run.Result.Annotations[-1] | Should-BeLikeString '::error title=ScanDiagnostics::Failed to create or update the scan pull request.*'
+    }
+
     It 'reports a base branch that moved as it is, without the token advice' {
         $publish = {
             param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)

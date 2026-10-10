@@ -317,6 +317,24 @@ Describe 'CheckForUpdates.ps1' {
         $run.Result.Annotations[-1] | Should-BeLikeString '::error title=CheckForUpdates::Failed to update the Rulebook system files.*'
     }
 
+    It 'reports the refusal with the pull request failure when the branch was pushed instead' {
+        $publish = {
+            param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+            $null = $Ignored
+            $exception = [System.InvalidOperationException]::new('Branch update-rulebook-system-files/main/261007123045 was pushed. Could not create the pull request (HTTP 403).')
+            $exception.Data['Stage'] = 'pull-request'
+            $exception.Data['Branch'] = 'update-rulebook-system-files/main/261007123045'
+            $exception.Data['FallbackReason'] = 'remote: main is protected'
+            throw $exception
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = $org; TemplatePath = (Join-Path $templates 'v2'); InstalledTemplatePath = (Join-Path $templates 'v1'); Update = $true; Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'pull-request'
+        $refused = @($run.Result.Annotations | Where-Object { $_ -like '::warning title=CheckForUpdates::The direct push to *' })
+        $refused | Should-BeCollection @('::warning title=CheckForUpdates::The direct push to main was refused; the branch was pushed instead. (remote: main is protected)')
+        $run.Result.Annotations[-1] | Should-BeLikeString '::error title=CheckForUpdates::Failed to create the pull request for the Rulebook system files.*'
+    }
+
     It 'cuts an oversized summary at a line boundary inside a fence, closes it and names where the lists are' {
         $template = Get-TestFolder
         Copy-FixtureTree -Source (Join-Path $templates 'v2') -Destination $template
