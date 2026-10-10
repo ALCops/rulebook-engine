@@ -808,7 +808,7 @@ Describe 'Get-RulebookEndpointChange' {
     }
 }
 
-Describe 'Fixtures' {
+Describe 'Levels and overrides on the fixtures' {
     It 'valid-minimal <Key> lists exactly the derived entries' -ForEach $fixtureTables {
         $level, $stage = $Key.Split('.')
         $endpoint = Get-RulebookEndpoint -Inputs $inputs -Level $level -Stage $stage
@@ -865,14 +865,6 @@ Describe 'Fixtures' {
         @(Update-RulebookEndpoints -RepositoryRoot $root -WhatIf).Count | Should-Be 0
     }
 
-    It 'stale-endpoints differs from the generator in recommended.ci only' {
-        $changes = @(Update-RulebookEndpoints -RepositoryRoot (Copy-Fixture 'stale-endpoints') -WhatIf)
-        (@($changes | ForEach-Object { '{0} {1}' -f $_.File, $_.Change }) -join ',') | Should-Be 'rulesets/recommended.ci.ruleset.json modified'
-    }
-
-    It 'the overlay <Name> leaves the endpoints current' -ForEach @(@{ Name = 'unknown-id' }, @{ Name = 'bad-selector' }) {
-        @(Update-RulebookEndpoints -RepositoryRoot (Copy-Fixture $Name) -WhatIf).Count | Should-Be 0
-    }
 }
 
 Describe 'Compare-RulebookEndpoints' -Skip:$gitMissing {

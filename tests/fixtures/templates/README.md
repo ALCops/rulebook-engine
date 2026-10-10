@@ -2,7 +2,7 @@
 
 Two versions of a mini template and one organization repository created from it, for the update suites (WP07, [#9](https://github.com/ALCops/rulebook-engine/issues/9)): `tests/Rulebook.Update.Tests.ps1`, `tests/CheckForUpdates.Action.Tests.ps1`, `tests/Validate.Action.Tests.ps1` and the `update-action` job in `.github/workflows/ci.yml`. Mechanics: [docs/reference/update-mechanics.md](../../../docs/reference/update-mechanics.md).
 
-Every `rulesets/` folder is written by `Update-RulebookEndpoints` and every `skeletons/*.ruleset.json` by `New-RulebookSkeleton`, never by hand; the consistency tests in `tests/Rulebook.Update.Tests.ps1` run `Test-Rulebook` on all three folders and compare the v1 -> v2 differences with the table below.
+Every `rulesets/` folder is written by `Update-RulebookEndpoints` and every `skeletons/*.ruleset.json` by `New-RulebookSkeleton`, never by hand; the template cases of `tests/Fixtures.Tests.ps1` run `Test-Rulebook` on all three folders, regenerate their generated folders and compare the v1 -> v2 differences with the table below.
 
 ## v1
 
