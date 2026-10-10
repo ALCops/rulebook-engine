@@ -28,11 +28,20 @@ function Get-MarkdownProse {
 }
 
 function ConvertTo-HeadingSlug {
-    # The anchor GitHub gives a heading: links reduced to their text, HTML tags removed, lowercase, every character
-    # other than a letter, a digit, a mark, '_', '-' or a space removed, spaces to '-'.
+    # The anchor GitHub gives a heading: links reduced to their text, HTML tags removed outside code spans (a code
+    # span keeps its content: `List<T>` gives listt), lowercase, every character other than a letter, a digit, a
+    # mark, '_', '-' or a space removed, spaces to '-'.
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Heading)
-    $text = [regex]::Replace($Heading, '!?\[([^\]]*)\]\([^)]*\)', '$1')
-    $text = [regex]::Replace($text, '<[^>]+>', '')
+    $linked = [regex]::Replace($Heading, '!?\[([^\]]*)\]\([^)]*\)', '$1')
+    $builder = [System.Text.StringBuilder]::new()
+    $position = 0
+    foreach ($span in [regex]::Matches($linked, '(`+)(.+?)\1')) {
+        [void]$builder.Append([regex]::Replace($linked.Substring($position, $span.Index - $position), '<[^>]+>', ''))
+        [void]$builder.Append($span.Groups[2].Value)
+        $position = $span.Index + $span.Length
+    }
+    [void]$builder.Append([regex]::Replace($linked.Substring($position), '<[^>]+>', ''))
+    $text = $builder.ToString()
     $text = $text.ToLowerInvariant()
     $text = [regex]::Replace($text, '[^\p{L}\p{N}\p{M}_\- ]', '')
     return $text.Replace(' ', '-')
@@ -59,19 +68,23 @@ function Get-MarkdownAnchor {
 }
 
 function Get-MarkdownLinkTarget {
-    # The link targets of a page, in kind order: inline links and images ([text](target), ![alt](target), with an
-    # optional "title" and one level of balanced parentheses in the target), reference links ([text][label], [label][])
-    # resolved through their definitions (a label without a definition gives '[label]', reported as broken), the
-    # reference definitions themselves ([label]: target), HTML <a href> and <img src>, and autolinks of a relative
-    # file (<other.md>, <docs/x.md#y>).
+    # The link targets of a page, in kind order: inline links ([text](target)) and, separately, images
+    # (![alt](target), also an image inside a link's text), each with an optional "title" and one level of balanced
+    # parentheses in the target; reference links ([text][label], [label][]) resolved through their definitions (a label
+    # without a definition gives '[label]', reported as broken); the reference definitions themselves ([label]:
+    # target, not a footnote [^1]: ...); HTML <a href> and <img src>. GitHub autolinks only absolute URIs, so <x.md>
+    # in prose is not a link.
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Prose)
     $targets = [System.Collections.Generic.List[string]]::new()
     $text = '(?:[^\[\]]|\[[^\[\]]*\])*'
-    foreach ($match in [regex]::Matches($Prose, '!?\[' + $text + '\]\(\s*(?:<([^>]*)>|((?:[^\s()]|\([^\s()]*\))+))(?:\s+(?:"[^"]*"|''[^'']*''))?\s*\)')) {
-        $targets.Add($(if ($match.Groups[1].Success) { $match.Groups[1].Value } else { $match.Groups[2].Value }))
+    $destination = '\(\s*(?:<([^>]*)>|((?:[^\s()]|\([^\s()]*\))+))(?:\s+(?:"[^"]*"|''[^'']*''))?\s*\)'
+    foreach ($pattern in ('(?<!!)\[' + $text + '\]' + $destination), ('!\[[^\[\]]*\]' + $destination)) {
+        foreach ($match in [regex]::Matches($Prose, $pattern)) {
+            $targets.Add($(if ($match.Groups[1].Success) { $match.Groups[1].Value } else { $match.Groups[2].Value }))
+        }
     }
     $definitions = [ordered]@{}
-    foreach ($match in [regex]::Matches($Prose, '(?m)^[ ]{0,3}\[([^\]]+)\]:[ \t]*<?([^\s>]+)>?')) {
+    foreach ($match in [regex]::Matches($Prose, '(?m)^[ ]{0,3}\[([^\]^][^\]]*)\]:[ \t]*<?([^\s>]+)>?')) {
         $label = $match.Groups[1].Value.Trim().ToLowerInvariant()
         if (-not $definitions.Contains($label)) { $definitions[$label] = $match.Groups[2].Value }
     }
@@ -81,7 +94,6 @@ function Get-MarkdownLinkTarget {
     }
     foreach ($value in $definitions.Values) { $targets.Add($value) }
     foreach ($match in [regex]::Matches($Prose, '<(?:a|img)\b[^>]*?\s(?:href|src)\s*=\s*["'']([^"'']+)["'']', 'IgnoreCase')) { $targets.Add($match.Groups[1].Value) }
-    foreach ($match in [regex]::Matches($Prose, '(?<![(\[])<((?:\.{1,2}/|/)?[\w.-]+(?:/[\w.-]+)*\.[A-Za-z0-9]+(?:#[^<>\s]*)?)>')) { $targets.Add($match.Groups[1].Value) }
     return , $targets.ToArray()
 }
 
@@ -90,14 +102,16 @@ function Test-MarkdownLink {
     # exist (URL-decoded, relative to the page's folder, or to -Root with a leading '/'), a '#fragment' that names no
     # anchor of the page itself or, for a link to another Markdown page, of that page, and a reference link without a
     # definition. -Overlay: further roots a path is looked up in, at the same place relative to -Root (the template
-    # README resolves docs/ in the user documentation). -Pending: root-relative paths that may be missing (pages not
-    # written yet).
+    # README resolves docs/ in the user documentation). -Pending: root-relative paths (wildcards allowed) that may be
+    # missing (pages not written yet, or docs/* without the user documentation). -NoEscape: a target whose path leaves
+    # -Root is broken (a template page would point outside the organization repository once shipped).
     param(
         [Parameter(Mandatory)][string]$Root,
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
         [string[]]$Overlay = @(),
-        [string[]]$Pending = @()
+        [string[]]$Pending = @(),
+        [switch]$NoEscape
     )
     if ($null -eq (Get-Variable -Name MarkdownAnchorCache -Scope Script -ErrorAction SilentlyContinue)) { $script:MarkdownAnchorCache = @{} }
     $Prose = Get-MarkdownProse -Text $Text
@@ -118,12 +132,13 @@ function Test-MarkdownLink {
         if ($relative -eq '') { continue }
         $full = [System.IO.Path]::GetFullPath($(if ($relative.StartsWith('/')) { Join-Path $Root $relative.TrimStart('/') } else { Join-Path $folder $relative }))
         $fromRoot = [System.IO.Path]::GetRelativePath($Root, $full).Replace('\', '/')
+        if ($NoEscape -and ($fromRoot -eq '..' -or $fromRoot.StartsWith('../') -or [System.IO.Path]::IsPathRooted($fromRoot))) { $broken.Add("$target (outside the repository)"); continue }
         $found = $null
         foreach ($candidate in @($full) + @($Overlay | ForEach-Object { Join-Path $_ $fromRoot })) {
             if (Test-Path -LiteralPath $candidate) { $found = $candidate; break }
         }
         if ($null -eq $found) {
-            if ($fromRoot -cnotin $Pending) { $broken.Add($target) }
+            if (-not @($Pending | Where-Object { $fromRoot -clike $_ })) { $broken.Add($target) }
             continue
         }
         if ($parts.Count -eq 2 -and $parts[1] -ne '' -and $found -like '*.md' -and (Test-Path -LiteralPath $found -PathType Leaf)) {

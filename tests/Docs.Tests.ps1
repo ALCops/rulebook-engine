@@ -38,7 +38,7 @@ BeforeDiscovery {
     }
 
     function Get-PageCase {
-        param([string]$Root, [string[]]$Files, [switch]$User, [string[]]$Overlay = @(), [string[]]$Pending = @(), [string]$Name, [string]$SkipReason)
+        param([string]$Root, [string[]]$Files, [switch]$User, [string[]]$Overlay = @(), [string[]]$Pending = @(), [string]$Name, [switch]$NoEscape)
         foreach ($file in $Files) {
             $text = [System.IO.File]::ReadAllText($file)
             $relative = if ($Name) { $Name } else { [System.IO.Path]::GetRelativePath($Root, $file).Replace('\', '/') }
@@ -50,9 +50,9 @@ BeforeDiscovery {
                 [string[]]$troubleshooting = @(Test-MarkdownTroubleshooting -Text $text)
                 [string[]]$shape = @(Test-MarkdownShape -Text $text)
             }
-            [string[]]$broken = @(if (-not $SkipReason) { Test-MarkdownLink -Root $Root -Path $file -Text $text -Overlay $Overlay -Pending $Pending })
+            [string[]]$broken = @(Test-MarkdownLink -Root $Root -Path $file -Text $text -Overlay $Overlay -Pending $Pending -NoEscape:$NoEscape)
             [string[]]$badJson = @(Test-MarkdownJson -Text $text)
-            @{ Page = $relative; Broken = $broken; BadJson = $badJson; Shaped = $shaped; Troubleshooting = $troubleshooting; Shape = $shape; SkipReason = $SkipReason }
+            @{ Page = $relative; Broken = $broken; BadJson = $badJson; Shaped = $shaped; Troubleshooting = $troubleshooting; Shape = $shape }
         }
     }
 
@@ -62,9 +62,11 @@ BeforeDiscovery {
         Get-ChildItem -LiteralPath (Join-Path $repoRoot 'docs') -Recurse -File -Filter '*.md' | Sort-Object FullName | ForEach-Object FullName
     )
     $templateRoot = Join-Path $repoRoot 'template'
+    # A template page must not point outside template/ (it ships as the organization repository). Without the user
+    # documentation its docs/* targets cannot be checked; everything else still is.
     $templateCase = @{
-        Root = $templateRoot; Files = @(Join-Path $templateRoot 'README.md'); Name = 'template/README.md'; Pending = $pendingUserPages
-        Overlay = @(if ($null -ne $userRoot) { $userRoot }); SkipReason = $(if ($null -eq $userRoot) { "its docs/ links resolve in the user documentation, and $userReason" } else { '' })
+        Root = $templateRoot; Files = @(Join-Path $templateRoot 'README.md'); Name = 'template/README.md'; NoEscape = $true
+        Overlay = @(if ($null -ne $userRoot) { $userRoot }); Pending = @($pendingUserPages) + @(if ($null -eq $userRoot) { 'docs/*' })
     }
     $script:roots = @(@{ Name = 'engine'; Pages = @(Get-PageCase -Root $repoRoot -Files $engineFiles) + @(Get-PageCase @templateCase); Pending = $false })
     if ($null -ne $userRoot) {
@@ -80,7 +82,6 @@ BeforeDiscovery {
 Describe 'Documentation pages' {
     Context '<Name>' -ForEach $roots {
         It '<Page>: relative links resolve' -ForEach $Pages {
-            if ($SkipReason) { Set-ItResult -Skipped -Because $SkipReason }
             $Broken | Should-BeCollection @()
         }
 
@@ -99,6 +100,8 @@ Describe 'Documentation pages' {
     }
 
     It 'checks the user documentation' -ForEach $userMissing -AllowNullOrEmptyForEach {
+        # A workflow annotation, so a failed clone in CI is visible on the run and not just a skipped test.
+        Write-Host "::warning title=Docs.Tests::The user documentation was not checked: $Reason"
         Set-ItResult -Skipped -Because $Reason
     }
 }
@@ -140,9 +143,26 @@ Describe 'Markdown checks' {
         Test-MarkdownLink -Root $root -Path $page -Text $text | Should-BeCollection @('gone.md', '[nowhere] (no reference definition)', 'gone.md')
     }
 
-    It 'checks HTML a href and img src and autolinks of a relative file' {
-        $text = '<a href="other.md">ok</a> <img src="images/a b.png" alt="ok"> <a href="gone.md">x</a> <img src=''gone.png''> <other.md> <gone/x.md> <https://example.com/y.md> <br/>'
-        Test-MarkdownLink -Root $root -Path $page -Text $text | Should-BeCollection @('gone.md', 'gone.png', 'gone/x.md')
+    It 'checks HTML a href and img src, and treats <x.md> in prose as no link' {
+        $text = '<a href="other.md">ok</a> <img src="images/a b.png" alt="ok"> <a href="gone.md">x</a> <img src=''gone.png''> <your-file.json> <https://example.com/y.md> <br/>'
+        Test-MarkdownLink -Root $root -Path $page -Text $text | Should-BeCollection @('gone.md', 'gone.png')
+    }
+
+    It 'checks an image nested in a link' {
+        Test-MarkdownLink -Root $root -Path $page -Text '[![ok](images/a%20b.png)](other.md) [![b](gone.png)](other.md) ![top](gone-too.png)' | Should-BeCollection @('gone.png', 'gone-too.png')
+    }
+
+    It 'ignores footnote definitions' {
+        Test-MarkdownLink -Root $root -Path $page -Text "Text.[^1]`n`n[^1]: See docs." | Should-BeCollection @()
+    }
+
+    It 'compares anchors case-sensitively, as GitHub writes them in lowercase' {
+        Test-MarkdownLink -Root $root -Path $page -Text "# Top`n`n[ok](#top) [gone](#Top)" | Should-BeCollection @('#Top (no such heading on this page)')
+    }
+
+    It 'flags a target outside the root with -NoEscape and takes wildcards in -Pending' {
+        Test-MarkdownLink -Root $root -Path (Join-Path $root 'README.md') -Text '[out](../outside.md) [up](docs/../../x.md) [later](docs/any.md) [in](docs/other.md)' -NoEscape -Pending @('docs/*') |
+            Should-BeCollection @('../outside.md (outside the repository)', 'docs/../../x.md (outside the repository)')
     }
 
     It 'looks a path up in the overlay roots and tolerates pending pages' {
@@ -150,9 +170,9 @@ Describe 'Markdown checks' {
         Test-MarkdownLink -Root $root -Path $page -Text $text -Overlay @($overlay) -Pending @('docs/later.md') | Should-BeCollection @('never.md')
     }
 
-    It 'numbers repeated headings the way GitHub does' {
-        $anchors = Get-MarkdownAnchor -Text "## Notes`n## Notes`n## Route B: suppressWarnings in ``app.json```n"
-        foreach ($anchor in 'notes', 'notes-1', 'route-b-suppresswarnings-in-appjson') { $anchors.Contains($anchor) | Should-BeTrue -Because $anchor }
+    It 'numbers repeated headings the way GitHub does and keeps tag-like text in code spans' {
+        $anchors = Get-MarkdownAnchor -Text "## Notes`n## Notes`n## Route B: suppressWarnings in ``app.json```n## Using ``List<T>```n## A <em>b</em> c`n"
+        foreach ($anchor in 'notes', 'notes-1', 'route-b-suppresswarnings-in-appjson', 'using-listt', 'a-b-c') { $anchors.Contains($anchor) | Should-BeTrue -Because $anchor }
     }
 
     It 'parses JSON blocks, comment lines removed, an excerpt of an object wrapped in braces' {
