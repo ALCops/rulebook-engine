@@ -172,6 +172,22 @@ Describe 'Get-GitHubAccessToken' {
     }
 }
 
+Describe 'Get-GitHubPushEnvironment' {
+    It 'gives git the token as an extra header for the server of an https remote' {
+        $environment = Get-GitHubPushEnvironment -RemoteUrl 'https://github.com/ALCops/rulebook.git' -Token 'ghs_x'
+        $environment['GIT_CONFIG_COUNT'] | Should-Be '1'
+        $environment['GIT_CONFIG_KEY_0'] | Should-Be 'http.https://github.com/.extraheader'
+        $environment['GIT_CONFIG_VALUE_0'] | Should-Be ('AUTHORIZATION: basic ' + [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes('x-access-token:ghs_x')))
+    }
+
+    It 'is empty for <Case>' -ForEach @(
+        @{ Case = 'a local path'; Url = 'C:/repos/rulebook.git'; Token = 'ghs_x' }
+        @{ Case = 'an empty token'; Url = 'https://github.com/ALCops/rulebook.git'; Token = '' }
+    ) {
+        (Get-GitHubPushEnvironment -RemoteUrl $Url -Token $Token).Count | Should-Be 0
+    }
+}
+
 Describe 'Invoke-GitHubApi' {
     It 'sends the GitHub headers and the bearer token and parses JSON' {
         Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json @{ name = 'rulebook' } -Headers @{ 'X-RateLimit-Remaining' = '4999' } }

@@ -1,0 +1,14 @@
+name: Publish
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ALCops/rulebook-engine/actions/Validate@main
+      - uses: ALCops/rulebook-engine/actions/Publish@main
+      - uses: ALCops/rulebook-engine/actions/ScanDiagnostics@main

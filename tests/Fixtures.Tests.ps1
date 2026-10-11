@@ -39,7 +39,7 @@ BeforeDiscovery {
     }
 
     $fixturesRoot = Join-Path $PSScriptRoot 'fixtures'
-    $script:folderCases = @(foreach ($group in 'repos', 'templates', 'matrix') {
+    $script:folderCases = @(foreach ($group in 'repos', 'templates', 'matrix', 'deploy') {
             foreach ($folder in Get-ChildItem -LiteralPath (Join-Path $fixturesRoot $group) -Directory) { @{ Group = $group; Name = $folder.Name } }
         })
     $script:repoFolderCases = @($folderCases | Where-Object { $_.Group -eq 'repos' })
