@@ -401,9 +401,12 @@ function Test-DeployPrecondition {
     The refusals of a deploy: an empty list means it may go ahead.
     .DESCRIPTION
     Both modes: the checkout is clean (git status --porcelain is empty) and its HEAD is the plan's SourceSha.
-    Release also: the tag exists on neither repository (GET repos/{r}/git/ref/tags/{tag} answers 404), and the latest
+    Release also: the tag exists on neither repository (GET repos/{r}/git/ref/tags/{tag} answers 404), the latest
     check runs of SourceSha on the engine are all completed with success or skipped, one of them named test (the
-    deploy's own check runs, deploy and refresh, are left out).
+    deploy's own check runs, deploy and refresh, are left out), and, unless -DryRun, SourceSha is on the engine's
+    main (GET repos/{engine}/compare/main...{sha} answers status identical or behind): a release writes the template's
+    main, which every organization follows, so it is cut from main after the merge; a dry run from a branch stays
+    allowed.
     #>
     [CmdletBinding()]
     [OutputType([string[]])]
@@ -411,7 +414,8 @@ function Test-DeployPrecondition {
         [Parameter(Mandatory)]$Plan,
         [AllowNull()][AllowEmptyString()][string]$EngineToken,
         [AllowNull()][AllowEmptyString()][string]$TemplateToken,
-        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl,
+        [switch]$DryRun
     )
     $refusals = [System.Collections.Generic.List[string]]::new()
     $root = $Plan.RepositoryRoot
@@ -435,6 +439,15 @@ function Test-DeployPrecondition {
             $refusals.Add("The tag $($Plan.Tag) exists on $($pair[0]); add a new '## vX.Y.Z' heading to $($script:ReleaseNotesFile)")
         } elseif ($response.StatusCode -ne 404) {
             $refusals.Add("Could not check the tag $($Plan.Tag) on $($pair[0]) (HTTP $($response.StatusCode): $(Get-ApiText $response))")
+        }
+    }
+    if (-not $DryRun -and -not [string]::IsNullOrEmpty($Plan.SourceSha)) {
+        $response = Invoke-GitHubApi -Method GET -Path "repos/$($Plan.EngineRepo)/compare/main...$($Plan.SourceSha)" -Token $EngineToken -ApiUrl $ApiUrl
+        $compare = if ($response.StatusCode -eq 200 -and $response.Body -is [System.Collections.IDictionary]) { [string]$response.Body['status'] } else { $null }
+        if ($null -eq $compare) {
+            $refusals.Add("Could not check that $(Get-Sha7 $Plan.SourceSha) is on main of $($Plan.EngineRepo) (HTTP $($response.StatusCode): $(Get-ApiText $response))")
+        } elseif (@('identical', 'behind') -notcontains $compare) {
+            $refusals.Add("The commit $(Get-Sha7 $Plan.SourceSha) is not on main of $($Plan.EngineRepo); a release is cut from main after the merge, use dryRun from a branch")
         }
     }
     if (-not [string]::IsNullOrEmpty($Plan.SourceSha)) {
@@ -470,9 +483,10 @@ function Publish-EngineRelease {
     Moves the engine's floating branch to -Sha and pushes the tag: { OldSha, Sha, Branch, Tag, Created }.
     .DESCRIPTION
     git push <remote> <sha>:refs/heads/<Branch> --force-with-lease=refs/heads/<Branch>:<old>, old read with git
-    ls-remote (absent: the branch is created and must still be absent). Forced because a prerelease deployed from a
-    pull request branch is not an ancestor of the squash commit that follows; the lease still refuses a move made by
-    someone else in between. Then <sha>:refs/tags/<Tag>. A refused push throws.
+    ls-remote (absent: the branch is created and must still be absent). Since D53 a release is cut from main only
+    (Test-DeployPrecondition), so the move is normally a fast-forward; the force is kept so a move that is not one (an
+    old D52 prerelease cut from a pull request branch) still goes through, and the lease keeps it safe: it refuses a
+    move made by someone else in between. Then <sha>:refs/tags/<Tag>. A refused push throws.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'The deploy is the change; its dry run stops before this')]
     [CmdletBinding()]
@@ -675,7 +689,7 @@ function Invoke-RulebookDeploy {
         $templateToken = (Get-GitHubAccessToken -Token $appJson -Repository $plan.TemplateRepo -ApiUrl $ApiUrl -Permissions $script:DeployPermissions).Token
         if (-not [string]::IsNullOrEmpty($templateToken)) { Write-Host "::add-mask::$templateToken" }
 
-        $refusals = @(Test-DeployPrecondition -Plan $plan -EngineToken $engineToken -TemplateToken $templateToken -ApiUrl $ApiUrl)
+        $refusals = @(Test-DeployPrecondition -Plan $plan -EngineToken $engineToken -TemplateToken $templateToken -ApiUrl $ApiUrl -DryRun:$DryRun)
         $result.Refusals = [string[]]$refusals
         if ($refusals.Count -gt 0) {
             foreach ($refusal in $refusals) { Write-Host "::error title=Deploy::$(ConvertTo-AnnotationText $refusal)" }

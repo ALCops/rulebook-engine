@@ -104,12 +104,17 @@ BeforeAll {
 
     function Set-DeployApiMock {
         # The token exchange and the REST calls of a deploy: tags absent (or -TagOn names the repositories that have
-        # it), the check runs of -Runs, a release POST answered 201.
+        # it), the check runs of -Runs, the comparison of the commit with engine main (-Compare, a status or an HTTP
+        # code), a release POST answered 201.
         [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive or mocks')]
-        param([string[]]$TagOn = @(), [object[]]$Runs = @(@{ name = 'test'; status = 'completed'; conclusion = 'success' }))
+        param([string[]]$TagOn = @(), [object[]]$Runs = @(@{ name = 'test'; status = 'completed'; conclusion = 'success' }), [string]$Compare = 'identical')
         Mock Get-GitHubAccessToken -ModuleName Rulebook.Deploy { [pscustomobject]@{ Token = "token-for-$Repository"; Kind = 'app'; ExpiresAt = $null } }
         $script:mockTagOn = $TagOn
         $script:mockRuns = $Runs
+        $script:mockCompare = $Compare
+        Mock Invoke-GitHubApi -ModuleName Rulebook.Deploy -ParameterFilter { $Path -like '*/compare/main...*' } {
+            if ($script:mockCompare -match '^\d+$') { New-ApiResponse ([int]$script:mockCompare) @{ message = 'Server Error' } } else { New-ApiResponse 200 @{ status = $script:mockCompare } }
+        }
         Mock Invoke-GitHubApi -ModuleName Rulebook.Deploy -ParameterFilter { $Path -like '*/git/ref/tags/*' } {
             $repository = ($Path -split '/git/')[0].Substring('repos/'.Length)
             if ($script:mockTagOn -contains $repository) { New-ApiResponse 200 @{ ref = 'refs/tags/x' } } else { New-ApiResponse 404 @{ message = 'Not Found' } }
@@ -305,8 +310,9 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
         $null = Update-DeployReference -Root $root -EngineBranch 'main' -TemplateBranch 'preview'
         $text = Get-Text (Join-Path $root 'docs' 'versioning.md')
-        $text | Should-MatchString '(?<!ALCops/rulebook)`@main`'
-        $text | Should-MatchString '`@preview`'
+        # The switch-back sentence of section 4 tells a preview follower to return to the release.
+        $text | Should-MatchString 'To switch back, set `templateUrl` to end in `@main` again'
+        $text | Should-MatchString 'set `templateUrl` to end in `@preview`'
     }
 
     It 'spells out no engine branch in the prose of the shipped pages, which the rewrite cannot reach' {
@@ -433,6 +439,33 @@ Describe 'Test-DeployPrecondition' -Skip:$gitMissing {
     It 'refuses a tag that exists on <Repository>' -ForEach @(@{ Repository = 'ALCops/rulebook-engine' }, @{ Repository = 'ALCops/rulebook' }) {
         Set-DeployApiMock -TagOn @($Repository)
         @(Test-DeployPrecondition -Plan $plan -EngineToken 'e' -TemplateToken 't') | Should-BeCollection @("The tag v1.2.0-beta.1 exists on $Repository; add a new '## vX.Y.Z' heading to RELEASENOTES.md")
+    }
+
+    It 'checks that the commit is on engine main through the compare API' {
+        Set-DeployApiMock
+        @(Test-DeployPrecondition -Plan $plan -EngineToken 'e' -TemplateToken 't') | Should-BeCollection @()
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.Deploy -Times 1 -Exactly -ParameterFilter { $Path -eq "repos/ALCops/rulebook-engine/compare/main...$($engine.Sha)" -and $Token -eq 'e' }
+    }
+
+    It 'accepts a commit whose comparison with main is <Compare>' -ForEach @(@{ Compare = 'identical' }, @{ Compare = 'behind' }) {
+        Set-DeployApiMock -Compare $Compare
+        @(Test-DeployPrecondition -Plan $plan -EngineToken 'e' -TemplateToken 't') | Should-BeCollection @()
+    }
+
+    It 'refuses a commit whose comparison with main is <Compare>' -ForEach @(@{ Compare = 'ahead' }, @{ Compare = 'diverged' }) {
+        Set-DeployApiMock -Compare $Compare
+        @(Test-DeployPrecondition -Plan $plan -EngineToken 'e' -TemplateToken 't') | Should-BeCollection @("The commit $($engine.Sha.Substring(0, 7)) is not on main of ALCops/rulebook-engine; a release is cut from main after the merge, use dryRun from a branch")
+    }
+
+    It 'refuses when the comparison with main cannot be read' {
+        Set-DeployApiMock -Compare '500'
+        @(Test-DeployPrecondition -Plan $plan -EngineToken 'e' -TemplateToken 't') | Should-BeCollection @("Could not check that $($engine.Sha.Substring(0, 7)) is on main of ALCops/rulebook-engine (HTTP 500: Server Error)")
+    }
+
+    It 'allows a dry run of a commit that is not on main and skips the comparison' {
+        Set-DeployApiMock -Compare 'diverged'
+        @(Test-DeployPrecondition -Plan $plan -EngineToken 'e' -TemplateToken 't' -DryRun) | Should-BeCollection @()
+        Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.Deploy -Times 0 -Exactly -ParameterFilter { $Path -like '*/compare/*' }
     }
 
     It 'refuses when the commit has more check runs than one page returns' {
@@ -648,6 +681,19 @@ Describe 'Invoke-RulebookDeploy' -Skip:$gitMissing {
         $result.ExitCode | Should-Be 1
         @($result.Refusals) | Should-BeCollection @("The tag v1.2.0-beta.1 exists on ALCops/rulebook; add a new '## vX.Y.Z' heading to RELEASENOTES.md")
         Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main' | Should-Be $mainBefore
+    }
+
+    It 'refuses a release of a commit that is not on engine main before any push, and lets its dry run through' {
+        Set-DeployApiMock -Compare 'diverged'
+        $mainBefore = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
+        $dry = Invoke-RulebookDeploy -Mode release -DryRun @deploy 6>$null
+        $dry.ExitCode | Should-Be 0
+        $deploy.WorkPath = Join-Path (Get-TestFolder) 'work'
+        $result = Invoke-RulebookDeploy -Mode release @deploy 6>$null
+        $result.ExitCode | Should-Be 1
+        @($result.Refusals) | Should-BeCollection @("The commit $($engine.Sha.Substring(0, 7)) is not on main of ALCops/rulebook-engine; a release is cut from main after the merge, use dryRun from a branch")
+        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main' | Should-Be $mainBefore
+        Get-RemoteRef -Bare $engine.Bare -Ref 'refs/heads/v1' | Should-BeNull
     }
 
     It 'refuses without the App credentials' {
