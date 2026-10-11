@@ -1,5 +1,9 @@
 # Release notes
 
+## v1.0.0-beta.3
+
+- Update: templateUrl accepts a tag, the pin of a release ([#108](https://github.com/ALCops/rulebook-engine/pull/108))
+
 ## v1.0.0-beta.2
 
 - Release notes: the deploy line names its pull request ([#102](https://github.com/ALCops/rulebook-engine/pull/102))
