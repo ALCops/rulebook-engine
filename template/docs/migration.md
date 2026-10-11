@@ -146,7 +146,7 @@ Recommended differs in 15 ids for `editor` and 23 for `build`; the other shipped
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-overrides.schema.json",
   "rules": [
     { "id": "AA0137", "action": "Error", "levels": ["recommended"], "stages": ["*"], "justification": "Migrated: base" },
     { "id": "AA0021", "action": "None", "levels": ["recommended"], "stages": ["*"], "justification": "Migrated: base" },

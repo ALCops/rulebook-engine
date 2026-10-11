@@ -94,7 +94,7 @@ Add an entry to `levels` at the position where it should appear, and create its 
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook House",
   "description": "Level house, basedOn recommended. The house rules of this organization.",
   "rules": [
@@ -119,7 +119,7 @@ Shipped names are not edited: the shipped file name is what the update overwrite
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook Baseline",
   "description": "Level baseline, basedOn essential. Essential under another name: an alias.",
   "rules": []
@@ -169,7 +169,7 @@ Add an entry to `stages` and create `stages/<slug>.json` with the rules it chang
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook stage Nightly",
   "description": "Stage nightly. Applied on top of every level where the level result is not None. Organization stage.",
   "rules": [

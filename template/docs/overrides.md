@@ -20,7 +20,7 @@ The template ships it empty:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-overrides.schema.json",
   "rules": []
 }
 ```
@@ -29,7 +29,7 @@ With entries, one per line, the layout the Change Rule workflow writes:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-overrides.schema.json",
   "rules": [
     { "id": "AL0432", "action": "None", "levels": ["*"], "stages": ["ci"], "justification": "Obsoletion backlog tracked in DEV-1234" },
     { "id": "LC0015", "action": "Error", "levels": ["strict", "complete"], "stages": ["*"] }
