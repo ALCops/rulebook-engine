@@ -3,6 +3,9 @@
 # runs the action itself on the fixtures; the update mode against a repository is in tests/Rulebook.Update.Tests.ps1.
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:actionDir = Join-Path $script:repoRoot 'actions' 'CheckForUpdates'
     $script:entry = Join-Path $script:actionDir 'CheckForUpdates.ps1'
@@ -38,6 +41,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     $env:GITHUB_OUTPUT = $script:saved.Output
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository
@@ -218,6 +222,17 @@ Describe 'CheckForUpdates.ps1' {
         $run.Result.Failure | Should-Be 'token'
         @($run.Result.Annotations) | Should-BeCollection @('::error title=CheckForUpdates::The GHTOKENWORKFLOW secret is needed to update system files. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md')
         $run.Result.Plan | Should-BeNull
+    }
+
+    It 'points at the user page on the branch the action runs from (GITHUB_ACTION_REF v1)' {
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            $run = Invoke-Entry @{ RepositoryRoot = $org; Update = $true; ApiUrl = 'http://127.0.0.1:9' }
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        @($run.Result.Annotations) | Should-BeCollection @('::error title=CheckForUpdates::The GHTOKENWORKFLOW secret is needed to update system files. Read https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md')
     }
 
     It 'names the secret from ghTokenWorkflowSecretName' {

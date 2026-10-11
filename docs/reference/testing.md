@@ -55,6 +55,7 @@ The suites dot-source these in `BeforeAll`:
 | `tests/Helpers/RepoFixture.ps1` | `New-FixtureRepo` (a fixture copied into a folder, an overlay over `valid-minimal`), `Copy-FixtureTree`, `Write-FixtureText`, `Edit-FixtureJson` (edit a JSON file with a scriptblock), `New-FixtureGitRepo` (init, add, commit; returns the sha), `New-BareFixtureRepo`, `Add-RejectPushHook` (a pre-receive hook that refuses `main`, or every push with `-All`: the stand-in for branch protection), `Copy-FixtureTemplate`, `New-SyntheticRulebook` (the 650-id performance rulebook). |
 | `tests/Helpers/StubFeed.ps1` | `New-StubFeed` (a NuGet flat container of stub packages), `Expand-StubPackage`, `Get-FaultyToolsFolder`; builds the stubs in a child pwsh and caches them by source hash. |
 | `tests/Helpers/MarkdownCheck.ps1` | The checks of `Docs.Tests.ps1`: relative links and anchors (`Test-MarkdownLink`), fenced JSON (`Test-MarkdownJson`), the page shape of the user documentation (`Test-MarkdownShape`, `Test-MarkdownTroubleshooting`). |
+| `tests/Helpers/EngineRef.ps1` | `Clear-EngineRefEnvironment` (removes `GITHUB_ACTION_REF` and `GITHUB_ACTION_PATH`, returns the old values) and `Restore-EngineRefEnvironment`, in `BeforeAll` and `AfterAll` of every suite that asserts a schema, script or docs URL built from the engine ref (D52); `Rulebook.Common.Tests.ps1` sets and restores the two variables per test itself. |
 
 ## 4. CI reporting and coverage
 

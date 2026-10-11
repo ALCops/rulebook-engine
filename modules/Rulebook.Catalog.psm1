@@ -10,8 +10,9 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.NuGet.psd1')
 
-$script:CatalogSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-catalog.schema.json'
-$script:ScanStateSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-scan-state.schema.json'
+# The schema file names; the URL is built at call time from the engine ref (Get-RulebookSchemaUrl, D52).
+$script:CatalogSchemaName = 'rulebook-catalog.schema.json'
+$script:ScanStateSchemaName = 'rulebook-scan-state.schema.json'
 $script:ToolsPackageId = 'microsoft.dynamics.businesscentral.development.tools'
 $script:AlcopsPackageId = 'alcops.analyzers'
 $script:PackageOrder = @($script:ToolsPackageId, $script:AlcopsPackageId)
@@ -191,7 +192,7 @@ function ConvertTo-CatalogJson {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Entries, [AllowNull()][AllowEmptyString()][string]$Schema)
-    if ([string]::IsNullOrEmpty($Schema)) { $Schema = $script:CatalogSchemaUrl }
+    if ([string]::IsNullOrEmpty($Schema)) { $Schema = Get-RulebookSchemaUrl -Name $script:CatalogSchemaName }
     $items = foreach ($entry in $Entries) {
         $item = '{ "id": ' + (ConvertTo-JsonString $entry.Id)
         $analyzer = Get-EntryValue $entry 'Analyzer'
@@ -466,7 +467,7 @@ function Read-ScanState {
     param([Parameter(Mandatory)][string]$Path)
     $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
-        return [pscustomobject]@{ PSTypeName = 'Rulebook.ScanState'; Schema = $script:ScanStateSchemaUrl; Version = 1; Packages = (Get-OrdinalMap) }
+        return [pscustomobject]@{ PSTypeName = 'Rulebook.ScanState'; Schema = (Get-RulebookSchemaUrl -Name $script:ScanStateSchemaName); Version = 1; Packages = (Get-OrdinalMap) }
     }
     return ConvertFrom-ScanStateText -Text ([System.IO.File]::ReadAllText($full, $script:Utf8NoBom)) -Path $Path
 }
@@ -479,7 +480,7 @@ function ConvertTo-ScanStateJson {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)]$State)
-    $schema = if ([string]::IsNullOrEmpty($State.Schema)) { $script:ScanStateSchemaUrl } else { $State.Schema }
+    $schema = if ([string]::IsNullOrEmpty($State.Schema)) { Get-RulebookSchemaUrl -Name $script:ScanStateSchemaName } else { $State.Schema }
     $ordered = [System.Collections.Generic.List[object]]::new()
     foreach ($id in $State.Packages.Keys) { $ordered.Add([pscustomobject]@{ Key = ('{0:00}|{1}' -f (Get-PackageRank $id), $id); Id = [string]$id }) }
     $ordered.Sort([System.Comparison[object]] { param($left, $right) [string]::CompareOrdinal($left.Key, $right.Key) })

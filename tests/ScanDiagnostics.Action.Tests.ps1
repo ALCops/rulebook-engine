@@ -3,6 +3,9 @@
 # template/.github/workflows/ScanDiagnostics.yaml. The ci.yml job scan-action runs the action on the real packages.
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:actionDir = Join-Path $script:repoRoot 'actions' 'ScanDiagnostics'
     $script:entry = Join-Path $script:actionDir 'ScanDiagnostics.ps1'
@@ -54,6 +57,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     $env:GITHUB_OUTPUT = $script:saved.Output
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository
@@ -181,6 +185,17 @@ Describe 'ScanDiagnostics.ps1' {
         $run.Result.ExitCode | Should-Be 1
         $run.Result.Failure | Should-Be 'token'
         $run.Result.Annotations[0] | Should-BeLikeString '*The GHTOKENWORKFLOW secret is needed to scan diagnostics. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
+    }
+
+    It 'points at the user page on the branch the action runs from (GITHUB_ACTION_REF v1)' {
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = ''; PackageSource = (Join-Path $TestDrive 'no-such-feed') }
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
+        $run.Result.Annotations[0] | Should-BeLikeString '*The GHTOKENWORKFLOW secret is needed to scan diagnostics. Read https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md'
     }
 
     It 'runs a dry run without a token: outputs, summary and the kept candidate' {

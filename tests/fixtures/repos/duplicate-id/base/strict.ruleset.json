@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
   "name": "Rulebook Strict",
   "description": "Level strict, basedOn recommended. Lists the ids whose action differs from recommended. Test fixture.",
   "rules": [

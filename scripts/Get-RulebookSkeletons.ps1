@@ -20,7 +20,7 @@ them either: -BaseUrl must be the final address of the site. Every failure throw
 The script is self-contained (PowerShell 7, no module) and only downloads: it does not change any settings file. It
 prints the settings that point VS Code and AL-Go at the files, with paths relative to the current folder: run it from
 the AL project root, the folder with app.json. The details are on the user page docs/al-project.md in the
-ALCops/rulebook repository (written with WP06), linked below.
+ALCops/rulebook repository (written with WP06), linked below, on the branch -Ref names.
 
 .PARAMETER BaseUrl
 The address of the published Rulebook site, the baseUrl of the organization's rulebook repository, for example
@@ -37,6 +37,11 @@ The folder that receives one <stage>.ruleset.json per stage, relative to the cur
 Overwrites existing files. Without it the script stops when any target file exists, because a downloaded skeleton
 replaces the project exceptions in the existing file's rules.
 
+.PARAMETER Ref
+The branch of ALCops/rulebook whose user page the closing hint links: v1, the release branch every organization
+follows (D52). The default is the current major and is raised by hand when a new major ships; main is the
+development branch.
+
 .EXAMPLE
 ./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level strict
 
@@ -51,20 +56,21 @@ Replaces the files in .rulebook/ of the AL project in ./MyApp with the skeletons
 settings it prints are relative to ./MyApp, for example "al.ruleSetPath": ".rulebook/default.ruleset.json".
 
 .LINK
-https://github.com/ALCops/rulebook/blob/main/docs/al-project.md
+https://github.com/ALCops/rulebook/blob/v1/docs/al-project.md
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Mandatory)][string]$BaseUrl,
     [Parameter(Mandatory)][string]$Level,
     [string]$OutputPath = '.rulebook',
-    [switch]$Force
+    [switch]$Force,
+    [ValidatePattern('^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._/-]*\z')][string]$Ref = 'v1'
 )
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
-$docsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/al-project.md'
+$docsUrl = 'https://github.com/ALCops/rulebook/blob/{0}/docs/al-project.md' -f $Ref
 $utf8 = [System.Text.UTF8Encoding]::new($false)
 
 function Get-RulebookResponse {

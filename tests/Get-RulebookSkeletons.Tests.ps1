@@ -4,6 +4,9 @@
 # path is exercised by the publish-action job in ci.yml, which serves the staged site with python3 -m http.server.
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:entry = Join-Path $script:repoRoot 'scripts' 'Get-RulebookSkeletons.ps1'
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
@@ -49,6 +52,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
@@ -286,7 +290,28 @@ Describe 'Get-RulebookSkeletons.ps1' {
         $text | Should-MatchString ([regex]::Escape('"al.ruleSetPath": ".rulebook/default.ruleset.json"'))
         $text | Should-MatchString ([regex]::Escape('"rulesetFile": ".rulebook/ci.ruleset.json", "enableExternalRulesets": true'))
         $text | Should-MatchString ([regex]::Escape('.github/NextMajor.settings.json: "rulesetFile": ".rulebook/vnext.ruleset.json"'))
-        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/main/docs/al-project.md'))
+        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/v1/docs/al-project.md'))
+    }
+
+    It 'links the user page on the -Ref branch' {
+        $run = Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = (Get-TestFolder); Ref = 'v2' }
+        $text = $run.Lines -join "`n"
+        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/v2/docs/al-project.md'))
+        $text | Should-NotMatchString ([regex]::Escape('/blob/v1/'))
+    }
+
+    It 'defaults -Ref to the major of the top heading of RELEASENOTES.md' {
+        # The default is the literal current major (D52), raised by hand at a major: this guard fails until it is.
+        $heading = @(Get-Content -LiteralPath (Join-Path $script:repoRoot 'RELEASENOTES.md') | Where-Object { $_ -like '## *' })[0]
+        $heading | Should-MatchString '^## v(\d+)\.\d+\.\d+'
+        $null = $heading -match '^## v(\d+)\.'
+        $major = 'v' + $Matches[1]
+        $tokens = $null
+        $parseErrors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($script:entry, [ref]$tokens, [ref]$parseErrors)
+        $parameter = @($ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'Ref' })
+        $parameter.Count | Should-Be 1
+        $parameter[0].DefaultValue.Value | Should-Be $major
     }
 
     It 'accepts http for the loopback host <Value>' -ForEach @(
@@ -334,5 +359,9 @@ Describe 'Get-RulebookSkeletons.ps1 parameter binding' {
     It 'rejects a stray positional value' {
         # PositionalBinding = $false (#61): every caller binds by name, so a stray value fails before the script runs.
         { & $script:entry -BaseUrl 'https://127.0.0.1:9/rulebook' -Level strict -OutputPath $TestDrive 'stray' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*positional parameter*stray*'
+    }
+
+    It 'rejects a -Ref with ..' {
+        { & $script:entry -BaseUrl 'https://127.0.0.1:9/rulebook' -Level strict -OutputPath $TestDrive -Ref 'v1/../main' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException]) -ExceptionMessage '*Ref*'
     }
 }

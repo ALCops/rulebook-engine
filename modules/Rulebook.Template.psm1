@@ -12,8 +12,9 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Catalog.psd1')
 
 $script:Actions = @('Error', 'Warning', 'Info', 'Hidden', 'None')
 $script:Severities = @('Error', 'Warning', 'Info', 'Hidden')
-$script:DeltaSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/ruleset.delta.schema.json'
-$script:TwinsSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-twins.schema.json'
+# The schema file names; the URL is built at call time from the engine ref (Get-RulebookSchemaUrl, D52).
+$script:DeltaSchemaName = 'ruleset.delta.schema.json'
+$script:TwinsSchemaName = 'rulebook-twins.schema.json'
 $script:GeneratedNote = 'Generated from docs/rulebook; do not edit.'
 $script:SkeletonDescription = 'Copy into your AL project and point al.ruleSetPath or the AL-Go rulesetFile at it. Add project exceptions to rules; they override the endpoint.'
 $script:TwinsGeneratedBy = 'tools/rulebook/Build-Template.ps1'
@@ -301,7 +302,7 @@ function ConvertTo-TwinsJson {
     param([Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Values, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Pairs)
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add('{')
-    $lines.Add('  "$schema": ' + (ConvertTo-JsonString $script:TwinsSchemaUrl) + ',')
+    $lines.Add('  "$schema": ' + (ConvertTo-JsonString (Get-RulebookSchemaUrl -Name $script:TwinsSchemaName)) + ',')
     $lines.Add('  "generatedBy": ' + (ConvertTo-JsonString $script:TwinsGeneratedBy) + ',')
     $lines.Add('  "setting": "twins",')
     $lines.Add('  "values": [' + (@($Values | ForEach-Object { ConvertTo-JsonString $_ }) -join ', ') + '],')
@@ -372,7 +373,7 @@ function Build-RulebookBase {
             "Level $($level.Slug), basedOn $($level.BasedOn). Lists the ids whose action differs from $($level.BasedOn). $($script:GeneratedNote)"
         }
         $files["$($level.Slug).ruleset.json"] = ConvertTo-RulesetJson -Name "Rulebook $($level.Name)" -Description $description `
-            -Rules $rules.ToArray() -IncludeJustification -Schema $script:DeltaSchemaUrl
+            -Rules $rules.ToArray() -IncludeJustification -Schema (Get-RulebookSchemaUrl -Name $script:DeltaSchemaName)
     }
     $twinsText = ConvertTo-TwinsJson -Values $matrixInput.TwinsValues -Pairs $matrixInput.TwinPairs
 
@@ -409,7 +410,7 @@ function Build-RulebookStages {
         }
         $description = "Stage $($stage.Slug). Applied on top of every level where the level result is not None. $($script:GeneratedNote)"
         $files["$($stage.Slug).json"] = ConvertTo-RulesetJson -Name "Rulebook stage $($stage.Name)" -Description $description `
-            -Rules $rules.ToArray() -IncludeJustification -Schema $script:DeltaSchemaUrl
+            -Rules $rules.ToArray() -IncludeJustification -Schema (Get-RulebookSchemaUrl -Name $script:DeltaSchemaName)
     }
     Sync-GeneratedFolder -Directory $OutputPath -Filter '*.json' -Files $files
 }

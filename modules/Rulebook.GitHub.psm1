@@ -20,7 +20,8 @@ $script:DefaultPermissions = [ordered]@{
     actions       = 'read'
     metadata      = 'read'
 }
-$script:TokenDocsUrl = 'https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
+# The user page the token errors point to; the URL is built at call time from the engine ref (Get-RulebookDocsUrl, D52).
+$script:TokenDocsPage = 'ghtokenworkflow.md'
 
 #region Internal helpers
 
@@ -270,26 +271,27 @@ function Get-GitHubAccessToken {
     $value = if ($null -eq $Token) { '' } else { $Token.Trim() }
     if ($value -eq '') { return [pscustomobject]@{ Token = ''; Kind = 'none'; ExpiresAt = $null } }
     if (-not $value.StartsWith('{')) { return [pscustomobject]@{ Token = $value; Kind = 'pat'; ExpiresAt = $null } }
+    $docsUrl = Get-RulebookDocsUrl -Page $script:TokenDocsPage
     try {
         $app = ConvertFrom-Json -InputObject $value -AsHashtable -ErrorAction Stop
     } catch {
-        throw "The token secret starts with '{' but is not JSON. Use a personal access token or the compressed JSON {`"GitHubAppClientId`":`"...`",`"PrivateKey`":`"...`"}; see $script:TokenDocsUrl"
+        throw "The token secret starts with '{' but is not JSON. Use a personal access token or the compressed JSON {`"GitHubAppClientId`":`"...`",`"PrivateKey`":`"...`"}; see $docsUrl"
     }
     $clientId = [string](Get-DictionaryValue -Dictionary $app -Name 'GitHubAppClientId')
     $privateKey = [string](Get-DictionaryValue -Dictionary $app -Name 'PrivateKey')
     if ([string]::IsNullOrEmpty($clientId) -or [string]::IsNullOrEmpty($privateKey)) {
-        throw "The GitHub App JSON in the token secret needs GitHubAppClientId and PrivateKey; see $script:TokenDocsUrl"
+        throw "The GitHub App JSON in the token secret needs GitHubAppClientId and PrivateKey; see $docsUrl"
     }
     $jwt = New-GitHubAppJwt -ClientId $clientId -PrivateKey $privateKey
     $installation = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'installation') -Token $jwt -ApiUrl $ApiUrl
     if ($installation.StatusCode -ne 200 -or $installation.Body -isnot [System.Collections.IDictionary] -or -not $installation.Body.Contains('access_tokens_url')) {
-        throw "The GitHub App $clientId has no installation on $Repository (HTTP $($installation.StatusCode): $(Get-ApiMessage $installation)). Install the app on the repository; see $script:TokenDocsUrl"
+        throw "The GitHub App $clientId has no installation on $Repository (HTTP $($installation.StatusCode): $(Get-ApiMessage $installation)). Install the app on the repository; see $docsUrl"
     }
     $name = $Repository.Substring($Repository.LastIndexOf('/') + 1)
     $body = [ordered]@{ repositories = @($name); permissions = $Permissions }
     $access = Invoke-GitHubApi -Method POST -Uri ([string]$installation.Body['access_tokens_url']) -Token $jwt -Body $body
     if ($access.StatusCode -ne 201 -and $access.StatusCode -ne 200) {
-        throw "The GitHub App $clientId could not get an installation token for $Repository (HTTP $($access.StatusCode): $(Get-ApiMessage $access)). Check the app's repository permissions; see $script:TokenDocsUrl"
+        throw "The GitHub App $clientId could not get an installation token for $Repository (HTTP $($access.StatusCode): $(Get-ApiMessage $access)). Check the app's repository permissions; see $docsUrl"
     }
     $installationToken = [string](Get-DictionaryValue -Dictionary $access.Body -Name 'token')
     if ([string]::IsNullOrEmpty($installationToken)) { throw "The GitHub App $clientId got an answer without a token for $Repository." }

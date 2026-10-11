@@ -6,6 +6,9 @@ BeforeDiscovery {
 }
 
 BeforeAll {
+    # The docs, schema and script URLs follow the engine ref: clear what a runner step would set, restore it in AfterAll.
+    . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
+    $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.GitHub.psd1') -Force
@@ -41,6 +44,7 @@ BeforeAll {
 }
 
 AfterAll {
+    Restore-EngineRefEnvironment -Saved $script:savedEngineRef
     $env:GITHUB_API_URL = $script:savedApiUrl
     Remove-Module Rulebook.GitHub, Rulebook.Common -ErrorAction SilentlyContinue
 }
@@ -154,6 +158,17 @@ Describe 'Get-GitHubAccessToken' {
 
     It 'refuses JSON without the app fields' {
         { Get-GitHubAccessToken -Token '{"clientId":"x"}' -Repository 'Contoso/rulebook' } | Should-Throw -ExceptionMessage '*needs GitHubAppClientId and PrivateKey*'
+    }
+
+    It 'points at the user page on main, or on the branch the action runs from (GITHUB_ACTION_REF v1)' {
+        { Get-GitHubAccessToken -Token '{"clientId":"x"}' -Repository 'Contoso/rulebook' } | Should-Throw -ExceptionMessage '*; see https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
+        $saved = $env:GITHUB_ACTION_REF
+        try {
+            $env:GITHUB_ACTION_REF = 'v1'
+            { Get-GitHubAccessToken -Token '{"clientId":"x"}' -Repository 'Contoso/rulebook' } | Should-Throw -ExceptionMessage '*; see https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md'
+        } finally {
+            $env:GITHUB_ACTION_REF = $saved
+        }
     }
 }
 

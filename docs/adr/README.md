@@ -22,7 +22,7 @@ Every decision that shapes Rulebook, one file per decision, with the alternative
 
 ## Index
 
-D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits, D43 in the WP06 planning interview of the same day that publishes `rulebook.json` with the levels and stages, D44 in the WP07 planning interview of 2026-10-07 that keeps the AL-Go secret `GHTOKENWORKFLOW` and its format for the write token, D45 and D46 in the WP08 planning interview of the same day that made the scan keep one living pull request and treat seeded, unadvertised, deprecated and vanished ids as catalog facts, D47 and D48 in the WP09 planning interview of 2026-10-08 that let the Change Rule workflow follow `commitOptions.createPullRequest` and report no-op changes without writing them, D49 in the WP10 planning interview of 2026-10-09 that keeps the generated pages of the shipped levels in the engine's `docs/levels/`, D50 in the WP11 planning interview of the same day ([#13](https://github.com/ALCops/rulebook-engine/issues/13)) that makes `docs/**` customizable and recovers an unrecorded installed template commit from the root commit's tree, and D51 in the WP12 planning interview of 2026-10-10 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) that makes test coverage a report, not a gate.
+D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in the rule interview of the same day, D21 to D24 in the interview of 2026-10-01 that removed the target dimension, D25 to D30 in the second interview of 2026-10-01 that dropped `L0`, made levels and stages configuration and turned the source files into deltas, D31 to D37 in the interview of 2026-10-03 that added the dashboard and the issue-form write path, D38 and D39 in the bootstrap interview of the same day (WP00) that chose generated release notes and Pester 6, D40 in the WP02 planning interview of 2026-10-04 that made the justification optional in level and stage files, D41 in the WP03 planning interview of 2026-10-05 that let quarantine win over a stage entry for an id no level file mentions, D42 in the WP05 planning interview of 2026-10-06 that made Publish a gate that never commits, D43 in the WP06 planning interview of the same day that publishes `rulebook.json` with the levels and stages, D44 in the WP07 planning interview of 2026-10-07 that keeps the AL-Go secret `GHTOKENWORKFLOW` and its format for the write token, D45 and D46 in the WP08 planning interview of the same day that made the scan keep one living pull request and treat seeded, unadvertised, deprecated and vanished ids as catalog facts, D47 and D48 in the WP09 planning interview of 2026-10-08 that let the Change Rule workflow follow `commitOptions.createPullRequest` and report no-op changes without writing them, D49 in the WP10 planning interview of 2026-10-09 that keeps the generated pages of the shipped levels in the engine's `docs/levels/`, D50 in the WP11 planning interview of the same day ([#13](https://github.com/ALCops/rulebook-engine/issues/13)) that makes `docs/**` customizable and recovers an unrecorded installed template commit from the root commit's tree, D51 in the WP12 planning interview of 2026-10-10 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)) that makes test coverage a report, not a gate, and D52 in the O3 interview and the WP13 planning interview of the same day ([#15](https://github.com/ALCops/rulebook-engine/issues/15), [#27](https://github.com/ALCops/rulebook-engine/issues/27)) that releases a floating `v1` from hand-written release notes and supersedes D38.
 
 | # | Title | Status | Date |
 |---|---|---|---|
@@ -63,7 +63,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D35](0035-site-is-a-customizable-file-class-overwritten-only-when.md) | `site/**` is a customizable file class: overwritten only when unchanged locally | Partly superseded by D50 (2026-10-09) | 2026-10-03 |
 | [D36](0036-the-public-site-omits-the-organization-s-free-text.md) | The public site omits the organization's free-text justifications by default | Accepted | 2026-10-03 |
 | [D37](0037-justification-is-optional-in-every-change-path.md) | Justification is optional in every change path | Accepted | 2026-10-03 |
-| [D38](0038-release-notes-are-generated-from-pull-request-labels.md) | Release notes are generated from pull request labels | Accepted | 2026-10-03 |
+| [D38](0038-release-notes-are-generated-from-pull-request-labels.md) | Release notes are generated from pull request labels | Superseded by D52 (2026-10-10) | 2026-10-03 |
 | [D39](0039-test-framework-is-pester-6.md) | Test framework is Pester 6 | Accepted | 2026-10-03 |
 | [D40](0040-justification-is-optional-in-level-and-stage-files-too.md) | Justification is optional in level and stage files too | Accepted | 2026-10-04 |
 | [D41](0041-quarantine-wins-over-a-stage-entry-for-an-unmentioned-id.md) | Quarantine wins over a stage entry for an id no level file mentions | Accepted | 2026-10-05 |
@@ -77,14 +77,13 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D49](0049-shipped-level-pages-live-in-the-engine-docs.md) | The pages of the shipped levels live in the engine's docs | Accepted | 2026-10-09 |
 | [D50](0050-docs-is-a-customizable-file-class-and-the-installed-commit-is-recovered.md) | `docs/**` is customizable too, and an unrecorded installed template commit is recovered from the root commit's tree | Accepted | 2026-10-09 |
 | [D51](0051-test-coverage-is-a-report-not-a-gate.md) | Test coverage is a report, not a gate | Accepted | 2026-10-10 |
+| [D52](0052-releases-are-a-floating-major-branch-cut-from-hand-written-release-notes.md) | Releases are a floating major branch cut from hand-written release notes | Accepted | 2026-10-10 |
 
 ## Open decisions
 
-| # | Question | Recommendation | Tracked in |
-|---|---|---|---|
-| O3 | How template workflows reference the engine: `@main` in the engine's `template/` source and `@v1` pinned by the deploy step (AL-Go style), or git tags? | Branch `v1` pinned by deploy, tags as convenience. Branches can receive fixes without touching every org repo. | [#27](https://github.com/ALCops/rulebook-engine/issues/27) |
+None. A new open decision is an issue labeled [`decision`](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Adecision) and a row here: number, question, recommendation, issue.
 
-Closed: O1 and O2 by D19 (and D17), O4 by D44 ([#28](https://github.com/ALCops/rulebook-engine/issues/28)), O5 moot since D21, O6 by D28 (one skeleton file per stage).
+Closed: O1 and O2 by D19 (and D17), O3 by D52 ([#27](https://github.com/ALCops/rulebook-engine/issues/27)), O4 by D44 ([#28](https://github.com/ALCops/rulebook-engine/issues/28)), O5 moot since D21, O6 by D28 (one skeleton file per stage).
 
 ## References
 
@@ -101,6 +100,7 @@ Closed: O1 and O2 by D19 (and D17), O4 by D44 ([#28](https://github.com/ALCops/r
 - WP10 planning interview of 2026-10-09 ([#12](https://github.com/ALCops/rulebook-engine/issues/12)): D49.
 - WP11 planning interview of 2026-10-09 ([#13](https://github.com/ALCops/rulebook-engine/issues/13)): D50.
 - WP12 planning interview of 2026-10-10 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)): D51.
+- O3 interview and WP13 planning interview of 2026-10-10 ([#15](https://github.com/ALCops/rulebook-engine/issues/15), [#27](https://github.com/ALCops/rulebook-engine/issues/27)): D52.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
-- [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism behind D2, D3, O3 and D44.
+- [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism and the deploy behind D2, D3, D44 and D52.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).

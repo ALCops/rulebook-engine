@@ -8,13 +8,15 @@
 # Contract: docs/reference/change-mechanics.md.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Validate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Update.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.GitHub.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Action.psd1')
 
-$script:OverridesSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/rulebook-overrides.schema.json'
+# The schema file name; the URL is built at call time from the engine ref (Get-RulebookSchemaUrl, D52).
+$script:OverridesSchemaName = 'rulebook-overrides.schema.json'
 $script:OverridesFile = 'overrides.json'
 $script:Actions = @('Error', 'Warning', 'Info', 'Hidden', 'None')
 $script:IdPattern = '^[A-Z]{2,3}\d{4}i?\z'
@@ -227,7 +229,7 @@ function Read-OverridesFile {
     param([Parameter(Mandatory)][string]$Path)
     $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
     $rules = [System.Collections.Generic.List[object]]::new()
-    $file = [pscustomobject]@{ PSTypeName = 'Rulebook.OverridesFile'; Schema = $script:OverridesSchemaUrl; Rules = $rules; Path = $full; Exists = $false }
+    $file = [pscustomobject]@{ PSTypeName = 'Rulebook.OverridesFile'; Schema = (Get-RulebookSchemaUrl -Name $script:OverridesSchemaName); Rules = $rules; Path = $full; Exists = $false }
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { return $file }
     $file.Exists = $true
     try {
@@ -268,7 +270,7 @@ function ConvertTo-OverridesJson {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory)]$File)
-    $schema = if ([string]::IsNullOrEmpty($File.Schema)) { $script:OverridesSchemaUrl } else { $File.Schema }
+    $schema = if ([string]::IsNullOrEmpty($File.Schema)) { Get-RulebookSchemaUrl -Name $script:OverridesSchemaName } else { $File.Schema }
     $array = { param([string[]]$Values) '[' + (@($Values | ForEach-Object { ConvertTo-JsonString $_ }) -join ', ') + ']' }
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add('{')
