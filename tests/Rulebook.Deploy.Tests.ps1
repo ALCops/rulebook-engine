@@ -611,6 +611,7 @@ Describe 'Invoke-RulebookDeploy' -Skip:$gitMissing {
         $text = Get-Text $summary
         $text | Should-MatchString '## Release v1\.2\.0-beta\.1 \(prerelease\) from '
         $text | Should-MatchString 'DRY RUN: nothing pushed'
+        $text | Should-MatchString '> The check that the commit is on main is skipped in a dry run\.'
         $text | Should-MatchString '### Rewritten \(engine -> `v1`, template -> `main`, 6 files\)'
         $text | Should-MatchString '\| Template branch \| `ALCops/rulebook@main` \|'
         $text | Should-MatchString '- `README\.md`'

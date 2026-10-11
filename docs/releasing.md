@@ -20,7 +20,7 @@ How a version of Rulebook reaches organizations: the branches that move, cutting
 | Repository | Branch or tag | What it is | Moved by |
 |---|---|---|---|
 | `ALCops/rulebook-engine` | `main` | Development. Pull requests only. | merges |
-| `ALCops/rulebook-engine` | `v1` | The released engine every organization's workflows run (`uses: ALCops/rulebook-engine/actions/<Name>@v1`). Always a commit that was the head of `main` or of a pull request branch when it was released. | the Deploy workflow |
+| `ALCops/rulebook-engine` | `v1` | The released engine every organization's workflows run (`uses: ALCops/rulebook-engine/actions/<Name>@v1`). Always a commit of `main` at release time. | the Deploy workflow |
 | `ALCops/rulebook-engine` | `v1.x.y` tags | One per release, with a GitHub Release whose body is the notes section. | the Deploy workflow |
 | `ALCops/rulebook` | `main` (the default branch) | The release: the engine's `template/` with every engine reference rewritten to `v1` and the template references left at `main`, plus `.github/RELEASENOTES.copy.md` and the kept files. "Use this template" copies it; `templateUrl` of an organization ends in `@main`. | the Deploy workflow |
 | `ALCops/rulebook` | `v1.x.y` tags | The template commit of each release (no GitHub Release); an organization pins a release with `templateUrl` ending in the tag. | the Deploy workflow |

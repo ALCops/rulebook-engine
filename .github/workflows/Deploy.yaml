@@ -4,8 +4,9 @@
 # GitHub Release. The run refuses a tag that exists, a commit whose CI is not green and a dirty checkout. dryRun
 # checks everything and pushes nothing. Authenticates as the ALCops deploy App (variable DEPLOY_APP_ID, secret
 # DEPLOY_APP_PRIVATE_KEY).
-# A dispatch with --ref <branch> (gh workflow run Deploy.yaml --ref <branch>) runs this file from that branch and
-# deploys its head commit.
+# A dispatch with --ref <branch> (gh workflow run Deploy.yaml --ref <branch> -f dryRun=true) runs this file from that
+# branch on its head commit: a dispatch from a branch is for a dry run; a release must come from engine main (the
+# deploy refuses a commit that is not on main).
 name: Deploy
 
 on:

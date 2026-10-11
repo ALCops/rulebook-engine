@@ -587,7 +587,11 @@ function ConvertTo-DeploySummary {
         $lines.Add("## Refresh of $($plan.TemplateRepo)@$($plan.TemplateBranch) from $sha7")
     }
     $lines.Add('')
-    if ($Result.DryRun) { $lines.Add('> **DRY RUN: nothing pushed.**'); $lines.Add('') }
+    if ($Result.DryRun) {
+        $lines.Add('> **DRY RUN: nothing pushed.**')
+        if ($null -ne $plan -and $plan.Mode -eq 'release') { $lines.Add('> The check that the commit is on main is skipped in a dry run.') }
+        $lines.Add('')
+    }
     if (@($Result.Refusals).Count -gt 0) {
         $lines.Add('### Refused or failed')
         $lines.Add('')
