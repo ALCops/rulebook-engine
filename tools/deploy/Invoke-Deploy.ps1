@@ -46,6 +46,8 @@ $deploy = @{
     SummaryPath    = $env:GITHUB_STEP_SUMMARY
     KeepPath       = (Join-Path $PSScriptRoot 'keep.txt')
 }
+# The App key is in $deploy now; git and every other child process of the deploy must not inherit it.
+Remove-Item Env:DEPLOY_APP_ID, Env:DEPLOY_APP_PRIVATE_KEY -ErrorAction SilentlyContinue
 $result = Invoke-RulebookDeploy @deploy
 if ([string]::IsNullOrEmpty($env:GITHUB_STEP_SUMMARY)) { Write-Host $result.Summary }
 exit $result.ExitCode

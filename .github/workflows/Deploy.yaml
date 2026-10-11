@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy
+  group: deploy-release
   cancel-in-progress: false
 
 jobs:

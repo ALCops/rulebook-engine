@@ -90,6 +90,12 @@ function Get-Sha7 {
     return $Sha.Substring(0, [Math]::Min(7, $Sha.Length))
 }
 
+function ConvertTo-AnnotationText {
+    # A message for one workflow command line (::error::): '%', CR and LF escaped as the runner expects.
+    param([AllowNull()][AllowEmptyString()][string]$Text)
+    return ([string]$Text).Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+}
+
 function Get-ApiText {
     param($Response)
     if ($null -ne $Response.Body -and $Response.Body -is [System.Collections.IDictionary] -and $Response.Body.Contains('message')) { return [string]$Response.Body['message'] }
@@ -108,8 +114,7 @@ function Invoke-DeployPublish {
         [AllowNull()][AllowEmptyString()][string]$EngineToken,
         [AllowNull()][AllowEmptyString()][string]$TemplateToken,
         [Parameter(Mandatory)][string]$EngineRemoteUrl,
-        [Parameter(Mandatory)][string]$TemplateRemoteUrl,
-        [Parameter(Mandatory)][string]$TemplateDefaultBranch
+        [Parameter(Mandatory)][string]$TemplateRemoteUrl
     )
     [void][System.IO.Directory]::CreateDirectory($WorkPath)
     $clonePath = Join-Path $WorkPath 'template'
@@ -118,8 +123,8 @@ function Invoke-DeployPublish {
     if ($null -ne $existing) {
         $clone = New-GitHubClone -RemoteUrl $TemplateRemoteUrl -Branch $Plan.Branch -Path $clonePath -Token $TemplateToken
     } else {
-        # The first release of a major: the branch starts at the head of the default branch, so its history continues.
-        $clone = New-GitHubClone -RemoteUrl $TemplateRemoteUrl -Branch $TemplateDefaultBranch -Path $clonePath -Token $TemplateToken
+        # The first release of a major: the branch starts at the head of main (the canary's branch), so its history continues.
+        $clone = New-GitHubClone -RemoteUrl $TemplateRemoteUrl -Branch 'main' -Path $clonePath -Token $TemplateToken
         $null = Assert-DeployGit -Root $clone.Path -Arguments @('push', '--quiet', 'origin', "HEAD:refs/heads/$($Plan.Branch)") -Environment $clone.Environment -What "git push $($Plan.Branch) (create)"
     }
     $Result.Copy = Copy-DeployTemplate -Source (Join-Path $Root 'template') -Destination $clone.Path -KeepPath $KeepPath -ReleaseNotesPath (Join-Path $Root $script:ReleaseNotesFile)
@@ -412,7 +417,12 @@ function Test-DeployPrecondition {
         if ($response.StatusCode -ne 200 -or $response.Body -isnot [System.Collections.IDictionary]) {
             $refusals.Add("Could not read the check runs of $(Get-Sha7 $Plan.SourceSha) (HTTP $($response.StatusCode): $(Get-ApiText $response))")
         } else {
-            $runs = @($response.Body['check_runs'] | Where-Object { $null -ne $_ -and $script:OwnCheckRuns -notcontains [string]$_['name'] })
+            $allRuns = @($response.Body['check_runs'] | Where-Object { $null -ne $_ })
+            $total = $response.Body['total_count']
+            if ($null -ne $total -and [int]$total -gt $allRuns.Count) {
+                $refusals.Add("The commit $(Get-Sha7 $Plan.SourceSha) has $total check runs, more than the $($allRuns.Count) one page returns; check them by hand")
+            }
+            $runs = @($allRuns | Where-Object { $script:OwnCheckRuns -notcontains [string]$_['name'] })
             if (-not @($runs | Where-Object { [string]$_['name'] -ceq 'test' })) {
                 $refusals.Add("The commit $(Get-Sha7 $Plan.SourceSha) has no check run named test: CI has not run on it")
             }
@@ -590,7 +600,7 @@ function Invoke-RulebookDeploy {
     Plan (Get-DeployPlan), then one token exchange per repository with the GitHub App JSON built from -AppClientId and
     -AppPrivateKey (contents and workflows write, checks and metadata read; both tokens masked), then the preconditions
     (Test-DeployPrecondition). -DryRun stops there. Release: clone ALCops/rulebook@<branch> (when the branch does
-    not exist yet: clone the default branch and push its head as <branch>, so the history continues), copy
+    not exist yet: clone main and push its head as <branch>, so the history continues), copy
     template/ (Copy-DeployTemplate with -KeepPath), rewrite the references (Update-DeployReference), commit, push and
     tag (Publish-TemplateRelease), move the engine branch and tag it (Publish-EngineRelease) and create the GitHub
     Release with the notes section as its body. Refresh: clone main, copy, commit and push, no rewrite, tag or release.
@@ -611,8 +621,7 @@ function Invoke-RulebookDeploy {
         [AllowNull()][AllowEmptyString()][string]$ApiUrl,
         [AllowNull()][AllowEmptyString()][string]$KeepPath,
         [AllowNull()][AllowEmptyString()][string]$EngineRemoteUrl,
-        [AllowNull()][AllowEmptyString()][string]$TemplateRemoteUrl,
-        [string]$TemplateDefaultBranch = 'main'
+        [AllowNull()][AllowEmptyString()][string]$TemplateRemoteUrl
     )
     $server = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_SERVER_URL)) { $env:GITHUB_SERVER_URL.TrimEnd('/') } else { 'https://github.com' }
     if ([string]::IsNullOrEmpty($EngineRemoteUrl)) { $EngineRemoteUrl = "$server/$($script:EngineRepository).git" }
@@ -642,20 +651,20 @@ function Invoke-RulebookDeploy {
         $refusals = @(Test-DeployPrecondition -Plan $plan -EngineToken $engineToken -TemplateToken $templateToken -ApiUrl $ApiUrl)
         $result.Refusals = [string[]]$refusals
         if ($refusals.Count -gt 0) {
-            foreach ($refusal in $refusals) { Write-Host "::error title=Deploy::$refusal" }
+            foreach ($refusal in $refusals) { Write-Host "::error title=Deploy::$(ConvertTo-AnnotationText $refusal)" }
         } elseif ($DryRun) {
             $result.ExitCode = 0
         } else {
             $publish = @{
                 Result = $result; Plan = $plan; Root = $root; WorkPath = $WorkPath; KeepPath = $KeepPath; ApiUrl = $ApiUrl
                 EngineToken = $engineToken; TemplateToken = $templateToken; EngineRemoteUrl = $EngineRemoteUrl
-                TemplateRemoteUrl = $TemplateRemoteUrl; TemplateDefaultBranch = $TemplateDefaultBranch
+                TemplateRemoteUrl = $TemplateRemoteUrl
             }
             Invoke-DeployPublish @publish
         }
     } catch {
         $message = $_.Exception.Message
-        Write-Host "::error title=Deploy::$message"
+        Write-Host "::error title=Deploy::$(ConvertTo-AnnotationText $message)"
         $result.Refusals = [string[]](@($result.Refusals) + $message)
     } finally {
         $result.Summary = ConvertTo-DeploySummary -Result ([pscustomobject]$result)

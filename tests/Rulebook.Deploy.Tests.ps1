@@ -240,6 +240,20 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         (Get-Text (Join-Path $root 'skeletons' 'README.md')) | Should-MatchString 'raw\.githubusercontent\.com/ALCops/rulebook-engine/v1/scripts/Get-RulebookSkeletons\.ps1'
     }
 
+    It 'spells out no engine branch in the prose of the shipped pages, which the rewrite cannot reach' {
+        # "the main branch of ALCops/rulebook-engine" would still say main on v1; name the branch through the uses: lines.
+        $pages = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'template' 'docs') -Recurse -File -Filter '*.md') +
+        @(Get-Item -LiteralPath (Join-Path $repoRoot 'template' 'README.md'), (Join-Path $repoRoot 'template' 'skeletons' 'README.md'))
+        $hits = foreach ($page in $pages) {
+            $number = 0
+            foreach ($line in [System.IO.File]::ReadAllLines($page.FullName)) {
+                $number++
+                if ($line -match 'the `main` branch|main branch of') { "$($page.Name):$number" }
+            }
+        }
+        @($hits) | Should-BeCollection @()
+    }
+
     It 'gives the URLs the engine builds at v1: every schema URL of the rewritten template is what Get-RulebookSchemaUrl returns under GITHUB_ACTION_REF v1' {
         $root = Get-TestFolder
         Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
@@ -344,6 +358,14 @@ Describe 'Test-DeployPrecondition' -Skip:$gitMissing {
     It 'refuses a tag that exists on <Repository>' -ForEach @(@{ Repository = 'ALCops/rulebook-engine' }, @{ Repository = 'ALCops/rulebook' }) {
         Set-DeployApiMock -TagOn @($Repository)
         @(Test-DeployPrecondition -Plan $plan -EngineToken 'e' -TemplateToken 't') | Should-BeCollection @("The tag v1.2.0-beta.1 exists on $Repository; add a new '## vX.Y.Z' heading to RELEASENOTES.md")
+    }
+
+    It 'refuses when the commit has more check runs than one page returns' {
+        Set-DeployApiMock
+        Mock Invoke-GitHubApi -ModuleName Rulebook.Deploy -ParameterFilter { $Path -like '*/check-runs*' } {
+            New-ApiResponse 200 @{ total_count = 101; check_runs = @(@{ name = 'test'; status = 'completed'; conclusion = 'success' }) }
+        }
+        @(Test-DeployPrecondition -Plan $plan -EngineToken 'e' -TemplateToken 't') | Should-BeCollection @("The commit $($engine.Sha.Substring(0, 7)) has 101 check runs, more than the 1 one page returns; check them by hand")
     }
 
     It 'refuses check runs that <Case>' -ForEach @(
@@ -567,6 +589,19 @@ Describe 'Invoke-RulebookDeploy' -Skip:$gitMissing {
         $again.Template.Pushed | Should-BeFalse
         Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main' | Should-Be $head
         (Get-Text $summary) | Should-MatchString '## Refresh of ALCops/rulebook@main from '
+    }
+}
+
+Describe 'Annotation text' {
+    It 'escapes percent, carriage return and line feed for a workflow command' {
+        & (Get-Module Rulebook.Deploy) { ConvertTo-AnnotationText "100% done`r`nnext line" } | Should-Be '100%25 done%0D%0Anext line'
+    }
+
+    It 'writes a multi-line failure as one ::error line' -Skip:$gitMissing {
+        Mock Get-DeployPlan -ModuleName Rulebook.Deploy { throw "first line`nsecond line" }
+        $root = (New-EngineCheckout).Root
+        $output = @(Invoke-RulebookDeploy -Mode release -RepositoryRoot $root -Sha 'x' -AppClientId 'a' -AppPrivateKey 'b' 6>&1 | Where-Object { $_ -is [System.Management.Automation.InformationRecord] } | ForEach-Object { [string]$_.MessageData })
+        $output | Should-ContainCollection '::error title=Deploy::first line%0Asecond line'
     }
 }
 
