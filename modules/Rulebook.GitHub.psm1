@@ -717,6 +717,22 @@ function Publish-GitHubChange {
     return [pscustomobject]@{ Pushed = $true; Branch = $NewBranch; Direct = $false; Fallback = $fallback; FallbackReason = $fallbackReason; Sha = $sha; Reason = 'branch' }
 }
 
+function Get-GitHubPushEnvironment {
+    <#
+    .SYNOPSIS
+    The per-process git environment that sends -Token to the server of -RemoteUrl: GIT_CONFIG_COUNT with an
+    http.<server>/.extraheader, empty for a local path or an empty token.
+    .DESCRIPTION
+    For callers that run git themselves (the deploy, WP13) and must not use Publish-GitHubChange, whose branch
+    fallback is wrong for them. Pass the result as -Environment of Invoke-Git; the token never enters a URL or git
+    config.
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Collections.Specialized.OrderedDictionary])]
+    param([Parameter(Mandatory)][string]$RemoteUrl, [AllowNull()][AllowEmptyString()][string]$Token)
+    return Get-GitAuthEnvironment -RemoteUrl $RemoteUrl -Token $Token
+}
+
 #endregion
 
 Export-ModuleMember -Function @(
@@ -725,6 +741,7 @@ Export-ModuleMember -Function @(
     'Get-GitHubAccessToken'
     'Get-GitHubBranchSha'
     'Get-GitHubCommitList'
+    'Get-GitHubPushEnvironment'
     'Get-GitRootTree'
     'Invoke-GitHubApi'
     'New-GitHubAppJwt'
