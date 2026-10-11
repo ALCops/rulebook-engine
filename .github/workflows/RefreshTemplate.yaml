@@ -1,7 +1,8 @@
-# Refreshes ALCops/rulebook@main, the bleeding-edge branch the canary rulebook follows (D52, docs/releasing.md): the
-# engine's template/ copied verbatim (it says main everywhere) plus .github/RELEASENOTES.copy.md, committed only when
-# something changed. No rewrite, no tag, no release. Runs on every push to main that touches template/ or the release
-# notes, and by hand. Authenticates as the ALCops deploy App (variable DEPLOY_APP_ID, secret DEPLOY_APP_PRIVATE_KEY).
+# Refreshes ALCops/rulebook@preview, the bleeding-edge branch the canary rulebook follows (D53, docs/releasing.md): the
+# engine's template/ plus .github/RELEASENOTES.copy.md, with the template references rewritten to preview (the engine
+# references stay at main), committed only when something changed. The first run creates preview from the head of
+# main. No tag, no release. Runs on every push to main that touches template/ or the release notes, and by hand.
+# Authenticates as the ALCops deploy App (variable DEPLOY_APP_ID, secret DEPLOY_APP_PRIVATE_KEY).
 # A dispatch with --ref <branch> runs this file from that branch and copies that branch's template/.
 name: Refresh Template
 
@@ -31,7 +32,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Refresh ALCops/rulebook@main
+      - name: Refresh ALCops/rulebook@preview
         shell: pwsh
         env:
           DEPLOY_APP_ID: ${{ vars.DEPLOY_APP_ID }}

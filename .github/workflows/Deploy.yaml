@@ -1,8 +1,9 @@
-# Releases the engine and the template (D52, docs/releasing.md): the version and the notes come from the top heading
-# of RELEASENOTES.md. ALCops/rulebook gets template/ on v<major> with every engine and template reference rewritten to
-# that branch and the tag vX.Y.Z; the engine gets v<major> moved to this commit, the tag and a GitHub Release. The run
-# refuses a tag that exists, a commit whose CI is not green and a dirty checkout. dryRun checks everything and pushes
-# nothing. Authenticates as the ALCops deploy App (variable DEPLOY_APP_ID, secret DEPLOY_APP_PRIVATE_KEY).
+# Releases the engine and the template (D53, docs/releasing.md): the version and the notes come from the top heading
+# of RELEASENOTES.md. ALCops/rulebook gets template/ on main with every engine reference rewritten to v<major> (the
+# template references stay at main) and the tag vX.Y.Z; the engine gets v<major> moved to this commit, the tag and a
+# GitHub Release. The run refuses a tag that exists, a commit whose CI is not green and a dirty checkout. dryRun
+# checks everything and pushes nothing. Authenticates as the ALCops deploy App (variable DEPLOY_APP_ID, secret
+# DEPLOY_APP_PRIVATE_KEY).
 # A dispatch with --ref <branch> (gh workflow run Deploy.yaml --ref <branch>) runs this file from that branch and
 # deploys its head commit.
 name: Deploy

@@ -1,7 +1,7 @@
 #requires -Version 7.4
 <#
 .SYNOPSIS
-Releases the engine and the template, or refreshes ALCops/rulebook@main, from this checkout (D52).
+Releases the engine and the template, or refreshes ALCops/rulebook@preview, from this checkout (D53).
 
 .DESCRIPTION
 The entry script of .github/workflows/Deploy.yaml (-Mode release) and .github/workflows/RefreshTemplate.yaml (-Mode
@@ -11,9 +11,10 @@ and exits with its exit code: 0 when the deploy (or the dry run) went through, 1
 an error annotation and a line in the job summary.
 
 Release: the version and the notes come from the top heading of RELEASENOTES.md; the template repository gets
-template/ on v<major> with every engine and template reference rewritten to that branch and the tag; the engine gets
-v<major> moved to GITHUB_SHA and the tag; the engine gets a GitHub Release with the notes. Refresh: template/ is
-copied verbatim to ALCops/rulebook@main, without tag or release. -DryRun stops after the checks and prints the plan.
+template/ on main with every engine reference rewritten to v<major> (the template references stay at main) and the
+tag; the engine gets v<major> moved to GITHUB_SHA and the tag; the engine gets a GitHub Release with the notes.
+Refresh: template/ is copied to ALCops/rulebook@preview (created from main on the first run) with the template
+references rewritten to preview, without tag or release. -DryRun stops after the checks and prints the plan.
 The procedure is docs/releasing.md.
 
 .PARAMETER Mode

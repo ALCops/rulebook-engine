@@ -1,8 +1,9 @@
-# Deploy suite for WP13 (#15, D52): modules/Rulebook.Deploy. The version and the notes from RELEASENOTES.md, the
-# reference rewrite on tests/fixtures/deploy/template-main and on the real template/, the copy into a template clone
-# with the keep list tests/fixtures/deploy/keep.txt, the plan, the preconditions, the git side on bare fixture
-# repositories (engine branch and tag, template branch, commit and tag, refusals) and the orchestrator. Offline: the
-# token exchange and the REST calls are mocked in Rulebook.Deploy; git runs against local bare repositories.
+# Deploy suite for WP13 (#15) and #104 (D53): modules/Rulebook.Deploy. The version and the notes from RELEASENOTES.md,
+# the two-target reference rewrite on tests/fixtures/deploy/template-main and on the real template/, the copy into a
+# template clone with the keep list tests/fixtures/deploy/keep.txt, the plan, the preconditions, the git side on bare
+# fixture repositories (engine branch and tag, template main and preview, commit and tag, refusals) and the
+# orchestrator. Offline: the token exchange and the REST calls are mocked in Rulebook.Deploy; git runs against local
+# bare repositories.
 
 BeforeDiscovery {
     $script:gitMissing = $null -eq (Get-Command git -ErrorAction SilentlyContinue)
@@ -171,28 +172,56 @@ Describe 'Get-ReleaseNotesSection' {
 }
 
 Describe 'Convert-DeployReference and Update-DeployReference' {
+    BeforeAll {
+        $script:enginePattern = & (Get-Module Rulebook.Deploy) { $script:EngineReferencePattern }
+        $script:templatePattern = & (Get-Module Rulebook.Deploy) { $script:TemplateReferencePattern }
+        $script:releaseSet = @('.github/Rulebook-Settings.json', '.github/workflows/Publish.yaml', '.github/workflows/Validate.yaml', 'README.md', 'base/x.json', 'docs/page.md')
+        $script:refreshSet = @('.github/Rulebook-Settings.json', 'README.md')
+    }
+
     It 'rewrites <Case>' -ForEach @(
         @{ Case = 'a uses: line'; Text = '      - uses: ALCops/rulebook-engine/actions/Validate@main'; Expected = '      - uses: ALCops/rulebook-engine/actions/Validate@v1' }
-        @{ Case = 'templateUrl'; Text = '"templateUrl": "https://github.com/ALCops/rulebook@main",'; Expected = '"templateUrl": "https://github.com/ALCops/rulebook@v1",' }
+        @{ Case = 'templateUrl'; Text = '"templateUrl": "https://github.com/ALCops/rulebook@main",'; Expected = '"templateUrl": "https://github.com/ALCops/rulebook@preview",' }
         @{ Case = 'a raw schema URL'; Text = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/x.json'; Expected = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/x.json' }
-        @{ Case = 'a blob docs link'; Text = '(https://github.com/ALCops/rulebook/blob/main/docs/a.md)'; Expected = '(https://github.com/ALCops/rulebook/blob/v1/docs/a.md)' }
-        @{ Case = 'a tree docs link'; Text = 'https://github.com/ALCops/rulebook/tree/main/docs.'; Expected = 'https://github.com/ALCops/rulebook/tree/v1/docs.' }
+        @{ Case = 'a blob docs link'; Text = '(https://github.com/ALCops/rulebook/blob/main/docs/a.md)'; Expected = '(https://github.com/ALCops/rulebook/blob/preview/docs/a.md)' }
+        @{ Case = 'a tree docs link'; Text = 'https://github.com/ALCops/rulebook/tree/main/docs.'; Expected = 'https://github.com/ALCops/rulebook/tree/preview/docs.' }
+        @{ Case = 'a raw template link'; Text = 'ALCops/rulebook/raw/main/x'; Expected = 'ALCops/rulebook/raw/preview/x' }
         @{ Case = 'an engine docs link'; Text = 'https://github.com/ALCops/rulebook-engine/blob/main/docs/ARCHITECTURE.md'; Expected = 'https://github.com/ALCops/rulebook-engine/blob/v1/docs/ARCHITECTURE.md' }
+        @{ Case = 'a line with both'; Text = 'https://github.com/ALCops/rulebook@main and https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/x.json'; Expected = 'https://github.com/ALCops/rulebook@preview and https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/schemas/x.json' }
     ) {
-        Convert-DeployReference -Text $Text -Branch 'v1' | Should-Be $Expected
+        Convert-DeployReference -Text $Text -EngineBranch 'v1' -TemplateBranch 'preview' | Should-Be $Expected
+    }
+
+    It 'rewrites only the engine references for a release (engine v1, template main)' {
+        $text = 'uses: ALCops/rulebook-engine/actions/Validate@main; templateUrl https://github.com/ALCops/rulebook@main; https://github.com/ALCops/rulebook/blob/main/docs/a.md'
+        Convert-DeployReference -Text $text -EngineBranch 'v1' -TemplateBranch 'main' | Should-Be 'uses: ALCops/rulebook-engine/actions/Validate@v1; templateUrl https://github.com/ALCops/rulebook@main; https://github.com/ALCops/rulebook/blob/main/docs/a.md'
+    }
+
+    It 'rewrites only the template references for a refresh (engine main, template preview)' {
+        $text = 'uses: ALCops/rulebook-engine/actions/Validate@main; templateUrl https://github.com/ALCops/rulebook@main; https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/x.json'
+        Convert-DeployReference -Text $text -EngineBranch 'main' -TemplateBranch 'preview' | Should-Be 'uses: ALCops/rulebook-engine/actions/Validate@main; templateUrl https://github.com/ALCops/rulebook@preview; https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/x.json'
+    }
+
+    It 'never matches an engine reference with the template pattern' {
+        foreach ($text in 'ALCops/rulebook-engine@main', 'ALCops/rulebook-engine/main/x', 'ALCops/rulebook-engine/blob/main/x', 'ALCops/rulebook-engine/actions/Validate@main') {
+            $text | Should-NotMatchString $templatePattern
+            $text | Should-MatchString $enginePattern
+        }
     }
 
     It 'leaves <Case> alone' -ForEach @(
         @{ Case = 'a branch filter'; Text = '    branches: [ main ]' }
         @{ Case = 'the prose main branch'; Text = 'the main branch of your repository' }
         @{ Case = 'maintain'; Text = 'ALCops/rulebook@maintain' }
+        @{ Case = 'maintain on the engine'; Text = 'ALCops/rulebook-engine@maintain' }
         @{ Case = 'a longer repository name'; Text = 'ALCops/rulebook-engine-main' }
         @{ Case = 'another owner'; Text = 'contoso/rulebook@main' }
+        @{ Case = 'a bare @main'; Text = 'set templateUrl back to `@main`' }
     ) {
-        Convert-DeployReference -Text $Text -Branch 'v1' | Should-Be $Text
+        Convert-DeployReference -Text $Text -EngineBranch 'v1' -TemplateBranch 'preview' | Should-Be $Text
     }
 
-    It 'rewrites exactly the text files of the fixture that name main, skips the PNG, keeps CRLF and a BOM, and finds nothing on a second run' {
+    It 'rewrites exactly the files of the fixture with an engine reference for a release, skips the PNG, keeps CRLF and a BOM, and finds nothing on a second run' {
         $root = Get-TestFolder
         Copy-FixtureTree -Source $fixture -Destination $root
         $png = Join-Path $root 'docs' 'images' 'pixel.png'
@@ -201,8 +230,8 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         [System.IO.File]::WriteAllText($crlfPath, (Get-Text $crlfPath).Replace("`n", "`r`n"), $utf8)
         $bomPath = Join-Path $root 'base' 'x.json'
         [System.IO.File]::WriteAllText($bomPath, (Get-Text $bomPath), [System.Text.UTF8Encoding]::new($true))
-        $changed = Update-DeployReference -Root $root -Branch 'v1'
-        $changed | Should-BeCollection @('.github/Rulebook-Settings.json', '.github/workflows/Publish.yaml', '.github/workflows/Validate.yaml', 'README.md', 'base/x.json', 'docs/page.md')
+        $changed = Update-DeployReference -Root $root -EngineBranch 'v1' -TemplateBranch 'main'
+        $changed | Should-BeCollection $releaseSet
         Get-FileBase64 $png | Should-Be $pngBase64
         (Get-Text $crlfPath) | Should-Be "# Page`r`n`r`nThe engine's [architecture](https://github.com/ALCops/rulebook-engine/blob/v1/docs/ARCHITECTURE.md).`r`n"
         $bomBytes = [System.IO.File]::ReadAllBytes($bomPath)
@@ -213,35 +242,75 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         $readme = Get-Text (Join-Path $root 'README.md')
         $readme | Should-MatchString 'Left alone: the main branch of your repository, maintain, ALCops/rulebook-engine-main\.'
         $readme | Should-MatchString 'rulebook-engine/v1/scripts/Get-RulebookSkeletons\.ps1'
-        @(Update-DeployReference -Root $root -Branch 'v1') | Should-BeCollection @()
+        $readme | Should-MatchString 'rulebook/blob/main/docs/ghtokenworkflow\.md'
+        (Get-Text (Join-Path $root '.github' 'Rulebook-Settings.json')) | Should-MatchString 'ALCops/rulebook@main"'
+        @(Update-DeployReference -Root $root -EngineBranch 'v1' -TemplateBranch 'main') | Should-BeCollection @()
     }
 
-    It 'changes nothing with -Branch main' {
+    It 'rewrites exactly the files of the fixture with a template reference for a refresh, and finds nothing on a second run' {
         $root = Get-TestFolder
         Copy-FixtureTree -Source $fixture -Destination $root
-        @(Update-DeployReference -Root $root -Branch 'main') | Should-BeCollection @()
+        $changed = Update-DeployReference -Root $root -EngineBranch 'main' -TemplateBranch 'preview'
+        $changed | Should-BeCollection $refreshSet
+        $readme = Get-Text (Join-Path $root 'README.md')
+        $readme | Should-MatchString 'rulebook/blob/preview/docs/ghtokenworkflow\.md'
+        $readme | Should-MatchString 'rulebook/tree/preview/docs'
+        $readme | Should-MatchString 'rulebook-engine/main/scripts/Get-RulebookSkeletons\.ps1'
+        (Get-Text (Join-Path $root '.github' 'Rulebook-Settings.json')) | Should-MatchString 'ALCops/rulebook@preview"'
+        (Get-Text (Join-Path $root '.github' 'workflows' 'Validate.yaml')) | Should-MatchString 'actions/Validate@main'
+        @(Update-DeployReference -Root $root -EngineBranch 'main' -TemplateBranch 'preview') | Should-BeCollection @()
     }
 
-    It 'leaves no rewritable main in the real template/ and turns every engine and template URL of docs/, README.md and skeletons/README.md to v1' {
+    It 'changes nothing with main for both targets' {
+        $root = Get-TestFolder
+        Copy-FixtureTree -Source $fixture -Destination $root
+        @(Update-DeployReference -Root $root -EngineBranch 'main' -TemplateBranch 'main') | Should-BeCollection @()
+    }
+
+    It 'leaves no engine main in the real template/ after the release rewrite, and the template links at main' {
         $root = Get-TestFolder
         Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
-        $changed = Update-DeployReference -Root $root -Branch 'v1'
-        foreach ($file in 'README.md', 'skeletons/README.md', 'docs/al-project.md', 'docs/README.md', 'docs/updating.md') { $changed | Should-ContainCollection $file }
-        $pattern = '(ALCops/rulebook(?:-engine)?(?:/blob|/raw|/tree|/actions/[A-Za-z0-9._-]+)?[/@])main(?![\w-])'
+        $changed = Update-DeployReference -Root $root -EngineBranch 'v1' -TemplateBranch 'main'
+        foreach ($file in 'skeletons/README.md', 'docs/al-project.md') { $changed | Should-ContainCollection $file }
         $left = foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.md', '*.yaml', '*.json') {
             $text = Get-Text $file.FullName
-            if ($text -match $pattern) { "$($file.Name): $($Matches[0])" }
+            if ($text -match $enginePattern) { "$($file.Name): $($Matches[0])" }
         }
         @($left) | Should-BeCollection @()
         $docs = (Get-ChildItem -LiteralPath (Join-Path $root 'docs') -Recurse -File -Filter '*.md' | ForEach-Object { Get-Text $_.FullName }) -join "`n"
         $docs | Should-MatchString 'raw\.githubusercontent\.com/ALCops/rulebook-engine/v1/scripts/'
-        $docs | Should-MatchString 'github\.com/ALCops/rulebook/blob/v1/docs/'
-        $docs | Should-MatchString 'github\.com/ALCops/rulebook/tree/v1/docs'
+        $docs | Should-MatchString 'github\.com/ALCops/rulebook/blob/main/docs/'
+        (Get-Text (Join-Path $root '.github' 'Rulebook-Settings.json')) | Should-MatchString 'ALCops/rulebook@main"'
         (Get-Text (Join-Path $root 'skeletons' 'README.md')) | Should-MatchString 'raw\.githubusercontent\.com/ALCops/rulebook-engine/v1/scripts/Get-RulebookSkeletons\.ps1'
     }
 
+    It 'leaves no template main in the real template/ after the refresh rewrite, and the engine references at main' {
+        $root = Get-TestFolder
+        Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
+        $changed = Update-DeployReference -Root $root -EngineBranch 'main' -TemplateBranch 'preview'
+        foreach ($file in '.github/Rulebook-Settings.json', 'docs/README.md') { $changed | Should-ContainCollection $file }
+        $left = foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.md', '*.yaml', '*.json') {
+            $text = Get-Text $file.FullName
+            if ($text -match $templatePattern) { "$($file.Name): $($Matches[0])" }
+        }
+        @($left) | Should-BeCollection @()
+        $docs = (Get-ChildItem -LiteralPath (Join-Path $root 'docs') -Recurse -File -Filter '*.md' | ForEach-Object { Get-Text $_.FullName }) -join "`n"
+        $docs | Should-MatchString 'github\.com/ALCops/rulebook/blob/preview/docs/'
+        $docs | Should-MatchString 'raw\.githubusercontent\.com/ALCops/rulebook-engine/main/scripts/'
+        (Get-Text (Join-Path $root '.github' 'Rulebook-Settings.json')) | Should-MatchString 'ALCops/rulebook@preview"'
+    }
+
+    It 'keeps the release named as a bare @main in versioning.md after the refresh rewrite (the writer rule)' {
+        $root = Get-TestFolder
+        Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
+        $null = Update-DeployReference -Root $root -EngineBranch 'main' -TemplateBranch 'preview'
+        $text = Get-Text (Join-Path $root 'docs' 'versioning.md')
+        $text | Should-MatchString '(?<!ALCops/rulebook)`@main`'
+        $text | Should-MatchString '`@preview`'
+    }
+
     It 'spells out no engine branch in the prose of the shipped pages, which the rewrite cannot reach' {
-        # "the main branch of ALCops/rulebook-engine" would still say main on v1; name the branch through the uses: lines.
+        # "the main branch of ALCops/rulebook-engine" would still say main on a release; name the branch through the uses: lines.
         $pages = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'template' 'docs') -Recurse -File -Filter '*.md') +
         @(Get-Item -LiteralPath (Join-Path $repoRoot 'template' 'README.md'), (Join-Path $repoRoot 'template' 'skeletons' 'README.md'))
         $hits = foreach ($page in $pages) {
@@ -254,10 +323,10 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         @($hits) | Should-BeCollection @()
     }
 
-    It 'gives the URLs the engine builds at v1: every schema URL of the rewritten template is what Get-RulebookSchemaUrl returns under GITHUB_ACTION_REF v1' {
+    It 'gives the URLs the engine builds at v1: every schema URL of the released template is what Get-RulebookSchemaUrl returns under GITHUB_ACTION_REF v1' {
         $root = Get-TestFolder
         Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
-        $null = Update-DeployReference -Root $root -Branch 'v1'
+        $null = Update-DeployReference -Root $root -EngineBranch 'v1' -TemplateBranch 'main'
         $saved = Clear-EngineRefEnvironment
         try {
             $env:GITHUB_ACTION_REF = 'v1'
@@ -273,6 +342,8 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
             $checked | Should-BeGreaterThan 10
             $scripts = (Get-Text (Join-Path $root 'skeletons' 'README.md'))
             $scripts | Should-MatchString ([regex]::Escape((Get-RulebookScriptUrl -Name 'Get-RulebookSkeletons.ps1')))
+            # The docs of an engine at v1 are the template's release, main (D53).
+            Get-RulebookDocsUrl -Page 'ghtokenworkflow.md' | Should-Be 'https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
             (Get-Text (Join-Path $root 'docs' 'changing-a-rule.md')) | Should-MatchString ([regex]::Escape((Get-RulebookDocsUrl -Page 'ghtokenworkflow.md')))
         } finally {
             Restore-EngineRefEnvironment -Saved $saved
@@ -319,11 +390,13 @@ Describe 'Copy-DeployTemplate' -Skip:$gitMissing {
 }
 
 Describe 'Get-DeployPlan' -Skip:$gitMissing {
-    It 'plans a release: version, tag, branch, prerelease, notes and the rewritten files, computed on a copy' {
+    It 'plans a release: version, tag, the two targets, prerelease, notes and the rewritten files, computed on a copy' {
         $engine = New-EngineCheckout
         $plan = Get-DeployPlan -RepositoryRoot $engine.Root -Mode release -Sha $engine.Sha
         $plan.Version | Should-Be 'v1.2.0-beta.1'
-        $plan.Branch | Should-Be 'v1'
+        $plan.EngineBranch | Should-Be 'v1'
+        $plan.TemplateBranch | Should-Be 'main'
+        $plan.PSObject.Properties['Branch'] | Should-BeNull
         $plan.Prerelease | Should-BeTrue
         $plan.Notes | Should-Be "- Deploy: the release pipeline (#1)`n- Docs: versioning (#2)"
         $plan.TemplateFiles | Should-Be 7
@@ -331,12 +404,14 @@ Describe 'Get-DeployPlan' -Skip:$gitMissing {
         (Get-Text (Join-Path $engine.Root 'template' 'README.md')) | Should-MatchString 'rulebook-engine/main/scripts'
     }
 
-    It 'plans a refresh on main without version, notes or rewrite' {
+    It 'plans a refresh of preview without version or notes, with the template references rewritten' {
         $engine = New-EngineCheckout -Notes "# Release notes`n`n## Unreleased`n"
         $plan = Get-DeployPlan -RepositoryRoot $engine.Root -Mode refresh -Sha $engine.Sha
-        $plan.Branch | Should-Be 'main'
+        $plan.EngineBranch | Should-Be 'main'
+        $plan.TemplateBranch | Should-Be 'preview'
         $plan.Version | Should-BeNull
-        @($plan.Rewritten) | Should-BeCollection @()
+        $plan.Rewritten | Should-BeCollection @('.github/Rulebook-Settings.json', 'README.md')
+        (Get-Text (Join-Path $engine.Root 'template' 'README.md')) | Should-MatchString 'rulebook/blob/main/docs'
     }
 }
 
@@ -434,30 +509,32 @@ Describe 'Publish-EngineRelease' -Skip:$gitMissing {
 }
 
 Describe 'Publish-TemplateRelease' -Skip:$gitMissing {
-    It 'commits a change, pushes v1 and tags the commit; an unchanged second run still tags the head' {
+    It 'commits a change, pushes main and tags the commit; an unchanged second run still tags the head' {
         $bare = New-TemplateRemote
         $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Join-Path (Get-TestFolder) 'clone')
-        $null = Invoke-FixtureGit -Root $clone.Path -Arguments @('push', '-q', 'origin', 'HEAD:refs/heads/v1')
+        $before = Get-RemoteRef -Bare $bare -Ref 'refs/heads/main'
         Write-FixtureText -Path (Join-Path $clone.Path 'README.md') -Text '# New README'
-        $first = Publish-TemplateRelease -Clone $clone -Message 'Release v1.0.0' -TargetBranch 'v1' -Tag 'v1.0.0'
+        $first = Publish-TemplateRelease -Clone $clone -Message 'Release v1.0.0' -TargetBranch 'main' -Tag 'v1.0.0'
         $first.Pushed | Should-BeTrue
         $first.Tagged | Should-BeTrue
-        Get-RemoteRef -Bare $bare -Ref 'refs/heads/v1' | Should-Be $first.Sha
+        Get-RemoteRef -Bare $bare -Ref 'refs/heads/main' | Should-Be $first.Sha
+        (& git -C $bare rev-parse "$($first.Sha)~1").Trim() | Should-Be $before
         Get-RemoteRef -Bare $bare -Ref 'refs/tags/v1.0.0' | Should-Be $first.Sha
-        Get-RemoteRef -Bare $bare -Ref 'refs/heads/main' | Should-NotBe $first.Sha
-        $second = Publish-TemplateRelease -Clone $clone -Message 'Release v1.0.1' -TargetBranch 'v1' -Tag 'v1.0.1'
+        $second = Publish-TemplateRelease -Clone $clone -Message 'Release v1.0.1' -TargetBranch 'main' -Tag 'v1.0.1'
         $second.Pushed | Should-BeFalse
         $second.Sha | Should-Be $first.Sha
         Get-RemoteRef -Bare $bare -Ref 'refs/tags/v1.0.1' | Should-Be $first.Sha
     }
 
-    It 'pushes main without a tag for a refresh' {
+    It 'pushes preview without a tag for a refresh, leaving main alone' {
         $bare = New-TemplateRemote
+        $main = Get-RemoteRef -Bare $bare -Ref 'refs/heads/main'
         $clone = New-GitHubClone -RemoteUrl $bare -Branch 'main' -Path (Join-Path (Get-TestFolder) 'clone')
         Write-FixtureText -Path (Join-Path $clone.Path 'README.md') -Text '# Refreshed'
-        $result = Publish-TemplateRelease -Clone $clone -Message 'Refresh' -TargetBranch 'main'
+        $result = Publish-TemplateRelease -Clone $clone -Message 'Refresh' -TargetBranch 'preview'
         $result.Tagged | Should-BeFalse
-        Get-RemoteRef -Bare $bare -Ref 'refs/heads/main' | Should-Be $result.Sha
+        Get-RemoteRef -Bare $bare -Ref 'refs/heads/preview' | Should-Be $result.Sha
+        Get-RemoteRef -Bare $bare -Ref 'refs/heads/main' | Should-Be $main
         @(& git -C $bare tag) | Should-BeCollection @()
     }
 }
@@ -488,68 +565,76 @@ Describe 'Invoke-RulebookDeploy' -Skip:$gitMissing {
         }
     }
 
-    It 'stops a dry run after the preconditions: the plan and the summary, no push, no release' {
+    It 'stops a dry run after the preconditions: the plan and the summary with both targets, no push, no release' {
         Set-DeployApiMock
+        $mainBefore = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
         $result = Invoke-RulebookDeploy -Mode release -DryRun @deploy 6>$null
         $result.ExitCode | Should-Be 0
         $result.Pushed | Should-BeFalse
         Should-Invoke Get-GitHubAccessToken -ModuleName Rulebook.Deploy -Times 2 -Exactly
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.Deploy -Times 0 -Exactly -ParameterFilter { $Method -eq 'POST' }
-        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/v1' | Should-BeNull
+        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main' | Should-Be $mainBefore
         Get-RemoteRef -Bare $engine.Bare -Ref 'refs/heads/v1' | Should-BeNull
         $text = Get-Text $summary
         $text | Should-MatchString '## Release v1\.2\.0-beta\.1 \(prerelease\) from '
         $text | Should-MatchString 'DRY RUN: nothing pushed'
+        $text | Should-MatchString '### Rewritten \(engine -> `v1`, template -> `main`, 6 files\)'
+        $text | Should-MatchString '\| Template branch \| `ALCops/rulebook@main` \|'
         $text | Should-MatchString '- `README\.md`'
         $text | Should-MatchString '- Docs: versioning \(#2\)'
     }
 
-    It 'releases: v1 created on the template from main with the rewrite, tags on both, v1 on the engine and a prerelease Release' {
+    It 'releases: one commit on template main with the engine references at v1, tags on both, v1 on the engine and a prerelease Release' {
         Set-DeployApiMock
+        $mainBefore = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
         $result = Invoke-RulebookDeploy -Mode release @deploy 6>$null
         $result.ExitCode | Should-Be 0
         $result.ReleaseUrl | Should-Be 'https://github.com/ALCops/rulebook-engine/releases/tag/v1.2.0-beta.1'
         Should-Invoke Get-GitHubAccessToken -ModuleName Rulebook.Deploy -Times 1 -Exactly -ParameterFilter { $Repository -eq 'ALCops/rulebook-engine' -and $Permissions['workflows'] -eq 'write' -and $Permissions['checks'] -eq 'read' -and $Token -like '{"GitHubAppClientId":"Iv23liDeploy"*' }
         Should-Invoke Get-GitHubAccessToken -ModuleName Rulebook.Deploy -Times 1 -Exactly -ParameterFilter { $Repository -eq 'ALCops/rulebook' }
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.Deploy -Times 1 -Exactly -ParameterFilter { $Method -eq 'POST' -and $Body['prerelease'] -eq $true -and $Body['body'] -eq "- Deploy: the release pipeline (#1)`n- Docs: versioning (#2)" }
-        $mainHead = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
-        $v1 = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/v1'
-        (& git -C $templateBare rev-parse "$v1~1").Trim() | Should-Be $mainHead
-        Get-RemoteRef -Bare $templateBare -Ref 'refs/tags/v1.2.0-beta.1' | Should-Be $v1
-        Get-RemoteFile -Bare $templateBare -Ref 'v1' -Path '.github/workflows/Validate.yaml' | Should-MatchString 'actions/Validate@v1'
-        Get-RemoteFile -Bare $templateBare -Ref 'v1' -Path '.github/Rulebook-Settings.json' | Should-MatchString 'ALCops/rulebook@v1'
-        Get-RemoteFile -Bare $templateBare -Ref 'v1' -Path '.github/RELEASENOTES.copy.md' | Should-MatchString '## v1\.2\.0-beta\.1'
-        Get-RemoteFile -Bare $templateBare -Ref 'v1' -Path 'LICENSE' | Should-Be 'MIT'
-        Get-RemoteFile -Bare $templateBare -Ref 'v1' -Path 'docs/stale.md' | Should-BeNull
+        $main = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
+        $main | Should-NotBe $mainBefore
+        (& git -C $templateBare rev-parse "$main~1").Trim() | Should-Be $mainBefore
+        (& git -C $templateBare log -1 --format=%s $main).Trim() | Should-Be "Release v1.2.0-beta.1 from ALCops/rulebook-engine@$($engine.Sha.Substring(0, 7))"
+        Get-RemoteRef -Bare $templateBare -Ref 'refs/tags/v1.2.0-beta.1' | Should-Be $main
+        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/v1' | Should-BeNull
+        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path '.github/workflows/Validate.yaml' | Should-MatchString 'actions/Validate@v1'
+        $settings = Get-RemoteFile -Bare $templateBare -Ref 'main' -Path '.github/Rulebook-Settings.json'
+        $settings | Should-MatchString 'ALCops/rulebook@main"'
+        $settings | Should-MatchString 'rulebook-engine/v1/schemas/'
+        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path 'README.md' | Should-MatchString 'ALCops/rulebook/blob/main/docs/'
+        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path '.github/RELEASENOTES.copy.md' | Should-MatchString '## v1\.2\.0-beta\.1'
+        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path 'LICENSE' | Should-Be 'MIT'
+        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path 'docs/stale.md' | Should-BeNull
         Get-RemoteRef -Bare $engine.Bare -Ref 'refs/heads/v1' | Should-Be $engine.Sha
         Get-RemoteRef -Bare $engine.Bare -Ref 'refs/tags/v1.2.0-beta.1' | Should-Be $engine.Sha
         (Get-Text $summary) | Should-MatchString 'Release \| https://github\.com/ALCops/rulebook-engine/releases/tag/v1\.2\.0-beta\.1'
     }
 
-    It 'releases the next version on top of the existing v1: one commit with the notes copy, both tags' {
+    It 'releases the next version on top of template main: one commit with the notes copy, both tags' {
         Set-DeployApiMock
         $null = Invoke-RulebookDeploy -Mode release @deploy 6>$null
-        $first = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/v1'
+        $first = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
         Write-FixtureText -Path (Join-Path $engine.Root 'RELEASENOTES.md') -Text ("# Release notes`n`n## v1.2.0-beta.2`n`n- Fix (#3)`n`n" + $notes.Substring('# Release notes'.Length + 2))
         $next = New-FixtureGitRepo -Root $engine.Root -Message 'beta.2'
         $deploy.Sha = $next
         $deploy.WorkPath = Join-Path (Get-TestFolder) 'work'
         $result = Invoke-RulebookDeploy -Mode release @deploy 6>$null
         $result.ExitCode | Should-Be 0
-        $second = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/v1'
+        $second = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
         (& git -C $templateBare rev-parse "$second~1").Trim() | Should-Be $first
         @(& git -C $templateBare diff --name-only $first $second) | Should-BeCollection @('.github/RELEASENOTES.copy.md')
         Get-RemoteRef -Bare $templateBare -Ref 'refs/tags/v1.2.0-beta.2' | Should-Be $second
         Get-RemoteRef -Bare $engine.Bare -Ref 'refs/heads/v1' | Should-Be $next
     }
 
-    It 'fails without a tag or a release when the template branch refuses the push' {
+    It 'fails without a tag or a release when template main refuses the push' {
         Set-DeployApiMock
-        $null = Invoke-FixtureGit -Root (Split-Path -Parent $templateBare) -Arguments @('--git-dir', $templateBare, 'branch', 'v1', 'main')
-        Add-RejectPushHook -BarePath $templateBare -Branch 'v1'
+        Add-RejectPushHook -BarePath $templateBare -Branch 'main'
         $result = Invoke-RulebookDeploy -Mode release @deploy 6>$null
         $result.ExitCode | Should-Be 1
-        $result.Refusals[-1] | Should-BeLikeString 'git push v1 failed*'
+        $result.Refusals[-1] | Should-BeLikeString 'git push main failed*'
         Get-RemoteRef -Bare $templateBare -Ref 'refs/tags/v1.2.0-beta.1' | Should-BeNull
         Get-RemoteRef -Bare $engine.Bare -Ref 'refs/heads/v1' | Should-BeNull
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.Deploy -Times 0 -Exactly -ParameterFilter { $Method -eq 'POST' }
@@ -558,10 +643,11 @@ Describe 'Invoke-RulebookDeploy' -Skip:$gitMissing {
 
     It 'refuses before any push when a precondition fails, with one error line per refusal' {
         Set-DeployApiMock -TagOn @('ALCops/rulebook')
+        $mainBefore = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
         $result = Invoke-RulebookDeploy -Mode release @deploy 6>$null
         $result.ExitCode | Should-Be 1
         @($result.Refusals) | Should-BeCollection @("The tag v1.2.0-beta.1 exists on ALCops/rulebook; add a new '## vX.Y.Z' heading to RELEASENOTES.md")
-        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/v1' | Should-BeNull
+        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main' | Should-Be $mainBefore
     }
 
     It 'refuses without the App credentials' {
@@ -573,22 +659,49 @@ Describe 'Invoke-RulebookDeploy' -Skip:$gitMissing {
         Should-Invoke Get-GitHubAccessToken -ModuleName Rulebook.Deploy -Times 0 -Exactly
     }
 
-    It 'refreshes main verbatim: no rewrite, no tag, no release, and a second run makes no commit' {
+    It 'refreshes preview, created from the head of main on the first run: template references at preview, engine at main, no tag, no release, and a second run makes no commit' {
         Set-DeployApiMock
+        $main = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
         $result = Invoke-RulebookDeploy -Mode refresh @deploy 6>$null
         $result.ExitCode | Should-Be 0
         $result.Template.Pushed | Should-BeTrue
-        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path '.github/workflows/Validate.yaml' | Should-MatchString 'actions/Validate@main'
-        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path '.github/RELEASENOTES.copy.md' | Should-MatchString '## v1\.2\.0-beta\.1'
+        $preview = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/preview'
+        (& git -C $templateBare rev-parse "$preview~1").Trim() | Should-Be $main
+        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main' | Should-Be $main
+        Get-RemoteFile -Bare $templateBare -Ref 'preview' -Path '.github/workflows/Validate.yaml' | Should-MatchString 'actions/Validate@main'
+        $settings = Get-RemoteFile -Bare $templateBare -Ref 'preview' -Path '.github/Rulebook-Settings.json'
+        $settings | Should-MatchString 'ALCops/rulebook@preview"'
+        $settings | Should-MatchString 'rulebook-engine/main/schemas/'
+        Get-RemoteFile -Bare $templateBare -Ref 'preview' -Path 'README.md' | Should-MatchString 'ALCops/rulebook/blob/preview/docs/'
+        Get-RemoteFile -Bare $templateBare -Ref 'preview' -Path '.github/RELEASENOTES.copy.md' | Should-MatchString '## v1\.2\.0-beta\.1'
         Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/v1' | Should-BeNull
         @(& git -C $templateBare tag) | Should-BeCollection @()
         Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.Deploy -Times 0 -Exactly
-        $head = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
+        $text = Get-Text $summary
+        $text | Should-MatchString '## Refresh of ALCops/rulebook@preview from '
+        $text | Should-MatchString '### Rewritten \(engine -> `main`, template -> `preview`, 2 files\)'
         $deploy.WorkPath = Join-Path (Get-TestFolder) 'work'
         $again = Invoke-RulebookDeploy -Mode refresh @deploy 6>$null
+        $again.ExitCode | Should-Be 0
         $again.Template.Pushed | Should-BeFalse
-        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main' | Should-Be $head
-        (Get-Text $summary) | Should-MatchString '## Refresh of ALCops/rulebook@main from '
+        Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/preview' | Should-Be $preview
+    }
+
+    It 'gives main the release and preview the bleeding edge when a release and a refresh run on one remote' {
+        Set-DeployApiMock
+        $released = Invoke-RulebookDeploy -Mode release @deploy 6>$null
+        $released.ExitCode | Should-Be 0
+        $deploy.WorkPath = Join-Path (Get-TestFolder) 'work'
+        $refreshed = Invoke-RulebookDeploy -Mode refresh @deploy 6>$null
+        $refreshed.ExitCode | Should-Be 0
+        $main = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/main'
+        $preview = Get-RemoteRef -Bare $templateBare -Ref 'refs/heads/preview'
+        (& git -C $templateBare rev-parse "$preview~1").Trim() | Should-Be $main
+        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path '.github/workflows/Validate.yaml' | Should-MatchString 'actions/Validate@v1'
+        Get-RemoteFile -Bare $templateBare -Ref 'main' -Path '.github/Rulebook-Settings.json' | Should-MatchString 'ALCops/rulebook@main"'
+        Get-RemoteFile -Bare $templateBare -Ref 'preview' -Path '.github/workflows/Validate.yaml' | Should-MatchString 'actions/Validate@main'
+        Get-RemoteFile -Bare $templateBare -Ref 'preview' -Path '.github/Rulebook-Settings.json' | Should-MatchString 'ALCops/rulebook@preview"'
+        @(& git -C $templateBare tag) | Should-BeCollection @('v1.2.0-beta.1')
     }
 }
 
