@@ -100,7 +100,7 @@ Two interactions are documented rather than checked:
 - **Off as the only published level.** Every entry of `stages/ci.json` and `stages/vnext.json` is then a C8 warning (a stage entry on an id no published level enables). The warnings are expected; keep the stage files, since they are system files the update overwrites.
 - **Housekeeping versus a root level.** The scan removes a quarantine entry as soon as a file on the chain of any published level mentions the id (C13, [reference/scan-mechanics.md](reference/scan-mechanics.md) section 5). When an update adds a new id to a shipped level file and the organization also publishes that level, the id leaves quarantine and goes live at its analyzer default in the organization's root level (D41, D29), unless the organization adds it to `base/off.ruleset.json`. The scan pull request does not yet list such ids (spin-off).
 
-The user page `docs/levels.md` in ALCops/rulebook explains the same recipes for organizations, with the Validate messages to expect.
+The user page [docs/levels.md](../template/docs/levels.md) (shipped to organizations from `template/docs/`) explains the same recipes for organizations, with the Validate messages to expect.
 
 ## 6. Reference
 

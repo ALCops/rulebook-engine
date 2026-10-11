@@ -520,8 +520,10 @@ Describe 'Shipped template content' {
         @($atDefault) | Should-BeCollection @()
     }
 
-    It 'has no carriage return in any file under template/' {
-        $withCr = foreach ($file in Get-ChildItem -LiteralPath $templateDir -Recurse -File -Force) {
+    It 'has no carriage return in any text file under template/' {
+        # The binary types of .gitattributes (the PNGs of docs/images/) are left out.
+        $binary = @('.png', '.jpg', '.gif', '.ico', '.pdf', '.nupkg')
+        $withCr = foreach ($file in Get-ChildItem -LiteralPath $templateDir -Recurse -File -Force | Where-Object { $binary -notcontains $_.Extension.ToLowerInvariant() }) {
             if ([System.Array]::IndexOf([System.IO.File]::ReadAllBytes($file.FullName), [byte]13) -ge 0) { $file.FullName }
         }
         @($withCr) | Should-BeCollection @()
@@ -581,7 +583,7 @@ Describe 'Build-Template.ps1' {
         @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()
     }
 
-    It 'regenerates template/ and the level pages byte for byte from the 12 hand-written files' {
+    It 'regenerates template/ and the level pages byte for byte from the 12 hand-written files and docs/' {
         $scratch = Get-TestFolder
         # Outside $scratch: a page under it would break the hash comparison with template/.
         $pages = Get-TestFolder
@@ -590,6 +592,8 @@ Describe 'Build-Template.ps1' {
             [void](New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force)
             Copy-Item -LiteralPath (Join-Path $templateDir $file) -Destination $target
         }
+        # The user documentation (WP13) is hand-written too; Build-Template.ps1 never touches it.
+        Copy-Item -LiteralPath (Join-Path $templateDir 'docs') -Destination (Join-Path $scratch 'docs') -Recurse
         $changes = @(& $wrapper -TemplateDir $scratch -LevelDocsDir $pages 6>$null)
         # Generated: the level files, twins.json, the non-default stage files, the catalog, the skeletons and endpoints,
         # and one page per level plus the README.md index.

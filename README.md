@@ -67,7 +67,7 @@ A work package issue is done when all of the following hold:
 2. Every acceptance criterion in its section 6 is ticked, with evidence in the pull request (log excerpt, screenshot or test name).
 3. The Pester tests listed in its section 7 exist and are green on `ubuntu-latest` in the engine CI.
 4. `Invoke-ScriptAnalyzer` reports no error or warning on the touched `.ps1` and `.psm1` files.
-5. Docs touched by the issue are updated: `docs/ARCHITECTURE.md` when the design changed, a new record under `docs/adr/` when a decision was taken, the user docs in `ALCops/rulebook/docs` when behaviour visible to an organization changed. Design notes in the issue that describe the target design are lifted into `docs/`.
+5. Docs touched by the issue are updated: `docs/ARCHITECTURE.md` when the design changed, a new record under `docs/adr/` when a decision was taken, the user docs in `template/docs/` when behaviour visible to an organization changed. Design notes in the issue that describe the target design are lifted into `docs/`.
 6. The pull request was reviewed before merge (another maintainer, or an automated code review whose outcome is recorded in the PR body), merged, and closes the issue (`Closes #n`).
 7. The pull request adds its line under the top heading of [RELEASENOTES.md](RELEASENOTES.md) and its title reads as a release line ([D52](docs/adr/0052-releases-are-a-floating-major-branch-cut-from-hand-written-release-notes.md)).
 
@@ -78,6 +78,7 @@ For any other change: documentation updated, Pester green on `ubuntu-latest`, PS
 | Document | What it is |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The target architecture: topology, generation model, endpoints, workflows, settings, hosting, failure model. |
+| [template/docs/README.md](template/docs/README.md) | The user documentation organizations get in `docs/` of their repository: getting started, the consumers, levels, overrides, quarantine, updating, the token, migration, FAQ. The deploy carries it to ALCops/rulebook. |
 | [docs/adr/README.md](docs/adr/README.md) | Decision records (one file per decision, numbered D1 onward) with rationale and rejected alternatives; open decisions are issues labeled `decision`. |
 | [RELEASENOTES.md](RELEASENOTES.md) | The release notes: the top heading is the version the next deploy releases, one line per pull request ([D52](docs/adr/0052-releases-are-a-floating-major-branch-cut-from-hand-written-release-notes.md)). |
 | [docs/reference/compiler-ruleset-internals.md](docs/reference/compiler-ruleset-internals.md) | How the AL compiler loads and merges rulesets, from the SDK source. Every design constraint comes from here. |
