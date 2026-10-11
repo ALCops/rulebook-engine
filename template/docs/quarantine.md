@@ -98,7 +98,7 @@ Every quarantine entry carries its reason, for example
 
 **Regenerate the endpoints in the same pull request.** A level file, `overrides.json` or a quarantine file you change by hand leaves `rulesets/` out of date: Validate fails with C12 ("... would be modified; run Update-RulebookEndpoints and commit the result") and Publish refuses to deploy ([hosting.md](hosting.md)). For an override, the Change Rule workflow regenerates in its own pull request ([changing-a-rule.md](changing-a-rule.md)). For a hand edit there are two ways:
 
-- **Locally.** Clone the `main` branch of [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine) next to your repository (the branch your workflows use, so the local run and Validate write the same bytes) and run, in PowerShell 7.4 or newer from the root of your rulebook repository:
+- **Locally.** Clone [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine) next to your repository at the engine branch named in your workflows' `uses:` lines (`git clone --branch <that branch>`), so the local run and Validate write the same bytes, and run, in PowerShell 7.4 or newer from the root of your rulebook repository:
 
   ```powershell
   Import-Module ../rulebook-engine/modules/Rulebook.Generate.psd1

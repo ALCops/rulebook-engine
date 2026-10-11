@@ -19,7 +19,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 
 ## 1. Files
 
-62 files: 30 written by hand (12, plus the 16 pages and 2 images of `docs/`), 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
+63 files: 31 written by hand (12, plus the 17 pages and 2 images of `docs/`), 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
 
 | Path | Class | Origin |
 |---|---|---|
@@ -30,7 +30,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 | `.github/workflows/ScanDiagnostics.yaml` | system | Hand-written (WP08): the scan workflow with its `schedule:` as the last key under `on:`, the cron of `scan.schedule` (`17 4 * * *`), so the update's rewrite leaves it unchanged |
 | `.github/workflows/ChangeRule.yaml` | system | Hand-written (WP09): the change form with the `levels` and `stages` choice lists of the shipped slugs, laid out so the update's rewrite (D30) reproduces it byte for byte with the shipped settings and adds an organization's own slugs; the later workflows come with their work packages |
 | `README.md` | never touched after creation | Hand-written, organization-facing |
-| `docs/**` (16 pages, `docs/images/` with 2 PNGs) | customizable (D50) | Hand-written: the user documentation, moved from ALCops/rulebook at `e2cb9f0` with WP13; `docs/README.md` lists the pages |
+| `docs/**` (17 pages, `docs/images/` with 2 PNGs) | customizable (D50) | Hand-written: the user documentation, moved from ALCops/rulebook at `e2cb9f0` with WP13; `docs/README.md` lists the pages |
 | `overrides.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `quarantine.default.json`, `quarantine.ci.json`, `quarantine.vnext.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `base/essential.ruleset.json`, `recommended`, `strict`, `complete` | system | `Build-RulebookBase` |

@@ -1,0 +1,41 @@
+# Releases the engine and the template (D52, docs/releasing.md): the version and the notes come from the top heading
+# of RELEASENOTES.md. ALCops/rulebook gets template/ on v<major> with every engine and template reference rewritten to
+# that branch and the tag vX.Y.Z; the engine gets v<major> moved to this commit, the tag and a GitHub Release. The run
+# refuses a tag that exists, a commit whose CI is not green and a dirty checkout. dryRun checks everything and pushes
+# nothing. Authenticates as the ALCops deploy App (variable DEPLOY_APP_ID, secret DEPLOY_APP_PRIVATE_KEY).
+# A dispatch with --ref <branch> (gh workflow run Deploy.yaml --ref <branch>) runs this file from that branch and
+# deploys its head commit.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: Check everything and print the plan, push nothing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-release
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Deploy
+        shell: pwsh
+        env:
+          DRY_RUN: ${{ inputs.dryRun }}
+          DEPLOY_APP_ID: ${{ vars.DEPLOY_APP_ID }}
+          DEPLOY_APP_PRIVATE_KEY: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+        run: ./tools/deploy/Invoke-Deploy.ps1 -Mode release

@@ -1,0 +1,5 @@
+# Files of ALCops/rulebook the deploy keeps: everything else is replaced by the engine's template/ (docs/releasing.md).
+# One path per line, relative to the repository root; a folder keeps everything under it.
+LICENSE
+.gitattributes
+.editorconfig

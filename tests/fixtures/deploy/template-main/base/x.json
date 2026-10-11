@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json",
+  "name": "Rulebook X",
+  "rules": []
+}

@@ -65,7 +65,7 @@ The usual way is the **Change Rule** workflow (Actions > Change Rule > Run workf
 - [Levels and stages](docs/levels.md): picking a starting point and adding, renaming or removing levels and stages.
 - [Overrides](docs/overrides.md) and [Changing a rule](docs/changing-a-rule.md): your own rule changes.
 - [Quarantine](docs/quarantine.md): new analyzer rules and the daily scan.
-- [Updating](docs/updating.md) and [the GHTOKENWORKFLOW secret](docs/ghtokenworkflow.md): taking new template versions.
+- [Updating](docs/updating.md), [versions](docs/versioning.md) and [the GHTOKENWORKFLOW secret](docs/ghtokenworkflow.md): taking new template versions.
 - [Migrating an existing ruleset](docs/migration.md) and [Frequently asked questions](docs/faq.md).
 
 These pages are in `docs/` of your repository, and **Update Rulebook System Files** keeps them current unless you edit one (D50): then it keeps your page and lists it in the update pull request (set `docs.updateMode` to `overwrite` in `.github/Rulebook-Settings.json` to take the template's pages always). The current pages are at https://github.com/ALCops/rulebook/tree/main/docs. Questions and issues: [ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine/issues).

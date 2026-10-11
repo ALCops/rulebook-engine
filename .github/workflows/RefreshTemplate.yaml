@@ -1,0 +1,39 @@
+# Refreshes ALCops/rulebook@main, the bleeding-edge branch the canary rulebook follows (D52, docs/releasing.md): the
+# engine's template/ copied verbatim (it says main everywhere) plus .github/RELEASENOTES.copy.md, committed only when
+# something changed. No rewrite, no tag, no release. Runs on every push to main that touches template/ or the release
+# notes, and by hand. Authenticates as the ALCops deploy App (variable DEPLOY_APP_ID, secret DEPLOY_APP_PRIVATE_KEY).
+# A dispatch with --ref <branch> runs this file from that branch and copies that branch's template/.
+name: Refresh Template
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'template/**'
+      - 'RELEASENOTES.md'
+      - '.github/workflows/RefreshTemplate.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Refresh ALCops/rulebook@main
+        shell: pwsh
+        env:
+          DEPLOY_APP_ID: ${{ vars.DEPLOY_APP_ID }}
+          DEPLOY_APP_PRIVATE_KEY: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+        run: ./tools/deploy/Invoke-Deploy.ps1 -Mode refresh

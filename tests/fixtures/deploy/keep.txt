@@ -1,0 +1,3 @@
+# The keep list of the deploy suite: a file at the root and a nested file.
+LICENSE
+.github/CODEOWNERS
