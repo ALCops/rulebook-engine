@@ -50,7 +50,7 @@ You can follow it too: set `templateUrl` to end in `@preview` and run the update
 
 ## 5. No major versions: deprecations
 
-The template has no major versions to move between. When something has to change in a way your repository would notice (a settings key renamed or removed, a file changing its class, the layout of the published URLs, the secret), it goes through a deprecation:
+The template has no major versions to move between. No deprecation exists today; the warning below appears with the first one. When something has to change in a way your repository would notice (a settings key renamed or removed, a file changing its class, the layout of the published URLs, the secret), it goes through a deprecation:
 
 1. The release that starts it keeps the old form working and says so under "Deprecations" in its release notes, with the replacement and a date some months away.
 2. From that release on, every run that meets the old form prints a warning annotation naming the replacement and the date. Validate shows it on your pull requests.
