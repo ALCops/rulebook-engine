@@ -98,6 +98,7 @@ Describe 'ConvertTo-TemplateUrl' {
     It 'normalises <Value>' -ForEach @(
         @{ Value = 'ALCops/rulebook'; Url = 'https://github.com/ALCops/rulebook@main'; Branch = 'main' }
         @{ Value = 'ALCops/rulebook@v1'; Url = 'https://github.com/ALCops/rulebook@v1'; Branch = 'v1' }
+        @{ Value = 'ALCops/rulebook@v1.0.0-beta.1'; Url = 'https://github.com/ALCops/rulebook@v1.0.0-beta.1'; Branch = 'v1.0.0-beta.1' }
         @{ Value = 'https://github.com/ALCops/rulebook'; Url = 'https://github.com/ALCops/rulebook@main'; Branch = 'main' }
         @{ Value = 'https://www.github.com/ALCops/rulebook@main'; Url = 'https://github.com/ALCops/rulebook@main'; Branch = 'main' }
         @{ Value = ' https://github.com/Contoso/rulebook-template@release/v2 '; Url = 'https://github.com/Contoso/rulebook-template@release/v2'; Branch = 'release/v2' }
@@ -120,6 +121,12 @@ Describe 'ConvertTo-TemplateUrl' {
 
     It 'rejects an empty value' {
         { ConvertTo-TemplateUrl -Url '' } | Should-Throw -ExceptionMessage '*empty*'
+    }
+
+    It 'names a branch or a tag in the expected form' {
+        $caught = $null
+        try { $null = ConvertTo-TemplateUrl -Url 'rulebook' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be "The template URL 'rulebook' is not of the form https://github.com/<owner>/<repository>@<branch or tag> (or <owner>/<repository>[@<branch or tag>])."
     }
 }
 
@@ -806,6 +813,9 @@ Describe 'Get-RulebookTemplate (download)' {
         Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/branches/main' } {
             [pscustomobject]@{ StatusCode = 200; Body = @{ commit = @{ sha = $script:headSha } }; Text = ''; Headers = $null; RateLimitRemaining = $null }
         }
+        Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -like 'repos/Contoso/rulebook-template/git/ref/tags/*' } {
+            [pscustomobject]@{ StatusCode = 404; Body = @{ message = 'Not Found' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+        }
         Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$($script:headSha)" } {
             Copy-Item -LiteralPath $script:v2Zip -Destination $OutFile
             [pscustomobject]@{ StatusCode = 200; Body = $null; Text = ''; Headers = $null; RateLimitRemaining = $null }
@@ -918,6 +928,55 @@ Describe 'Get-RulebookTemplate (download)' {
         { Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template' -GitHubToken 'gh' -DownloadLatest -WorkPath (Get-TestFolder) } | Should-Throw -ExceptionMessage 'Could not get the latest commit of https://github.com/Contoso/rulebook-template@main (HTTP 404: Not Found)'
     }
 
+    Context 'a template URL that names a tag' {
+        BeforeEach {
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/branches/v1.0.0' } {
+                [pscustomobject]@{ StatusCode = 404; Body = @{ message = 'Branch not found' }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+        }
+
+        It 'resolves the <Kind> tag after the branch lookup answers 404 and keeps the tag in the URL' -ForEach @(
+            @{ Kind = 'lightweight'; Calls = 1 }
+            @{ Kind = 'annotated'; Calls = 2 }
+        ) {
+            if ($Kind -eq 'lightweight') {
+                Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/git/ref/tags/v1.0.0' } {
+                    [pscustomobject]@{ StatusCode = 200; Body = @{ object = @{ type = 'commit'; sha = $script:headSha } }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+                }
+            } else {
+                Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/git/ref/tags/v1.0.0' } {
+                    [pscustomobject]@{ StatusCode = 200; Body = @{ object = @{ type = 'tag'; sha = 'e' * 40 } }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+                }
+                Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/git/tags/$('e' * 40)" } {
+                    [pscustomobject]@{ StatusCode = 200; Body = @{ object = @{ type = 'commit'; sha = $script:headSha } }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+                }
+            }
+            $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template@v1.0.0' -GitHubToken 'gh' -DownloadLatest -WorkPath (Get-TestFolder)
+            $template.Sha | Should-Be $headSha
+            $template.Url | Should-Be 'https://github.com/Contoso/rulebook-template@v1.0.0'
+            $template.Branch | Should-Be 'v1.0.0'
+            Split-Path -Leaf $template.Path | Should-Be 'Contoso-rulebook-template-bbbbbbb'
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$($script:headSha)" }
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times $Calls -Exactly -ParameterFilter { $Path -like 'repos/Contoso/rulebook-template/git/*' }
+        }
+
+        It 'reads a private template at a tag with the exchanged write token' {
+            Mock Invoke-GitHubApi -ModuleName Rulebook.GitHub -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/git/ref/tags/v1.0.0' -and $Token -eq 'ghp_write' } {
+                [pscustomobject]@{ StatusCode = 200; Body = @{ object = @{ type = 'commit'; sha = $script:headSha } }; Text = ''; Headers = $null; RateLimitRemaining = $null }
+            }
+            $template = Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template@v1.0.0' -Token 'ghp_write' -GitHubToken 'gh' -DownloadLatest -WorkPath (Get-TestFolder)
+            $template.Sha | Should-Be $headSha
+            $template.Url | Should-Be 'https://github.com/Contoso/rulebook-template@v1.0.0'
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/git/ref/tags/v1.0.0' -and $Token -eq 'gh' }
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/git/ref/tags/v1.0.0' -and $Token -eq 'ghp_write' }
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -like '*/zipball/*' -and $Token -eq 'ghp_write' }
+        }
+
+        It 'fails with the branch message when the tag does not exist either' {
+            { Get-RulebookTemplate -TemplateUrl 'Contoso/rulebook-template@v1.0.0' -GitHubToken 'gh' -DownloadLatest -WorkPath (Get-TestFolder) } | Should-Throw -ExceptionMessage 'Could not get the latest commit of https://github.com/Contoso/rulebook-template@v1.0.0 (HTTP 404: Branch not found)'
+        }
+    }
+
     Context 'recovery of the installed commit from the root tree (D50)' {
         BeforeAll {
             $script:recover = @{ TemplateUrl = 'Contoso/rulebook-template'; GitHubToken = 'gh'; DownloadLatest = $true; InstalledSha = ''; RepositoryRoot = 'C:\org'; Repository = 'Contoso/rulebook'; Ref = 'f' * 40; RepositoryToken = 'gh-org' }
@@ -942,7 +1001,7 @@ Describe 'Get-RulebookTemplate (download)' {
             Split-Path -Leaf $template.InstalledPath | Should-Be 'Contoso-rulebook-template-aaaaaaa'
             @($template.Notes) | Should-BeCollection @("templateSha is empty; the installed template commit aaaaaaa was recovered from the repository's root commit (tree T1).")
             Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/zipball/$($script:oldSha)" }
-            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq 'repos/Contoso/rulebook-template/commits?sha=main&per_page=100&page=1' -and $Token -eq 'gh' }
+            Should-Invoke Invoke-GitHubApi -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Path -eq "repos/Contoso/rulebook-template/commits?sha=$($script:headSha)&per_page=100&page=1" -and $Token -eq 'gh' }
             Should-Invoke Get-RepositoryRootTree -ModuleName Rulebook.Update -Times 1 -Exactly -ParameterFilter { $RepositoryRoot -eq 'C:\org' -and $Repository -eq 'Contoso/rulebook' -and $Ref -eq ('f' * 40) -and $Token -eq 'gh-org' }
         }
 

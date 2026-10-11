@@ -330,6 +330,68 @@ function Get-GitHubBranchSha {
     return $sha
 }
 
+function Get-GitHubRefSha {
+    <#
+    .SYNOPSIS
+    The commit (40 hex) a template ref names in -Repository (owner/name): a branch first, then a tag.
+    .DESCRIPTION
+    Resolves -Ref as a branch (Get-GitHubBranchSha). Only when the branch answers 404 is it looked up as a tag through
+    GET /repos/{r}/git/ref/tags/{ref}: a lightweight tag points at its commit, an annotated tag (object type 'tag') is
+    dereferenced once through GET /repos/{r}/git/tags/{sha}. Any other branch status (401, 403, 5xx) throws at once,
+    and a tag lookup that does not answer 200 rethrows the branch error unchanged (message and Data['StatusCode']
+    404), so a private template is retried with another token as before. A failed dereference of an annotated tag
+    throws with its own status in Data['StatusCode']. The organization branch keeps Get-GitHubBranchSha: a tag is no
+    target there.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][string]$Ref,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    try {
+        return Get-GitHubBranchSha -Repository $Repository -Branch $Ref -Token $Token -ApiUrl $ApiUrl
+    } catch {
+        $branchError = $_
+        if ($branchError.Exception.Data['StatusCode'] -ne 404) { throw }
+    }
+    $response = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'git/ref/tags', $Ref) -Token $Token -ApiUrl $ApiUrl
+    $object = $null
+    if ($response.StatusCode -eq 200 -and $response.Body -is [System.Collections.IDictionary] -and $response.Body['object'] -is [System.Collections.IDictionary]) {
+        $object = $response.Body['object']
+    }
+    if ($null -eq $object) { throw $branchError }
+    $type = [string]$object['type']
+    $sha = [string]$object['sha']
+    $status = $response.StatusCode
+    $what = $null
+    if ($type -ceq 'tag' -and $sha -match '^[0-9a-f]{40}$') {
+        # An annotated tag: its tag object names the commit (one level; a tag of a tag is not followed).
+        $response = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'git/tags', $sha) -Token $Token -ApiUrl $ApiUrl
+        $status = $response.StatusCode
+        $type = $null
+        $sha = $null
+        if ($status -ne 200) {
+            $what = "HTTP $($status): $(Get-ApiMessage $response)"
+        } elseif ($response.Body -isnot [System.Collections.IDictionary] -or $response.Body['object'] -isnot [System.Collections.IDictionary]) {
+            $what = 'HTTP 200: an unexpected answer without the object of the annotated tag'
+        } else {
+            $type = [string]$response.Body['object']['type']
+            $sha = [string]$response.Body['object']['sha']
+            if ($type -ceq 'tag') { $what = "HTTP 200: the tag points to another tag object $sha, which is not supported" }
+        }
+    }
+    if ($null -ne $what -or $type -cne 'commit' -or $sha -notmatch '^[0-9a-f]{40}$') {
+        if ($null -eq $what) { $what = "HTTP $($status): the tag points to '$type' $sha, not a commit" }
+        $exception = [System.InvalidOperationException]::new("Could not get the commit of the tag $(Get-DefaultServerUrl)/$Repository@$Ref ($what)")
+        $exception.Data['StatusCode'] = $status
+        throw $exception
+    }
+    return $sha
+}
+
 function Get-GitHubCommitList {
     <#
     .SYNOPSIS
@@ -742,6 +804,7 @@ Export-ModuleMember -Function @(
     'Get-GitHubBranchSha'
     'Get-GitHubCommitList'
     'Get-GitHubPushEnvironment'
+    'Get-GitHubRefSha'
     'Get-GitRootTree'
     'Invoke-GitHubApi'
     'New-GitHubAppJwt'

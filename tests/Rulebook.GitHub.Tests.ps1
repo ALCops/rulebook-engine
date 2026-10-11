@@ -297,6 +297,108 @@ Describe 'Get-GitHubBranchSha and Save-GitHubZipball' {
     }
 }
 
+Describe 'Get-GitHubRefSha' {
+    BeforeAll {
+        $script:api = 'https://api.github.com/repos/ALCops/rulebook'
+        $script:commitSha = 'c' * 40
+        $script:tagObjectSha = 'd' * 40
+    }
+
+    BeforeEach {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+    }
+
+    It 'returns the head of a branch with one call' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/branches/main" } { Get-MockResponse -Json @{ name = 'main'; commit = @{ sha = $script:commitSha } } }
+        Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'main' | Should-Be $commitSha
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly
+    }
+
+    It 'falls back to a lightweight tag after a 404 on the branch' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/ref/tags/v1.0.0" } { Get-MockResponse -Json @{ ref = 'refs/tags/v1.0.0'; object = @{ type = 'commit'; sha = $script:commitSha } } }
+        Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v1.0.0' | Should-Be $commitSha
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -eq "$api/branches/v1.0.0" }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -eq "$api/git/ref/tags/v1.0.0" }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly
+    }
+
+    It 'dereferences an annotated tag to its commit' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/ref/tags/v1.0.0" } { Get-MockResponse -Json @{ ref = 'refs/tags/v1.0.0'; object = @{ type = 'tag'; sha = $script:tagObjectSha } } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/tags/$($script:tagObjectSha)" } { Get-MockResponse -Json @{ tag = 'v1.0.0'; object = @{ type = 'commit'; sha = $script:commitSha } } }
+        Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v1.0.0' | Should-Be $commitSha
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -eq "$api/git/tags/$($script:tagObjectSha)" }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 3 -Exactly
+    }
+
+    It 'throws the branch error with status 404 when neither a branch nor a tag exists' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/branches/v9" } { Get-MockResponse -Status 404 -Json @{ message = 'Branch not found' } }
+        $caught = $null
+        try { $null = Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v9' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not get the latest commit of https://github.com/ALCops/rulebook@v9 (HTTP 404: Branch not found)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 404
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -eq "$api/git/ref/tags/v9" }
+    }
+
+    It 'throws the branch error at once on a branch answer of HTTP <Status>' -ForEach @(
+        @{ Status = 401 }
+        @{ Status = 403 }
+        @{ Status = 500 }
+    ) {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ALCops/rulebook/branches/v1.0.0' } { Get-MockResponse -Status $Status -Json @{ message = 'Denied' } }
+        $caught = $null
+        try { $null = Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v1.0.0' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be "Could not get the latest commit of https://github.com/ALCops/rulebook@v1.0.0 (HTTP $($Status): Denied)"
+        $caught.Exception.Data['StatusCode'] | Should-Be $Status
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Uri -like '*git/ref/tags*' }
+    }
+
+    It 'throws the branch error when the tag lookup answers HTTP 403' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/ref/tags/v1.0.0" } { Get-MockResponse -Status 403 -Json @{ message = 'Forbidden' } }
+        $caught = $null
+        try { $null = Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v1.0.0' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not get the latest commit of https://github.com/ALCops/rulebook@v1.0.0 (HTTP 404: Not Found)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 404
+    }
+
+    It 'escapes each segment of the tag and keeps the slashes' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rule%25book/git/ref/tags/release/x%231%3Fy' } { Get-MockResponse -Json @{ object = @{ type = 'commit'; sha = $script:commitSha } } }
+        Get-GitHubRefSha -Repository 'Contoso/rule%book' -Ref 'release/x#1?y' | Should-Be $commitSha
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rule%25book/branches/release/x%231%3Fy' }
+    }
+
+    It 'throws with the status of a failed dereference of an annotated tag' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/ref/tags/v1.0.0" } { Get-MockResponse -Json @{ object = @{ type = 'tag'; sha = $script:tagObjectSha } } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/tags/$($script:tagObjectSha)" } { Get-MockResponse -Status 502 -Json @{ message = 'Bad Gateway' } }
+        $caught = $null
+        try { $null = Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v1.0.0' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not get the commit of the tag https://github.com/ALCops/rulebook@v1.0.0 (HTTP 502: Bad Gateway)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 502
+    }
+
+    It 'throws naming the unexpected answer when the annotated tag has no object' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/ref/tags/v1.0.0" } { Get-MockResponse -Json @{ object = @{ type = 'tag'; sha = $script:tagObjectSha } } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/tags/$($script:tagObjectSha)" } { Get-MockResponse -Json @{ tag = 'v1.0.0' } }
+        $caught = $null
+        try { $null = Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v1.0.0' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not get the commit of the tag https://github.com/ALCops/rulebook@v1.0.0 (HTTP 200: an unexpected answer without the object of the annotated tag)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 200
+    }
+
+    It 'throws when an annotated tag points to another tag object' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/ref/tags/v1.0.0" } { Get-MockResponse -Json @{ object = @{ type = 'tag'; sha = $script:tagObjectSha } } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/tags/$($script:tagObjectSha)" } { Get-MockResponse -Json @{ object = @{ type = 'tag'; sha = 'f' * 40 } } }
+        $caught = $null
+        try { $null = Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v1.0.0' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be "Could not get the commit of the tag https://github.com/ALCops/rulebook@v1.0.0 (HTTP 200: the tag points to another tag object $('f' * 40), which is not supported)"
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Uri -like "*git/tags/$('f' * 40)" }
+    }
+
+    It 'throws when a tag points to something other than a commit' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq "$api/git/ref/tags/v1.0.0" } { Get-MockResponse -Json @{ object = @{ type = 'tree'; sha = $script:tagObjectSha } } }
+        { Get-GitHubRefSha -Repository 'ALCops/rulebook' -Ref 'v1.0.0' } | Should-Throw -ExceptionMessage "Could not get the commit of the tag https://github.com/ALCops/rulebook@v1.0.0 (HTTP 200: the tag points to 'tree' $('d' * 40), not a commit)"
+    }
+}
+
 Describe 'Get-GitHubCommitList' {
     BeforeAll {
         function Get-CommitPage {

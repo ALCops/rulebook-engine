@@ -15,6 +15,7 @@
         'Get-GitHubBranchSha'
         'Get-GitHubCommitList'
         'Get-GitHubPushEnvironment'
+        'Get-GitHubRefSha'
         'Get-GitRootTree'
         'Invoke-GitHubApi'
         'New-GitHubAppJwt'

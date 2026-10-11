@@ -436,9 +436,9 @@ sequenceDiagram
     participant Repo as org repo
     WF->>A: templateUrl (default: setting), token, update = Y
     A->>GH: exchange the secret for an installation token, mask it
-    A->>GH: GET /repos/ALCops/rulebook/branches/main (sha)
+    A->>GH: GET /repos/ALCops/rulebook/branches/main (sha), only on 404 git/ref/tags/<ref> and for an annotated tag git/tags/<sha>
     A->>GH: GET zipball/<sha>
-    A->>GH: templateSha empty: root tree of the org repo, GET commits of the template branch, the newest commit with that tree (D50)
+    A->>GH: templateSha empty: root tree of the org repo, GET commits from the resolved head, the newest commit with that tree (D50)
     A->>GH: GET zipball/<installed sha> when it differs
     A->>A: candidate tree by class (section 4)
     A->>A: system: template content, LF-normalised<br/>settings: keep content, refresh $schema, write templateUrl and templateSha<br/>customizable: three-way against the installed commit (D35, D50)<br/>org-owned: skip

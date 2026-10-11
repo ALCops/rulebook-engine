@@ -334,7 +334,8 @@ function ConvertTo-TemplateUrl {
     Normalises a template URL AL-Go style: { Url, Owner, Repository, Repo ('owner/name'), Branch }.
     .DESCRIPTION
     Appends @main when there is no '@', prepends https://github.com/ when the value does not start with https://,
-    strips www. Throws, naming the value, when the result is not https://github.com/<owner>/<repo>@<branch>.
+    strips www. Throws, naming the value, when the result is not https://github.com/<owner>/<repo>@<branch or tag>.
+    Branch is the ref after the @, a branch or a tag (Get-GitHubRefSha resolves both).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -345,7 +346,7 @@ function ConvertTo-TemplateUrl {
     if (-not $value.StartsWith('https://', [System.StringComparison]::OrdinalIgnoreCase)) { $value = "https://github.com/$value" }
     $value = [regex]::Replace($value, '^https://www\.', 'https://', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     if ($value -notmatch $script:TemplateUrlPattern) {
-        throw "The template URL '$Url' is not of the form https://github.com/<owner>/<repository>@<branch> (or <owner>/<repository>[@<branch>])."
+        throw "The template URL '$Url' is not of the form https://github.com/<owner>/<repository>@<branch or tag> (or <owner>/<repository>[@<branch or tag>])."
     }
     return [pscustomobject]@{
         Url        = "https://github.com/$($Matches[1])/$($Matches[2])@$($Matches[3])"
@@ -437,8 +438,10 @@ function Get-RulebookTemplate {
     The new template and, when needed, the installed one: { Url, Repo, Branch, Sha, Path, InstalledPath, InstalledSha,
     InstalledSource, Source, Notes }.
     .DESCRIPTION
-    Download: resolves the branch head of -TemplateUrl when -DownloadLatest or -InstalledSha is empty (else uses
-    -InstalledSha) and downloads that zipball into -WorkPath. The requests use -GitHubToken (GITHUB_TOKEN) first; on
+    Download: resolves the head of the ref of -TemplateUrl when -DownloadLatest or -InstalledSha is empty (else uses
+    -InstalledSha) and downloads that zipball into -WorkPath. The ref is a branch or a tag (Get-GitHubRefSha: the
+    branch first, git/ref/tags/{ref} and for an annotated tag git/tags/{sha} only after a 404 on the branch, so a
+    branch wins over a tag of the same name). The requests use -GitHubToken (GITHUB_TOKEN) first; on
     HTTP 401, 403 or 404 with a -Token (the GHTOKENWORKFLOW value) the request is repeated with that token (GitHub App
     JSON exchanged for contents read, a personal access token as it is), which is how a private template is read. A
     failed exchange rethrows the original error (its status kept) with the exchange error added to the message. -OnToken runs with every token
@@ -450,7 +453,7 @@ function Get-RulebookTemplate {
     Recovery (D50): when -InstalledSha is empty and -RepositoryRoot or -Repository is given (the caller passes them
     only when the stored templateUrl names this template), the tree of the organization repository's root commit
     (Get-RepositoryRootTree: the local clone, else the REST walk of -Repository at -Ref with -RepositoryToken) is
-    looked up among the commits of the template branch (Get-GitHubCommitList, with the token that read the new
+    looked up among the commits from the resolved head (Get-GitHubCommitList, with the token that read the new
     template); the newest commit with that tree becomes the installed commit. Every outcome is a note; no match or a
     failure keeps the behaviour without an installed template. InstalledSource is recorded (-InstalledSha), recovered
     or none.
@@ -533,7 +536,7 @@ function Get-RulebookTemplate {
         }
     }
     $sha = if ($DownloadLatest -or [string]::IsNullOrWhiteSpace($InstalledSha)) {
-        & $withToken { param($t) Get-GitHubBranchSha -Repository $info.Repo -Branch $info.Branch -Token $t -ApiUrl $state.ApiUrl }
+        & $withToken { param($t) Get-GitHubRefSha -Repository $info.Repo -Ref $info.Branch -Token $t -ApiUrl $state.ApiUrl }
     } else {
         $InstalledSha.Trim()
     }
@@ -554,8 +557,9 @@ function Get-RulebookTemplate {
         } else {
             if ($rootTree.Note) { $notes.Add($rootTree.Note) }
             try {
-                # The token that read the new template; no second exchange. The walk stops at the page with a match.
-                $list = Get-GitHubCommitList -Repository $info.Repo -Ref $info.Branch -Token $state.Token -ApiUrl $ApiUrl -TreeSha @($rootTree.TreeShas)
+                # The token that read the new template; no second exchange. The walk starts at the resolved
+                # head (a branch or a tag) and stops at the page with a match.
+                $list = Get-GitHubCommitList -Repository $info.Repo -Ref $sha -Token $state.Token -ApiUrl $ApiUrl -TreeSha @($rootTree.TreeShas)
                 $match = @($list.Commits | Where-Object { $_.TreeSha -cin @($rootTree.TreeShas) } | Select-Object -First 1)
                 if ($match.Count -eq 1) {
                     $installed = $match[0].Sha
