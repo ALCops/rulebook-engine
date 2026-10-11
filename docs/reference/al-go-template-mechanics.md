@@ -464,7 +464,7 @@ Details of the `ReadSecrets` action ([action.yaml](https://github.com/microsoft/
 
 ## 9. Mapping to Rulebook
 
-Rulebook facts used below: two repositories, **`ALCops/rulebook`** (the template, `is_template: true`, holds the content an org rulebook repo starts with and the user-facing docs, both deployed from the engine's `template/`) and **`ALCops/rulebook-engine`** (the actions, referenced from template workflows as `ALCops/rulebook-engine/actions/<name>@v1`, plus modules, tests and contributor docs). The settings file is `.github/Rulebook-Settings.json` with `templateUrl` and `templateSha`. The update workflow is `.github/workflows/UpdateRulebookSystemFiles.yaml`. All actions run on `ubuntu-latest` with PowerShell 7.
+Rulebook facts used below: two repositories, **`ALCops/rulebook`** (the template, `is_template: true`, holds the content an org rulebook repo starts with and the user-facing docs, both deployed (WP13 PR C) from the engine's `template/`) and **`ALCops/rulebook-engine`** (the actions, referenced from template workflows as `ALCops/rulebook-engine/actions/<name>@v1`, plus modules, tests and contributor docs). The settings file is `.github/Rulebook-Settings.json` with `templateUrl` and `templateSha`. The update workflow is `.github/workflows/UpdateRulebookSystemFiles.yaml`. All actions run on `ubuntu-latest` with PowerShell 7.
 
 ### 9.1 Mechanism map
 
