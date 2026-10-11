@@ -43,6 +43,7 @@ Everything under `tests/fixtures/`:
 | `stub-analyzers/` | C# stubs of the compiler and the cop assemblies, compiled with the Roslyn of pwsh into fixture packages once per source hash into the temp folder ([README](../../tests/fixtures/stub-analyzers/README.md)). | The Extract and Scan module suites and the ScanDiagnostics action suite. |
 | `matrix/tiny` | A six-id level content in the layout of `docs/rulebook/`. | The Template and Levels suites. |
 | `ci/` | Trimmed captures of the NUnit and JaCoCo files Pester writes. | `Write-TestSummary.Tests.ps1`. |
+| `deploy/` | `template-main`, a mini template with every engine and template reference form the deploy rewrites, the forms it leaves alone and a binary PNG; `keep.txt`, a keep list with a nested entry. | `Rulebook.Deploy.Tests.ps1` (with bare template and engine repositories built in `TestDrive`). |
 
 `tests/Fixtures.Tests.ps1` is the one place that says what each repository fixture is and proves: its kind, the exact unique findings of `Test-Rulebook`, and the list `Get-RulebookEndpointChange` would regenerate (or the error the generator throws). It also checks that the template fixtures validate and stay in step with the engine, that every folder under `repos/` has a row in that table and every row a folder, and that every fixture folder is used by a suite, a helper or `ci.yml`.
 

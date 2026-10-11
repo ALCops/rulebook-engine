@@ -70,7 +70,7 @@ flowchart LR
         proj1[AL project repo A<br/>.rulebook/default, ci, vnext .ruleset.json]
         proj2[AL project repo B]
     end
-    eng -->|release deploy from WP13 PR C: template/ to rulebook@v1, @main rewritten to @v1,<br/>tag v1.x.y on both<br/>refresh: template/ to rulebook@main| tpl
+    eng -->|release deploy: template/ to rulebook@v1, @main rewritten to @v1,<br/>tag v1.x.y on both<br/>refresh: template/ to rulebook@main| tpl
     tpl -->|Use this template<br/>default branch v1| orgrepo
     orgrepo -.->|uses: ALCops/rulebook-engine/actions/X@v1| eng
     orgrepo -->|Update Rulebook System Files<br/>zipball of rulebook@v1| tpl
@@ -80,12 +80,19 @@ flowchart LR
 
 | Repository | Role | Versioning |
 |---|---|---|
-| `ALCops/rulebook-engine` | Logic: composite actions, PowerShell modules, tests, contributor docs, the level matrix (`docs/rulebook/`) and the `template/` source folder, which says `main` in every engine reference. | `main` is development. From the WP13 deploy (PR C) on, the floating branch `v1` is moved to a commit of `main` by every 1.x deploy, which also writes the tag `v1.x.y`; the version is the top heading of `RELEASENOTES.md`. Org workflows reference `@v1` (D52). |
-| `ALCops/rulebook` | The template, written only by the deploy from WP13 PR C on. Default branch `v1` is what "Use this template" copies and what the update workflow downloads: the engine's `template/` with every engine reference and `templateUrl` rewritten to `v1`, tagged like the engine. `main` is the engine's `template/` verbatim (only `templateUrl` says `@main`), refreshed on every push to engine `main` that touches it. | `v1` = latest 1.x release; `main` = bleeding edge, followed only by the canary rulebook. Latest major only: when `v2` ships, `v1` is frozen and becomes a pin (D52). |
+| `ALCops/rulebook-engine` | Logic: composite actions, PowerShell modules, tests, contributor docs, the level matrix (`docs/rulebook/`) and the `template/` source folder, which says `main` in every engine reference. | `main` is development. The floating branch `v1` is moved to a commit of `main` by every 1.x deploy, which also writes the tag `v1.x.y`; the version is the top heading of `RELEASENOTES.md`. Org workflows reference `@v1` (D52). |
+| `ALCops/rulebook` | The template, written only by the deploy and the refresh. Default branch `v1` is what "Use this template" copies and what the update workflow downloads: the engine's `template/` with every engine reference and `templateUrl` rewritten to `v1`, tagged like the engine. `main` is the engine's `template/` verbatim (only `templateUrl` says `@main`), refreshed on every push to engine `main` that touches it. | `v1` = latest 1.x release; `main` = bleeding edge, followed only by the canary rulebook. Latest major only: when `v2` ships, `v1` is frozen and becomes a pin (D52). |
 | org rulebook repo | Created from the template. Holds the level and stage files, the org's overrides, quarantine, the generated endpoints and skeletons. Runs the six workflows. | The org's git history. |
 | AL project repo | Holds one small skeleton file per stage that includes one endpoint and lists project exceptions. | Not managed by Rulebook. |
 
 Why the engine is separate from the template: a template copy should contain only what an org needs, and a bug fix in an action must reach every org without an update PR. See D2.
+
+**Releases (D52).** Two engine workflows write `ALCops/rulebook`, both as the ALCops deploy App, with direct commits; the module is `Rulebook.Deploy` and the procedure is [releasing.md](releasing.md).
+
+- **Deploy** (`.github/workflows/Deploy.yaml`, manual, input `dryRun`): the version is the top `## vX.Y.Z[-pre]` heading of `RELEASENOTES.md`, the branch is `v<major>`. It refuses a tag that exists on either repository, a commit whose latest check runs are not all green (one named `test`), and a checkout that is dirty or not at `GITHUB_SHA`. Then it copies `template/` into a clone of `ALCops/rulebook@v1` (the first time: `v1` starts at the head of the default branch), keeps `LICENSE`, `.gitattributes` and `.editorconfig` (`tools/deploy/keep.txt`), writes `.github/RELEASENOTES.copy.md` as a copy of `RELEASENOTES.md`, rewrites every `ALCops/rulebook` and `ALCops/rulebook-engine` reference to `main` (`@main`, raw `/main/`, `/blob/main/`, `/tree/main/`, `actions/<Name>@main`) to `v1`, commits when something changed, pushes and tags; it then moves the engine's `v1` to the commit with a forced push under a lease (a prerelease from a pull request branch is not an ancestor of the squash commit that follows), tags it and creates the GitHub Release with the notes section.
+- **Refresh Template** (`.github/workflows/RefreshTemplate.yaml`, on every push to `main` that touches `template/` or `RELEASENOTES.md`, and by hand): the same copy to `ALCops/rulebook@main` without rewrite, tag or release, committed only when something changed. The canary rulebook follows that branch.
+
+Within a major, `v1` only moves forward over commits of `main`; a hotfix is a fix on `main` and the next patch release.
 
 ## 4. Org rulebook repo layout
 
@@ -643,6 +650,9 @@ No decision is open; new ones are tracked in the open decisions table of [adr/RE
 | Change rule branch | `change-rule/<ruleId>/<yyMMddHHmmss>` (UTC) | `change-rule/LC0015/261008091530` |
 | Change rule PR title | `Change <ruleId> to <action> (levels: <levels>, stages: <stages>)`, or `Remove override for <ruleId> (...)` | `Change LC0015 to None (levels: strict, stages: ci)` |
 | Change branch | `rulebook-change/<issue>/<yyMMddHHmmss>` (WP15) | |
+| Release | the top heading of `RELEASENOTES.md`, `## vX.Y.Z[-pre]`: branch `v<major>` and tag `vX.Y.Z[-pre]` on both repositories, a GitHub Release on the engine (D52) | `## v1.0.0-beta.1`: `v1`, `v1.0.0-beta.1` |
+| Deploy workflows | `.github/workflows/Deploy.yaml` (release, manual, `dryRun`), `.github/workflows/RefreshTemplate.yaml` (`ALCops/rulebook@main` on every push to `main` touching `template/`); entry `tools/deploy/Invoke-Deploy.ps1`, module `Rulebook.Deploy` | `gh workflow run Deploy.yaml -f dryRun=true` |
+| Template commit of a release | `Release <version> from ALCops/rulebook-engine@<sha7>`; a refresh: `Refresh from ALCops/rulebook-engine@<sha7>` | `Release v1.0.0-beta.1 from ALCops/rulebook-engine@1a2b3c4` |
 | Dashboard | `<baseUrl>/`, `<baseUrl>/rules/<id>/` (WP14; the manifest is the Published manifest row) | `https://contoso.github.io/rulebook/rules/AL0432/` |
 
 ### File classes for the update

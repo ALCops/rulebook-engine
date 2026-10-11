@@ -33,4 +33,5 @@
 - CI: coverage as a report (D51), the test summary step and one fixture guard suite ([#91](https://github.com/ALCops/rulebook-engine/pull/91))
 - Tests: the coverage pass, docs/reference/testing.md and the WP12 close-out ([#94](https://github.com/ALCops/rulebook-engine/pull/94))
 - Release model: D52, the engine ref helper and RELEASENOTES.md ([#99](https://github.com/ALCops/rulebook-engine/pull/99))
-- Docs: the user documentation ships in template/docs/ and Docs.Tests checks it from the checkout ([#15](https://github.com/ALCops/rulebook-engine/issues/15))
+- Docs: the user documentation ships in template/docs/ and Docs.Tests checks it from the checkout ([#100](https://github.com/ALCops/rulebook-engine/pull/100))
+- Deploy: the release pipeline, RELEASENOTES.copy.md and the refresh of rulebook@main ([#15](https://github.com/ALCops/rulebook-engine/issues/15))
