@@ -3,6 +3,7 @@
 ## v1.0.0-beta.2
 
 - Release notes: the deploy line names its pull request ([#102](https://github.com/ALCops/rulebook-engine/pull/102))
+- Release: v1.0.0-beta.2, the second prerelease of the live check ([#103](https://github.com/ALCops/rulebook-engine/pull/103))
 
 ## v1.0.0-beta.1
 
