@@ -4,7 +4,7 @@ author: ALCops
 
 inputs:
   templateUrl:
-    description: Template repository URL (owner/repo[@branch] or https://github.com/owner/repo@branch). Empty uses templateUrl of .github/Rulebook-Settings.json.
+    description: Template repository URL (owner/repo[@branch or tag] or https://github.com/owner/repo@<branch or tag>). Empty uses templateUrl of .github/Rulebook-Settings.json.
     required: false
     default: ''
   templatePath:
@@ -28,7 +28,7 @@ inputs:
     required: false
     default: 'N'
   downloadLatest:
-    description: "'true' resolves the latest commit of the template branch; 'false' re-applies templateSha."
+    description: "'true' resolves the latest commit of the template branch (or the commit of the tag); 'false' re-applies templateSha."
     required: false
     default: 'true'
   directCommit:

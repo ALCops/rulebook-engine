@@ -334,7 +334,8 @@ function ConvertTo-TemplateUrl {
     Normalises a template URL AL-Go style: { Url, Owner, Repository, Repo ('owner/name'), Branch }.
     .DESCRIPTION
     Appends @main when there is no '@', prepends https://github.com/ when the value does not start with https://,
-    strips www. Throws, naming the value, when the result is not https://github.com/<owner>/<repo>@<branch>.
+    strips www. Throws, naming the value, when the result is not https://github.com/<owner>/<repo>@<branch or tag>.
+    Branch is the ref after the @, a branch or a tag (Get-GitHubRefSha resolves both).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -345,7 +346,7 @@ function ConvertTo-TemplateUrl {
     if (-not $value.StartsWith('https://', [System.StringComparison]::OrdinalIgnoreCase)) { $value = "https://github.com/$value" }
     $value = [regex]::Replace($value, '^https://www\.', 'https://', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     if ($value -notmatch $script:TemplateUrlPattern) {
-        throw "The template URL '$Url' is not of the form https://github.com/<owner>/<repository>@<branch> (or <owner>/<repository>[@<branch>])."
+        throw "The template URL '$Url' is not of the form https://github.com/<owner>/<repository>@<branch or tag> (or <owner>/<repository>[@<branch or tag>])."
     }
     return [pscustomobject]@{
         Url        = "https://github.com/$($Matches[1])/$($Matches[2])@$($Matches[3])"
@@ -533,7 +534,7 @@ function Get-RulebookTemplate {
         }
     }
     $sha = if ($DownloadLatest -or [string]::IsNullOrWhiteSpace($InstalledSha)) {
-        & $withToken { param($t) Get-GitHubBranchSha -Repository $info.Repo -Branch $info.Branch -Token $t -ApiUrl $state.ApiUrl }
+        & $withToken { param($t) Get-GitHubRefSha -Repository $info.Repo -Ref $info.Branch -Token $t -ApiUrl $state.ApiUrl }
     } else {
         $InstalledSha.Trim()
     }
@@ -554,8 +555,9 @@ function Get-RulebookTemplate {
         } else {
             if ($rootTree.Note) { $notes.Add($rootTree.Note) }
             try {
-                # The token that read the new template; no second exchange. The walk stops at the page with a match.
-                $list = Get-GitHubCommitList -Repository $info.Repo -Ref $info.Branch -Token $state.Token -ApiUrl $ApiUrl -TreeSha @($rootTree.TreeShas)
+                # The token that read the new template; no second exchange. The walk starts at the resolved
+                # head (a branch or a tag) and stops at the page with a match.
+                $list = Get-GitHubCommitList -Repository $info.Repo -Ref $sha -Token $state.Token -ApiUrl $ApiUrl -TreeSha @($rootTree.TreeShas)
                 $match = @($list.Commits | Where-Object { $_.TreeSha -cin @($rootTree.TreeShas) } | Select-Object -First 1)
                 if ($match.Count -eq 1) {
                     $installed = $match[0].Sha
