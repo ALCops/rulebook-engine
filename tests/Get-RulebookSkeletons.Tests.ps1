@@ -290,14 +290,18 @@ Describe 'Get-RulebookSkeletons.ps1' {
         $text | Should-MatchString ([regex]::Escape('"al.ruleSetPath": ".rulebook/default.ruleset.json"'))
         $text | Should-MatchString ([regex]::Escape('"rulesetFile": ".rulebook/ci.ruleset.json", "enableExternalRulesets": true'))
         $text | Should-MatchString ([regex]::Escape('.github/NextMajor.settings.json: "rulesetFile": ".rulebook/vnext.ruleset.json"'))
-        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/v1/docs/al-project.md'))
+        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/main/docs/al-project.md'))
     }
 
-    It 'links the user page on the -Ref branch' {
-        $run = Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = (Get-TestFolder); Ref = 'v2' }
+    It 'links the user page on the template ref of -Ref <Ref>: <Expected>' -ForEach @(
+        @{ Ref = 'main'; Expected = 'preview' }
+        @{ Ref = 'v2'; Expected = 'main' }
+        @{ Ref = 'v1.0.0-beta.3'; Expected = 'v1.0.0-beta.3' }
+        @{ Ref = '0123456789abcdef0123456789abcdef01234567'; Expected = 'main' }
+    ) {
+        $run = Invoke-Script @{ BaseUrl = $baseUrl; Level = 'strict'; OutputPath = (Get-TestFolder); Ref = $Ref }
         $text = $run.Lines -join "`n"
-        $text | Should-MatchString ([regex]::Escape('https://github.com/ALCops/rulebook/blob/v2/docs/al-project.md'))
-        $text | Should-NotMatchString ([regex]::Escape('/blob/v1/'))
+        $text | Should-MatchString ([regex]::Escape("https://github.com/ALCops/rulebook/blob/$Expected/docs/al-project.md"))
     }
 
     It 'defaults -Ref to the major of the top heading of RELEASENOTES.md' {

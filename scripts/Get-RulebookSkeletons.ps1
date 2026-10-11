@@ -38,9 +38,9 @@ Overwrites existing files. Without it the script stops when any target file exis
 replaces the project exceptions in the existing file's rules.
 
 .PARAMETER Ref
-The branch of ALCops/rulebook whose user page the closing hint links: v1, the release branch every organization
-follows (D52). The default is the current major and is raised by hand when a new major ships; main is the
-development branch.
+The engine ref the closing hint links the user page for: v1, the floating release branch every organization follows,
+links the template's release (main); main, the development branch, links preview (D53). The default is the current
+major and is raised by hand only if the engine's action contract ever gets a new major.
 
 .EXAMPLE
 ./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level strict
@@ -56,7 +56,7 @@ Replaces the files in .rulebook/ of the AL project in ./MyApp with the skeletons
 settings it prints are relative to ./MyApp, for example "al.ruleSetPath": ".rulebook/default.ruleset.json".
 
 .LINK
-https://github.com/ALCops/rulebook/blob/v1/docs/al-project.md
+https://github.com/ALCops/rulebook/blob/main/docs/al-project.md
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -70,7 +70,13 @@ param(
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
-$docsUrl = 'https://github.com/ALCops/rulebook/blob/{0}/docs/al-project.md' -f $Ref
+# The user docs live in ALCops/rulebook, whose branches differ from the engine's (D53): the engine ref is mapped as
+# Get-RulebookDocsUrl of Rulebook.Common does it (v<n> -> main, main -> preview, a release tag -> the same tag, a
+# commit sha -> main, anything else -> preview).
+$templateRef = 'preview'
+if ($Ref -cmatch '^v\d+\z' -or $Ref -match '^[0-9a-fA-F]{40}\z') { $templateRef = 'main' }
+if ($Ref -cmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?\z') { $templateRef = $Ref }
+$docsUrl = 'https://github.com/ALCops/rulebook/blob/{0}/docs/al-project.md' -f $templateRef
 $utf8 = [System.Text.UTF8Encoding]::new($false)
 
 function Get-RulebookResponse {

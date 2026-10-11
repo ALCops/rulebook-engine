@@ -184,7 +184,7 @@ Describe 'ScanDiagnostics.ps1' {
         $run = Invoke-Entry @{ RepositoryRoot = (New-Org); Token = ''; PackageSource = (Join-Path $TestDrive 'no-such-feed') }
         $run.Result.ExitCode | Should-Be 1
         $run.Result.Failure | Should-Be 'token'
-        $run.Result.Annotations[0] | Should-BeLikeString '*The GHTOKENWORKFLOW secret is needed to scan diagnostics. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
+        $run.Result.Annotations[0] | Should-BeLikeString '*The GHTOKENWORKFLOW secret is needed to scan diagnostics. Read https://github.com/ALCops/rulebook/blob/preview/docs/ghtokenworkflow.md'
     }
 
     It 'points at the user page on the branch the action runs from (GITHUB_ACTION_REF v1)' {
@@ -195,7 +195,7 @@ Describe 'ScanDiagnostics.ps1' {
         } finally {
             $env:GITHUB_ACTION_REF = $saved
         }
-        $run.Result.Annotations[0] | Should-BeLikeString '*The GHTOKENWORKFLOW secret is needed to scan diagnostics. Read https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md'
+        $run.Result.Annotations[0] | Should-BeLikeString '*The GHTOKENWORKFLOW secret is needed to scan diagnostics. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
     }
 
     It 'runs a dry run without a token: outputs, summary and the kept candidate' {

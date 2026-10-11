@@ -237,7 +237,7 @@ Describe 'ChangeRule.ps1' {
         $run = Invoke-Entry @{ RepositoryRoot = (Copy-Minimal); RuleId = 'AA0001'; Action = 'None' }
         $run.Result.ExitCode | Should-Be 1
         $run.Result.Failure | Should-Be 'token'
-        @($run.Result.Annotations) | Should-BeCollection @('::error title=ChangeRule::The GHTOKENWORKFLOW secret is needed to change a rule. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md')
+        @($run.Result.Annotations) | Should-BeCollection @('::error title=ChangeRule::The GHTOKENWORKFLOW secret is needed to change a rule. Read https://github.com/ALCops/rulebook/blob/preview/docs/ghtokenworkflow.md')
         $run.Result.Plan.Valid | Should-BeTrue
     }
 
@@ -249,7 +249,7 @@ Describe 'ChangeRule.ps1' {
         } finally {
             $env:GITHUB_ACTION_REF = $saved
         }
-        @($run.Result.Annotations) | Should-BeCollection @('::error title=ChangeRule::The GHTOKENWORKFLOW secret is needed to change a rule. Read https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md')
+        @($run.Result.Annotations) | Should-BeCollection @('::error title=ChangeRule::The GHTOKENWORKFLOW secret is needed to change a rule. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md')
     }
 
     It 'fails validation on an invalid ghTokenWorkflowSecretName (the settings schema, before the token guard)' {

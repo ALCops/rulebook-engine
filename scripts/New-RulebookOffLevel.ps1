@@ -38,9 +38,10 @@ The display name of the level. Its lowercase form is the slug that names the fil
 Overwrites a differing base/<slug>.ruleset.json. Your own edits in that file are lost.
 
 .PARAMETER Ref
-The engine branch the $schema URL of the written file names, and the ALCops/rulebook branch of the user page the
-closing hint links: v1, the release branch every organization follows (D52). The default is the current major and
-is raised by hand when a new major ships; main is the development branch (the canary rulebook passes -Ref main).
+The engine ref the $schema URL of the written file names, and the engine ref the closing hint links the user page
+for: v1, the floating release branch every organization follows (the page on the template's release, main); main,
+the development branch, names main and links the page on preview (the canary rulebook passes -Ref main; D53). The
+default is the current major and is raised by hand only if the engine's action contract ever gets a new major.
 
 .EXAMPLE
 iwr https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/scripts/New-RulebookOffLevel.ps1 -OutFile ../New-RulebookOffLevel.ps1
@@ -49,7 +50,7 @@ iwr https://raw.githubusercontent.com/ALCops/rulebook-engine/v1/scripts/New-Rule
 Downloads the script next to the clone and writes base/off.ruleset.json in the current folder.
 
 .LINK
-https://github.com/ALCops/rulebook/blob/v1/docs/levels.md
+https://github.com/ALCops/rulebook/blob/main/docs/levels.md
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -63,7 +64,13 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
 # Self-contained: the URLs are formatted here, not by Get-RulebookSchemaUrl and Get-RulebookDocsUrl of Rulebook.Common.
-$docsUrl = 'https://github.com/ALCops/rulebook/blob/{0}/docs/levels.md' -f $Ref
+# The user docs live in ALCops/rulebook, whose branches differ from the engine's (D53): the engine ref is mapped as
+# Get-RulebookDocsUrl of Rulebook.Common does it (v<n> -> main, main -> preview, a release tag -> the same tag, a
+# commit sha -> main, anything else -> preview).
+$templateRef = 'preview'
+if ($Ref -cmatch '^v\d+\z' -or $Ref -match '^[0-9a-fA-F]{40}\z') { $templateRef = 'main' }
+if ($Ref -cmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?\z') { $templateRef = $Ref }
+$docsUrl = 'https://github.com/ALCops/rulebook/blob/{0}/docs/levels.md' -f $templateRef
 $deltaSchemaUrl = 'https://raw.githubusercontent.com/ALCops/rulebook-engine/{0}/schemas/ruleset.delta.schema.json' -f $Ref
 $settingsDescription = 'Every known diagnostic off. Opt in through overrides.'
 $utf8 = [System.Text.UTF8Encoding]::new($false)

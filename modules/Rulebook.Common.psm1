@@ -3,7 +3,8 @@
 # a per-process environment, the ordinal collections (an insertion-ordered map and a set, both case-sensitive), and
 # the engine ref with the URL builders for the schema, script and user docs URLs the engine prints or writes (D52,
 # #63): the ref is GITHUB_ACTION_REF, else the ref folder of GITHUB_ACTION_PATH, else main, so an action at @v1
-# names v1 URLs and engine CI and a local run name main.
+# names v1 URLs and engine CI and a local run name main. The user docs live in the template repository, whose
+# branches differ from the engine's (D53): the engine ref is mapped to a template ref first (ConvertTo-TemplateRef).
 # Imports nothing; every module that calls one of these functions imports this module itself (a nested import is not
 # transitive).
 
@@ -37,6 +38,19 @@ function Resolve-RulebookRef {
     $value = $Ref.Trim()
     if (-not (Test-RulebookPathText $value)) { throw "'$Ref' is not a usable engine ref" }
     return $value
+}
+
+function ConvertTo-TemplateRef {
+    # The ref of ALCops/rulebook that holds the user docs for an engine ref (D53): the floating major v<n> -> main
+    # (the release), main -> preview (the canary at engine main reads the preview docs), a release tag vX.Y.Z[-pre]
+    # -> the same tag (tagged on both repositories), a commit sha -> main (an engine commit the template does not
+    # have), anything else (a feature branch in engine CI) -> preview.
+    param([Parameter(Mandatory)][string]$Ref)
+    if ($Ref -cmatch '^v\d+\z') { return 'main' }
+    if ($Ref -ceq 'main') { return 'preview' }
+    if ($Ref -cmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?\z') { return $Ref }
+    if ($Ref -match '^[0-9a-fA-F]{40}\z') { return 'main' }
+    return 'preview'
 }
 
 function Format-EngineRawUrl {
@@ -185,12 +199,12 @@ function Get-RulebookScriptUrl {
 function Get-RulebookDocsUrl {
     <#
     .SYNOPSIS
-    The URL of a user documentation page at a ref: https://github.com/ALCops/rulebook/blob/<Ref>/docs/<Page>.
+    The URL of a user docs page for an engine ref: https://github.com/ALCops/rulebook/blob/<template ref>/docs/<Page>.
     .DESCRIPTION
-    -Page is the path under docs/, for example ghtokenworkflow.md. Without -Ref (or with an empty one) the ref is
-    Get-RulebookEngineRef: the template repository carries the same branches and tags as the engine (main, v1,
-    v1.x.y), so one ref serves both. A commit sha names an engine commit the template repository does not have and
-    falls back to main.
+    -Page is the path under docs/, for example ghtokenworkflow.md. -Ref is an engine ref; without -Ref (or with an
+    empty one) it is Get-RulebookEngineRef. The template repository has other branches than the engine (D53), so the
+    engine ref is mapped: v<n> (the floating major) -> main, the release; main -> preview, the bleeding edge; a
+    release tag vX.Y.Z -> the same tag; a commit sha -> main; anything else (a feature branch) -> preview.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -198,9 +212,7 @@ function Get-RulebookDocsUrl {
         [Parameter(Mandatory)][ValidateScript({ Test-RulebookPathText $_ })][string]$Page,
         [AllowEmptyString()][string]$Ref
     )
-    $Ref = Resolve-RulebookRef $Ref
-    if ($Ref -match '^[0-9a-fA-F]{40}\z') { $Ref = $script:DefaultEngineRef }
-    return $script:DocsUrl -f $Ref, $Page
+    return $script:DocsUrl -f (ConvertTo-TemplateRef (Resolve-RulebookRef $Ref)), $Page
 }
 
 #endregion

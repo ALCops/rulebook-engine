@@ -20,7 +20,8 @@ $script:DefaultPermissions = [ordered]@{
     actions       = 'read'
     metadata      = 'read'
 }
-# The user page the token errors point to; the URL is built at call time from the engine ref (Get-RulebookDocsUrl, D52).
+# The user page the token errors point to; the URL is built at call time from the engine ref (Get-RulebookDocsUrl,
+# D52, D53: main at @v1, preview at @main).
 $script:TokenDocsPage = 'ghtokenworkflow.md'
 
 #region Internal helpers
