@@ -46,7 +46,7 @@ The first run after you created the repository from the template records the tem
 
 The run needs the `GHTOKENWORKFLOW` secret ([ghtokenworkflow.md](ghtokenworkflow.md)). The workflow's own token stays read-only, because it can never change workflow files.
 
-**Versions.** `templateUrl` names a branch or a tag of the template: the release branch of the major version you are on, `v1` today, or a release tag such as `v1.0.0-beta.2` to pin that release. The update brings you the latest release of that branch, with its release notes in the pull request; engine fixes reach your workflows without it. To hold template content back, keep `update.schedule` at `null` and run the update when you are ready. The branches, the development branch `main` and moving to a new major version are in [versioning.md](versioning.md).
+**Versions.** `templateUrl` names a branch or a tag of the template: the release branch of the major version you are on, `v1` today, or a release tag such as `v1.0.0-beta.2` to pin that release (a branch of the same name wins over the tag). The update brings you the latest release of that branch, with its release notes in the pull request; engine fixes reach your workflows without it. To hold template content back, keep `update.schedule` at `null` and run the update when you are ready. The branches, the development branch `main` and moving to a new major version are in [versioning.md](versioning.md).
 
 ## 3. How you hear about an update
 

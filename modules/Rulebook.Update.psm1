@@ -438,8 +438,10 @@ function Get-RulebookTemplate {
     The new template and, when needed, the installed one: { Url, Repo, Branch, Sha, Path, InstalledPath, InstalledSha,
     InstalledSource, Source, Notes }.
     .DESCRIPTION
-    Download: resolves the branch head of -TemplateUrl when -DownloadLatest or -InstalledSha is empty (else uses
-    -InstalledSha) and downloads that zipball into -WorkPath. The requests use -GitHubToken (GITHUB_TOKEN) first; on
+    Download: resolves the head of the ref of -TemplateUrl when -DownloadLatest or -InstalledSha is empty (else uses
+    -InstalledSha) and downloads that zipball into -WorkPath. The ref is a branch or a tag (Get-GitHubRefSha: the
+    branch first, git/ref/tags/{ref} and for an annotated tag git/tags/{sha} only after a 404 on the branch, so a
+    branch wins over a tag of the same name). The requests use -GitHubToken (GITHUB_TOKEN) first; on
     HTTP 401, 403 or 404 with a -Token (the GHTOKENWORKFLOW value) the request is repeated with that token (GitHub App
     JSON exchanged for contents read, a personal access token as it is), which is how a private template is read. A
     failed exchange rethrows the original error (its status kept) with the exchange error added to the message. -OnToken runs with every token
@@ -451,7 +453,7 @@ function Get-RulebookTemplate {
     Recovery (D50): when -InstalledSha is empty and -RepositoryRoot or -Repository is given (the caller passes them
     only when the stored templateUrl names this template), the tree of the organization repository's root commit
     (Get-RepositoryRootTree: the local clone, else the REST walk of -Repository at -Ref with -RepositoryToken) is
-    looked up among the commits of the template branch (Get-GitHubCommitList, with the token that read the new
+    looked up among the commits from the resolved head (Get-GitHubCommitList, with the token that read the new
     template); the newest commit with that tree becomes the installed commit. Every outcome is a note; no match or a
     failure keeps the behaviour without an installed template. InstalledSource is recorded (-InstalledSha), recovered
     or none.

@@ -4,7 +4,7 @@ author: ALCops
 
 inputs:
   templateUrl:
-    description: Template repository URL (owner/repo[@branch or tag] or https://github.com/owner/repo@<branch or tag>). Empty uses templateUrl of .github/Rulebook-Settings.json.
+    description: Template repository URL (owner/repo[@branch or tag] or https://github.com/owner/repo@<branch or tag>; a branch wins over a tag of the same name). Empty uses templateUrl of .github/Rulebook-Settings.json.
     required: false
     default: ''
   templatePath:

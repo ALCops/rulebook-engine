@@ -131,7 +131,8 @@ try {
             if (-not [string]::IsNullOrWhiteSpace($storedUrl)) {
                 try { $sameTemplate = (ConvertTo-TemplateUrl -Url $storedUrl).Url -ceq $info.Url } catch { $sameTemplate = $false }
             }
-            # Another template, or no recorded commit: resolve the branch head (AL-Go does the same).
+            # Another template, or no recorded commit: resolve the head of the ref (AL-Go does the same); the ref is a branch,
+            # else a tag of that name (Get-GitHubRefSha: a branch wins over a tag of the same name).
             if (-not $sameTemplate) { $installedSha = '' }
             $latest = $DownloadLatest -or [string]::IsNullOrWhiteSpace($installedSha)
             # Check mode reads with GITHUB_TOKEN only, as Validate does; the write token is for update mode.
