@@ -54,7 +54,7 @@ The matrix does not know whether a project is a per-tenant extension or an AppSo
 | Marketplace checks | AS0011, AS0054, AS0098 (affixes), AS0051, AS0052, AS0092, AS0015 (manifest fields), supported countries | Per-tenant extensions, and AppSource apps without `AppSourceCop.json` | Recommended |
 | Twins | 17 pairs with the identical check in both cops (`overlaps.md` section 2) | Every project: two diagnostics per finding | per pair |
 
-The project, or the organization, opts out of the side that does not apply. Rulebook supports three routes and documents them in the template (`ALCops/rulebook`, `docs/pte-or-appsource.md`):
+The project, or the organization, opts out of the side that does not apply. Rulebook supports three routes and documents them in the template ([docs/pte-or-appsource.md](../../template/docs/pte-or-appsource.md), shipped from `template/docs/`):
 
 - **A. Disable a cop** in `al.codeAnalyzers` or the pipeline's analyzer list. Coarse; loses every check of that cop, including the twins' other side. If you do this, keep the `twins` setting at `both`.
 - **B. `suppressWarnings` in `app.json`.** Works for any analyzer rule the endpoint does not list, Error defaults included, because the compiler merges it strictest-wins against the ruleset and the endpoint is sparse (D22): a rule at its native severity is not listed. This is the simple route for the blockers above.
