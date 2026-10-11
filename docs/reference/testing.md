@@ -179,7 +179,7 @@ D12 keeps v1 at Pester unit tests. Three heavier layers were considered and are 
 
 ### 7.1 End-to-end compile
 
-Compile a fixture AL project against the published endpoints with the real compiler, so that a ruleset the compiler rejects fails CI. [Spike (c)](spikes/c-alc-on-ubuntu.md) has the recipe and the observed results; it is not repeated here. The organization documentation in ALCops/rulebook (`docs/azure-devops.md`) carries the plain-`alc` version for pipelines. In short:
+Compile a fixture AL project against the published endpoints with the real compiler, so that a ruleset the compiler rejects fails CI. [Spike (c)](spikes/c-alc-on-ubuntu.md) has the recipe and the observed results; it is not repeated here. The organization documentation ([template/docs/azure-devops.md](../../template/docs/azure-devops.md)) carries the plain-`alc` version for pipelines. In short:
 
 - Install the stable `Microsoft.Dynamics.BusinessCentral.Development.Tools` as a global dotnet tool, pinned.
 - Download `System.app` from the MSSymbols flat2 feed (the index lists the newest version first).

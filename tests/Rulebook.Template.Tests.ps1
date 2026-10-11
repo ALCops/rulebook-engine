@@ -521,7 +521,7 @@ Describe 'Shipped template content' {
     }
 
     It 'has no carriage return in any text file under template/' {
-        # The binary types of .gitattributes (the PNGs of docs/images/) are left out.
+        # The binary types of .gitattributes (the PNGs of docs/images/) are left out; the list mirrors .gitattributes.
         $binary = @('.png', '.jpg', '.gif', '.ico', '.pdf', '.nupkg')
         $withCr = foreach ($file in Get-ChildItem -LiteralPath $templateDir -Recurse -File -Force | Where-Object { $binary -notcontains $_.Extension.ToLowerInvariant() }) {
             if ([System.Array]::IndexOf([System.IO.File]::ReadAllBytes($file.FullName), [byte]13) -ge 0) { $file.FullName }

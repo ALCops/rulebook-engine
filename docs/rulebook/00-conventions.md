@@ -31,7 +31,7 @@ Vocabulary, enumerations and table schemas used by every file under `docs/rulebo
 | Listed | An id is listed in a generated endpoint when its cell differs from the analyzer default (D22). |
 | Basis | The row of the placement algorithm that produced a matrix row. |
 
-There is no target dimension. Every rule has one ladder for every AL project, whether it is a per-tenant extension or an AppSource app (D21). The project opts out of rules that do not apply to it; the user documentation of the template (`docs/pte-or-appsource.md` in `ALCops/rulebook`) describes how.
+There is no target dimension. Every rule has one ladder for every AL project, whether it is a per-tenant extension or an AppSource app (D21). The project opts out of rules that do not apply to it; the user documentation of the template ([docs/pte-or-appsource.md](../../template/docs/pte-or-appsource.md), shipped from `template/docs/`) describes how.
 
 ## 2. Enumerations
 

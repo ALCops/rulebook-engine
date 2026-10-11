@@ -2,7 +2,7 @@
 
 How level and stage content is maintained in the engine, how a placement change reaches organizations, what the generated level pages show, and the recipes an organization uses to pick a starting point and add, alias or remove levels and stages. The decisions are [D16](adr/0016-level-content-comes-from-a-markdown-matrix-target-and-stage.md) (the rule decisions live in `docs/rulebook/`), [D25](adr/0025-l0-is-removed-the-starting-point-is-the-closest-shipped.md) (no shipped everything-off level), [D26](adr/0026-levels-and-stages-are-configuration.md), [D27](adr/0027-source-files-are-deltas-level-chain-and-stage-deltas-flat.md), [D28](adr/0028-identity-is-one-name-the-slug-names-every-file-url-selector.md), [D29](adr/0029-basedon-references-any-level-file-removing-an-entry-stops.md), [D38](adr/0038-release-notes-are-generated-from-pull-request-labels.md) and [D49](adr/0049-shipped-level-pages-live-in-the-engine-docs.md).
 
-> **Status:** written by WP10 ([#12](https://github.com/ALCops/rulebook-engine/issues/12)). Code: `modules/Rulebook.Levels.psm1`, `tools/rulebook/Build-Template.ps1`, `scripts/New-RulebookOffLevel.ps1`. Everything below is derived from that code and its tests unless it says *observed*; the live run is section 7. The user page for organizations is `docs/levels.md` in the ALCops/rulebook repository.
+> **Status:** written by WP10 ([#12](https://github.com/ALCops/rulebook-engine/issues/12)). Code: `modules/Rulebook.Levels.psm1`, `tools/rulebook/Build-Template.ps1`, `scripts/New-RulebookOffLevel.ps1`. Everything below is derived from that code and its tests unless it says *observed*; the live run is section 7. The user page for organizations is [docs/levels.md](../template/docs/levels.md), shipped from `template/docs/`.
 
 ---
 

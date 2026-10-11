@@ -1,6 +1,6 @@
 # Rulebook dashboard
 
-Design of the dashboard an organization gets with its rulebook repository: a Hugo site, published next to the endpoints, that shows the matrix of diagnostic ids by level and stage, and a write path that turns clicks into a pull request without any infrastructure beyond GitHub. Contributor document; the user-facing page is `docs/dashboard.md` in `ALCops/rulebook` (WP11).
+Design of the dashboard an organization gets with its rulebook repository: a Hugo site, published next to the endpoints, that shows the matrix of diagnostic ids by level and stage, and a write path that turns clicks into a pull request without any infrastructure beyond GitHub. Contributor document; the user-facing page will be `docs/dashboard.md` in `template/docs/` (WP14), copied to `ALCops/rulebook` by the deploy.
 
 > **Status:** target design after the interview of 2026-10-03 (D31 to D37). Implemented by [WP14](https://github.com/ALCops/rulebook-engine/issues/16) (site) and [WP15](https://github.com/ALCops/rulebook-engine/issues/17) (write path). Names of files and settings keys are proposals that WP02 and WP14 finalise.
 

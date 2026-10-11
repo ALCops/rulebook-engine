@@ -101,16 +101,12 @@ function Test-MarkdownLink {
     # The broken relative links of the page -Path under -Root: a target without a scheme whose file or folder does not
     # exist (URL-decoded, relative to the page's folder, or to -Root with a leading '/'), a '#fragment' that names no
     # anchor of the page itself or, for a link to another Markdown page, of that page, and a reference link without a
-    # definition. -Overlay: further roots a path is looked up in, at the same place relative to -Root (the template
-    # README resolves docs/ in the user documentation). -Pending: root-relative paths (wildcards allowed) that may be
-    # missing (for example docs/* without the user documentation). -NoEscape: a target whose path leaves
-    # -Root is broken (a template page would point outside the organization repository once shipped).
+    # definition. -NoEscape: a target whose path leaves -Root is broken (a template page would point outside the
+    # organization repository once shipped).
     param(
         [Parameter(Mandatory)][string]$Root,
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
-        [string[]]$Overlay = @(),
-        [string[]]$Pending = @(),
         [switch]$NoEscape
     )
     if ($null -eq (Get-Variable -Name MarkdownAnchorCache -Scope Script -ErrorAction SilentlyContinue)) { $script:MarkdownAnchorCache = @{} }
@@ -133,14 +129,8 @@ function Test-MarkdownLink {
         $full = [System.IO.Path]::GetFullPath($(if ($relative.StartsWith('/')) { Join-Path $Root $relative.TrimStart('/') } else { Join-Path $folder $relative }))
         $fromRoot = [System.IO.Path]::GetRelativePath($Root, $full).Replace('\', '/')
         if ($NoEscape -and ($fromRoot -eq '..' -or $fromRoot.StartsWith('../') -or [System.IO.Path]::IsPathRooted($fromRoot))) { $broken.Add("$target (outside the repository)"); continue }
-        $found = $null
-        foreach ($candidate in @($full) + @($Overlay | ForEach-Object { Join-Path $_ $fromRoot })) {
-            if (Test-Path -LiteralPath $candidate) { $found = $candidate; break }
-        }
-        if ($null -eq $found) {
-            if (-not @($Pending | Where-Object { $fromRoot -clike $_ })) { $broken.Add($target) }
-            continue
-        }
+        if (-not (Test-Path -LiteralPath $full)) { $broken.Add($target); continue }
+        $found = $full
         if ($parts.Count -eq 2 -and $parts[1] -ne '' -and $found -like '*.md' -and (Test-Path -LiteralPath $found -PathType Leaf)) {
             if (-not $script:MarkdownAnchorCache.ContainsKey($found)) { $script:MarkdownAnchorCache[$found] = Get-MarkdownAnchor -Text ([System.IO.File]::ReadAllText($found)) }
             if (-not $script:MarkdownAnchorCache[$found].Contains([System.Uri]::UnescapeDataString($parts[1]))) { $broken.Add("$target (no such heading on that page)") }

@@ -62,7 +62,7 @@ Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/
 ./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level strict
 ```
 
-The script is a one-off helper: delete it afterwards, or download it to a temporary folder and pass the project folder with `-OutputPath`. Once the engine's `v1` branch exists (WP13), use the `v1` URL instead of `main`.
+The script is a one-off helper: delete it afterwards, or download it to a temporary folder and pass the project folder with `-OutputPath`.
 
 | Parameter | Meaning |
 |---|---|

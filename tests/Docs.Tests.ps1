@@ -11,10 +11,6 @@ BeforeDiscovery {
     $repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $PSScriptRoot 'Helpers' 'MarkdownCheck.ps1')
 
-    # The troubleshooting rule of the user pages is on since PR B of WP11 (#13, ALCops/rulebook#8) brought every user
-    # page to the required shape; $true skips it with the reason below.
-    $troubleshootingPending = $false
-
     function Get-PageCase {
         param([string]$Root, [string[]]$Files, [switch]$User, [switch]$NoEscape)
         foreach ($file in $Files) {
@@ -47,8 +43,8 @@ BeforeDiscovery {
         Get-ChildItem -LiteralPath (Join-Path $templateRoot 'docs') -Recurse -File -Filter '*.md' | Sort-Object FullName | ForEach-Object FullName
     )
     $script:roots = @(
-        @{ Name = 'engine'; Pages = @(Get-PageCase -Root $repoRoot -Files $engineFiles); Pending = $false }
-        @{ Name = 'user documentation'; Pages = @(Get-PageCase -Root $templateRoot -Files $userFiles -User -NoEscape); Pending = $troubleshootingPending }
+        @{ Name = 'engine'; Pages = @(Get-PageCase -Root $repoRoot -Files $engineFiles) }
+        @{ Name = 'user documentation'; Pages = @(Get-PageCase -Root $templateRoot -Files $userFiles -User -NoEscape) }
     )
 }
 
@@ -63,7 +59,6 @@ Describe 'Documentation pages' {
         }
 
         It '<Page>: troubleshooting section present' -ForEach @($Pages | Where-Object { $_.Shaped }) -AllowNullOrEmptyForEach {
-            if ($Pending) { Set-ItResult -Skipped -Because 'the troubleshooting rule is switched off ($troubleshootingPending in BeforeDiscovery)' }
             $Troubleshooting | Should-BeCollection @()
         }
 
@@ -81,9 +76,6 @@ Describe 'Markdown checks' {
         foreach ($file in 'docs/images/a b.png', 'docs/x(1).md', 'README.md') { [System.IO.File]::WriteAllText((Join-Path $root $file), 'x') }
         [System.IO.File]::WriteAllText((Join-Path $root 'docs' 'other.md'), "# Other`n`n## 2. The part`n")
         $script:page = Join-Path $root 'docs' 'page.md'
-        $script:overlay = Join-Path $TestDrive 'overlay'
-        $null = New-Item -ItemType Directory -Path (Join-Path $overlay 'docs') -Force
-        [System.IO.File]::WriteAllText((Join-Path $overlay 'docs' 'laid-over.md'), "# Laid over`n")
     }
 
     It 'finds a missing file, a missing heading and nothing else' {
@@ -127,14 +119,9 @@ Describe 'Markdown checks' {
         Test-MarkdownLink -Root $root -Path $page -Text "# Top`n`n[ok](#top) [gone](#Top)" | Should-BeCollection @('#Top (no such heading on this page)')
     }
 
-    It 'flags a target outside the root with -NoEscape and takes wildcards in -Pending' {
-        Test-MarkdownLink -Root $root -Path (Join-Path $root 'README.md') -Text '[out](../outside.md) [up](docs/../../x.md) [later](docs/any.md) [in](docs/other.md)' -NoEscape -Pending @('docs/*') |
-            Should-BeCollection @('../outside.md (outside the repository)', 'docs/../../x.md (outside the repository)')
-    }
-
-    It 'looks a path up in the overlay roots and tolerates pending pages' {
-        $text = '[ok](laid-over.md) [pending](later.md) [gone](never.md)'
-        Test-MarkdownLink -Root $root -Path $page -Text $text -Overlay @($overlay) -Pending @('docs/later.md') | Should-BeCollection @('never.md')
+    It 'flags a target outside the root with -NoEscape' {
+        Test-MarkdownLink -Root $root -Path (Join-Path $root 'README.md') -Text '[out](../outside.md) [up](docs/../../x.md) [gone](docs/any.md) [in](docs/other.md)' -NoEscape |
+            Should-BeCollection @('../outside.md (outside the repository)', 'docs/../../x.md (outside the repository)', 'docs/any.md')
     }
 
     It 'numbers repeated headings the way GitHub does and keeps tag-like text in code spans' {
