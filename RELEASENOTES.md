@@ -1,5 +1,9 @@
 # Release notes
 
+## v1.0.0-beta.2
+
+- Release notes: the deploy line names its pull request ([#102](https://github.com/ALCops/rulebook-engine/pull/102))
+
 ## v1.0.0-beta.1
 
 - WP00: Repository bootstrap ([#32](https://github.com/ALCops/rulebook-engine/pull/32))
