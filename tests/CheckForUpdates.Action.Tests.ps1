@@ -220,7 +220,7 @@ Describe 'CheckForUpdates.ps1' {
         $run = Invoke-Entry @{ RepositoryRoot = $org; Update = $true; ApiUrl = 'http://127.0.0.1:9' }
         $run.Result.ExitCode | Should-Be 1
         $run.Result.Failure | Should-Be 'token'
-        @($run.Result.Annotations) | Should-BeCollection @('::error title=CheckForUpdates::The GHTOKENWORKFLOW secret is needed to update system files. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md')
+        @($run.Result.Annotations) | Should-BeCollection @('::error title=CheckForUpdates::The GHTOKENWORKFLOW secret is needed to update system files. Read https://github.com/ALCops/rulebook/blob/preview/docs/ghtokenworkflow.md')
         $run.Result.Plan | Should-BeNull
     }
 
@@ -232,7 +232,7 @@ Describe 'CheckForUpdates.ps1' {
         } finally {
             $env:GITHUB_ACTION_REF = $saved
         }
-        @($run.Result.Annotations) | Should-BeCollection @('::error title=CheckForUpdates::The GHTOKENWORKFLOW secret is needed to update system files. Read https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md')
+        @($run.Result.Annotations) | Should-BeCollection @('::error title=CheckForUpdates::The GHTOKENWORKFLOW secret is needed to update system files. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md')
     }
 
     It 'names the secret from ghTokenWorkflowSecretName' {

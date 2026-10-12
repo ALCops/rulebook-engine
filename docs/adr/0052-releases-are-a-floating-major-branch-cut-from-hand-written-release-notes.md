@@ -1,6 +1,6 @@
 # D52. Releases are a floating major branch cut from hand-written release notes
 
-- **Status:** Accepted
+- **Status:** Superseded by D53 (2026-10-11)
 - **Date:** 2026-10-10
 
 - **Decision:** a release moves the floating branch `v<major>` (`v1` now) to a commit of engine `main` and copies the engine's `template/` to `ALCops/rulebook@v1` with one rewrite rule, tags both repositories `vX.Y.Z` and takes the version and the notes from the top heading of a hand-written `RELEASENOTES.md`, while `ALCops/rulebook@main` carries the engine's `template/` verbatim for the canary rulebook.

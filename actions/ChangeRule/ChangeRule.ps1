@@ -58,7 +58,8 @@ Import-Module (Join-Path $modules 'Rulebook.Update.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Edit.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
-# The user page of the token, on the branch this action runs from (v1 at @v1, main in engine CI; D52).
+# The user page of the token, on the template ref of the engine ref this action runs from (main at @v1, preview at
+# @main and in engine CI; D53).
 $docsUrl = Get-RulebookDocsUrl -Page 'ghtokenworkflow.md'
 
 $ownWork = [string]::IsNullOrEmpty($WorkPath)

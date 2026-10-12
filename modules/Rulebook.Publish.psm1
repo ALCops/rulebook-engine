@@ -18,7 +18,8 @@ $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:BaseUrlPattern = '^https://[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*(:[0-9]{1,5})?(/(?!\.\.?(/|\z))[^\s/?#"\\\u0000-\u001F]+)*\z'
 $script:Placeholder = '{BASEURL}'
 # The init script the index page tells AL projects to download and the user page it links; both URLs are built at call
-# time from the engine ref (D52): v1 when Publish runs at @v1, main for the canary and in engine CI.
+# time from the engine ref (D52, D53): v1 when Publish runs at @v1, main for the canary and in engine CI; the user page
+# is on the template ref that engine ref maps to (main for v1, preview for main).
 $script:SkeletonScriptName = 'Get-RulebookSkeletons.ps1'
 $script:AlProjectDocsPage = 'al-project.md'
 # The targets of the settings schema that WP05 does not implement, with their backlog issues.
@@ -204,12 +205,11 @@ function ConvertTo-RulebookIndexHtml {
     $manifestUrl = ConvertTo-HtmlText "$BaseUrl/rulebook.json"
     $lines.Add('<h2 id="al-project">Set up an AL project</h2>')
     $lines.Add('<p>An AL project keeps one file per stage in <code>.rulebook/</code>: the skeleton of its level, which includes the endpoint, with the project exceptions in its <code>rules</code>. The init script downloads the files of a level, for example:</p>')
-    # One ref for the download and for -Ref, so the script links the user page of the branch the site was published from.
-    # A commit sha names no commit of ALCops/rulebook, so -Ref says main there, like the docs link below.
+    # One engine ref for the download and for -Ref; the script maps it to the template ref of its user page as
+    # Get-RulebookDocsUrl does for the docs link below (v1 -> main, main -> preview, a commit sha -> main; D53).
     $engineRef = Get-RulebookEngineRef
-    $docsRef = if ($engineRef -match '^[0-9a-fA-F]{40}\z') { 'main' } else { $engineRef }
     $lines.Add('<pre><code>Invoke-WebRequest ' + (ConvertTo-HtmlText (Get-RulebookScriptUrl -Name $script:SkeletonScriptName -Ref $engineRef)) + ' -OutFile Get-RulebookSkeletons.ps1')
-    $lines.Add('./Get-RulebookSkeletons.ps1 -BaseUrl ' + (ConvertTo-HtmlText $BaseUrl) + ' -Level ' + (ConvertTo-HtmlText $exampleLevel) + ' -Ref ' + (ConvertTo-HtmlText $docsRef) + '</code></pre>')
+    $lines.Add('./Get-RulebookSkeletons.ps1 -BaseUrl ' + (ConvertTo-HtmlText $BaseUrl) + ' -Level ' + (ConvertTo-HtmlText $exampleLevel) + ' -Ref ' + (ConvertTo-HtmlText $engineRef) + '</code></pre>')
     $lines.Add('<p>Then point VS Code at the default stage with <code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code> and AL-Go at the CI stage with <code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>. Details: <a href="' + (ConvertTo-HtmlText (Get-RulebookDocsUrl -Page $script:AlProjectDocsPage -Ref $engineRef)) + '">docs/al-project.md</a>. The levels and stages of this site, machine-readable: <a href="' + $manifestUrl + '"><code>' + $manifestUrl + '</code></a>.</p>')
     foreach ($stage in $Inputs.Stages) {
         $lines.Add('<h2 id="stage-' + (ConvertTo-HtmlText $stage.Slug) + '">Stage ' + (ConvertTo-HtmlText $stage.Name) + '</h2>')

@@ -114,7 +114,7 @@ An organization that adds or removes levels or stages gets exactly `levels x sta
 
 ## 6. Schemas
 
-The schemas live in the engine under `schemas/` and are served over raw URLs from the branch the organization follows. Draft 2020-12. The URLs below are the ones the engine's `template/` ships, on `main`; the release deploy rewrites them to the release branch `v1` ([D52](../adr/0052-releases-are-a-floating-major-branch-cut-from-hand-written-release-notes.md); the `v1` URLs go live with the first WP13 deploy, [#15](https://github.com/ALCops/rulebook-engine/issues/15)), and a file the engine writes names the ref the action was called with (`Get-RulebookSchemaUrl`). The tests validate against the local files.
+The schemas live in the engine under `schemas/` and are served over raw URLs from the engine ref the organization's workflows run (`v1` for an organization on the template's `main`, `main` for the canary on `preview`). Draft 2020-12. The URLs below are the ones the engine's `template/` ships, on `main`; the release deploy rewrites them to the engine's release branch `v1` ([D53](../adr/0053-template-main-is-the-release-preview-the-bleeding-edge-and-deprecations-replace-majors.md); live since the first WP13 deploy, [#15](https://github.com/ALCops/rulebook-engine/issues/15)), and a file the engine writes names the ref the action was called with (`Get-RulebookSchemaUrl`). The tests validate against the local files.
 
 | File | URL | Validates |
 |---|---|---|

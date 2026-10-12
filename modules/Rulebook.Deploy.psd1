@@ -5,7 +5,7 @@
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook deploy: the release of the engine and the template from RELEASENOTES.md (floating branch v<major>, tags, the reference rewrite, the release notes copy, the GitHub Release) and the refresh of ALCops/rulebook@main (D52). See docs/releasing.md.'
+    Description          = 'Rulebook deploy: the release of the engine and the template from RELEASENOTES.md (the floating engine branch v<major>, tags, ALCops/rulebook@main with the two-target reference rewrite, the release notes copy, the GitHub Release) and the refresh of ALCops/rulebook@preview (D53). See docs/releasing.md.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(

@@ -3,6 +3,8 @@
 ## v1.0.0-beta.3
 
 - Update: templateUrl accepts a tag, the pin of a release ([#108](https://github.com/ALCops/rulebook-engine/pull/108))
+- Release model: template main is the release, preview the bleeding edge, tags the pin, deprecations instead of majors (D53) ([#109](https://github.com/ALCops/rulebook-engine/pull/109))
+- A repository created from the template's former `v1` branch: set `templateUrl` in `.github/Rulebook-Settings.json` to end in `@main` and run Update Rulebook System Files; `v1` of the template goes away ([#109](https://github.com/ALCops/rulebook-engine/pull/109))
 
 ## v1.0.0-beta.2
 

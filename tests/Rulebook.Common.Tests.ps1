@@ -220,11 +220,32 @@ Describe 'Get-RulebookEngineRef and the URL builders' {
         Get-RulebookScriptUrl -Name 'New-RulebookOffLevel.ps1' -Ref 'main' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/New-RulebookOffLevel.ps1'
     }
 
-    It 'builds the docs URL on ALCops/rulebook from the engine ref, or from -Ref' {
-        Get-RulebookDocsUrl -Page 'ghtokenworkflow.md' | Should-Be 'https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
+    It 'builds the docs URL on ALCops/rulebook from the engine ref, or from -Ref, mapped to the template ref' {
+        Get-RulebookDocsUrl -Page 'ghtokenworkflow.md' | Should-Be 'https://github.com/ALCops/rulebook/blob/preview/docs/ghtokenworkflow.md'
         $env:GITHUB_ACTION_REF = 'v1'
-        Get-RulebookDocsUrl -Page 'ghtokenworkflow.md' | Should-Be 'https://github.com/ALCops/rulebook/blob/v1/docs/ghtokenworkflow.md'
+        Get-RulebookDocsUrl -Page 'ghtokenworkflow.md' | Should-Be 'https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md'
         Get-RulebookDocsUrl -Page 'levels/strict.md' -Ref 'v1.0.0' | Should-Be 'https://github.com/ALCops/rulebook/blob/v1.0.0/docs/levels/strict.md'
+    }
+
+    It 'maps the engine ref <Ref> to the template ref <Expected> (GITHUB_ACTION_REF set and as -Ref)' -ForEach @(
+        @{ Ref = 'v1'; Expected = 'main' }
+        @{ Ref = 'v2'; Expected = 'main' }
+        @{ Ref = 'main'; Expected = 'preview' }
+        @{ Ref = 'v1.0.0'; Expected = 'v1.0.0' }
+        @{ Ref = 'v1.0.0-beta.3'; Expected = 'v1.0.0-beta.3' }
+        @{ Ref = '0123456789abcdef0123456789abcdef01234567'; Expected = 'main' }
+        @{ Ref = 'issue-104/main-is-the-release'; Expected = 'preview' }
+        @{ Ref = 'v1x'; Expected = 'preview' }
+        @{ Ref = 'v1.0'; Expected = 'preview' }
+    ) {
+        Get-RulebookDocsUrl -Page 'al-project.md' -Ref $Ref | Should-Be "https://github.com/ALCops/rulebook/blob/$Expected/docs/al-project.md"
+        $env:GITHUB_ACTION_REF = $Ref
+        Get-RulebookDocsUrl -Page 'al-project.md' | Should-Be "https://github.com/ALCops/rulebook/blob/$Expected/docs/al-project.md"
+    }
+
+    It 'maps the ref folder of GITHUB_ACTION_PATH when GITHUB_ACTION_REF is unset' {
+        $env:GITHUB_ACTION_PATH = Join-Path 'runner' '_actions' 'ALCops' 'rulebook-engine' 'v1' 'actions' 'Validate'
+        Get-RulebookDocsUrl -Page 'al-project.md' | Should-Be 'https://github.com/ALCops/rulebook/blob/main/docs/al-project.md'
     }
 
     It 'falls back to main in the docs URL for a commit sha, which names no commit of the template repository' {

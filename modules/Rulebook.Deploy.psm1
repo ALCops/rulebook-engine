@@ -1,10 +1,12 @@
 #requires -Version 7.4
-# Rulebook.Deploy: the release of the engine and the template (WP13, D52). A release reads the version and the notes
-# from the top heading of RELEASENOTES.md, copies template/ into a clone of ALCops/rulebook@v<major> with every
-# ALCops/rulebook and ALCops/rulebook-engine reference on main rewritten to that branch, writes the release notes
+# Rulebook.Deploy: the release of the engine and the template (WP13, D53). Two rewrite targets: the engine references
+# (ALCops/rulebook-engine) and the template references (ALCops/rulebook) on main. A release reads the version and the
+# notes from the top heading of RELEASENOTES.md, copies template/ into a clone of ALCops/rulebook@main with the engine
+# references rewritten to the floating v<major> and the template references left at main, writes the release notes
 # copy, commits and tags there, moves the engine's floating branch v<major> to the released commit and tags it, and
-# creates the GitHub Release on the engine. The refresh copies template/ verbatim to ALCops/rulebook@main (no
-# rewrite, no tag, no release). Both authenticate as the ALCops GitHub App and commit directly.
+# creates the GitHub Release on the engine. The refresh copies template/ into ALCops/rulebook@preview (created from
+# main's head on its first run) with the engine references left at main and the template references rewritten to
+# preview (no tag, no release). Both authenticate as the ALCops GitHub App and commit directly.
 # Contract: docs/releasing.md. Imports Rulebook.Common (git runner) and Rulebook.GitHub (token exchange, REST, clone).
 
 Set-StrictMode -Version 3.0
@@ -17,10 +19,17 @@ $script:TemplateRepository = 'ALCops/rulebook'
 $script:ReleaseNotesFile = 'RELEASENOTES.md'
 $script:ReleaseNotesCopy = '.github/RELEASENOTES.copy.md'
 $script:VersionPattern = '^## v(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*))?\s*$'
-# A main that names a branch of the engine or the template: @main (templateUrl), /main/ of a raw URL, /blob/main/,
-# /raw/main/, /tree/main/, and actions/<Name>@main of a uses: line. Not "the main branch", maintain or
-# rulebook-engine-main.
-$script:ReferencePattern = '(?<=ALCops/rulebook(?:-engine)?(?:/blob|/raw|/tree|/actions/[A-Za-z0-9._-]+)?[/@])main(?![\w-])'
+# A main that names a branch of the engine: /main/ of a raw URL, /blob/main/, /raw/main/, /tree/main/, @main and
+# actions/<Name>@main of a uses: line. Not "the main branch", maintain or rulebook-engine-main.
+$script:EngineReferencePattern = '(?<=ALCops/rulebook-engine(?:/blob|/raw|/tree|/actions/[A-Za-z0-9._-]+)?[/@])main(?![\w-])'
+# A main that names a branch of the template: @main (templateUrl), /main/ of a raw URL, /blob/main/, /raw/main/ and
+# /tree/main/. It cannot match ALCops/rulebook-engine/...: '-engine' sits between 'rulebook' and [/@], so the two
+# patterns match disjoint positions and their order does not matter.
+$script:TemplateReferencePattern = '(?<=ALCops/rulebook(?:/blob|/raw|/tree)?[/@])main(?![\w-])'
+# The template branch a release writes (the default branch, what "Use this template" copies) and the one a refresh
+# writes (the bleeding edge the canary follows).
+$script:ReleaseTemplateBranch = 'main'
+$script:PreviewTemplateBranch = 'preview'
 $script:RewriteExtensions = @('.md', '.yaml', '.yml', '.json', '.ps1', '.txt', '.html')
 $script:DeployPermissions = [ordered]@{ contents = 'write'; workflows = 'write'; checks = 'read'; metadata = 'read' }
 # Check runs of the deploy itself on the released commit; they are running while the precondition is checked.
@@ -119,26 +128,28 @@ function Invoke-DeployPublish {
     [void][System.IO.Directory]::CreateDirectory($WorkPath)
     $clonePath = Join-Path $WorkPath 'template'
     $templateEnvironment = Get-GitHubPushEnvironment -RemoteUrl $TemplateRemoteUrl -Token $TemplateToken
-    $existing = Get-RemoteRefSha -Root $WorkPath -RemoteUrl $TemplateRemoteUrl -Ref "refs/heads/$($Plan.Branch)" -Environment $templateEnvironment
+    $target = $Plan.TemplateBranch
+    $existing = Get-RemoteRefSha -Root $WorkPath -RemoteUrl $TemplateRemoteUrl -Ref "refs/heads/$target" -Environment $templateEnvironment
     if ($null -ne $existing) {
-        $clone = New-GitHubClone -RemoteUrl $TemplateRemoteUrl -Branch $Plan.Branch -Path $clonePath -Token $TemplateToken
+        $clone = New-GitHubClone -RemoteUrl $TemplateRemoteUrl -Branch $target -Path $clonePath -Token $TemplateToken
     } else {
-        # The first release of a major: the branch starts at the head of main (the canary's branch), so its history continues.
-        $clone = New-GitHubClone -RemoteUrl $TemplateRemoteUrl -Branch 'main' -Path $clonePath -Token $TemplateToken
-        $null = Assert-DeployGit -Root $clone.Path -Arguments @('push', '--quiet', 'origin', "HEAD:refs/heads/$($Plan.Branch)") -Environment $clone.Environment -What "git push $($Plan.Branch) (create)"
+        # Only the first refresh gets here (a release always finds main): preview starts at the head of main, so its
+        # history continues.
+        $clone = New-GitHubClone -RemoteUrl $TemplateRemoteUrl -Branch $script:ReleaseTemplateBranch -Path $clonePath -Token $TemplateToken
+        $null = Assert-DeployGit -Root $clone.Path -Arguments @('push', '--quiet', 'origin', "HEAD:refs/heads/$target") -Environment $clone.Environment -What "git push $target (create)"
     }
     $Result.Copy = Copy-DeployTemplate -Source (Join-Path $Root 'template') -Destination $clone.Path -KeepPath $KeepPath -ReleaseNotesPath (Join-Path $Root $script:ReleaseNotesFile)
+    $null = Update-DeployReference -Root $clone.Path -EngineBranch $Plan.EngineBranch -TemplateBranch $Plan.TemplateBranch
     $sha7 = Get-Sha7 $Plan.SourceSha
     if ($Plan.Mode -eq 'release') {
-        $null = Update-DeployReference -Root $clone.Path -Branch $Plan.Branch
         $message = "Release $($Plan.Version) from $($Plan.EngineRepo)@$sha7"
-        $Result.Template = Publish-TemplateRelease -Clone $clone -Message $message -TargetBranch $Plan.Branch -Tag $Plan.Tag
+        $Result.Template = Publish-TemplateRelease -Clone $clone -Message $message -TargetBranch $target -Tag $Plan.Tag
         $engineEnvironment = Get-GitHubPushEnvironment -RemoteUrl $EngineRemoteUrl -Token $EngineToken
-        $Result.Engine = Publish-EngineRelease -Root $Root -RemoteUrl $EngineRemoteUrl -Sha $Plan.SourceSha -Branch $Plan.Branch -Tag $Plan.Tag -Environment $engineEnvironment
+        $Result.Engine = Publish-EngineRelease -Root $Root -RemoteUrl $EngineRemoteUrl -Sha $Plan.SourceSha -Branch $Plan.EngineBranch -Tag $Plan.Tag -Environment $engineEnvironment
         $release = New-GitHubRelease -Repository $Plan.EngineRepo -Tag $Plan.Tag -Name $Plan.Version -Body $Plan.Notes -Prerelease:$Plan.Prerelease -Token $EngineToken -ApiUrl $ApiUrl
         $Result.ReleaseUrl = $release.Url
     } else {
-        $Result.Template = Publish-TemplateRelease -Clone $clone -Message "Refresh from $($Plan.EngineRepo)@$sha7" -TargetBranch 'main'
+        $Result.Template = Publish-TemplateRelease -Clone $clone -Message "Refresh from $($Plan.EngineRepo)@$sha7" -TargetBranch $target
     }
     $Result.Pushed = $true
     $Result.ExitCode = 0
@@ -154,8 +165,8 @@ function Get-ReleaseVersion {
     The version of the top heading of RELEASENOTES.md: { Version, Tag, Major, Branch, Prerelease, Line }.
     .DESCRIPTION
     The first line that starts with '## ' must read '## vX.Y.Z' or '## vX.Y.Z-<prerelease>' (dot-separated
-    alphanumeric identifiers). Tag is the version with the v, Branch is v<major>. Anything else throws, naming the
-    line.
+    alphanumeric identifiers). Tag is the version with the v, Branch is v<major>, the engine's floating release
+    branch (the template has no release branch, D53). Anything else throws, naming the line.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -208,16 +219,22 @@ function Get-ReleaseNotesSection {
 function Convert-DeployReference {
     <#
     .SYNOPSIS
-    -Text with every ALCops/rulebook and ALCops/rulebook-engine reference to main pointed at -Branch.
+    -Text with every ALCops/rulebook-engine reference to main pointed at -EngineBranch and every ALCops/rulebook
+    reference to main pointed at -TemplateBranch.
     .DESCRIPTION
-    Rewrites @main, /main/ of a raw URL, /blob/main, /raw/main, /tree/main and actions/<Name>@main after
-    ALCops/rulebook or ALCops/rulebook-engine; leaves 'branches: [ main ]', 'the main branch', maintain and
-    rulebook-engine-main alone. Pure.
+    Rewrites @main, /main/ of a raw URL, /blob/main, /raw/main, /tree/main and (engine only) actions/<Name>@main
+    after ALCops/rulebook-engine or ALCops/rulebook; leaves 'branches: [ main ]', 'the main branch', maintain and
+    rulebook-engine-main alone. The two targets match disjoint positions; main/main is the identity. Pure.
     #>
     [CmdletBinding()]
     [OutputType([string])]
-    param([Parameter(Mandatory)][AllowEmptyString()][string]$Text, [Parameter(Mandatory)][string]$Branch)
-    return [regex]::Replace($Text, $script:ReferencePattern, $Branch)
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory)][string]$EngineBranch,
+        [Parameter(Mandatory)][string]$TemplateBranch
+    )
+    $engine = [regex]::Replace($Text, $script:EngineReferencePattern, $EngineBranch)
+    return [regex]::Replace($engine, $script:TemplateReferencePattern, $TemplateBranch)
 }
 
 function Update-DeployReference {
@@ -227,12 +244,16 @@ function Update-DeployReference {
     .DESCRIPTION
     Text files are .md, .yaml, .yml, .json, .ps1, .txt and .html; .git is skipped. A file is read as UTF-8 and
     written back only when its text changed, with its BOM (if it had one) and its line endings as they were.
-    -Branch main changes nothing.
+    -EngineBranch main -TemplateBranch main changes nothing.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Writes only the work copy the caller names')]
     [CmdletBinding()]
     [OutputType([string[]])]
-    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$Branch)
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$EngineBranch,
+        [Parameter(Mandatory)][string]$TemplateBranch
+    )
     $full = (Resolve-Path -LiteralPath $Root).ProviderPath
     $changed = [System.Collections.Generic.List[string]]::new()
     foreach ($relative in (Get-TreeFile -Root $full)) {
@@ -242,7 +263,7 @@ function Update-DeployReference {
         $bom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
         $offset = if ($bom) { 3 } else { 0 }
         $text = $script:Utf8NoBom.GetString($bytes, $offset, $bytes.Length - $offset)
-        $new = Convert-DeployReference -Text $text -Branch $Branch
+        $new = Convert-DeployReference -Text $text -EngineBranch $EngineBranch -TemplateBranch $TemplateBranch
         if ($new -ceq $text) { continue }
         $out = $script:Utf8NoBom.GetBytes($new)
         if ($bom) { $out = [byte[]](@(0xEF, 0xBB, 0xBF) + $out) }
@@ -322,13 +343,16 @@ function Copy-DeployTemplate {
 function Get-DeployPlan {
     <#
     .SYNOPSIS
-    What a deploy of -RepositoryRoot (an engine checkout) would do: { Mode, Version, Tag, Branch, Prerelease,
-    SourceSha, Notes, TemplateFiles, Rewritten, EngineRepo, TemplateRepo, RepositoryRoot }.
+    What a deploy of -RepositoryRoot (an engine checkout) would do: { Mode, Version, Tag, EngineBranch,
+    TemplateBranch, Prerelease, SourceSha, Notes, TemplateFiles, Rewritten, EngineRepo, TemplateRepo, RepositoryRoot }.
     .DESCRIPTION
-    Release: the version, tag, branch and prerelease flag from the top heading of RELEASENOTES.md (Get-ReleaseVersion,
-    which throws on a bad heading), the notes of that section (throws when empty), and Rewritten: the template files
-    the rewrite to the branch changes, computed on a temporary copy of template/. Refresh: Branch main, no version,
-    tag or notes, nothing rewritten. TemplateFiles is the number of files in template/.
+    Release: the version, tag and prerelease flag from the top heading of RELEASENOTES.md (Get-ReleaseVersion, which
+    throws on a bad heading), the notes of that section (throws when empty), EngineBranch v<major> (the engine's
+    floating branch, moved by the release) and TemplateBranch main. Refresh: EngineBranch main, TemplateBranch
+    preview, no version, tag or notes. TemplateBranch is both the template branch pushed and the target of the
+    template references: the pushed templateUrl names the branch it sits on. Rewritten: the template files the rewrite
+    to the two targets changes, computed on a temporary copy of template/ in both modes. TemplateFiles is the number
+    of files in template/.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -343,29 +367,30 @@ function Get-DeployPlan {
     $notesPath = Join-Path $root $script:ReleaseNotesFile
     [string[]]$files = Get-TreeFile -Root $template
     $plan = [ordered]@{
-        Mode = $Mode; Version = $null; Tag = $null; Branch = 'main'; Prerelease = $false; SourceSha = $Sha; Notes = $null
-        TemplateFiles = $files.Count; Rewritten = [string[]]@(); EngineRepo = $script:EngineRepository; TemplateRepo = $script:TemplateRepository
-        RepositoryRoot = $root
+        Mode = $Mode; Version = $null; Tag = $null; EngineBranch = 'main'; TemplateBranch = $script:PreviewTemplateBranch
+        Prerelease = $false; SourceSha = $Sha; Notes = $null; TemplateFiles = $files.Count; Rewritten = [string[]]@()
+        EngineRepo = $script:EngineRepository; TemplateRepo = $script:TemplateRepository; RepositoryRoot = $root
     }
     if ($Mode -eq 'release') {
         $version = Get-ReleaseVersion -Path $notesPath
         $plan.Version = $version.Version
         $plan.Tag = $version.Tag
-        $plan.Branch = $version.Branch
+        $plan.EngineBranch = $version.Branch
+        $plan.TemplateBranch = $script:ReleaseTemplateBranch
         $plan.Prerelease = $version.Prerelease
         $plan.Notes = Get-ReleaseNotesSection -Path $notesPath -Version $version.Version
-        $scratch = Join-Path ([System.IO.Path]::GetTempPath()) ('rulebook-deploy-plan-' + [guid]::NewGuid().ToString('n').Substring(0, 12))
-        try {
-            [void][System.IO.Directory]::CreateDirectory($scratch)
-            foreach ($relative in $files) {
-                $target = Join-Path $scratch $relative
-                [void][System.IO.Directory]::CreateDirectory((Split-Path -Parent $target))
-                [System.IO.File]::Copy((Join-Path $template $relative), $target)
-            }
-            $plan.Rewritten = [string[]]@(Update-DeployReference -Root $scratch -Branch $version.Branch)
-        } finally {
-            if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }
+    }
+    $scratch = Join-Path ([System.IO.Path]::GetTempPath()) ('rulebook-deploy-plan-' + [guid]::NewGuid().ToString('n').Substring(0, 12))
+    try {
+        [void][System.IO.Directory]::CreateDirectory($scratch)
+        foreach ($relative in $files) {
+            $target = Join-Path $scratch $relative
+            [void][System.IO.Directory]::CreateDirectory((Split-Path -Parent $target))
+            [System.IO.File]::Copy((Join-Path $template $relative), $target)
         }
+        $plan.Rewritten = [string[]]@(Update-DeployReference -Root $scratch -EngineBranch $plan.EngineBranch -TemplateBranch $plan.TemplateBranch)
+    } finally {
+        if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }
     }
     return [pscustomobject]$plan
 }
@@ -376,9 +401,12 @@ function Test-DeployPrecondition {
     The refusals of a deploy: an empty list means it may go ahead.
     .DESCRIPTION
     Both modes: the checkout is clean (git status --porcelain is empty) and its HEAD is the plan's SourceSha.
-    Release also: the tag exists on neither repository (GET repos/{r}/git/ref/tags/{tag} answers 404), and the latest
+    Release also: the tag exists on neither repository (GET repos/{r}/git/ref/tags/{tag} answers 404), the latest
     check runs of SourceSha on the engine are all completed with success or skipped, one of them named test (the
-    deploy's own check runs, deploy and refresh, are left out).
+    deploy's own check runs, deploy and refresh, are left out), and, unless -DryRun, SourceSha is on the engine's
+    main (GET repos/{engine}/compare/main...{sha} answers status identical or behind): a release writes the template's
+    main, which every organization follows, so it is cut from main after the merge; a dry run from a branch stays
+    allowed.
     #>
     [CmdletBinding()]
     [OutputType([string[]])]
@@ -386,7 +414,8 @@ function Test-DeployPrecondition {
         [Parameter(Mandatory)]$Plan,
         [AllowNull()][AllowEmptyString()][string]$EngineToken,
         [AllowNull()][AllowEmptyString()][string]$TemplateToken,
-        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl,
+        [switch]$DryRun
     )
     $refusals = [System.Collections.Generic.List[string]]::new()
     $root = $Plan.RepositoryRoot
@@ -410,6 +439,15 @@ function Test-DeployPrecondition {
             $refusals.Add("The tag $($Plan.Tag) exists on $($pair[0]); add a new '## vX.Y.Z' heading to $($script:ReleaseNotesFile)")
         } elseif ($response.StatusCode -ne 404) {
             $refusals.Add("Could not check the tag $($Plan.Tag) on $($pair[0]) (HTTP $($response.StatusCode): $(Get-ApiText $response))")
+        }
+    }
+    if (-not $DryRun -and -not [string]::IsNullOrEmpty($Plan.SourceSha)) {
+        $response = Invoke-GitHubApi -Method GET -Path "repos/$($Plan.EngineRepo)/compare/main...$($Plan.SourceSha)" -Token $EngineToken -ApiUrl $ApiUrl
+        $compare = if ($response.StatusCode -eq 200 -and $response.Body -is [System.Collections.IDictionary]) { [string]$response.Body['status'] } else { $null }
+        if ($null -eq $compare) {
+            $refusals.Add("Could not check that $(Get-Sha7 $Plan.SourceSha) is on main of $($Plan.EngineRepo) (HTTP $($response.StatusCode): $(Get-ApiText $response))")
+        } elseif (@('identical', 'behind') -notcontains $compare) {
+            $refusals.Add("The commit $(Get-Sha7 $Plan.SourceSha) is not on main of $($Plan.EngineRepo); a release is cut from main after the merge, use dryRun from a branch")
         }
     }
     if (-not [string]::IsNullOrEmpty($Plan.SourceSha)) {
@@ -445,9 +483,10 @@ function Publish-EngineRelease {
     Moves the engine's floating branch to -Sha and pushes the tag: { OldSha, Sha, Branch, Tag, Created }.
     .DESCRIPTION
     git push <remote> <sha>:refs/heads/<Branch> --force-with-lease=refs/heads/<Branch>:<old>, old read with git
-    ls-remote (absent: the branch is created and must still be absent). Forced because a prerelease deployed from a
-    pull request branch is not an ancestor of the squash commit that follows; the lease still refuses a move made by
-    someone else in between. Then <sha>:refs/tags/<Tag>. A refused push throws.
+    ls-remote (absent: the branch is created and must still be absent). Since D53 a release is cut from main only
+    (Test-DeployPrecondition), so the move is normally a fast-forward; the force is kept so a move that is not one (an
+    old D52 prerelease cut from a pull request branch) still goes through, and the lease keeps it safe: it refuses a
+    move made by someone else in between. Then <sha>:refs/tags/<Tag>. A refused push throws.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'The deploy is the change; its dry run stops before this')]
     [CmdletBinding()]
@@ -545,10 +584,14 @@ function ConvertTo-DeploySummary {
     } elseif ($plan.Mode -eq 'release') {
         $lines.Add("## Release $($plan.Version)$(if ($plan.Prerelease) { ' (prerelease)' }) from $sha7")
     } else {
-        $lines.Add("## Refresh of $($plan.TemplateRepo)@main from $sha7")
+        $lines.Add("## Refresh of $($plan.TemplateRepo)@$($plan.TemplateBranch) from $sha7")
     }
     $lines.Add('')
-    if ($Result.DryRun) { $lines.Add('> **DRY RUN: nothing pushed.**'); $lines.Add('') }
+    if ($Result.DryRun) {
+        $lines.Add('> **DRY RUN: nothing pushed.**')
+        if ($null -ne $plan -and $plan.Mode -eq 'release') { $lines.Add('> The check that the commit is on main is skipped in a dry run.') }
+        $lines.Add('')
+    }
     if (@($Result.Refusals).Count -gt 0) {
         $lines.Add('### Refused or failed')
         $lines.Add('')
@@ -559,11 +602,11 @@ function ConvertTo-DeploySummary {
         $lines.Add('| | |')
         $lines.Add('|---|---|')
         if ($plan.Mode -eq 'release') {
-            $lines.Add("| Engine branch | ``$($plan.Branch)`` -> ``$sha7``$(if ($null -ne $Result.Engine) { ' (moved)' }) |")
+            $lines.Add("| Engine branch | ``$($plan.EngineBranch)`` -> ``$sha7``$(if ($null -ne $Result.Engine) { ' (moved)' }) |")
             $lines.Add("| Engine tag | ``$($plan.Tag)`` |")
         }
         $templateCommit = if ($null -ne $Result.Template) { "``$(Get-Sha7 $Result.Template.Sha)``$(if (-not $Result.Template.Pushed) { ' (unchanged)' })" } else { '-' }
-        $lines.Add("| Template branch | ``$($plan.TemplateRepo)@$($plan.Branch)`` |")
+        $lines.Add("| Template branch | ``$($plan.TemplateRepo)@$($plan.TemplateBranch)`` |")
         $lines.Add("| Template commit | $templateCommit |")
         if ($plan.Mode -eq 'release') {
             $lines.Add("| Template tag | ``$($plan.Tag)`` |")
@@ -571,11 +614,11 @@ function ConvertTo-DeploySummary {
         }
         $lines.Add("| Template files | $($plan.TemplateFiles)$(if ($null -ne $Result.Copy) { ", $($Result.Copy.Copied) copied, $(@($Result.Copy.Removed).Count) removed" }) |")
         $lines.Add('')
+        $lines.Add("### Rewritten (engine -> ``$($plan.EngineBranch)``, template -> ``$($plan.TemplateBranch)``, $(@($plan.Rewritten).Count) files)")
+        $lines.Add('')
+        foreach ($file in $plan.Rewritten) { $lines.Add("- ``$file``") }
+        $lines.Add('')
         if ($plan.Mode -eq 'release') {
-            $lines.Add("### Rewritten to $($plan.Branch) ($(@($plan.Rewritten).Count) files)")
-            $lines.Add('')
-            foreach ($file in $plan.Rewritten) { $lines.Add("- ``$file``") }
-            $lines.Add('')
             $lines.Add('### Release notes')
             $lines.Add('')
             $lines.Add([string]$plan.Notes)
@@ -599,11 +642,13 @@ function Invoke-RulebookDeploy {
     .DESCRIPTION
     Plan (Get-DeployPlan), then one token exchange per repository with the GitHub App JSON built from -AppClientId and
     -AppPrivateKey (contents and workflows write, checks and metadata read; both tokens masked), then the preconditions
-    (Test-DeployPrecondition). -DryRun stops there. Release: clone ALCops/rulebook@<branch> (when the branch does
-    not exist yet: clone main and push its head as <branch>, so the history continues), copy
-    template/ (Copy-DeployTemplate with -KeepPath), rewrite the references (Update-DeployReference), commit, push and
-    tag (Publish-TemplateRelease), move the engine branch and tag it (Publish-EngineRelease) and create the GitHub
-    Release with the notes section as its body. Refresh: clone main, copy, commit and push, no rewrite, tag or release.
+    (Test-DeployPrecondition). -DryRun stops there. Release: clone ALCops/rulebook@main, copy template/
+    (Copy-DeployTemplate with -KeepPath), rewrite the engine references to v<major> and leave the template references
+    at main (Update-DeployReference), commit, push main and tag (Publish-TemplateRelease), move the engine branch
+    v<major> and tag it (Publish-EngineRelease) and create the GitHub Release with the notes section as its body.
+    Refresh: clone ALCops/rulebook@preview (when it does not exist yet: clone main and push its head as preview, so
+    the history continues), copy, rewrite the template references to preview (engine references stay at main), commit
+    when something changed and push; no tag or release.
     Writes the summary to -SummaryPath when set. Never calls exit; a failure is ExitCode 1 with one ::error:: line.
     -EngineRemoteUrl and -TemplateRemoteUrl default to the github.com URLs of the two repositories (test seams).
     #>
@@ -648,7 +693,7 @@ function Invoke-RulebookDeploy {
         $templateToken = (Get-GitHubAccessToken -Token $appJson -Repository $plan.TemplateRepo -ApiUrl $ApiUrl -Permissions $script:DeployPermissions).Token
         if (-not [string]::IsNullOrEmpty($templateToken)) { Write-Host "::add-mask::$templateToken" }
 
-        $refusals = @(Test-DeployPrecondition -Plan $plan -EngineToken $engineToken -TemplateToken $templateToken -ApiUrl $ApiUrl)
+        $refusals = @(Test-DeployPrecondition -Plan $plan -EngineToken $engineToken -TemplateToken $templateToken -ApiUrl $ApiUrl -DryRun:$DryRun)
         $result.Refusals = [string[]]$refusals
         if ($refusals.Count -gt 0) {
             foreach ($refusal in $refusals) { Write-Host "::error title=Deploy::$(ConvertTo-AnnotationText $refusal)" }

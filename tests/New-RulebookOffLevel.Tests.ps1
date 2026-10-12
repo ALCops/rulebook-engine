@@ -84,10 +84,10 @@ Describe 'New-RulebookOffLevel.ps1' {
         $run.Lines | Should-ContainCollection 'Wrote base/off.ruleset.json (28 ids at None)'
         $run.Lines | Should-ContainCollection '    { "name": "Off", "description": "Every known diagnostic off. Opt in through overrides." },'
         ($run.Lines -join "`n") | Should-MatchString 'Update Rulebook System Files" with "Resolve the latest commit" off'
-        ($run.Lines -join "`n") | Should-MatchString 'https://github\.com/ALCops/rulebook/blob/v1/docs/levels\.md'
+        ($run.Lines -join "`n") | Should-MatchString 'https://github\.com/ALCops/rulebook/blob/main/docs/levels\.md'
     }
 
-    It 'names v1 by default and the -Ref branch otherwise, in $schema and in the docs link' {
+    It 'names v1 by default and the -Ref branch otherwise in $schema, and the template ref of -Ref in the docs link' {
         $root = Copy-Fixture
         $null = Invoke-Script @{ RepositoryRoot = $root }
         $path = Join-Path $root 'base' 'off.ruleset.json'
@@ -95,7 +95,11 @@ Describe 'New-RulebookOffLevel.ps1' {
         $root = Copy-Fixture
         $run = Invoke-Script @{ RepositoryRoot = $root; Ref = 'v2' }
         (Get-Content -LiteralPath (Join-Path $root 'base' 'off.ruleset.json') -Raw | ConvertFrom-Json).'$schema' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/v2/schemas/ruleset.delta.schema.json'
-        ($run.Lines -join "`n") | Should-MatchString 'https://github\.com/ALCops/rulebook/blob/v2/docs/levels\.md'
+        ($run.Lines -join "`n") | Should-MatchString 'https://github\.com/ALCops/rulebook/blob/main/docs/levels\.md'
+        $root = Copy-Fixture
+        $run = Invoke-Script @{ RepositoryRoot = $root; Ref = 'main' }
+        (Get-Content -LiteralPath (Join-Path $root 'base' 'off.ruleset.json') -Raw | ConvertFrom-Json).'$schema' | Should-Be 'https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/ruleset.delta.schema.json'
+        ($run.Lines -join "`n") | Should-MatchString 'https://github\.com/ALCops/rulebook/blob/preview/docs/levels\.md'
     }
 
     It 'writes the same bytes as the module run from the same ref (GITHUB_ACTION_REF v1, the script default)' {
