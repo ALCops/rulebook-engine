@@ -22,6 +22,8 @@ $script:IssueTemplate = 'rulebook-change.yml'
 $script:DashboardDocsPage = 'dashboard.md'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:Invariant = [System.Globalization.CultureInfo]::InvariantCulture
+# Top-level keys whose object the writer puts one member per line by structure, not by content.
+$script:MultiLineKeys = @('quarantine')
 
 #region Internal helpers
 
@@ -53,8 +55,9 @@ function Test-FlatJsonValue {
 function ConvertTo-SiteJsonText {
     # The JSON text of a value of the site document at an indent. Objects whose values are all scalars or arrays of
     # scalars, and arrays of scalars, are written on one line; everything else one member or element per line, two
-    # spaces deeper. Strings through ConvertTo-JsonString, like every engine writer.
-    param($Value, [int]$Indent = 0)
+    # spaces deeper. Strings through ConvertTo-JsonString, like every engine writer. -MultiLine writes an object one
+    # member per line whatever its values are: the quarantine object keeps its layout when every list is empty.
+    param($Value, [int]$Indent = 0, [switch]$MultiLine)
     if ($null -eq $Value) { return 'null' }
     if ($Value -is [bool]) { return $(if ($Value) { 'true' } else { 'false' }) }
     if ($Value -is [string]) { return ConvertTo-JsonString $Value }
@@ -63,13 +66,15 @@ function ConvertTo-SiteJsonText {
     $outer = ' ' * $Indent
     if ($Value -is [System.Collections.IDictionary]) {
         if ($Value.Count -eq 0) { return '{}' }
-        $flat = $true
-        foreach ($key in $Value.Keys) { if (-not (Test-FlatJsonValue $Value[$key])) { $flat = $false; break } }
+        $flat = -not $MultiLine
+        foreach ($key in $Value.Keys) { if ($flat -and -not (Test-FlatJsonValue $Value[$key])) { $flat = $false } }
         if ($flat) {
             $members = foreach ($key in $Value.Keys) { (ConvertTo-JsonString ([string]$key)) + ': ' + (ConvertTo-SiteJsonText $Value[$key]) }
             return '{ ' + (@($members) -join ', ') + ' }'
         }
-        $members = foreach ($key in $Value.Keys) { $inner + (ConvertTo-JsonString ([string]$key)) + ': ' + (ConvertTo-SiteJsonText $Value[$key] ($Indent + 2)) }
+        $members = foreach ($key in $Value.Keys) {
+            $inner + (ConvertTo-JsonString ([string]$key)) + ': ' + (ConvertTo-SiteJsonText $Value[$key] ($Indent + 2) -MultiLine:($Indent -eq 0 -and $key -cin $script:MultiLineKeys))
+        }
         return "{`n" + (@($members) -join ",`n") + "`n$outer}"
     }
     if ($Value -is [System.Collections.IList]) {
@@ -82,18 +87,6 @@ function ConvertTo-SiteJsonText {
         return "[`n" + (@($items) -join ",`n") + "`n$outer]"
     }
     throw "The site document holds a value of type $($Value.GetType().FullName), which has no JSON form"
-}
-
-function Get-RuleInfo {
-    # Analyzer, Title and Docs of an id: the catalog values, the id prefix when the catalog names no analyzer, '' for a
-    # missing title or docs link (the fallback of Get-RulebookLevelSummary).
-    param([Parameter(Mandatory)]$Catalog, [Parameter(Mandatory)][string]$Id)
-    $entry = if ($Catalog.Entries.Contains($Id)) { $Catalog.Entries[$Id] } else { $null }
-    return [pscustomobject]@{
-        Analyzer = if ($null -ne $entry -and -not [string]::IsNullOrEmpty($entry.Analyzer)) { $entry.Analyzer } else { ([regex]::Match($Id, '^[A-Za-z]+')).Value }
-        Title    = if ($null -ne $entry -and $null -ne $entry.Title) { $entry.Title } else { '' }
-        Docs     = if ($null -ne $entry -and $null -ne $entry.Docs) { $entry.Docs } else { '' }
-    }
 }
 
 function Get-RuleJustification {
@@ -200,7 +193,7 @@ function Get-RulebookSiteModel {
     $cellCount = 0
     foreach ($id in $sortedIds.Values) {
         $known = $Inputs.Catalog.ContainsKey($id)
-        $info = Get-RuleInfo -Catalog $Catalog -Id $id
+        $info = Get-CatalogRowInfo -Catalog $Catalog -Id $id
         $rule = [ordered]@{
             id               = $id
             analyzer         = $info.Analyzer
@@ -338,7 +331,9 @@ function Export-RulebookSiteData {
     Reads the inputs (or takes -Inputs, a Read-RulebookInputs result of the same root), the catalog (Read-CatalogFile)
     and site.includeJustifications from the settings (only the boolean true includes the override and quarantine
     justifications, D36). Writes UTF-8 without BOM to -OutFile (default <RepositoryRoot>/site/data/rulebook.json),
-    creating the folder. Throws when the settings or the catalog are missing. -WhatIf writes nothing and still returns
+    creating the folder. Throws when the settings or the catalog are missing. -Inputs must be read from the same
+    -RepositoryRoot: the model takes the defaults and the cells from it and the analyzer, title and docs from the
+    catalog file of that root. -WhatIf writes nothing and still returns
     the object. Returns { Path, Bytes, RuleCount, LevelCount, StageCount, IncludeJustifications, GeneratedAt (the
     written text) }. Readers parse generatedAt as text (ConvertFrom-Json turns it into a DateTime, #62).
     #>

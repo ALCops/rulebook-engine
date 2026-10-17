@@ -159,8 +159,16 @@ function Get-EntryNoun {
 }
 
 function Get-CatalogRowInfo {
-    # Analyzer, Title and Docs of an id for a summary row: the catalog values, the id prefix when the catalog names
-    # no analyzer, '' for a missing title or docs link.
+    <#
+    .SYNOPSIS
+    Analyzer, Title and Docs of an id for a page row: the catalog values, the id prefix when the catalog names no
+    analyzer, '' for a missing title or docs link (also for an id outside the catalog).
+    .DESCRIPTION
+    -Catalog is a Rulebook.Catalog (Read-CatalogFile). The level and stage summaries and the site data export
+    (Rulebook.Site) use this one fallback. Pure.
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
     param([Parameter(Mandatory)]$Catalog, [Parameter(Mandatory)][string]$Id)
     $entry = if ($Catalog.Entries.Contains($Id)) { $Catalog.Entries[$Id] } else { $null }
     return [pscustomobject]@{
@@ -433,8 +441,8 @@ function Get-RulebookStageSummary {
 
     Rows: one per entry of the stage file, sorted by Get-DiagnosticSortKey: { Id, Analyzer, Title, Docs, Action,
     Justification, NoEffect, Quarantined, Overridden }. NoEffect lists the level slugs (settings order) where the
-    level result (the chain, else this stage's quarantine, else the analyzer default) is None, so the entry does not
-    apply there (S-4); Quarantined is true when this stage's quarantine file lists the id (C15); Overridden lists the
+    id is None before the stage applies: the losing twin side under the twins setting, or a level result (the chain,
+    else this stage's quarantine, else the analyzer default) of None, so the entry does not apply there (S-4); Quarantined is true when this stage's quarantine file lists the id (C15); Overridden lists the
     level slugs whose endpoint for this stage takes the id from an override. The default stage has no file and no
     rows. Groups: { Analyzer, Count, Rows } in order of first appearance. QuarantineIds: the ids of
     quarantine.<slug>.json sorted by Get-DiagnosticSortKey. Counts: one per settings level { Level, Error, Warning,
@@ -461,10 +469,11 @@ function Get-RulebookStageSummary {
             $noEffect = [System.Collections.Generic.List[string]]::new()
             $overridden = [System.Collections.Generic.List[string]]::new()
             foreach ($level in $Inputs.Levels) {
-                # The level result alone: the generator's resolver without overrides, twins and the stage file.
-                $levelResult = Get-EffectiveAction -Id $id -Level $level.Slug -Stage $Stage -Chain $Inputs.Chains[$level.Slug] -StageDelta $null `
-                    -Twins $null -Overrides @() -Quarantine $quarantine -Catalog $Inputs.Catalog
-                if ($levelResult.Action -ceq 'None') { $noEffect.Add($level.Slug) }
+                # The action before the stage applies: the generator's resolver with the twins rule and the level
+                # result, without overrides and without the stage file.
+                $beforeStage = Get-EffectiveAction -Id $id -Level $level.Slug -Stage $Stage -Chain $Inputs.Chains[$level.Slug] -StageDelta $null `
+                    -Twins $Inputs.Twins -TwinsSetting $Inputs.TwinsSetting -Overrides @() -Quarantine $quarantine -Catalog $Inputs.Catalog
+                if ($beforeStage.Action -ceq 'None') { $noEffect.Add($level.Slug) }
                 $table = $endpoints[$level.Slug].Table
                 if ($table.Contains($id) -and $table[$id].Source -ceq 'override') { $overridden.Add($level.Slug) }
             }
@@ -684,6 +693,7 @@ function New-RulebookLevelDocs {
 Export-ModuleMember -Function @(
     'ConvertTo-LevelDocsIndexMarkdown'
     'ConvertTo-LevelDocsMarkdown'
+    'Get-CatalogRowInfo'
     'Get-RulebookLevelSummary'
     'Get-RulebookOffLevelEntry'
     'Get-RulebookStageSummary'

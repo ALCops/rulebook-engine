@@ -255,6 +255,15 @@ Describe 'ConvertTo-RulebookSiteDataJson' {
         Test-Json -Json $validText | Should-BeTrue
     }
 
+    It 'writes the quarantine object one stage per line also when every list is empty, in file order otherwise' {
+        $root = Copy-Fixture
+        foreach ($stage in 'default', 'ci') { Write-FixtureText -Path (Join-Path $root "quarantine.$stage.json") -Text '{ "rules": [] }' }
+        $text = ConvertTo-RulebookSiteDataJson -Model (Get-Model -Root $root)
+        $text | Should-MatchString '(?m)^  "quarantine": \{\n    "default": \[\],\n    "ci": \[\],\n    "vnext": \[\]\n  \}\n\}\n\z'
+        Write-FixtureText -Path (Join-Path $root 'quarantine.ci.json') -Text '{ "rules": [ { "id": "LC0099" }, { "id": "AL0001" } ] }'
+        @((Get-Model -Root $root).Document['quarantine']['ci'] | ForEach-Object { $_['id'] }) | Should-BeCollection @('LC0099', 'AL0001')
+    }
+
     It 'escapes quotes and backslashes and writes null for the default of an unknown id' {
         $root = Copy-Fixture 'unknown-id'
         $complete = Join-Path $root 'base' 'complete.ruleset.json'

@@ -11,6 +11,7 @@
     FunctionsToExport    = @(
         'ConvertTo-LevelDocsIndexMarkdown'
         'ConvertTo-LevelDocsMarkdown'
+        'Get-CatalogRowInfo'
         'Get-RulebookLevelSummary'
         'Get-RulebookOffLevelEntry'
         'Get-RulebookStageSummary'

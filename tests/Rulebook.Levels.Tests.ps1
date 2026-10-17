@@ -322,7 +322,7 @@ Describe 'Get-RulebookStageSummary' {
         }
     }
 
-    It 'lists the CI entries of the tiny repository with the levels where the level result is None (S-4)' {
+    It 'lists the CI entries of the tiny repository with the levels where the id is None before the stage applies (S-4)' {
         $root = New-TinyFixtureRepo -Destination (Get-TestFolder)
         # AL0200 is None at Core and Warning at Extended: a CI entry on it has no effect at Core.
         Edit-FixtureJson -Path (Join-Path $root 'stages' 'ci.json') -Script { $_['rules'] = @($_['rules']) + @{ id = 'AL0200'; action = 'Info'; justification = 'Fixture: no effect at Core' } }
@@ -354,6 +354,13 @@ Describe 'Get-RulebookStageSummary' {
         $summary.QuarantineIds | Should-BeCollection @('LC0099')
         $summary.QuarantineCount | Should-Be 1
         (Get-StageSummary -Root (Copy-Fixture) -Stage 'vnext').QuarantineIds | Should-BeCollection @()
+    }
+
+    It 'gives an entry on the losing twin side no effect on every level (twins appsource)' {
+        $root = Copy-Fixture 'twins-appsource'
+        Edit-FixtureJson -Path (Join-Path $root 'stages' 'ci.json') -Script { $_['rules'] = @($_['rules']) + @{ id = 'PTE0003'; action = 'Info' } + @{ id = 'AS0061'; action = 'Info' } }
+        $summary = Get-StageSummary -Root $root -Stage 'ci'
+        @(Get-RowText $summary | Where-Object { $_ -match '^(PTE0003|AS0061) ' }) | Should-BeCollection @('PTE0003 Info [essential,recommended,strict,complete] False []', 'AS0061 Info [] False []')
     }
 
     It 'lists the levels where an override decides an entry, and counts the overrides of the stage' {
