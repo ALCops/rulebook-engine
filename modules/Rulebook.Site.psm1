@@ -14,7 +14,8 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Levels.psd1')
 
 $script:SettingsPath = '.github/Rulebook-Settings.json'
 $script:CatalogPath = 'catalog/diagnostics.json'
-# The data file of the site, relative to the repository root; site/data/ is gitignored and never compared by the update.
+# The data file of the site, relative to the repository root; site/data/ is excluded from the update comparison
+# (Rulebook.Update) and gitignored once site/ ships.
 $script:SiteDataPath = 'site/data/rulebook.json'
 # The issue form the cart opens (template/.github/ISSUE_TEMPLATE/); a constant, no settings key.
 $script:IssueTemplate = 'rulebook-change.yml'
@@ -149,7 +150,8 @@ function Get-RulebookSiteModel {
     (Read-CatalogFile, for analyzer, title and docs). Returns a Rulebook.SiteModel { Document, RuleCount, CellCount,
     UnknownIds }.
 
-    Document keys in order: generatedAt (UTC, yyyy-MM-ddTHH:mm:ssZ), repository (only when -Repository is set),
+    Document keys in order: generatedAt (UTC, yyyy-MM-ddTHH:mm:ssZ; a -GeneratedAt of kind Unspecified, such as
+    [datetime]'2026-10-17T00:00:00', is read as UTC, not as local time), repository (only when -Repository is set),
     baseUrl, issueTemplate (rulebook-change.yml), docsUrl (the dashboard user page for -EngineRef, Get-RulebookDocsUrl),
     levels (the keys of the minimal form, then the Get-RulebookLevelSummary model), stages (the same, then the
     Get-RulebookStageSummary model), rules, overrides, quarantine (every settings stage, empty arrays written).
@@ -283,6 +285,8 @@ function Get-RulebookSiteModel {
             })
     }
 
+    # Unspecified is UTC: ToUniversalTime would read it as local time and shift the date on a machine east of UTC.
+    if ($GeneratedAt.Kind -eq [System.DateTimeKind]::Unspecified) { $GeneratedAt = [datetime]::SpecifyKind($GeneratedAt, [System.DateTimeKind]::Utc) }
     $document = [ordered]@{ generatedAt = $GeneratedAt.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ', $script:Invariant) }
     if (-not [string]::IsNullOrEmpty($Repository)) { $document['repository'] = $Repository }
     $document['baseUrl'] = $BaseUrl
@@ -335,7 +339,8 @@ function Export-RulebookSiteData {
     -RepositoryRoot: the model takes the defaults and the cells from it and the analyzer, title and docs from the
     catalog file of that root. -WhatIf writes nothing and still returns
     the object. Returns { Path, Bytes, RuleCount, LevelCount, StageCount, IncludeJustifications, GeneratedAt (the
-    written text) }. Readers parse generatedAt as text (ConvertFrom-Json turns it into a DateTime, #62).
+    written text) }. Readers parse generatedAt as text (ConvertFrom-Json turns it into a DateTime, #62). A
+    -GeneratedAt of kind Unspecified is read as UTC (Get-RulebookSiteModel).
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([pscustomobject])]

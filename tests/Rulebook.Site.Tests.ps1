@@ -237,6 +237,16 @@ Describe 'ConvertTo-RulebookSiteDataJson' {
         $later.Replace('"generatedAt": "2026-10-18T09:30:00Z"', '"generatedAt": "2026-10-17T00:00:00Z"') | Should-Be $validText
     }
 
+    It 'reads a GeneratedAt of kind Unspecified as UTC, like the same value with Z' {
+        $inputs = Read-RulebookInputs -RepositoryRoot $validRoot
+        $catalog = Read-CatalogFile -Path (Join-Path $validRoot 'catalog' 'diagnostics.json')
+        $unspecified = [datetime]::new(2026, 10, 17, 0, 0, 0, [System.DateTimeKind]::Unspecified)
+        $model = Get-RulebookSiteModel -Inputs $inputs -Catalog $catalog -BaseUrl $baseUrl -GeneratedAt $unspecified
+        $model.Document['generatedAt'] | Should-Be '2026-10-17T00:00:00Z'
+        $zulu = Get-RulebookSiteModel -Inputs $inputs -Catalog $catalog -BaseUrl $baseUrl -GeneratedAt ([datetime]'2026-10-17T00:00:00Z')
+        $zulu.Document['generatedAt'] | Should-Be $model.Document['generatedAt']
+    }
+
     It 'writes LF, no BOM, two-space indent, generatedAt first as a string and flat objects on one line' {
         $validText | Should-MatchString $generatedAtLine
         $validText | Should-MatchString '\A\{\n  "generatedAt": "2026-10-17T00:00:00Z",\n  "repository": "contoso/rulebook",\n  "baseUrl": "https://contoso\.github\.io/rulebook",\n  "issueTemplate": "rulebook-change\.yml",\n'
