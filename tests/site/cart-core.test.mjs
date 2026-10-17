@@ -254,6 +254,14 @@ test('splitParts packs changes greedily in order, keeps the note in every part a
   assert.deepEqual(core.splitParts(repository, template, core.emptyCart()), []);
 });
 
+test('splitParts marks every part oversize when the note alone fills the link', () => {
+  let cart = core.setNote(core.emptyCart(), 'n'.repeat(9000));
+  cart = core.addChange(cart, set('AL0001', 'None', ['strict'], ['ci']));
+  cart = core.addChange(cart, set('AL0200', 'None', ['strict'], ['ci']));
+  const parts = core.splitParts(repository, template, cart);
+  assert.deepEqual(parts.map((part) => [part.cart.changes.length, part.oversize, part.cart.note.length]), [[1, true, 9000], [1, true, 9000]]);
+});
+
 test('copyPayload is the same change set, pretty-printed', () => {
   let cart = core.addChange(core.emptyCart(), set('AA0072', 'Info', ['*'], ['ci']));
   cart = core.setNote(cart, 'Note');

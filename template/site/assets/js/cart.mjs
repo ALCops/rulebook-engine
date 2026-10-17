@@ -70,6 +70,7 @@ if (config && panel && toggle) {
   const update = (next) => {
     cart = next;
     pendingParts = null;
+    status.textContent = '';
     save();
     render();
   };
@@ -131,18 +132,34 @@ if (config && panel && toggle) {
     toggle.querySelector('.cart-count').textContent = String(count);
     panel.querySelector('.cart-empty').hidden = count > 0;
     if (document.activeElement !== note) note.value = cart.note;
-    const fit = core.fits(core.issueUrl(repository, issueTemplate, cart));
-    meter.value = Math.min(fit.bytes, fit.limit);
-    bytesText.textContent = `${fit.bytes} of ${fit.limit} bytes of the issue link`;
-    size.classList.toggle('over', !fit.ok);
-    submit.disabled = count === 0 || !fit.ok || !repository;
-    parts.hidden = fit.ok || count === 0;
+    // The link can fail (a data file without repository, a broken character): the list still renders, so every
+    // change can be seen and removed.
+    try {
+      const fit = core.fits(core.issueUrl(repository, issueTemplate, cart));
+      meter.value = Math.min(fit.bytes, fit.limit);
+      bytesText.textContent = `${fit.bytes} of ${fit.limit} bytes of the issue link`;
+      size.classList.toggle('over', !fit.ok);
+      submit.disabled = count === 0 || !fit.ok;
+      parts.hidden = fit.ok || count === 0;
+    } catch (error) {
+      meter.value = 0;
+      bytesText.textContent = '';
+      submit.disabled = true;
+      parts.hidden = true;
+      fail(error);
+    }
     if (!pendingParts) parts.textContent = 'Submit in parts';
     if (count === 0) { list.replaceChildren(); return; }
+    const plain = () => list.replaceChildren(...cart.changes.map((change) => element('li', describe(change))));
     loadData().then((loaded) => {
-      list.replaceChildren(...core.rows(cart, loaded).map(renderRow));
-    }).catch(() => {
-      list.replaceChildren(...cart.changes.map((change) => element('li', describe(change))));
+      try {
+        list.replaceChildren(...core.rows(cart, loaded).map(renderRow));
+      } catch (error) {
+        plain();
+        fail(error);
+      }
+    }, () => {
+      plain();
       status.textContent = 'rulebook.json could not be read, so the before and after are not shown.';
     });
   };
@@ -212,15 +229,18 @@ if (config && panel && toggle) {
     }
     const part = pendingParts.list[pendingParts.next];
     if (part.oversize) {
-      status.textContent = `Part ${pendingParts.next + 1} is one change too large for a link: copy the change set and paste it into the empty form.`;
+      status.textContent = `Part ${pendingParts.next + 1}: the note and this change are too large for a link; use Copy change set and paste it into the empty form.`;
     } else {
       window.open(part.url, '_blank', 'noopener');
+      pendingParts.opened = (pendingParts.opened || 0) + 1;
       status.textContent = `Opened part ${pendingParts.next + 1} of ${pendingParts.list.length}.`;
     }
     pendingParts.next++;
     if (pendingParts.next >= pendingParts.list.length) {
+      const opened = pendingParts.opened || 0;
       pendingParts = null;
-      confirmClear();
+      // Ask to clear only when a form opened; an all-oversize cart stays for Copy change set.
+      if (opened > 0) confirmClear();
     } else {
       parts.textContent = `Submit part ${pendingParts.next + 1} of ${pendingParts.list.length}`;
     }
@@ -238,7 +258,7 @@ if (config && panel && toggle) {
 
   // Another tab of the same site changed the cart.
   window.addEventListener('storage', (event) => {
-    if (event.key === key) { cart = load(); render(); }
+    if (event.key === key) { cart = load(); pendingParts = null; render(); }
   });
 
   render();
