@@ -5,13 +5,15 @@
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook site: the data of the dashboard site, site/data/rulebook.json and <baseUrl>/rulebook.json (Get-RulebookSiteModel, ConvertTo-RulebookSiteDataJson, Export-RulebookSiteData): every id with its cell per level and stage, the deciding input and the fallback of override and quarantine cells, the level and stage page models. See docs/dashboard.md section 5.'
+    Description          = 'Rulebook site: the data of the dashboard site, site/data/rulebook.json and <baseUrl>/rulebook.json (Get-RulebookSiteModel, ConvertTo-RulebookSiteDataJson, Export-RulebookSiteData): every id with its cell per level and stage, the deciding input and the fallback of override and quarantine cells, the level and stage page models; the Hugo install and build of site/ (Install-Hugo, Build-RulebookSite). See docs/dashboard.md sections 4 and 5.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
+        'Build-RulebookSite'
         'ConvertTo-RulebookSiteDataJson'
         'Export-RulebookSiteData'
         'Get-RulebookSiteModel'
+        'Install-Hugo'
     )
     CmdletsToExport      = @()
     VariablesToExport    = @()

@@ -5,6 +5,8 @@
 # models (Get-RulebookLevelSummary, Get-RulebookStageSummary); the overrides and the quarantine lists.
 # ConvertTo-RulebookSiteDataJson writes it, and Export-RulebookSiteData writes site/data/rulebook.json, the file Hugo
 # reads and the Publish action serves at <baseUrl>/rulebook.json. Contract: docs/dashboard.md section 5.
+# Install-Hugo installs the pinned Hugo on a Linux runner and Build-RulebookSite builds site/ into the staging folder
+# of Publish (docs/dashboard.md section 4).
 
 Set-StrictMode -Version 3.0
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
@@ -19,6 +21,8 @@ $script:CatalogPath = 'catalog/diagnostics.json'
 $script:SiteDataPath = 'site/data/rulebook.json'
 # The issue form the cart opens (template/.github/ISSUE_TEMPLATE/); a constant, no settings key.
 $script:IssueTemplate = 'rulebook-change.yml'
+# The attribute of the matrix root; Build-RulebookSite reports whether the built index.html carries it.
+$script:MatrixMarker = 'data-rulebook-matrix'
 # The user page the site links, on the template ref the engine ref maps to (Get-RulebookDocsUrl, D53).
 $script:DashboardDocsPage = 'dashboard.md'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
@@ -380,8 +384,138 @@ function Export-RulebookSiteData {
 
 #endregion
 
+#region Hugo
+
+function Get-HugoVersionText {
+    # The first line of 'hugo version', or $null when the command is not found or fails.
+    param([Parameter(Mandatory)][string]$HugoPath)
+    if ($null -eq (Get-Command -Name $HugoPath -ErrorAction SilentlyContinue)) { return $null }
+    try {
+        $text = @(& $HugoPath version 2>&1 | ForEach-Object { [string]$_ })
+    } catch {
+        return $null
+    }
+    if ($text.Count -eq 0) { return $null }
+    return $text[0]
+}
+
+function Test-HugoInstallPlatform {
+    # Install-Hugo installs the Debian package: Linux only (ubuntu-latest). A seam for the tests.
+    return [bool]$IsLinux
+}
+
+function Invoke-HugoInstallCommand {
+    # sudo dpkg -i <deb>; returns the exit code and the output. A seam for the tests.
+    param([Parameter(Mandatory)][string]$Deb)
+    $output = @(& sudo dpkg -i $Deb 2>&1 | ForEach-Object { [string]$_ })
+    return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = $output }
+}
+
+function Install-Hugo {
+    <#
+    .SYNOPSIS
+    Installs the pinned Hugo extended from its GitHub release on a Linux runner, checked against a pinned sha256.
+    .DESCRIPTION
+    Does nothing when 'hugo version' already reports v<Version> extended (Installed false). Otherwise, on Linux only,
+    downloads hugo_extended_<Version>_linux-amd64.deb from -BaseUrl/v<Version>/ into -DownloadRoot (default the
+    temporary folder), compares its SHA256 with -Sha256 (a mismatch deletes the file and throws naming both values),
+    installs it with sudo dpkg -i and checks that 'hugo version' then reports v<Version> and extended. The action pins
+    both values in actions/Publish/action.yaml (HUGO_VERSION, HUGO_SHA256). Returns { Path, Version (the version
+    line), Installed, Deb (the downloaded file, $null when nothing was installed) }.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Runs on a disposable runner; the action step is the confirmation')]
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
+        [Parameter(Mandatory)][ValidatePattern('^[0-9A-Fa-f]{64}$')][string]$Sha256,
+        [string]$DownloadRoot = [System.IO.Path]::GetTempPath(),
+        [string]$BaseUrl = 'https://github.com/gohugoio/hugo/releases/download'
+    )
+    $isPinned = { param($Text) -not [string]::IsNullOrEmpty($Text) -and $Text.Contains("v$Version") -and $Text.Contains('extended') }
+    $current = Get-HugoVersionText -HugoPath 'hugo'
+    if (& $isPinned $current) {
+        return [pscustomobject]@{ Path = (Get-Command -Name 'hugo').Source; Version = $current; Installed = $false; Deb = $null }
+    }
+    if (-not (Test-HugoInstallPlatform)) {
+        throw "Install-Hugo installs the Debian package of Hugo and runs on Linux only (found: $(if ($current) { $current } else { 'no hugo' })). Install Hugo $Version extended yourself and pass its path as the hugoPath input."
+    }
+    $name = "hugo_extended_$($Version)_linux-amd64.deb"
+    $deb = Join-Path $DownloadRoot $name
+    [void][System.IO.Directory]::CreateDirectory($DownloadRoot)
+    Invoke-WebRequest -Uri "$($BaseUrl.TrimEnd('/'))/v$Version/$name" -OutFile $deb -TimeoutSec 120 -ErrorAction Stop
+    $actual = (Get-FileHash -LiteralPath $deb -Algorithm SHA256).Hash
+    if (-not [string]::Equals($actual, $Sha256, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $deb -Force
+        throw "$name has SHA256 $($actual.ToLowerInvariant()), expected $($Sha256.ToLowerInvariant()); the file was deleted and Hugo is not installed."
+    }
+    $install = Invoke-HugoInstallCommand -Deb $deb
+    if ($install.ExitCode -ne 0) { throw "sudo dpkg -i $name failed with exit code $($install.ExitCode): $(@($install.Output | Select-Object -Last 5) -join ' ')" }
+    $after = Get-HugoVersionText -HugoPath 'hugo'
+    if (-not (& $isPinned $after)) { throw "After installing $name, 'hugo version' reports '$after', not v$Version extended." }
+    return [pscustomobject]@{ Path = (Get-Command -Name 'hugo').Source; Version = $after; Installed = $true; Deb = $deb }
+}
+
+function Build-RulebookSite {
+    <#
+    .SYNOPSIS
+    Builds the site/ folder of an organization repository with Hugo into the staging folder of Publish.
+    .DESCRIPTION
+    Requires <SitePath>/hugo.yaml and <SitePath>/data/rulebook.json (Export-RulebookSiteData, or the staged copy).
+    Runs <HugoPath> --source <SitePath> --destination <Destination> --baseURL <BaseUrl>/ --quiet --noBuildLock:
+    without --cleanDestinationDir, because the staging folder already holds the endpoints, skeletons and data files;
+    Hugo writes only what it renders, and its index.html replaces the plain one. -HugoPath is a command name or a path
+    (a .ps1 stand-in works too). A missing command, a missing file or a non-zero exit throws; the exit message carries
+    the last 20 lines of Hugo's output. Returns { Pages (every index.html under Destination, relative with '/', sorted
+    ordinally), PageCount, Assets (the files under css/ and js/), MarkerPresent (index.html carries
+    data-rulebook-matrix, the marker of the matrix page), Seconds, Output (Hugo's lines) }.
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Writes only the staging folder the caller names')]
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$SitePath,
+        [Parameter(Mandatory)][string]$BaseUrl,
+        [Parameter(Mandatory)][string]$Destination,
+        [string]$HugoPath = 'hugo'
+    )
+    $site = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($SitePath)
+    $target = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Destination)
+    foreach ($required in 'hugo.yaml', 'data/rulebook.json') {
+        if (-not (Test-Path -LiteralPath (Join-Path $site $required) -PathType Leaf)) { throw "The site has no $required in $site" }
+    }
+    $command = Get-Command -Name $HugoPath -ErrorAction SilentlyContinue
+    if ($null -eq $command) { throw "Hugo was not found: '$HugoPath' is not a command or a file" }
+    $arguments = @('--source', $site, '--destination', $target, '--baseURL', "$($BaseUrl.TrimEnd('/'))/", '--quiet', '--noBuildLock')
+    $clock = [System.Diagnostics.Stopwatch]::StartNew()
+    $output = @(& $command @arguments 2>&1 | ForEach-Object { [string]$_ })
+    $exitCode = $LASTEXITCODE
+    $clock.Stop()
+    if ($exitCode -ne 0) {
+        $tail = @($output | Select-Object -Last 20) -join "`n"
+        throw "Hugo failed with exit code $exitCode building $site`n$tail"
+    }
+    $relative = { param($Root, $Files) [string[]]$list = @($Files | ForEach-Object { [System.IO.Path]::GetRelativePath($Root, $_.FullName).Replace('\', '/') }); [System.Array]::Sort($list, [System.StringComparer]::Ordinal); , $list }
+    $pages = & $relative $target @(Get-ChildItem -LiteralPath $target -Recurse -File -Filter 'index.html')
+    $assets = & $relative $target @(foreach ($folder in 'css', 'js') { $path = Join-Path $target $folder; if (Test-Path -LiteralPath $path -PathType Container) { Get-ChildItem -LiteralPath $path -Recurse -File } })
+    $index = Join-Path $target 'index.html'
+    $marker = (Test-Path -LiteralPath $index -PathType Leaf) -and [System.IO.File]::ReadAllText($index).Contains($script:MatrixMarker)
+    return [pscustomobject]@{
+        Pages         = $pages
+        PageCount     = $pages.Count
+        Assets        = $assets
+        MarkerPresent = [bool]$marker
+        Seconds       = [math]::Round($clock.Elapsed.TotalSeconds, 2)
+        Output        = $output
+    }
+}
+
+#endregion
+
 Export-ModuleMember -Function @(
+    'Build-RulebookSite'
     'ConvertTo-RulebookSiteDataJson'
     'Export-RulebookSiteData'
     'Get-RulebookSiteModel'
+    'Install-Hugo'
 )
