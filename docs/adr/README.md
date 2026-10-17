@@ -79,6 +79,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D51](0051-test-coverage-is-a-report-not-a-gate.md) | Test coverage is a report, not a gate | Accepted | 2026-10-10 |
 | [D52](0052-releases-are-a-floating-major-branch-cut-from-hand-written-release-notes.md) | Releases are a floating major branch cut from hand-written release notes | Superseded by D53 (2026-10-11) | 2026-10-10 |
 | [D53](0053-template-main-is-the-release-preview-the-bleeding-edge-and-deprecations-replace-majors.md) | Template main is the release, preview the bleeding edge, tags the pin, and deprecations replace majors | Accepted | 2026-10-11 |
+| [D54](0054-the-site-renders-one-page-per-stage-and-the-engine-exports-the-fallback-action.md) | The site renders one page per stage, and the engine exports the fallback action | Accepted | 2026-10-17 |
 
 ## Open decisions
 
@@ -103,6 +104,7 @@ Closed: O1 and O2 by D19 (and D17), O3 by D52 ([#27](https://github.com/ALCops/r
 - WP12 planning interview of 2026-10-10 ([#14](https://github.com/ALCops/rulebook-engine/issues/14)): D51.
 - O3 interview and WP13 planning interview of 2026-10-10 ([#15](https://github.com/ALCops/rulebook-engine/issues/15), [#27](https://github.com/ALCops/rulebook-engine/issues/27)): D52.
 - #104 planning interview of 2026-10-11 ([#104](https://github.com/ALCops/rulebook-engine/issues/104)): D53.
+- WP14 planning interview of 2026-10-12 and 2026-10-17 ([#16](https://github.com/ALCops/rulebook-engine/issues/16), [#84](https://github.com/ALCops/rulebook-engine/issues/84)): D54.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
 - [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism and the deploy behind D2, D3, D44, D52 and D53.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).

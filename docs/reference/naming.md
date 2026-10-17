@@ -74,16 +74,26 @@ The `default` stage has no file and no suffix in `rulesets/`; that is the only p
 <baseUrl>/rulesets/<level>.<stage>.ruleset.json    every other stage
 ```
 
-The published layout (Publish, WP05 and WP06) is exactly these files plus the rendered skeletons, the manifest and an index page:
+The published layout (Publish, WP05, WP06 and WP14) is exactly these files plus the rendered skeletons, the data files and an index page or the dashboard site:
 
 ```
 <baseUrl>/index.html                               (also served at <baseUrl>/) one table per stage, one row per level
 <baseUrl>/rulesets/<level>[.<stage>].ruleset.json  the levels x stages endpoints, as committed
 <baseUrl>/skeletons/<level>.<stage>.ruleset.json   the skeletons with {BASEURL} replaced by baseUrl
-<baseUrl>/rulebook.json                            the levels and stages, machine-readable (D43); read by the init script
+<baseUrl>/rulebook.json                            the site data (dashboard.md section 5); its head, the levels and stages (D43), is read by the init script
+<baseUrl>/catalog/diagnostics.json                 the catalog, byte for byte
 ```
 
-Nothing else is published: not `base/`, `stages/`, `catalog/`, the settings, `skeletons/README.md` or a stray file in `rulesets/`. The dashboard (WP14) extends `<baseUrl>/rulebook.json` and adds `<baseUrl>/catalog/diagnostics.json` and the site pages.
+With `site.enabled` true the dashboard site replaces `index.html` and adds, with Hugo's lowercased paths:
+
+```
+<baseUrl>/stages/<stage>/                          the matrix of one stage and its stage summary (/ is the first stage)
+<baseUrl>/levels/<level>/                          one page per level
+<baseUrl>/rules/<id lowercased>/                   one page per rule
+<baseUrl>/css/site.css, <baseUrl>/js/*.js|*.mjs    the assets, without fingerprints
+```
+
+Nothing else of the repository is published: not `base/`, the stage files, `catalog/scan-state.json`, the settings, `site/` itself, `skeletons/README.md` or a stray file in `rulesets/`.
 
 - `baseUrl` is `https://` with a DNS host name and an optional numeric port (no user info), has no query, fragment, `.` and `..` segments, quotes, backslashes or control characters (it is written into the skeleton JSON as it is) and never ends with a slash (settings schema and C5), or empty until the organization sets it: the template ships `""` and Publish fails until it is set. It is rendered into skeletons and docs, never into `rulesets/`.
 - The URL is unversioned (D8). A future version prefix would go between `baseUrl` and `rulesets/`, so nothing else is ever placed at that position.

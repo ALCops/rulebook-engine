@@ -19,7 +19,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 
 ## 1. Files
 
-64 files: 32 written by hand (13, plus the 17 pages and 2 images of `docs/`), 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
+88 files: 56 written by hand (13, plus the 17 pages and 2 images of `docs/` and the 24 files of `site/`), 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
 
 | Path | Class | Origin |
 |---|---|---|
@@ -32,6 +32,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 | `.github/ISSUE_TEMPLATE/rulebook-change.yml` | system | Hand-written (WP14): the issue form the dashboard cart prefills, byte for byte as [dashboard.md](../dashboard.md) section 7; the workflow that applies it comes with WP15, until then a maintainer applies each change with ChangeRule. No `config.yml` ships, so blank issues stay enabled and an organization's own `config.yml` is never touched |
 | `README.md` | never touched after creation | Hand-written, organization-facing |
 | `docs/**` (17 pages, `docs/images/` with 2 PNGs) | customizable (D50) | Hand-written: the user documentation, moved from ALCops/rulebook at `e2cb9f0` with WP13; `docs/README.md` lists the pages |
+| `site/**` (24 files: `hugo.yaml`, `.gitignore`, `content/`, `layouts/`, `assets/`) | customizable (D35) | Hand-written (WP14): the dashboard site of [dashboard.md](../dashboard.md) section 4; `site/data/` is gitignored and written by the Publish action. No ALCops URL and no branch name in any file (a Deploy test checks it) |
 | `overrides.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `quarantine.default.json`, `quarantine.ci.json`, `quarantine.vnext.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `base/essential.ruleset.json`, `recommended`, `strict`, `complete` | system | `Build-RulebookBase` |
@@ -42,7 +43,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 | `skeletons/README.md` | system | Hand-written (WP06): what the skeletons are, the init script, the settings and the exceptions; not published, exempt from C11. `New-RulebookSkeleton` deletes only `*.ruleset.json`, so it survives a regeneration |
 | `rulesets/<level>[.<stage>].ruleset.json` (12) | generated | `Update-RulebookEndpoints` (Rulebook.Generate, WP03) |
 
-There is no placeholder for files that later work packages own: no workflows besides Validate, Publish, UpdateRulebookSystemFiles, ScanDiagnostics and ChangeRule, no `catalog/scan-state.json` (the first scan creates it), no `.github/RELEASENOTES.copy.md` (the deploy step writes it from the engine's `RELEASENOTES.md`, D52), no `site/` (WP14). `docs/` is the user documentation, authored here since WP13 and carried by the deploy like every template file; the update treats the shipped pages as customizable ([D50](../adr/0050-docs-is-a-customizable-file-class-and-the-installed-commit-is-recovered.md)), and the shipped README links them relatively.
+There is no placeholder for files that later work packages own: no workflows besides Validate, Publish, UpdateRulebookSystemFiles, ScanDiagnostics and ChangeRule, no `catalog/scan-state.json` (the first scan creates it), no `.github/RELEASENOTES.copy.md` (the deploy step writes it from the engine's `RELEASENOTES.md`, D52), no `site/data/` (the Publish action writes it). `docs/` is the user documentation, authored here since WP13 and carried by the deploy like every template file; the update treats the shipped pages as customizable ([D50](../adr/0050-docs-is-a-customizable-file-class-and-the-installed-commit-is-recovered.md)), and the shipped README links them relatively.
 
 Every generated file is UTF-8 without BOM, LF, with a trailing LF, and its text depends on the inputs only (no date, commit or machine path), so regenerating unchanged inputs gives the same bytes.
 
