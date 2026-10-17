@@ -322,6 +322,19 @@ Describe 'Export-RulebookSiteData' {
         { Export-RulebookSiteData -RepositoryRoot $root -BaseUrl $baseUrl } | Should-Throw -ExceptionMessage 'Settings missing: .github/Rulebook-Settings.json*'
     }
 
+    It 'builds the same model as Read-RulebookSiteModel, which names the data path' {
+        $root = Copy-Fixture
+        $model = Read-RulebookSiteModel -RepositoryRoot $root -BaseUrl $baseUrl -Repository 'contoso/rulebook' -GeneratedAt '2026-10-17T00:00:00Z'
+        $model.IncludeJustifications | Should-BeFalse
+        $out = Join-Path (Get-TestFolder) 'rulebook.json'
+        $null = Export-RulebookSiteData -RepositoryRoot $root -BaseUrl $baseUrl -Repository 'contoso/rulebook' -GeneratedAt '2026-10-17T00:00:00Z' -OutFile $out
+        (ConvertTo-RulebookSiteDataJson -Model $model) | Should-Be ([System.IO.File]::ReadAllText($out))
+        Get-RulebookSiteDataPath | Should-Be 'site/data/rulebook.json'
+        $inputs = Read-RulebookInputs -RepositoryRoot $root
+        Remove-Item -LiteralPath (Join-Path $root 'catalog' 'diagnostics.json')
+        { Read-RulebookSiteModel -RepositoryRoot $root -BaseUrl $baseUrl -Inputs $inputs } | Should-Throw -ExceptionMessage 'catalog/diagnostics.json is missing*'
+    }
+
     It 'writes nothing under -WhatIf' {
         $root = Copy-Fixture
         $result = Export-RulebookSiteData -RepositoryRoot $root -BaseUrl $baseUrl -WhatIf
@@ -397,11 +410,34 @@ Describe 'Install-Hugo' {
         { Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder) } | Should-Throw -ExceptionMessage "*'hugo version' reports 'hugo v0.167.0 linux/amd64', not v0.167.0 extended."
     }
 
-    It 'throws off Linux without downloading, naming the hugoPath input' {
+    It 'accepts an extended Hugo at or above the floor off Linux without downloading' {
         Mock Test-HugoInstallPlatform -ModuleName Rulebook.Site { $false }
-        $versions.Enqueue('hugo v0.165.0+extended windows/amd64')
-        { Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder) } | Should-Throw -ExceptionMessage '*runs on Linux only (found: hugo v0.165.0+extended windows/amd64)*hugoPath input.'
+        $versions.Enqueue('hugo v0.165.0-76a5e188+extended windows/amd64 BuildDate=2026-08-12T14:26:28Z')
+        $result = Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder)
+        $result.Installed | Should-BeFalse
+        $result.Version | Should-BeLikeString 'hugo v0.165.0*'
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Site -Times 0 -Exactly
+    }
+
+    It 'throws off Linux for <Name>, naming the hugoPath input' -ForEach @(
+        @{ Name = 'a Hugo below the floor'; Line = 'hugo v0.150.0+extended windows/amd64' }
+        @{ Name = 'a Hugo that is not extended'; Line = 'hugo v0.167.0 windows/amd64' }
+        @{ Name = 'no Hugo'; Line = $null }
+    ) {
+        Mock Test-HugoInstallPlatform -ModuleName Rulebook.Site { $false }
+        $versions.Enqueue($Line)
+        { Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder) } | Should-Throw -ExceptionMessage '*runs on Linux only, and no extended Hugo 0.156.0 or later is installed (found: *)*hugoPath input.'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Site -Times 0 -Exactly
+    }
+
+    It 'replaces <Name> with the pin on Linux' -ForEach @(
+        @{ Name = 'a Hugo below the floor'; Line = 'hugo v0.150.0+extended linux/amd64' }
+        @{ Name = 'a newer Hugo'; Line = 'hugo v0.170.0+extended linux/amd64' }
+    ) {
+        $versions.Enqueue($Line)
+        $versions.Enqueue('hugo v0.167.0-3fff6fb5+extended linux/amd64')
+        (Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder)).Installed | Should-BeTrue
+        Should-Invoke Invoke-HugoInstallCommand -ModuleName Rulebook.Site -Times 1 -Exactly
     }
 
     It 'refuses a version or a hash of the wrong shape' {
@@ -508,14 +544,25 @@ Describe 'Build-RulebookSite' {
         $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js')
         Get-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Raw | Should-Be '{}'
         $index = Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw
-        $index | Should-MatchString '<section class="matrix-root" data-rulebook-matrix="default" data-repository="contoso/rulebook" data-issue-template="rulebook-change.yml" data-rulebook-json="/rulebook/rulebook.json">'
+        $ci = Get-Content -LiteralPath (Join-Path $staging 'stages' 'ci' 'index.html') -Raw
+        $index | Should-MatchString '<section class="matrix-root" data-rulebook-matrix="default">'
+        # The cart's values sit on the body of every page, the level pages included; no generator meta tag.
+        foreach ($page in 'index.html', 'levels/strict/index.html', 'rules/lc0029/index.html') {
+            Get-Content -LiteralPath (Join-Path $staging $page) -Raw | Should-MatchString ([regex]::Escape('<body data-repository="contoso/rulebook" data-issue-template="rulebook-change.yml" data-rulebook-json="/rulebook/rulebook.json">'))
+        }
+        $index | Should-NotMatchString 'name="generator"'
+        # A JSON number compares as an int: one override reads in the singular, two in the plural.
+        Get-Content -LiteralPath (Join-Path $staging 'levels' 'essential' 'index.html') -Raw | Should-MatchString '<dd>1 override decides a cell of this level</dd>'
+        $ci | Should-MatchString '<dd>2 overrides decide a cell of this stage</dd>'
+        # Without JavaScript the filters stay hidden: the stylesheet lets the hidden attribute win.
+        $index | Should-MatchString '<form class="filters" role="search" hidden>'
+        Get-Content -LiteralPath (Join-Path $staging 'css' 'site.css') -Raw | Should-MatchString '(?m)^\[hidden\] \{ display: none !important; \}$'
         ([regex]::Matches($index, '<tr data-id=')).Count | Should-Be 30
         # The override cell of LC0029 on recommended.ci, on the stage page and on the rule page, with the real id.
         $cell = '<td class="a-none" data-id="LC0029" data-level="recommended" data-stage="ci" data-action="None" data-source="override" data-fallback="Warning" data-fallback-source="level:recommended" data-override="1" tabindex="0">None'
         Get-Content -LiteralPath (Join-Path $staging 'stages' 'ci' 'index.html') -Raw | Should-MatchString ([regex]::Escape($cell))
         Get-Content -LiteralPath (Join-Path $staging 'rules' 'lc0029' 'index.html') -Raw | Should-MatchString ([regex]::Escape($cell))
         # A quarantine cell has its fallback and no override index; the stage page lists it with a Release button.
-        $ci = Get-Content -LiteralPath (Join-Path $staging 'stages' 'ci' 'index.html') -Raw
         $ci | Should-MatchString ([regex]::Escape('data-id="LC0099" data-level="strict" data-stage="ci" data-action="None" data-source="quarantine" data-fallback="Warning" data-fallback-source="default" tabindex="0">None<span class="mark mark-quarantine"'))
         $ci | Should-MatchString ([regex]::Escape('<button type="button" data-release data-id="LC0099" data-stage="ci" hidden>Release</button>'))
         $ci | Should-MatchString '<h2 id="stage-summary">What the stage CI changes</h2>'

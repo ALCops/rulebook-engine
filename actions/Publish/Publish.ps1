@@ -154,7 +154,8 @@ if ($Phase -eq 'Stage') {
         }
         if (-not $failed) {
             try {
-                $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath -Inputs $inputs -Repository $Repository)
+                $siteModel = Read-RulebookSiteModel -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -Inputs $inputs -Repository $Repository
+                $manifest = @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $resolvedBaseUrl -OutputPath $StagingPath -Inputs $inputs -Repository $Repository -SiteModel $siteModel)
             } catch {
                 Add-Failure -Context $ctx -Kind 'stage'
                 throw
@@ -173,7 +174,7 @@ if ($Phase -eq 'Stage') {
                     Add-Failure -Context $ctx -Kind 'site'
                     $failed = $true
                 } else {
-                    $dataFile = Join-Path $siteDir 'data' 'rulebook.json'
+                    $dataFile = Join-Path $root (Get-RulebookSiteDataPath)
                     [void][System.IO.Directory]::CreateDirectory((Split-Path -Parent $dataFile))
                     Copy-Item -LiteralPath (Join-Path $StagingPath 'rulebook.json') -Destination $dataFile -Force
                     $site = $null
@@ -187,10 +188,10 @@ if ($Phase -eq 'Stage') {
                     if ($site) {
                         Write-Host ('Built the site: {0} pages in {1} s' -f $site.PageCount, $site.Seconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))
                         if (-not $site.MarkerPresent) { Add-Annotation -Context $ctx -Command warning -Message 'The built index.html has no data-rulebook-matrix marker: site/layouts may have dropped the matrix. The site is published as built.' }
-                        $data = Get-Content -LiteralPath (Join-Path $StagingPath 'rulebook.json') -Raw | ConvertFrom-Json -AsHashtable
                         # Hugo lowercases page paths; the check requests every stage and level page and the first rule page.
                         $pagePaths = @(foreach ($stage in $inputs.Stages) { "stages/$($stage.Slug)/" }) + @(foreach ($level in $inputs.Levels) { "levels/$($level.Slug)/" })
-                        if (@($data['rules']).Count -gt 0) { $pagePaths += "rules/$(([string]$data['rules'][0]['id']).ToLowerInvariant())/" }
+                        $rules = @($siteModel.Document['rules'])
+                        if ($rules.Count -gt 0) { $pagePaths += "rules/$(([string]$rules[0]['id']).ToLowerInvariant())/" }
                         foreach ($pagePath in $pagePaths) {
                             if ($site.Pages -cnotcontains "$($pagePath)index.html") { continue }
                             $manifest += [pscustomobject]@{ Path = "$($pagePath)index.html"; Url = "$resolvedBaseUrl/$pagePath"; Kind = 'page'; StagedFile = (Join-Path $StagingPath $pagePath 'index.html') }

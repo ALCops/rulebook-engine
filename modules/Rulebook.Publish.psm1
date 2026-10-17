@@ -308,7 +308,8 @@ function New-RulebookPublishStage {
     skeletons/ is staged, so skeletons/README.md is not published. Returns one manifest entry per file, endpoints
     and skeletons in settings order, then rulebook.json, catalog/diagnostics.json and index.html: Path (relative,
     '/'), Url, Kind (endpoint, skeleton, manifest, catalog, index) and StagedFile (full path). -Inputs reuses a
-    Read-RulebookInputs result of the same repository. -OutputPath must not be the repository, a folder that
+    Read-RulebookInputs result of the same repository; -SiteModel a Read-RulebookSiteModel result of the same
+    repository and base URL (built here when absent). -OutputPath must not be the repository, a folder that
     contains it, or a drive root.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Writes only the staging folder the caller names; -WhatIf would stage nothing to check')]
@@ -320,7 +321,8 @@ function New-RulebookPublishStage {
         [Parameter(Mandatory)][string]$OutputPath,
         [AllowNull()]$Inputs,
         [AllowNull()][AllowEmptyString()][string]$Repository,
-        [datetime]$GeneratedAt = [datetime]::UtcNow
+        [datetime]$GeneratedAt = [datetime]::UtcNow,
+        [AllowNull()]$SiteModel
     )
     if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL with a host name, without quotes, backslashes, a query, a fragment, dot segments or a trailing slash: '$BaseUrl'" }
     $inputs = if ($null -ne $Inputs) { $Inputs } else { Read-RulebookInputs -RepositoryRoot $RepositoryRoot }
@@ -376,11 +378,9 @@ function New-RulebookPublishStage {
         }
     }
 
-    $catalogSource = Join-Path $inputs.Root $script:CatalogPath
-    if (-not (Test-Path -LiteralPath $catalogSource -PathType Leaf)) { throw "$($script:CatalogPath) is missing. It comes with the template and the daily scan keeps it current; restore it from the template or the git history." }
-    $catalogBytes = [System.IO.File]::ReadAllBytes($catalogSource)
-    $include = (Get-SettingValue $inputs.Settings 'site', 'includeJustifications') -is [bool] -and (Get-SettingValue $inputs.Settings 'site', 'includeJustifications')
-    $siteModel = Get-RulebookSiteModel -Inputs $inputs -Catalog (Read-CatalogFile -Path $catalogSource) -BaseUrl $BaseUrl -Repository $Repository -IncludeJustifications:$include -GeneratedAt $GeneratedAt -EngineRef (Get-RulebookEngineRef)
+    # The site data (Read-RulebookSiteModel throws when the catalog is missing), or the model the caller built for it.
+    if ($null -eq $SiteModel) { $SiteModel = Read-RulebookSiteModel -RepositoryRoot $inputs.Root -BaseUrl $BaseUrl -Inputs $inputs -Repository $Repository -GeneratedAt $GeneratedAt -EngineRef (Get-RulebookEngineRef) }
+    $catalogBytes = [System.IO.File]::ReadAllBytes((Join-Path $inputs.Root $script:CatalogPath))
 
     if (Test-Path -LiteralPath $outputFull) { Remove-Item -LiteralPath $outputFull -Recurse -Force }
     $output = [System.IO.Directory]::CreateDirectory($outputFull).FullName
@@ -400,7 +400,7 @@ function New-RulebookPublishStage {
         $manifest.Add([pscustomobject]@{ Path = $path; Url = "$BaseUrl/$path"; Kind = 'skeleton'; StagedFile = $staged })
     }
     $rulebookJson = Join-Path $output 'rulebook.json'
-    Write-StagedFile -Path $rulebookJson -Bytes ($script:Utf8NoBom.GetBytes((ConvertTo-RulebookSiteDataJson -Model $siteModel)))
+    Write-StagedFile -Path $rulebookJson -Bytes ($script:Utf8NoBom.GetBytes((ConvertTo-RulebookSiteDataJson -Model $SiteModel)))
     $manifest.Add([pscustomobject]@{ Path = 'rulebook.json'; Url = "$BaseUrl/rulebook.json"; Kind = 'manifest'; StagedFile = $rulebookJson })
     $catalogStaged = Join-Path $output $script:CatalogPath
     Write-StagedFile -Path $catalogStaged -Bytes $catalogBytes

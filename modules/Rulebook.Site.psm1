@@ -331,6 +331,50 @@ function ConvertTo-RulebookSiteDataJson {
 
 #region Export
 
+function Get-RulebookSiteDataPath {
+    <#
+    .SYNOPSIS
+    The path of the site data file relative to the repository root: site/data/rulebook.json (Hugo reads it as
+    hugo.Data.rulebook; gitignored by site/.gitignore, written by the Publish action).
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return $script:SiteDataPath
+}
+
+function Read-RulebookSiteModel {
+    <#
+    .SYNOPSIS
+    Get-RulebookSiteModel for an organization repository: reads the catalog and site.includeJustifications itself.
+    .DESCRIPTION
+    Reads the inputs (or takes -Inputs, a Read-RulebookInputs result of the same root; the model takes the defaults
+    and the cells from it and the analyzer, title and docs from the catalog file of that root), the catalog
+    (Read-CatalogFile) and site.includeJustifications (only the boolean true includes the override and quarantine
+    justifications, D36). Throws when the settings or the catalog are missing. Returns the Rulebook.SiteModel with
+    IncludeJustifications added. Export-RulebookSiteData and New-RulebookPublishStage (Rulebook.Publish) use it.
+    #>
+    [CmdletBinding()]
+    [OutputType('Rulebook.SiteModel')]
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$BaseUrl,
+        $Inputs,
+        [AllowNull()][AllowEmptyString()][string]$Repository,
+        [datetime]$GeneratedAt = [datetime]::UtcNow,
+        [AllowEmptyString()][string]$EngineRef
+    )
+    $root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RepositoryRoot)
+    if ($null -eq $Inputs) { $Inputs = Read-RulebookInputs -RepositoryRoot $root }
+    if (-not $Inputs.SettingsPresent) { throw "Settings missing: $($script:SettingsPath) in $root" }
+    $catalogPath = Join-Path $root $script:CatalogPath
+    if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) { throw "$($script:CatalogPath) is missing. It comes with the template and the daily scan keeps it current; restore it from the template or the git history." }
+    $include = (Get-SettingValue $Inputs.Settings @('site', 'includeJustifications')) -is [bool] -and (Get-SettingValue $Inputs.Settings @('site', 'includeJustifications'))
+    $model = Get-RulebookSiteModel -Inputs $Inputs -Catalog (Read-CatalogFile -Path $catalogPath) -BaseUrl $BaseUrl -Repository $Repository -IncludeJustifications:$include -GeneratedAt $GeneratedAt -EngineRef $EngineRef
+    $model | Add-Member -NotePropertyName IncludeJustifications -NotePropertyValue ([bool]$include)
+    return $model
+}
+
 function Export-RulebookSiteData {
     <#
     .SYNOPSIS
@@ -359,10 +403,8 @@ function Export-RulebookSiteData {
     )
     $root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RepositoryRoot)
     if ($null -eq $Inputs) { $Inputs = Read-RulebookInputs -RepositoryRoot $root }
-    if (-not $Inputs.SettingsPresent) { throw "Settings missing: $($script:SettingsPath) in $root" }
-    $include = (Get-SettingValue $Inputs.Settings @('site', 'includeJustifications')) -is [bool] -and (Get-SettingValue $Inputs.Settings @('site', 'includeJustifications'))
-    $catalog = Read-CatalogFile -Path (Join-Path $root $script:CatalogPath)
-    $model = Get-RulebookSiteModel -Inputs $Inputs -Catalog $catalog -BaseUrl $BaseUrl -Repository $Repository -IncludeJustifications:$include -GeneratedAt $GeneratedAt -EngineRef $EngineRef
+    $model = Read-RulebookSiteModel -RepositoryRoot $root -BaseUrl $BaseUrl -Inputs $Inputs -Repository $Repository -GeneratedAt $GeneratedAt -EngineRef $EngineRef
+    $include = $model.IncludeJustifications
     $bytes = $script:Utf8NoBom.GetBytes((ConvertTo-RulebookSiteDataJson -Model $model))
     $path = if ([string]::IsNullOrEmpty($OutFile)) { Join-Path $root $script:SiteDataPath } else { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutFile) }
 
@@ -416,8 +458,10 @@ function Install-Hugo {
     .SYNOPSIS
     Installs the pinned Hugo extended from its GitHub release on a Linux runner, checked against a pinned sha256.
     .DESCRIPTION
-    Does nothing when 'hugo version' already reports v<Version> extended (Installed false). Otherwise, on Linux only,
-    downloads hugo_extended_<Version>_linux-amd64.deb from -BaseUrl/v<Version>/ into -DownloadRoot (default the
+    Does nothing (Installed false) when 'hugo version' already reports v<Version> extended, and off Linux also when it
+    reports any extended Hugo at or above -MinimumVersion (0.156.0, the floor of hugo.Data; docs/dashboard.md
+    section 4). Off Linux without a usable Hugo it throws and names the hugoPath input. On Linux any other version is
+    replaced by the pin: it downloads hugo_extended_<Version>_linux-amd64.deb from -BaseUrl/v<Version>/ into -DownloadRoot (default the
     temporary folder), compares its SHA256 with -Sha256 (a mismatch deletes the file and throws naming both values),
     installs it with sudo dpkg -i and checks that 'hugo version' then reports v<Version> and extended. The action pins
     both values in actions/Publish/action.yaml (HUGO_VERSION, HUGO_SHA256). Returns { Path, Version (the version
@@ -430,15 +474,23 @@ function Install-Hugo {
         [Parameter(Mandatory)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
         [Parameter(Mandatory)][ValidatePattern('^[0-9A-Fa-f]{64}$')][string]$Sha256,
         [string]$DownloadRoot = [System.IO.Path]::GetTempPath(),
-        [string]$BaseUrl = 'https://github.com/gohugoio/hugo/releases/download'
+        [string]$BaseUrl = 'https://github.com/gohugoio/hugo/releases/download',
+        [ValidatePattern('^\d+\.\d+\.\d+$')][string]$MinimumVersion = '0.156.0'
     )
-    $isPinned = { param($Text) -not [string]::IsNullOrEmpty($Text) -and $Text.Contains("v$Version") -and $Text.Contains('extended') }
+    # The version of an extended Hugo from its 'hugo version' line, or $null (no Hugo, or not extended).
+    $extendedVersion = {
+        param($Text)
+        if ([string]::IsNullOrEmpty($Text) -or -not $Text.Contains('extended') -or $Text -notmatch '\bv(\d+\.\d+\.\d+)\b') { return $null }
+        return [version]$Matches[1]
+    }
     $current = Get-HugoVersionText -HugoPath 'hugo'
-    if (& $isPinned $current) {
+    $found = & $extendedVersion $current
+    $onLinux = Test-HugoInstallPlatform
+    if ($null -ne $found -and ($found -eq [version]$Version -or (-not $onLinux -and $found -ge [version]$MinimumVersion))) {
         return [pscustomobject]@{ Path = (Get-Command -Name 'hugo').Source; Version = $current; Installed = $false; Deb = $null }
     }
-    if (-not (Test-HugoInstallPlatform)) {
-        throw "Install-Hugo installs the Debian package of Hugo and runs on Linux only (found: $(if ($current) { $current } else { 'no hugo' })). Install Hugo $Version extended yourself and pass its path as the hugoPath input."
+    if (-not $onLinux) {
+        throw "Install-Hugo installs the Debian package of Hugo and runs on Linux only, and no extended Hugo $MinimumVersion or later is installed (found: $(if ($current) { $current } else { 'no hugo' })). Install Hugo $Version extended yourself and pass its path as the hugoPath input."
     }
     $name = "hugo_extended_$($Version)_linux-amd64.deb"
     $deb = Join-Path $DownloadRoot $name
@@ -452,7 +504,7 @@ function Install-Hugo {
     $install = Invoke-HugoInstallCommand -Deb $deb
     if ($install.ExitCode -ne 0) { throw "sudo dpkg -i $name failed with exit code $($install.ExitCode): $(@($install.Output | Select-Object -Last 5) -join ' ')" }
     $after = Get-HugoVersionText -HugoPath 'hugo'
-    if (-not (& $isPinned $after)) { throw "After installing $name, 'hugo version' reports '$after', not v$Version extended." }
+    if ((& $extendedVersion $after) -ne [version]$Version) { throw "After installing $name, 'hugo version' reports '$after', not v$Version extended." }
     return [pscustomobject]@{ Path = (Get-Command -Name 'hugo').Source; Version = $after; Installed = $true; Deb = $deb }
 }
 
@@ -516,6 +568,8 @@ Export-ModuleMember -Function @(
     'Build-RulebookSite'
     'ConvertTo-RulebookSiteDataJson'
     'Export-RulebookSiteData'
+    'Get-RulebookSiteDataPath'
     'Get-RulebookSiteModel'
     'Install-Hugo'
+    'Read-RulebookSiteModel'
 )

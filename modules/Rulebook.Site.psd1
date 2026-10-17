@@ -12,8 +12,10 @@
         'Build-RulebookSite'
         'ConvertTo-RulebookSiteDataJson'
         'Export-RulebookSiteData'
+        'Get-RulebookSiteDataPath'
         'Get-RulebookSiteModel'
         'Install-Hugo'
+        'Read-RulebookSiteModel'
     )
     CmdletsToExport      = @()
     VariablesToExport    = @()
