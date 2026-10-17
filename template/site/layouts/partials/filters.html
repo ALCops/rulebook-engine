@@ -1,0 +1,36 @@
+{{- /* Shown by matrix.js; the filters live in the URL hash (#analyzer=&action=&source=&q=), so a link keeps them. */ -}}
+{{- $analyzers := slice -}}
+{{- range .data.rules }}{{ if not (in $analyzers .analyzer) }}{{ $analyzers = $analyzers | append .analyzer }}{{ end }}{{ end -}}
+<form class="filters" role="search" hidden>
+  <label>Analyzer
+    <select name="analyzer">
+      <option value="">All</option>
+      {{- range $analyzers }}
+      <option value="{{ . }}">{{ . }}</option>
+      {{- end }}
+    </select>
+  </label>
+  <label>Action
+    <select name="action">
+      <option value="">Any</option>
+      {{- range slice "Error" "Warning" "Info" "Hidden" "None" }}
+      <option value="{{ . }}">{{ . }}</option>
+      {{- end }}
+    </select>
+  </label>
+  <label>Decided by
+    <select name="source">
+      <option value="">Anything</option>
+      <option value="override">Override</option>
+      <option value="quarantine">Quarantine</option>
+      <option value="stage">Stage file</option>
+      <option value="twins">Twins rule</option>
+      <option value="level">Level file</option>
+      <option value="default">Analyzer default</option>
+    </select>
+  </label>
+  <label>Id or title
+    <input type="search" name="q" autocomplete="off">
+  </label>
+  <output class="row-count" aria-live="polite"></output>
+</form>

@@ -1,0 +1,11 @@
+# The dashboard site of this rulebook repository: the matrix, one page per stage, level and rule, and the cart that
+# opens the rulebook-change issue form. The Publish action writes data/rulebook.json and builds the site with
+#   hugo --source site --destination <staging folder> --baseURL <baseUrl>/ --noBuildLock
+# No theme and no modules: everything the site needs is in this folder. Build it locally the same way with Hugo
+# 0.156.0 or later (extended); copy a published rulebook.json to data/rulebook.json first.
+title: Rulebook
+# No <meta name="generator"> on the home page: the pages stay the same bytes across Hugo versions.
+disableHugoGeneratorInject: true
+# Only the home page and the pages of content/_content.gotmpl are rendered: no list pages for rules/, levels/ and
+# stages/, no taxonomies, feeds or sitemap.
+disableKinds: [taxonomy, term, rss, sitemap, section]

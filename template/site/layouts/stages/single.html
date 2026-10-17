@@ -1,0 +1,9 @@
+{{ define "main" }}
+{{- $data := hugo.Data.rulebook -}}
+{{- $stage := index $data.stages .Params.item -}}
+<h1>Stage {{ $stage.name }}</h1>
+{{ with $stage.description }}<p class="lead">{{ . }}</p>{{ end }}
+{{ partial "matrix.html" (dict "data" $data "stage" $stage) }}
+{{ partial "legend.html" (dict "data" $data "stage" $stage) }}
+{{ partial "stage-summary.html" (dict "data" $data "stage" $stage) }}
+{{ end }}

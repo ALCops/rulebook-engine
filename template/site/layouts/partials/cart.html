@@ -1,0 +1,21 @@
+{{- /* The cart panel; cart.mjs fills and shows it. Nothing here works without JavaScript, so it stays hidden. */ -}}
+{{- $data := hugo.Data.rulebook -}}
+<aside id="cart" class="cart" aria-labelledby="cart-heading" hidden>
+  <h2 id="cart-heading">Cart</h2>
+  <p class="cart-empty">The cart is empty. Click a cell to add a change.</p>
+  <ol class="cart-list"></ol>
+  <label class="cart-note">Note for the issue (optional)
+    <textarea name="note" rows="2"></textarea>
+  </label>
+  <p class="cart-size"><meter min="0" max="7372" value="0" data-limit="7372"></meter> <span class="cart-bytes"></span></p>
+  <div class="cart-actions">
+    <button type="button" data-cart="submit">Submit on GitHub</button>
+    <button type="button" data-cart="parts" hidden>Submit in parts</button>
+    <button type="button" data-cart="copy">Copy change set</button>
+    <button type="button" data-cart="clear">Clear</button>
+  </div>
+  <p class="cart-status" aria-live="polite"></p>
+  {{- with $data.repository }}
+  <p class="cart-form">Too large for one link? Copy the change set and paste it into the <a href="https://github.com/{{ . }}/issues/new?template={{ $data.issueTemplate }}">empty form</a>.</p>
+  {{- end }}
+</aside>

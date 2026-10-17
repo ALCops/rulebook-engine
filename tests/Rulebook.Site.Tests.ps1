@@ -1,5 +1,6 @@
-# Site suite for WP14 (#16, #62, #51): modules/Rulebook.Site (the site data model, its writer and the export of
-# site/data/rulebook.json). Cases run on the repository fixtures under tests/fixtures/repos/ (valid-minimal and the
+# Site suite for WP14 (#16, #62, #51): modules/Rulebook.Site (the site data model, its writer, the export of
+# site/data/rulebook.json, the Hugo install with mocks and the site build with the stand-in tests/Helpers/HugoStub.ps1;
+# one build of template/site runs the real Hugo and is skipped when hugo is not on PATH). Cases run on the repository fixtures under tests/fixtures/repos/ (valid-minimal and the
 # twins-appsource and unknown-id overlays), on a repository built from the tiny matrix, and on the committed export
 # tests/fixtures/site-data/rulebook.json (regeneration command in its README). generatedAt is checked on the text:
 # ConvertFrom-Json turns it into a DateTime (#62).
@@ -182,19 +183,23 @@ Describe 'Get-RulebookSiteModel' {
         $with.Document['quarantine']['vnext'] | Should-BeCollection @()
     }
 
-    It 'writes issueTemplate, repository and the docsUrl of engine ref <Ref>' -ForEach @(
-        @{ Ref = ''; Expected = 'https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md' }
-        @{ Ref = 'main'; Expected = 'https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md' }
-        @{ Ref = 'v1'; Expected = 'https://github.com/ALCops/rulebook/blob/main/docs/dashboard.md' }
-        @{ Ref = 'v1.0.0-beta.4'; Expected = 'https://github.com/ALCops/rulebook/blob/v1.0.0-beta.4/docs/dashboard.md' }
+    It 'writes issueTemplate, repository, the docsUrl and the setup URLs of engine ref <Ref>' -ForEach @(
+        @{ Ref = ''; Engine = 'main'; Template = 'preview' }
+        @{ Ref = 'main'; Engine = 'main'; Template = 'preview' }
+        @{ Ref = 'v1'; Engine = 'v1'; Template = 'main' }
+        @{ Ref = 'v1.0.0-beta.4'; Engine = 'v1.0.0-beta.4'; Template = 'v1.0.0-beta.4' }
     ) {
         $model = Get-Model -Root $validRoot -EngineRef $Ref
         $document = $model.Document
-        Should-BeCollection -Actual ([string[]]@($document.Keys)) -Expected @('generatedAt', 'repository', 'baseUrl', 'issueTemplate', 'docsUrl', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
+        Should-BeCollection -Actual ([string[]]@($document.Keys)) -Expected @('generatedAt', 'repository', 'baseUrl', 'issueTemplate', 'docsUrl', 'initScriptUrl', 'engineRef', 'alProjectDocsUrl', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
         $document['issueTemplate'] | Should-Be 'rulebook-change.yml'
         $document['repository'] | Should-Be 'contoso/rulebook'
         $document['baseUrl'] | Should-Be $baseUrl
-        $document['docsUrl'] | Should-Be $Expected
+        $document['docsUrl'] | Should-Be "https://github.com/ALCops/rulebook/blob/$Template/docs/dashboard.md"
+        # The setup page: the same init script, ref and user page as the plain index page.
+        $document['initScriptUrl'] | Should-Be "https://raw.githubusercontent.com/ALCops/rulebook-engine/$Engine/scripts/Get-RulebookSkeletons.ps1"
+        $document['engineRef'] | Should-Be $Engine
+        $document['alProjectDocsUrl'] | Should-Be "https://github.com/ALCops/rulebook/blob/$Template/docs/al-project.md"
     }
 
     It 'leaves repository out when it is not known' {
@@ -321,6 +326,19 @@ Describe 'Export-RulebookSiteData' {
         { Export-RulebookSiteData -RepositoryRoot $root -BaseUrl $baseUrl } | Should-Throw -ExceptionMessage 'Settings missing: .github/Rulebook-Settings.json*'
     }
 
+    It 'builds the same model as Read-RulebookSiteModel, which names the data path' {
+        $root = Copy-Fixture
+        $model = Read-RulebookSiteModel -RepositoryRoot $root -BaseUrl $baseUrl -Repository 'contoso/rulebook' -GeneratedAt '2026-10-17T00:00:00Z'
+        $model.IncludeJustifications | Should-BeFalse
+        $out = Join-Path (Get-TestFolder) 'rulebook.json'
+        $null = Export-RulebookSiteData -RepositoryRoot $root -BaseUrl $baseUrl -Repository 'contoso/rulebook' -GeneratedAt '2026-10-17T00:00:00Z' -OutFile $out
+        (ConvertTo-RulebookSiteDataJson -Model $model) | Should-Be ([System.IO.File]::ReadAllText($out))
+        Get-RulebookSiteDataPath | Should-Be 'site/data/rulebook.json'
+        $inputs = Read-RulebookInputs -RepositoryRoot $root
+        Remove-Item -LiteralPath (Join-Path $root 'catalog' 'diagnostics.json')
+        { Read-RulebookSiteModel -RepositoryRoot $root -BaseUrl $baseUrl -Inputs $inputs } | Should-Throw -ExceptionMessage 'catalog/diagnostics.json is missing*'
+    }
+
     It 'writes nothing under -WhatIf' {
         $root = Copy-Fixture
         $result = Export-RulebookSiteData -RepositoryRoot $root -BaseUrl $baseUrl -WhatIf
@@ -336,5 +354,240 @@ Describe 'Export-RulebookSiteData' {
         $actual = [System.IO.File]::ReadAllBytes($out)
         [System.Linq.Enumerable]::SequenceEqual($expected, $actual) | Should-BeTrue -Because 'the committed export must equal the export of valid-minimal; regenerate it with the command in tests/fixtures/site-data/README.md'
         Read-Text $siteFixture | Should-MatchString '\A\{\n  "generatedAt": "2026-10-17T00:00:00Z",\n'
+    }
+}
+
+Describe 'Install-Hugo' {
+    BeforeAll {
+        $script:pin = '0.167.0'
+        $script:debBytes = [System.Text.Encoding]::ASCII.GetBytes('not a real package')
+        $script:debHash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::HashData($debBytes)).Replace('-', '').ToLowerInvariant()
+    }
+
+    BeforeEach {
+        $script:versions = [System.Collections.Generic.Queue[object]]::new()
+        Mock Get-HugoVersionText -ModuleName Rulebook.Site { $script:versions.Dequeue() }
+        Mock Get-Command -ModuleName Rulebook.Site -ParameterFilter { $Name -eq 'hugo' } { [pscustomobject]@{ Source = '/usr/local/bin/hugo' } }
+        Mock Test-HugoInstallPlatform -ModuleName Rulebook.Site { $true }
+        Mock Invoke-WebRequest -ModuleName Rulebook.Site { [System.IO.File]::WriteAllBytes($OutFile, $script:debBytes) }
+        Mock Invoke-HugoInstallCommand -ModuleName Rulebook.Site { [pscustomobject]@{ ExitCode = 0; Output = @('Setting up hugo') } }
+    }
+
+    It 'does nothing when hugo version reports the pinned extended version' {
+        $versions.Enqueue('hugo v0.167.0-3fff6fb5+extended linux/amd64 BuildDate=2026-09-28T14:50:38Z')
+        $result = Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder)
+        $result.Installed | Should-BeFalse
+        $result.Deb | Should-BeNull
+        $result.Path | Should-Be '/usr/local/bin/hugo'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Site -Times 0 -Exactly
+        Should-Invoke Invoke-HugoInstallCommand -ModuleName Rulebook.Site -Times 0 -Exactly
+    }
+
+    It 'downloads the release package, checks its sha256, installs it and checks the version' {
+        $versions.Enqueue('hugo v0.165.0+extended linux/amd64')
+        $versions.Enqueue('hugo v0.167.0-3fff6fb5+extended linux/amd64')
+        $folder = Get-TestFolder
+        $result = Install-Hugo -Version $pin -Sha256 $debHash.ToUpperInvariant() -DownloadRoot $folder
+        $result.Installed | Should-BeTrue
+        $result.Version | Should-BeLikeString 'hugo v0.167.0*extended*'
+        $result.Deb | Should-Be (Join-Path $folder 'hugo_extended_0.167.0_linux-amd64.deb')
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Site -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://github.com/gohugoio/hugo/releases/download/v0.167.0/hugo_extended_0.167.0_linux-amd64.deb' }
+        Should-Invoke Invoke-HugoInstallCommand -ModuleName Rulebook.Site -Times 1 -Exactly -ParameterFilter { $Deb -eq $result.Deb }
+    }
+
+    It 'refuses a package with another sha256 and deletes it' {
+        $versions.Enqueue($null)
+        $folder = Get-TestFolder
+        $wrong = '0' * 64
+        { Install-Hugo -Version $pin -Sha256 $wrong -DownloadRoot $folder } | Should-Throw -ExceptionMessage "hugo_extended_0.167.0_linux-amd64.deb has SHA256 $debHash, expected $wrong; the file was deleted*"
+        Test-Path -LiteralPath (Join-Path $folder 'hugo_extended_0.167.0_linux-amd64.deb') | Should-BeFalse
+        Should-Invoke Invoke-HugoInstallCommand -ModuleName Rulebook.Site -Times 0 -Exactly
+    }
+
+    It 'throws when dpkg fails or the installed hugo is not the pin' {
+        $versions.Enqueue($null)
+        Mock Invoke-HugoInstallCommand -ModuleName Rulebook.Site { [pscustomobject]@{ ExitCode = 1; Output = @('dpkg: error') } }
+        { Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder) } | Should-Throw -ExceptionMessage '*dpkg -i hugo_extended_0.167.0_linux-amd64.deb failed with exit code 1: dpkg: error'
+        Mock Invoke-HugoInstallCommand -ModuleName Rulebook.Site { [pscustomobject]@{ ExitCode = 0; Output = @() } }
+        $versions.Enqueue($null)
+        $versions.Enqueue('hugo v0.167.0 linux/amd64')
+        { Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder) } | Should-Throw -ExceptionMessage "*'hugo version' reports 'hugo v0.167.0 linux/amd64', not v0.167.0 extended."
+    }
+
+    It 'accepts an extended Hugo at or above the floor off Linux without downloading' {
+        Mock Test-HugoInstallPlatform -ModuleName Rulebook.Site { $false }
+        $versions.Enqueue('hugo v0.165.0-76a5e188+extended windows/amd64 BuildDate=2026-08-12T14:26:28Z')
+        $result = Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder)
+        $result.Installed | Should-BeFalse
+        $result.Version | Should-BeLikeString 'hugo v0.165.0*'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Site -Times 0 -Exactly
+    }
+
+    It 'throws off Linux for <Name>, naming the hugoPath input' -ForEach @(
+        @{ Name = 'a Hugo below the floor'; Line = 'hugo v0.150.0+extended windows/amd64' }
+        @{ Name = 'a Hugo that is not extended'; Line = 'hugo v0.167.0 windows/amd64' }
+        @{ Name = 'no Hugo'; Line = $null }
+    ) {
+        Mock Test-HugoInstallPlatform -ModuleName Rulebook.Site { $false }
+        $versions.Enqueue($Line)
+        { Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder) } | Should-Throw -ExceptionMessage '*runs on Linux only, and no extended Hugo 0.156.0 or later is installed (found: *)*hugoPath input.'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.Site -Times 0 -Exactly
+    }
+
+    It 'replaces <Name> with the pin on Linux' -ForEach @(
+        @{ Name = 'a Hugo below the floor'; Line = 'hugo v0.150.0+extended linux/amd64' }
+        @{ Name = 'a newer Hugo'; Line = 'hugo v0.170.0+extended linux/amd64' }
+    ) {
+        $versions.Enqueue($Line)
+        $versions.Enqueue('hugo v0.167.0-3fff6fb5+extended linux/amd64')
+        (Install-Hugo -Version $pin -Sha256 $debHash -DownloadRoot (Get-TestFolder)).Installed | Should-BeTrue
+        Should-Invoke Invoke-HugoInstallCommand -ModuleName Rulebook.Site -Times 1 -Exactly
+    }
+
+    It 'refuses a version or a hash of the wrong shape' {
+        { Install-Hugo -Version 'latest' -Sha256 $debHash } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException])
+        { Install-Hugo -Version $pin -Sha256 'abc' } | Should-Throw -ExceptionType ([System.Management.Automation.ParameterBindingException])
+    }
+}
+
+Describe 'Build-RulebookSite' {
+    BeforeAll {
+        $script:stub = Join-Path $PSScriptRoot 'Helpers' 'HugoStub.ps1'
+
+        function New-SiteCopy {
+            # template/site with the committed site data fixture as data/rulebook.json.
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+            param()
+            $site = Join-Path (Get-TestFolder) 'site'
+            Copy-FixtureTree -Source (Join-Path $repoRoot 'template' 'site') -Destination $site
+            if (Test-Path -LiteralPath (Join-Path $site 'data')) { Remove-Item -LiteralPath (Join-Path $site 'data') -Recurse -Force }
+            [void](New-Item -ItemType Directory -Path (Join-Path $site 'data'))
+            Copy-Item -LiteralPath $siteFixture -Destination (Join-Path $site 'data' 'rulebook.json')
+            return $site
+        }
+
+        function New-Staging {
+            # A staging folder that already holds what New-RulebookPublishStage writes before the build.
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+            param()
+            $staging = Get-TestFolder
+            [void](New-Item -ItemType Directory -Path (Join-Path $staging 'rulesets'), (Join-Path $staging 'catalog') -Force)
+            Set-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Value '{}' -NoNewline
+            Set-Content -LiteralPath (Join-Path $staging 'catalog' 'diagnostics.json') -Value '{}' -NoNewline
+            Set-Content -LiteralPath (Join-Path $staging 'index.html') -Value 'plain' -NoNewline
+            return $staging
+        }
+    }
+
+    AfterEach {
+        $env:HUGO_STUB_LOG = $null
+        $env:HUGO_STUB_EXIT = $null
+        $env:HUGO_STUB_NOMARKER = $null
+    }
+
+    It 'runs Hugo with the source, the destination, the base URL with a slash, --quiet and --noBuildLock, and no clean' {
+        $site = New-SiteCopy
+        $staging = New-Staging
+        $env:HUGO_STUB_LOG = Join-Path (Get-TestFolder) 'args.log'
+        [void](New-Item -ItemType Directory -Path (Split-Path -Parent $env:HUGO_STUB_LOG))
+        $null = Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination $staging -HugoPath $stub
+        $arguments = @((Get-Content -LiteralPath $env:HUGO_STUB_LOG -Raw).TrimEnd("`n").Split("`t"))
+        $arguments | Should-BeCollection @('--source', $site, '--destination', $staging, '--baseURL', "$baseUrl/", '--quiet', '--noBuildLock')
+    }
+
+    It 'keeps the staged files, replaces index.html and lists the pages and assets' {
+        $site = New-SiteCopy
+        $staging = New-Staging
+        $result = Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination $staging -HugoPath $stub
+        Get-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Raw | Should-Be '{}'
+        Get-Content -LiteralPath (Join-Path $staging 'catalog' 'diagnostics.json') -Raw | Should-Be '{}'
+        Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw | Should-MatchString 'data-rulebook-matrix="default"'
+        $result.MarkerPresent | Should-BeTrue
+        $result.PageCount | Should-Be 39
+        $result.Pages[0] | Should-Be 'index.html'
+        foreach ($page in 'stages/ci/index.html', 'levels/strict/index.html', 'rules/lc0089i/index.html') { $result.Pages -ccontains $page | Should-BeTrue }
+        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js')
+        $result.Output | Should-ContainCollection @('Start building sites (stub)')
+    }
+
+    It 'reports an index.html without the matrix marker' {
+        $env:HUGO_STUB_NOMARKER = '1'
+        (Build-RulebookSite -SitePath (New-SiteCopy) -BaseUrl $baseUrl -Destination (New-Staging) -HugoPath $stub).MarkerPresent | Should-BeFalse
+    }
+
+    It 'throws with the exit code and the last 20 lines of the output when Hugo fails' {
+        $env:HUGO_STUB_EXIT = '2'
+        $site = New-SiteCopy
+        $message = try { Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination (New-Staging) -HugoPath $stub; '' } catch { $_.Exception.Message }
+        $lines = $message.Split("`n")
+        $lines[0] | Should-Be "Hugo failed with exit code 2 building $site"
+        $lines.Count | Should-Be 21
+        $lines[1] | Should-Be 'stub line 6'
+        $lines[-1] | Should-Be 'stub line 25'
+    }
+
+    It 'refuses a site without <File>' -ForEach @(@{ File = 'hugo.yaml' }, @{ File = 'data/rulebook.json' }) {
+        $site = New-SiteCopy
+        Remove-Item -LiteralPath (Join-Path $site $File)
+        { Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination (New-Staging) -HugoPath $stub } | Should-Throw -ExceptionMessage "The site has no $File in *"
+    }
+
+    It 'throws when the Hugo command does not exist' {
+        { Build-RulebookSite -SitePath (New-SiteCopy) -BaseUrl $baseUrl -Destination (New-Staging) -HugoPath (Join-Path $TestDrive 'no-hugo.exe') } | Should-Throw -ExceptionMessage "Hugo was not found: '*no-hugo.exe' is not a command or a file"
+    }
+
+    It 'builds the shipped site with the real Hugo: every page, the cells and no list page' -Skip:($null -eq (Get-Command -Name 'hugo' -ErrorAction SilentlyContinue)) {
+        $site = New-SiteCopy
+        $staging = New-Staging
+        $result = Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination $staging
+        $result.MarkerPresent | Should-BeTrue
+        # 30 rules, 3 stages, 4 levels, the setup page and the home page; no list page for rules/, levels/ or stages/
+        # and no 404 page.
+        $result.PageCount | Should-Be 39
+        foreach ($page in 'rules/index.html', 'levels/index.html', 'stages/index.html', '404.html', 'sitemap.xml', 'index.xml') { Test-Path -LiteralPath (Join-Path $staging $page) | Should-BeFalse }
+        Test-Path -LiteralPath (Join-Path $site '.hugo_build.lock') | Should-BeFalse
+        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js')
+        Get-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Raw | Should-Be '{}'
+        $index = Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw
+        $ci = Get-Content -LiteralPath (Join-Path $staging 'stages' 'ci' 'index.html') -Raw
+        $index | Should-MatchString '<section class="matrix-root" data-rulebook-matrix="default">'
+        # The cart's values sit on the body of every page, the level pages included; no generator meta tag.
+        foreach ($page in 'index.html', 'levels/strict/index.html', 'rules/lc0029/index.html') {
+            Get-Content -LiteralPath (Join-Path $staging $page) -Raw | Should-MatchString ([regex]::Escape('<body data-repository="contoso/rulebook" data-issue-template="rulebook-change.yml" data-rulebook-json="/rulebook/rulebook.json">'))
+        }
+        $index | Should-NotMatchString 'name="generator"'
+        # A JSON number compares as an int: one override reads in the singular, two in the plural.
+        Get-Content -LiteralPath (Join-Path $staging 'levels' 'essential' 'index.html') -Raw | Should-MatchString '<dd>1 override decides a cell of this level</dd>'
+        $ci | Should-MatchString '<dd>2 overrides decide a cell of this stage</dd>'
+        # Without JavaScript the filters stay hidden: the stylesheet lets the hidden attribute win.
+        $index | Should-MatchString '<form class="filters" role="search" hidden>'
+        Get-Content -LiteralPath (Join-Path $staging 'css' 'site.css') -Raw | Should-MatchString '(?m)^\[hidden\] \{ display: none !important; \}$'
+        ([regex]::Matches($index, '<tr data-id=')).Count | Should-Be 30
+        # The override cell of LC0029 on recommended.ci, on the stage page and on the rule page, with the real id.
+        $cell = '<td class="a-none" data-id="LC0029" data-level="recommended" data-stage="ci" data-action="None" data-source="override" data-fallback="Warning" data-fallback-source="level:recommended" data-override="1" tabindex="0">None'
+        Get-Content -LiteralPath (Join-Path $staging 'stages' 'ci' 'index.html') -Raw | Should-MatchString ([regex]::Escape($cell))
+        Get-Content -LiteralPath (Join-Path $staging 'rules' 'lc0029' 'index.html') -Raw | Should-MatchString ([regex]::Escape($cell))
+        # A quarantine cell has its fallback and no override index; the stage page lists it with a Release button.
+        $ci | Should-MatchString ([regex]::Escape('data-id="LC0099" data-level="strict" data-stage="ci" data-action="None" data-source="quarantine" data-fallback="Warning" data-fallback-source="default" tabindex="0">None<span class="mark mark-quarantine"'))
+        $ci | Should-MatchString ([regex]::Escape('<button type="button" data-release data-id="LC0099" data-stage="ci" hidden>Release</button>'))
+        $ci | Should-MatchString '<h2 id="stage-summary">What the stage CI changes</h2>'
+        # The first stage link points at / on every page; the stage page marks its own link.
+        $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/" data-stage-link="default">default</a>'))
+        $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/ci/" data-stage-link="ci" aria-current="page">CI</a>'))
+        $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/" data-stage-link="default" aria-current="page">default</a>'))
+        Get-Content -LiteralPath (Join-Path $staging 'levels' 'recommended' 'index.html') -Raw | Should-MatchString ([regex]::Escape('<a href="/rulebook/levels/essential/">Essential</a>'))
+        # setup/: the "Set up an AL project" section of the plain index, from the data file, with the al-project anchor.
+        $setup = Get-Content -LiteralPath (Join-Path $staging 'setup' 'index.html') -Raw
+        $setup | Should-MatchString '<h1 id="al-project">Set up an AL project</h1>'
+        $setup | Should-MatchString ([regex]::Escape('Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1'))
+        $setup | Should-MatchString ([regex]::Escape('./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level essential -Ref main'))
+        $setup | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/preview/docs/al-project.md">docs/al-project.md</a>'))
+        $setup | Should-MatchString ([regex]::Escape('<a href="https://contoso.github.io/rulebook/rulesets/strict.ruleset.json"><code>https://contoso.github.io/rulebook/rulesets/strict.ruleset.json</code></a></td><td class="count">9</td><td><a href="https://contoso.github.io/rulebook/skeletons/strict.default.ruleset.json"'))
+        $setup | Should-MatchString ([regex]::Escape('href="https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json"'))
+        $index | Should-MatchString ([regex]::Escape('<a class="nav-setup" href="/rulebook/setup/">Set up an AL project</a>'))
+        $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/setup/#al-project">Set up an AL project</a>'))
+        # The two URLs the site shows come from the data file.
+        $index | Should-MatchString ([regex]::Escape('href="https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md"'))
+        $index | Should-MatchString ([regex]::Escape('href="https://github.com/contoso/rulebook/issues/new?template=rulebook-change.yml"'))
     }
 }

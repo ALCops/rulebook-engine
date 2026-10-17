@@ -1,0 +1,40 @@
+{{ define "main" }}
+{{- $data := hugo.Data.rulebook -}}
+{{- $rule := index $data.rules .Params.item -}}
+<h1>{{ $rule.id }}{{ with $rule.title }} <span class="title">{{ . }}</span>{{ end }}</h1>
+<dl class="facts">
+  <dt>Analyzer</dt><dd>{{ $rule.analyzer }}</dd>
+  {{- if $rule.unknown }}
+  <dt>Catalog</dt><dd>Not in <code>catalog/diagnostics.json</code>: an input of this repository names the id.</dd>
+  {{- else }}
+  <dt>Default</dt><dd><span class="action a-{{ lower $rule.default }}">{{ $rule.default }}</span>{{ if not $rule.enabledByDefault }}, disabled by default (the analyzer reports it only when a ruleset sets an action){{ end }}</dd>
+  {{- end }}
+  {{- with $rule.docsUrl }}
+  <dt>Documentation</dt><dd><a href="{{ . }}">{{ . }}</a></dd>
+  {{- end }}
+</dl>
+{{- if $rule.justifications }}
+<h2>Justifications</h2>
+{{- /* Keyed by source token (level:<slug>, stage:<slug>); a range over the map walks the keys alphabetically, so the
+  level files come first. A level file can be one that is not published itself (the root of a chain). */}}
+<dl class="justifications">
+  {{- range $token, $text := $rule.justifications }}
+  {{- $parts := split $token ":" }}
+  <dt>{{ if eq (index $parts 0) "stage" }}Stage file{{ else }}Level file{{ end }} <code>{{ index $parts 1 }}</code></dt><dd>{{ $text }}</dd>
+  {{- end }}
+</dl>
+{{- end }}
+<h2>Every endpoint</h2>
+<div class="table-wrap" data-rulebook-rule="{{ $rule.id }}">
+<table class="matrix rule-matrix">
+  <thead><tr><th scope="col">Level</th>{{ range $data.stages }}<th scope="col"><a href="{{ printf "stages/%s/" .slug | relURL }}">{{ .name }}</a></th>{{ end }}</tr></thead>
+  <tbody>
+  {{- range $level := $data.levels }}
+  <tr data-id="{{ $rule.id }}"><th scope="row"><a href="{{ printf "levels/%s/" $level.slug | relURL }}">{{ $level.name }}</a></th>
+    {{- range $stage := $data.stages }}{{ partial "cell.html" (dict "rule" $rule "level" $level "stage" $stage) }}{{ end }}</tr>
+  {{- end }}
+  </tbody>
+</table>
+</div>
+{{ partial "legend.html" (dict "data" $data) }}
+{{ end }}

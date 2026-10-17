@@ -1,0 +1,41 @@
+{{ define "main" }}
+{{- $data := hugo.Data.rulebook -}}
+{{- $level := index $data.levels .Params.item -}}
+<h1>Level {{ $level.name }}</h1>
+{{ with $level.description }}<p class="lead">{{ . }}</p>{{ end }}
+<dl class="facts">
+  <dt>Level file</dt><dd><code>{{ $level.file }}</code></dd>
+  <dt>Chain</dt><dd>{{ range $i, $file := $level.chain }}{{ if $i }} &rarr; {{ end }}<code>{{ $file }}</code>{{ end }}</dd>
+  <dt>Based on</dt><dd>{{ with $level.basedOnName }}{{ if $level.basedOnPublished }}<a href="{{ printf "levels/%s/" $level.basedOn | relURL }}">{{ . }}</a>{{ else }}{{ . }} (not published){{ end }}{{ else }}nothing: the root of the chain{{ end }}</dd>
+  <dt>Entries</dt><dd>{{ $level.entryCount }}, {{ $level.loweredCount }} lowered</dd>
+  <dt>Overrides</dt><dd>{{ $level.overrideCount }} {{ if eq (int $level.overrideCount) 1 }}override decides{{ else }}overrides decide{{ end }} a cell of this level</dd>
+</dl>
+<h2>Counts per stage</h2>
+<table class="counts">
+  <thead><tr><th scope="col">Stage</th><th scope="col">Error</th><th scope="col">Warning</th><th scope="col">Info</th><th scope="col">Hidden</th><th scope="col">None</th><th scope="col">Listed</th></tr></thead>
+  <tbody>
+  {{- range $level.counts }}
+  {{- $slug := .stage }}
+  {{- $name := $slug }}{{ range $data.stages }}{{ if eq .slug $slug }}{{ $name = .name }}{{ end }}{{ end }}
+  <tr><th scope="row"><a href="{{ printf "stages/%s/" $slug | relURL }}">{{ $name }}</a></th><td>{{ .error }}</td><td>{{ .warning }}</td><td>{{ .info }}</td><td>{{ .hidden }}</td><td>{{ .none }}</td><td>{{ .listed }}</td></tr>
+  {{- end }}
+  </tbody>
+</table>
+<h2>Entries of the level file</h2>
+{{- if $level.entries }}
+<table class="entries">
+  <thead><tr><th scope="col">Id</th><th scope="col">Title</th><th scope="col">From</th><th scope="col">To</th><th scope="col">Justification</th></tr></thead>
+  <tbody>
+  {{- $group := "" }}
+  {{- range $level.entries }}
+  {{- if ne .analyzer $group }}{{ $group = .analyzer }}
+  <tr class="group"><th colspan="5" scope="rowgroup">{{ .analyzer }}</th></tr>
+  {{- end }}
+  <tr><td><a href="{{ printf "rules/%s/" (lower .id) | relURL }}">{{ .id }}</a></td><td>{{ .title }}</td><td><span class="action a-{{ lower .from }}">{{ .from }}</span> <span class="source">{{ .fromSource }}</span></td><td><span class="action a-{{ lower .to }}">{{ .to }}</span>{{ if .lowered }} <span class="note">lowered</span>{{ end }}</td><td>{{ .justification }}</td></tr>
+  {{- end }}
+  </tbody>
+</table>
+{{- else }}
+<p>The level file lists no entry.</p>
+{{- end }}
+{{ end }}

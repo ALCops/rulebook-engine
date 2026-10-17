@@ -1,0 +1,14 @@
+{{- /* One cell: the effective action of a rule on one level and stage, the input that decided it, and for an override
+  or a quarantine cell the action the cell would have without it (the before and after of the cart). */ -}}
+{{- $cell := index .rule.cells (printf "%s.%s" .level.slug .stage.slug) -}}
+{{- $action := or $cell.action "" -}}
+{{- $source := $cell.source -}}
+<td class="a-{{ or (lower $action) "unset" }}" data-id="{{ .rule.id }}" data-level="{{ .level.slug }}" data-stage="{{ .stage.slug }}" data-action="{{ $action }}" data-source="{{ $source }}"
+  {{- if isset $cell "fallback" }} data-fallback="{{ or $cell.fallback "" }}" data-fallback-source="{{ $cell.fallbackSource }}"{{ end }}
+  {{- if isset $cell "override" }} data-override="{{ $cell.override }}"{{ end }} tabindex="0">{{ or $action "unset" }}
+  {{- if eq $source "override" }}<span class="mark mark-override" title="Override {{ $cell.override }} of overrides.json">O</span>
+  {{- else if eq $source "quarantine" }}<span class="mark mark-quarantine" title="Quarantined in this stage">Q</span>
+  {{- else if eq $source "twins" }}<span class="mark mark-twins" title="Twins rule"></span>
+  {{- else if hasPrefix $source "stage:" }}<span class="mark mark-stage" title="Stage file of {{ strings.TrimPrefix "stage:" $source }}"></span>
+  {{- end }}</td>
+{{- /**/ -}}

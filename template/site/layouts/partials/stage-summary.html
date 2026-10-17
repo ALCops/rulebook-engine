@@ -1,0 +1,56 @@
+{{- /* The stage page model (Get-RulebookStageSummary): the stage file's entries, where they have no effect, the
+  quarantine of the stage and the counts per level. */ -}}
+{{- $data := .data -}}
+{{- $stage := .stage -}}
+{{- $levelName := dict -}}
+{{- range $data.levels }}{{ $levelName = merge $levelName (dict .slug .name) }}{{ end -}}
+<section class="stage-summary" aria-labelledby="stage-summary">
+<h2 id="stage-summary">What the stage {{ $stage.name }} changes</h2>
+<dl class="facts">
+  <dt>Stage file</dt><dd>{{ with $stage.file }}<code>{{ . }}</code>{{ else }}none: this stage is the level result as is{{ end }}</dd>
+  <dt>Entries</dt><dd>{{ $stage.entryCount }}</dd>
+  <dt>Quarantined ids</dt><dd>{{ $stage.quarantineCount }}</dd>
+  <dt>Overrides</dt><dd>{{ $stage.overrideCount }} {{ if eq (int $stage.overrideCount) 1 }}override decides{{ else }}overrides decide{{ end }} a cell of this stage</dd>
+</dl>
+<h3>Counts per level</h3>
+<table class="counts">
+  <thead><tr><th scope="col">Level</th><th scope="col">Error</th><th scope="col">Warning</th><th scope="col">Info</th><th scope="col">Hidden</th><th scope="col">None</th><th scope="col">Listed</th></tr></thead>
+  <tbody>
+  {{- range $stage.counts }}
+  <tr><th scope="row"><a href="{{ printf "levels/%s/" .level | relURL }}">{{ index $levelName .level }}</a></th><td>{{ .error }}</td><td>{{ .warning }}</td><td>{{ .info }}</td><td>{{ .hidden }}</td><td>{{ .none }}</td><td>{{ .listed }}</td></tr>
+  {{- end }}
+  </tbody>
+</table>
+<h3>Entries of the stage file</h3>
+{{- if $stage.entries }}
+<table class="entries">
+  <thead><tr><th scope="col">Id</th><th scope="col">Title</th><th scope="col">Action</th><th scope="col">Justification</th><th scope="col">Notes</th></tr></thead>
+  <tbody>
+  {{- $group := "" }}
+  {{- range $stage.entries }}
+  {{- if ne .analyzer $group }}{{ $group = .analyzer }}
+  <tr class="group"><th colspan="5" scope="rowgroup">{{ .analyzer }}</th></tr>
+  {{- end }}
+  <tr><td><a href="{{ printf "rules/%s/" (lower .id) | relURL }}">{{ .id }}</a></td><td>{{ .title }}</td><td><span class="action a-{{ lower .action }}">{{ .action }}</span></td><td>{{ .justification }}</td><td>
+    {{- with .noEffect }}No effect on {{ range $i, $slug := . }}{{ if $i }}, {{ end }}{{ index $levelName $slug }}{{ end }}: the id is None there before the stage applies. {{ end }}
+    {{- if .quarantined }}Quarantined in this stage, which decides only where no level file names the id. {{ end }}
+    {{- with .overridden }}An override decides it on {{ range $i, $slug := . }}{{ if $i }}, {{ end }}{{ index $levelName $slug }}{{ end }}.{{ end }}</td></tr>
+  {{- end }}
+  </tbody>
+</table>
+{{- else }}
+<p>{{ if $stage.file }}The stage file lists no entry.{{ else }}No stage file: every cell is the level result.{{ end }}</p>
+{{- end }}
+<h3>Quarantine of the stage</h3>
+{{- $quarantine := index $data.quarantine $stage.slug }}
+{{- if $quarantine }}
+<p>Ids the daily scan found before the catalog knew them; they stay at None in this stage until released.</p>
+<ul class="quarantine">
+  {{- range $quarantine }}
+  <li><a href="{{ printf "rules/%s/" (lower .id) | relURL }}">{{ .id }}</a>{{ with .justification }} {{ . }}{{ end }} <button type="button" data-release data-id="{{ .id }}" data-stage="{{ $stage.slug }}" hidden>Release</button></li>
+  {{- end }}
+</ul>
+{{- else }}
+<p>No id is quarantined in this stage.</p>
+{{- end }}
+</section>

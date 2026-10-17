@@ -2,7 +2,7 @@
 
 Design of the dashboard an organization gets with its rulebook repository: a Hugo site, published next to the endpoints, that shows the matrix of diagnostic ids by level and stage, and a write path that turns clicks into a pull request without any infrastructure beyond GitHub. Contributor document; the user-facing page will be `docs/dashboard.md` in `template/docs/` (WP14), copied to `ALCops/rulebook` by the deploy.
 
-> **Status:** target design after the interview of 2026-10-03 (D31 to D37). Implemented by [WP14](https://github.com/ALCops/rulebook-engine/issues/16) (site) and [WP15](https://github.com/ALCops/rulebook-engine/issues/17) (write path). Names of files and settings keys are proposals that WP02 and WP14 finalise.
+> **Status:** target design after the interview of 2026-10-03 (D31 to D37). The site, the data file, the change set schema and the issue form are implemented by [WP14](https://github.com/ALCops/rulebook-engine/issues/16) (D54, sections 4 to 7); the apply workflow of section 8 is [WP15](https://github.com/ALCops/rulebook-engine/issues/17).
 
 ---
 
@@ -69,50 +69,65 @@ Alternatives considered and why they lost, in one table (the detail is in D31 an
 
 ## 4. Site
 
+> **Status:** implemented by WP14 ([#16](https://github.com/ALCops/rulebook-engine/issues/16), [D54](adr/0054-the-site-renders-one-page-per-stage-and-the-engine-exports-the-fallback-action.md)). Code: `template/site/`, `Install-Hugo` and `Build-RulebookSite` of `modules/Rulebook.Site.psm1`, the site step of `actions/Publish/Publish.ps1`.
+
 ### Layout in the template
 
 ```
 site/
-  hugo.yaml                  baseURL is passed on the command line; theme-less
+  hugo.yaml                  title; no theme, no params; baseURL comes from the command line;
+                             disableKinds taxonomy, term, rss, sitemap, section
+  .gitignore                 data/, resources/, public/, .hugo_build.lock
   content/
-    _index.md                the matrix page
-    _content.gotmpl          content adapter: one page per rule from data/rulebook.json
+    _index.md                front matter only: the home page
+    _content.gotmpl          content adapter: setup/ and one page per stage, level and rule of hugo.Data.rulebook
   layouts/
-    index.html               matrix grid rendered from hugo.Data.rulebook
-    rules/single.html        rule detail page
-    partials/                cell, legend, filters, cart
+    baseof.html              head, header, main block, cart, popover, footer, scripts
+    index.html               "/": the matrix of the first stage and the legend
+    stages/single.html       stages/<slug>/: the matrix of the stage, the legend, the stage summary
+    levels/single.html       levels/<slug>/: the level facts, the counts per stage, the entries of the level file
+    rules/single.html        rules/<id>/: the facts of the rule, its justifications, the levels x stages cells
+    setup/single.html        setup/: "Set up an AL project", the section of the plain index page
+    partials/                head, header, stage-switcher, filters, matrix, cell, stage-summary, legend,
+                             cart, popover, scripts
+  assets/css/site.css        plain CSS; the colours are variables under :root
   assets/js/
-    matrix.js                stage switcher, filters, provenance toggle
-    cart.js                  cart state in localStorage, before/after, issue URL
-  assets/css/site.css
-  data/                      gitignored; written by the publish action
+    matrix.js                filters in the URL hash, row counter, stage links, cell popover
+    cart-core.mjs            the cart as pure functions (tests/site/cart-core.test.mjs)
+    cart.mjs                 the cart panel: localStorage, rulebook.json, the issue form
+  data/                      gitignored; site/data/rulebook.json is written by the Publish action
 ```
 
-No Hugo theme and no Hugo modules, so no Go toolchain and no submodule. Everything the site needs is in these files. `site/**` is in the **customizable** file class (section 9), with `docs/**` ([D50](adr/0050-docs-is-a-customizable-file-class-and-the-installed-commit-is-recovered.md)).
+No Hugo theme, no Hugo modules, no npm and no framework, so no Go toolchain and no submodule. Everything the site needs is in these files, and an organization adapts it by editing them. The `<body>` of every page carries `data-repository`, `data-issue-template` and `data-rulebook-json`, the values the cart needs; the matrix root carries `data-rulebook-matrix="<stage slug>"` and the cells of a rule page sit in a `data-rulebook-rule` container. The cart in `localStorage` is read back through `sanitize` of `cart-core.mjs`, because every page of the same host (every project site under `<owner>.github.io`) shares that storage. The assets are published under `css/` and `js/` without fingerprints, so their paths stay fixed. The site files name no engine or template URL and no branch: the two URLs the site shows, the help link and the issue form, come from `docsUrl` and `repository` of the data file (a Deploy test checks it, because the deploy rewrite does not reach `.js`, `.mjs`, `.css` and `.gotmpl`). `site/**` is in the **customizable** file class (section 9), with `docs/**` ([D50](adr/0050-docs-is-a-customizable-file-class-and-the-installed-commit-is-recovered.md)).
 
 ### Build
 
-WP05 ships the Publish action with the plain `index.html` only: it stages `rulesets/`, the rendered `skeletons/` and `index.html`, and with `site.enabled` true it prints a notice that the site arrives with WP14 (decision of 2026-10-06 on [#7](https://github.com/ALCops/rulebook-engine/issues/7)). WP14 adds the site step and publishing `catalog/diagnostics.json` and `rulebook.json` to the same action, in `New-RulebookPublishStage` of `modules/Rulebook.Publish`. Then, when `site.enabled` is true, the Publish action:
+The Publish action stages `catalog/diagnostics.json` and the full `rulebook.json` (section 5) on every run, whatever `site.enabled` says. When `site.enabled` is the boolean `true`:
 
-1. Writes `site/data/rulebook.json` (section 5) from the catalog, the settings and the generator's resolved output.
-2. Runs `hugo --source site --baseURL <baseUrl> --destination <staging>` with a Hugo version pinned in the engine action. Hugo 0.126 or later for content adapters; 0.156.0 or later for `hugo.Data` ([spike (h)](reference/spikes/h-hugo-content-adapter.md)).
-3. Copies `rulesets/`, the rendered `skeletons/`, `catalog/diagnostics.json` and `rulebook.json` into the same staging root, then publishes the staging root as WP05 does. The reachability check gains one `GET <baseUrl>/`.
+1. The step **Install Hugo** (`Publish.ps1 -Phase Install`, `Install-Hugo`) downloads `hugo_extended_0.167.0_linux-amd64.deb` from the Hugo release, compares its SHA256 with the value pinned in `actions/Publish/action.yaml` (`HUGO_VERSION`, `HUGO_SHA256`), installs it with `sudo dpkg -i` and checks `hugo version`. It does nothing when the pinned version is installed already, when the site is off, or when the `hugoPath` input names another Hugo. On Linux any other version is replaced by the pin; off Linux an installed extended Hugo 0.156.0 or later is used as it is, and without one the step fails with failure `site`. Hugo 0.156.0 is the floor (`hugo.Data`, [spike (h)](reference/spikes/h-hugo-content-adapter.md)).
+2. The stage step stages the endpoints, skeletons, data files and the plain `index.html` (`New-RulebookPublishStage`), copies the staged `rulebook.json` to `site/data/rulebook.json` and runs `Build-RulebookSite`: `hugo --source site --destination <staging> --baseURL <baseUrl>/ --quiet --noBuildLock`, without `--cleanDestinationDir`, so the staged files stay and Hugo's `index.html` replaces the plain one. A failed build fails the run with failure `site` and the last 20 lines of Hugo's output; the previous deployment stays live.
+3. The manifest gains one entry of kind `page` for every stage page, every level page, the setup page and the first rule page, and the reachability check requests them with the catalog.
 
-The site replaces the hand-written `index.html` of WP05. With `site.enabled` false the plain `index.html` is published, unchanged from WP05.
+A missing `site/hugo.yaml` (an organization that has not updated since the site shipped) is a warning: "run Update Rulebook System Files to get site/, or set site.enabled to false", and the plain `index.html` is published. A built `index.html` without the attribute `data-rulebook-matrix` is a warning only, because a customised layout may drop the matrix. With `site.enabled` false the plain `index.html` of WP05 is published, unchanged.
 
-The site is meaningful for `publish.target: pages` and for `azure-blob` with static website hosting. For `dist-repo` and `gist` the setting is ignored with a warning: `raw.githubusercontent.com` and gist raw URLs serve HTML as `text/plain`.
+The site is meaningful for `publish.target: pages` and for `azure-blob` with static website hosting. For `dist-repo` and `gist` the setting is ignored with a warning: `raw.githubusercontent.com` and gist raw URLs serve HTML as `text/plain` (only `pages` is implemented today, so the warning is reachable in a unit test only).
 
 ### Views
 
-| View | Content | Interaction |
+| Page | Content | Interaction |
 |---|---|---|
-| Matrix | One row per id, grouped by analyzer in inventory order; one column per published level in settings order; a stage switcher (tabs) above the grid. A cell shows the effective action and a provenance marker: plain for level or default, dot for stage, ring for twins, badge for override, badge for quarantine. | Click a cell: a popover with `Error`, `Warning`, `Info`, `Hidden`, `None` and `Reset` (remove the override that produced the cell). Choosing adds a cart item scoped to that level and the current stage, with "all levels" and "all stages" toggles. |
-| Filters | Analyzer, action, provenance (`override`, `quarantine`, `stage`), free text on id and title. | Client-side, no reload. |
-| Rule page | `rules/<id>/`: title, analyzer, default severity and enablement, docs link, the justification from the level and stage files, every endpoint's effective action with provenance. Generated by the content adapter so each rule has a stable URL. | The same popover as the matrix. |
-| Cart | A side panel listing the pending items with the before and after per affected endpoint, an optional justification per item, an optional batch note, a count of bytes against the URL limit, and **Submit on GitHub**. Persisted in `localStorage`. | Submit opens the prefilled issue form (section 7) in a new tab and clears the cart when the user confirms. |
-| Legend and help | What the markers mean, which stage the pipeline uses, a link to the user docs. | |
+| Matrix: `/` and `stages/<slug>/` | One row per rule in the order of the data file (the id order of composition.md section 3), grouped by analyzer; one column per published level in settings order; the cells of one stage. A cell shows the effective action and a provenance marker: none for a level file or the analyzer default, dot for the stage file, ring for the twins rule, badge `O` for an override, badge `Q` for the quarantine. `/` renders the first stage; the stage links switch pages. | Click a cell, or focus it and press Enter: a popover with `Error`, `Warning`, `Info`, `Hidden`, `None`, `Reset` (only on an override cell: remove the override that decides it) and `Release` (only on a quarantine cell). A choice adds a cart item scoped to that level and stage. |
+| Filters | Analyzer, action, deciding input (override, quarantine, stage file, twins, level file, default), free text on id and title, a row counter. | Client-side, in the URL hash (`#analyzer=&action=&source=&q=`); the stage links carry the hash, so a filter survives the switch. |
+| Stage summary (on `stages/<slug>/`) | The stage file, its entries with the levels where an entry has no effect (S-4), whether the stage's quarantine overrides it (C15) and where an override decides it; the counts per level; the quarantined ids of the stage. | `Release` next to each quarantined id. |
+| Level page: `levels/<slug>/` | The level file, the chain, the level it is based on, the counts per stage, the entries of the level file with the action below it and after it. | Links to the rule pages. |
+| Rule page: `rules/<id>/` | Title, analyzer, default severity and enablement, docs link, the justifications from the level and stage files, every endpoint's cell with the same markers. | The same popover as the matrix. |
+| Cart | A side panel with the items, the before and after per affected endpoint, the "all levels" and "all stages" toggles, an optional justification per `set`, an optional note, the byte count of the issue link against 7372 bytes. Persisted in `localStorage` under `rulebook-cart:<repository>`. | **Submit on GitHub** opens the prefilled issue form (section 7) in a new tab and clears the cart when the user confirms. Widening or narrowing a change onto the selection of another change keeps the one just changed and drops the other. Over the limit: **Submit in parts** (one click per part, a greedy split in the order of the items; when every part opened it asks to clear the cart, and when some were too large for a link the changes of the opened parts leave the cart and only the too-large ones stay) and **Copy change set** with a link to the empty form. |
+| Setup page: `setup/` | The "Set up an AL project" section of the plain index page, heading id `al-project`: the two commands of the init script with the first level as the example (`initScriptUrl`, `baseUrl`, `engineRef`), the `al.ruleSetPath` and AL-Go `rulesetFile` lines with the `al-project.md` link (`alProjectDocsUrl`), the levels, and per stage a table of levels with the endpoint URL, the listed ids and the skeleton. A link that pointed at `<baseUrl>/#al-project` of the plain page points at `<baseUrl>/setup/#al-project` when the site is on. | Linked from the header and the legend. |
+| Legend | A `<details>` block on the matrix and rule pages: what the markers mean, how to change a cell, the help link. | |
 
-The matrix is rendered by Hugo as static HTML; JavaScript hides rows, switches the visible stage (all stages are rendered, one is shown), and manages the cart. There is no framework and no npm.
+Hugo renders every grid and page as static HTML; without JavaScript the pages are complete and the filters, the popover and the cart stay hidden. The before and after come from the data file and nothing else: a `set` shows the chosen action on every matching cell, a `remove` the `fallback` of every cell whose `override` is the index of the removed entry, a `release` the `fallback` of the stage's quarantine cells. The cart repeats no precedence rule. Known limit: after a `set` is widened to every level or stage, a more specific override that already decides a cell still wins there; the cart shows the chosen action, and the pull request of the apply workflow (WP15) is authoritative.
+
+Sizes of the shipped template (628 rules, four levels, three stages; local build with Hugo 0.165.0, CI prints them for every run in the job summary of `publish-action`): about 0.59 MB for `/` and each stage page (0.65 MB for `vnext`), about 11 KB for `setup/`, 14 KB to 143 KB per level page, 7.4 KB to 8.8 KB per rule page, 7.7 MB of HTML in 637 pages, built in under half a second.
 
 ## 5. Data contract
 
@@ -120,7 +135,7 @@ The matrix is rendered by Hugo as static HTML; JavaScript hides rows, switches t
 
 > **Status:** since WP06 ([#8](https://github.com/ALCops/rulebook-engine/issues/8), [D43](adr/0043-rulebook-json-is-published-from-wp06-with-levels-and-stages.md)) `<baseUrl>/rulebook.json` is published in its minimal form (`generatedAt`, `repository`, `baseUrl`, `levels[]` with `name`, `slug`, `basedOn`, `description`, `stages[]` with `name`, `slug`, `description`, written by `ConvertTo-RulebookManifestJson`). WP14 extends the same file: the keys of the minimal form keep their names, order and meaning, every other key follows them, and readers such as the init script ignore keys they do not know.
 
-Key order: `generatedAt`, `repository` (when the Publish action knows it), `baseUrl`, `issueTemplate`, `docsUrl`, `levels`, `stages`, `rules`, `overrides`, `quarantine`. Trimmed from the fixture (two of 30 rules, one level and one stage, counts, entries and cells cut short):
+Key order: `generatedAt`, `repository` (when the Publish action knows it), `baseUrl`, `issueTemplate`, `docsUrl`, `initScriptUrl`, `engineRef`, `alProjectDocsUrl`, `levels`, `stages`, `rules`, `overrides`, `quarantine`. Trimmed from the fixture (two of 30 rules, one level and one stage, counts, entries and cells cut short):
 
 ```json
 {
@@ -129,6 +144,9 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
   "baseUrl": "https://contoso.github.io/rulebook",
   "issueTemplate": "rulebook-change.yml",
   "docsUrl": "https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md",
+  "initScriptUrl": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1",
+  "engineRef": "main",
+  "alProjectDocsUrl": "https://github.com/ALCops/rulebook/blob/preview/docs/al-project.md",
   "levels": [
     {
       "name": "Recommended",
@@ -214,7 +232,7 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
 Rules:
 
 - `generatedAt` is UTC text, `yyyy-MM-ddTHH:mm:ssZ`, and the first key. A PowerShell reader parses the file with `ConvertFrom-Json -DateKind String` (PowerShell 7.5 and later) or reads the value from the text: plain `ConvertFrom-Json` turns it into a `DateTime` ([#62](https://github.com/ALCops/rulebook-engine/issues/62)). The engine's tests check it with a regular expression on the text.
-- `issueTemplate` is the constant `rulebook-change.yml` (section 7); `repository` and `issueTemplate` build the cart's issue URL. `docsUrl` is the dashboard user page on the template ref the engine ref maps to (`Get-RulebookDocsUrl`: engine `v1` reads the template's `main`, engine `main` its `preview`, a tag the same tag); it is the only value that names a branch.
+- `issueTemplate` is the constant `rulebook-change.yml` (section 7); `repository` and `issueTemplate` build the cart's issue URL. `docsUrl` is the dashboard user page on the template ref the engine ref maps to (`Get-RulebookDocsUrl`: engine `v1` reads the template's `main`, engine `main` its `preview`, a tag the same tag). `initScriptUrl` (the init script `scripts/Get-RulebookSkeletons.ps1` at the engine ref, `Get-RulebookScriptUrl`), `engineRef` (that ref, which the init command passes as `-Ref`) and `alProjectDocsUrl` (the user page `al-project.md`, `Get-RulebookDocsUrl`) feed the setup page (section 4), the same values the plain index page prints. These four are the only values that name a branch; they are computed at publish time from the ref the action runs at, never written into a shipped file.
 - `levels[]` and `stages[]` are in settings order and carry the keys of the minimal form first (`basedOn` and `description` only when set), then the page model. A level has the `Get-RulebookLevelSummary` facts (`file`, `chain` root first, `basedOnName`, `basedOnPublished`, `entryCount`, `loweredCount`, `overrideCount`), `counts` per stage over every catalog id and the `entries` of the level file against the chain below it. A stage has the `Get-RulebookStageSummary` facts (`file`, absent for `default`, `entryCount`, `quarantineCount`, `overrideCount`), `counts` per level and the `entries` of the stage file with `noEffect` (the levels where the id is None before the stage applies: level result or twins, so the entry does not apply, S-4), `quarantined` (the stage's quarantine lists the id, C15) and `overridden` (the levels where an override decides the cell). One data file holds every page of the site.
 - `rules` holds every catalog id and every id an input mentions, in the id order of [composition.md](rulebook/composition.md) section 3 (`Get-DiagnosticSortKey`: prefix order, then number, then the `i` suffix; an unknown prefix after the known ones, an id outside the pattern last), whatever input produced the id: the order the endpoints use ([#51](https://github.com/ALCops/rulebook-engine/issues/51)). An id outside the catalog sorts by the same key and has `unknown: true`, `default: null` and `enabledByDefault: null`. `default` is the catalog's `defaultSeverity`; the analyzers apply it only when `enabledByDefault` is true, otherwise the id is at None.
 - `cells` has one entry per published level and stage, keyed `<levelSlug>.<stageSlug>` in settings order, the `default` stage written; a template iterates `levels` x `stages` and looks a cell up by its key, because a range over the map walks the keys alphabetically. `action` and `source` come from the generator (`Get-RulebookEndpoint`, `Get-EffectiveAction`), `source` being the input that decided the action in the precedence of ARCHITECTURE section 5.1: `override`, `twins`, `stage:<slug>`, `level:<slug>`, `quarantine`, `default`. An id no input mentions has every cell at `default`, so the matrix shows the whole catalog; a cell of an unknown id that no input of that endpoint mentions has `action: null`.
@@ -258,7 +276,7 @@ A released id falls back to the level chain or the analyzer default on the next 
 
 `template/.github/ISSUE_TEMPLATE/rulebook-change.yml`:
 
-> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Until the apply workflow of section 8 ships (WP15), a submitted form is only an issue: a maintainer applies each change with the Change Rule workflow, and the form says so. GitHub applies the label `rulebook-change` only when it exists in the repository.
+> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Until the apply workflow of section 8 ships (WP15), a submitted form is only an issue: a maintainer applies each change by hand or with the Change Rule workflow (a `set` fits the form; a `remove` of a multi-selector entry or a `release` is an edit of `overrides.json` or the quarantine file), and the form says so. GitHub applies the label `rulebook-change` only when it exists in the repository.
 
 ```yaml
 name: Rulebook change
@@ -269,7 +287,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change with the Change Rule workflow.
+        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change by hand or with the Change Rule workflow.
   - type: textarea
     id: changes
     attributes:
@@ -360,7 +378,7 @@ Rules:
 
 ## 9. Update behaviour for site files
 
-`site/**` is a **customizable** file class (D35, WP07), as is `docs/**` (D50, WP11). The update compares three versions of every file: the organization's file, the template version at the installed `templateSha` (the old template), and the template version being installed (the new template).
+`site/**` is a **customizable** file class (D35, WP07), as is `docs/**` (D50, WP11); `site/data/` is left out of the comparison (it is gitignored and written by the Publish action). The update compares three versions of every file: the organization's file, the template version at the installed `templateSha` (the old template), and the template version being installed (the new template).
 
 | Organization vs old template | New vs old template | Result |
 |---|---|---|
@@ -370,7 +388,7 @@ Rules:
 | absent | new | add |
 | any | removed | remove only when listed in `unusedRulebookFiles`, as for system files |
 
-The old template is one extra zipball download at `templateSha`; when `templateSha` is empty (first run) the update recovers the installed commit from the tree of the repository's root commit (D50), and only when that fails does every differing file count as a local change, skipped with a note. `site.updateMode: "overwrite"` turns the class into plain system files for organizations that never customise. Workflows, the issue form and the schemas stay in the overwrite class, so the choice-list rewrite of D30 and the apply workflow are always current. Implemented in WP07: the decision table as coded, with the empty-`templateSha` row and `updateMode`, is [reference/update-mechanics.md](reference/update-mechanics.md) section 3.
+The old template is one extra zipball download at `templateSha`; when `templateSha` is empty (first run) the update recovers the installed commit from the tree of the repository's root commit (D50), and only when that fails does every differing file count as a local change, skipped with a note. `site.updateMode: "overwrite"` turns the class into plain system files for organizations that never customise. Workflows, the issue form and the schemas stay in the overwrite class, so the choice-list rewrite of D30 and the apply workflow are always current. An organization that changes `site/layouts/` keeps its file on every update and sees the template diff in the update pull request; Publish keeps building it, and only warns when the built `index.html` no longer carries the attribute `data-rulebook-matrix` of the matrix (section 4). Implemented in WP07: the decision table as coded, with the empty-`templateSha` row and `updateMode`, is [reference/update-mechanics.md](reference/update-mechanics.md) section 3.
 
 ## 10. Exposure
 
@@ -385,17 +403,17 @@ Outside GitHub Enterprise Cloud a Pages site is public: public repository on eve
 | Quarantine justification text | **no** | Same, and it names package versions and dates |
 | Open issues and pull requests | no | The site reflects the default branch; GitHub shows pending work |
 
-An organization that wants none of it sets `site.enabled: false` and keeps the WP05 index page. There is no other access control; a password-protected page was rejected in the interview.
+`rulebook.json` and `catalog/diagnostics.json` are published on every run, also with `site.enabled: false`; the setting decides only the HTML. The level and stage justifications in `rulebook.json` come from files that are public already; the override and quarantine justifications are written only with `site.includeJustifications: true`. An organization that wants none of the HTML sets `site.enabled: false` and keeps the WP05 index page. There is no other access control; a password-protected page was rejected in the interview.
 
 ## 11. Open questions
 
 | # | Question | Proposal | Closed by |
 |---|---|---|---|
-| Q1 | Measured URL limit for a prefilled issue, and whether a compact encoding is needed | 414 from 8192 bytes of full URL; the cart enforces 7372 bytes (90 %), minified JSON, split and copy fallback; no compact encoding ([spike (g)](reference/spikes/g-prefilled-issue-url-limit.md)) | WP01 (g), WP14 |
+| Q1 | Measured URL limit for a prefilled issue, and whether a compact encoding is needed | 414 from 8192 bytes of full URL; the cart enforces 7372 bytes (90 %), minified JSON, split and copy fallback; no compact encoding ([spike (g)](reference/spikes/g-prefilled-issue-url-limit.md)) | Closed: WP01 (g), implemented by WP14 |
 | Q2 | Should `release` also accept an `action`, so releasing and setting an override is one change? | No: two changes in one cart do the same and keep the schema flat | WP15 |
 | Q3 | Should the apply workflow run Validate on the branch before opening the PR? | Yes, same as the WP07 proposal; cheap with WP03 | WP15 |
-| Q4 | Which Hugo version to pin, and whether to vendor the binary in the engine or download it | Pin Hugo 0.167.0 extended (latest stable on 2026-10-03; floor 0.156.0 for `hugo.Data`, per release note), download the `.deb` with checksum, no vendoring: install about 3 s, build under 1 s at 628 rules ([spike (h)](reference/spikes/h-hugo-content-adapter.md)); re-pin to the latest stable at WP14 time | WP01 (h), WP14 |
-| Q5 | Whether the matrix should also be exported as a standalone JSON for other tooling (VS Code extension later) | Yes: `rulebook.json` is already published next to `catalog/diagnostics.json` | WP14 |
+| Q4 | Which Hugo version to pin, and whether to vendor the binary in the engine or download it | Hugo 0.167.0 extended (still the latest stable on 2026-10-17; floor 0.156.0 for `hugo.Data`), the `.deb` of the release with its SHA256 pinned in `actions/Publish/action.yaml`, no vendoring: install about 3 s, build under 1 s at 628 rules ([spike (h)](reference/spikes/h-hugo-content-adapter.md), section 4) | Closed: WP01 (h), WP14 |
+| Q5 | Whether the matrix should also be exported as a standalone JSON for other tooling (VS Code extension later) | Yes: `rulebook.json` (section 5) and `catalog/diagnostics.json` are published on every run, with or without the site | Closed: WP14 |
 
 ## 12. References
 

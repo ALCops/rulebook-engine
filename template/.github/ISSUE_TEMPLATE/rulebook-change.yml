@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change with the Change Rule workflow.
+        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change by hand or with the Change Rule workflow.
   - type: textarea
     id: changes
     attributes:

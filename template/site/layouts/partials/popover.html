@@ -1,0 +1,16 @@
+<template id="cell-popover">
+  <div class="popover" role="dialog" aria-label="Change this cell">
+    <p class="popover-title"></p>
+    <div class="popover-actions">
+      <button type="button" data-choose="Error">Error</button>
+      <button type="button" data-choose="Warning">Warning</button>
+      <button type="button" data-choose="Info">Info</button>
+      <button type="button" data-choose="Hidden">Hidden</button>
+      <button type="button" data-choose="None">None</button>
+    </div>
+    <div class="popover-actions">
+      <button type="button" data-choose="reset" title="Remove the override that decides this cell">Reset</button>
+      <button type="button" data-choose="release" title="Release the id from the quarantine of this stage">Release</button>
+    </div>
+  </div>
+</template>
