@@ -262,29 +262,43 @@ export function fits(url, limit = LIMIT_BYTES) {
 }
 
 // Splits a cart into carts whose issue URL fits, greedily in the order of the changes; every part keeps the note. A
-// change too large on its own is a part with oversize true: copy it into the empty form instead.
+// change too large on its own is a part with oversize true: copy it into the empty form instead. indices are the
+// positions of the part's changes in the cart, for withoutChanges once the part's form has opened.
 export function splitParts(repository, issueTemplate, cart, limit = LIMIT_BYTES) {
   const parts = [];
   const note = cart.note || '';
   let changes = [];
+  let indices = [];
   const close = () => {
     if (changes.length === 0) return;
     const part = { version: 1, note, changes };
     const url = issueUrl(repository, issueTemplate, part);
-    parts.push({ cart: part, url, bytes: byteLength(url), oversize: !fits(url, limit).ok });
+    parts.push({ cart: part, url, bytes: byteLength(url), oversize: !fits(url, limit).ok, indices });
     changes = [];
+    indices = [];
   };
-  for (const change of cart.changes || []) {
+  (cart.changes || []).forEach((change, index) => {
     const candidate = { version: 1, note, changes: [...changes, change] };
     if (changes.length > 0 && !fits(issueUrl(repository, issueTemplate, candidate), limit).ok) {
       close();
       changes = [change];
+      indices = [index];
     } else {
       changes = candidate.changes;
+      indices = [...indices, index];
     }
-  }
+  });
   close();
   return parts;
+}
+
+// The cart without the changes at these positions: after Submit in parts, the changes whose forms opened leave the
+// cart and the ones too large for a link stay.
+export function withoutChanges(cart, indices) {
+  const next = copyCart(cart);
+  const drop = new Set(indices);
+  next.changes = next.changes.filter((change, index) => !drop.has(index));
+  return next;
 }
 
 // The change set to paste into the empty form: the same content, pretty-printed.

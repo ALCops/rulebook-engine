@@ -262,6 +262,18 @@ test('splitParts marks every part oversize when the note alone fills the link', 
   assert.deepEqual(parts.map((part) => [part.cart.changes.length, part.oversize, part.cart.note.length]), [[1, true, 9000], [1, true, 9000]]);
 });
 
+test('splitParts gives the cart positions of each part, and withoutChanges drops the opened ones', () => {
+  let cart = core.addChange(core.emptyCart(), set('AL0001', 'None', ['strict'], ['ci'], 'y'.repeat(4000)));
+  cart = core.addChange(cart, set('AL0200', 'None', ['strict'], ['ci'], 'z'.repeat(9000)));
+  cart = core.addChange(cart, set('AL0432', 'None', ['strict'], ['ci']));
+  const parts = core.splitParts(repository, template, cart);
+  assert.deepEqual(parts.map((part) => [part.indices, part.oversize]), [[[0], false], [[1], true], [[2], false]]);
+  const sent = parts.filter((part) => !part.oversize).flatMap((part) => part.indices);
+  const left = core.withoutChanges(cart, sent);
+  assert.deepEqual(left.changes.map((change) => change.id), ['AL0200']);
+  assert.deepEqual(cart.changes.length, 3, 'the input cart is unchanged');
+});
+
 test('copyPayload is the same change set, pretty-printed', () => {
   let cart = core.addChange(core.emptyCart(), set('AA0072', 'Info', ['*'], ['ci']));
   cart = core.setNote(cart, 'Note');

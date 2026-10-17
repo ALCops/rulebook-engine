@@ -230,21 +230,23 @@ if (config && panel && toggle) {
     }
     const part = pendingParts.list[pendingParts.next];
     if (part.oversize) {
-      pendingParts.skipped = (pendingParts.skipped || 0) + 1;
+      pendingParts.skipped = (pendingParts.skipped || 0) + part.indices.length;
       status.textContent = `Part ${pendingParts.next + 1}: the note and this change are too large for a link; use Copy change set and paste it into the empty form.`;
     } else {
       window.open(part.url, '_blank', 'noopener');
       pendingParts.opened = (pendingParts.opened || 0) + 1;
+      pendingParts.sent = [...(pendingParts.sent || []), ...part.indices];
       status.textContent = `Opened part ${pendingParts.next + 1} of ${pendingParts.list.length}.`;
     }
     pendingParts.next++;
     if (pendingParts.next >= pendingParts.list.length) {
-      const opened = pendingParts.opened || 0;
-      const skipped = pendingParts.skipped || 0;
+      const { opened = 0, skipped = 0, sent = [] } = pendingParts;
       pendingParts = null;
-      // Ask to clear only when every part opened; a part too large for a link keeps the cart for Copy change set.
+      // Every part opened: ask to clear. Some too large: the opened changes leave the cart, the large ones stay for
+      // Copy change set, so a later Submit does not send the opened ones twice.
       if (skipped > 0) {
-        status.textContent = `${opened} part(s) opened; ${skipped} too large for a link stay in the cart: use Copy change set.`;
+        update(core.withoutChanges(cart, sent));
+        status.textContent = `${opened} part(s) opened and removed from the cart; ${skipped} change(s) too large for a link stay: use Copy change set.`;
       } else if (opened > 0) {
         confirmClear();
       }
