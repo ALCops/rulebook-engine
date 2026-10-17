@@ -128,6 +128,7 @@ The schemas live in the engine under `schemas/` and are served over raw URLs fro
 | `rulebook-catalog.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-catalog.schema.json` | `catalog/diagnostics.json` |
 | `rulebook-settings.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-settings.schema.json` | `.github/Rulebook-Settings.json` |
 | `rulebook-scan-state.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-scan-state.schema.json` | `catalog/scan-state.json` (closed) |
+| `rulebook-changeset.schema.json` | `https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-changeset.schema.json` | The change set the dashboard cart puts into the `changes` field of the `rulebook-change` issue form ([dashboard.md](../dashboard.md) section 6; closed, shipped with WP14, applied by WP15) |
 
 A tool that validates files in an organization repository uses the profile file for the folder; the hub accepts a file that matches any profile (an endpoint rule with a `justification` passes it through the delta profile), so it is for editors only and is never the `$schema` of a generated file.
 
@@ -290,5 +291,4 @@ Settings with only the required keys, `tests/fixtures/schemas/valid/rulebook-set
 
 | Name | Owner | Note |
 |---|---|---|
-| `schemas/rulebook-changeset.schema.json` | WP15 ([#17](https://github.com/ALCops/rulebook-engine/issues/17)) | The change set the dashboard submits and ChangeRule builds ([dashboard.md](../dashboard.md) section 6). `justification` is optional (D37). |
 | The path segment between `baseUrl` and `rulesets/` | a future major version | Kept free for a version prefix (section 4). |

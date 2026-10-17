@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "changes": [
+    { "op": "remove", "id": "AL0432", "levels": ["essential"], "stages": ["ci"], "justification": "Done" }
+  ]
+}

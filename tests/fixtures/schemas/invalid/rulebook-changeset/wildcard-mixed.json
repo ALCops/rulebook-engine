@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "changes": [
+    { "op": "set", "id": "LC0015", "action": "None", "levels": ["*", "strict"], "stages": ["ci"] }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "title": "Rulebook change set",
+  "description": "A change set the dashboard cart submits through the rulebook-change issue form: overrides to set or remove and quarantined ids to release. Whether an id exists in the catalog, a slug in the settings, and whether two changes repeat the same op, id and selectors is checked by the workflow that applies it (WP15). See docs/dashboard.md section 6.",
+  "$defs": {
+    "diagnosticId": {
+      "description": "A diagnostic id: two or three capital letters, four digits, an optional lowercase i (PTE0011, AL0432, LC0089i).",
+      "type": "string",
+      "pattern": "^[A-Z]{2,3}[0-9]{4}i?(?![\\s\\S])"
+    },
+    "ruleAction": {
+      "description": "A rule action. Default is not valid for a rule.",
+      "enum": ["Error", "Warning", "Info", "Hidden", "None"]
+    },
+    "slug": {
+      "description": "A level or stage slug: the lowercased name from the settings.",
+      "type": "string",
+      "pattern": "^[a-z0-9-]+(?![\\s\\S])"
+    },
+    "selector": {
+      "description": "[\"*\"] for every level or stage, or a non-empty list of distinct slugs. Arrays only; \"default\" is a valid stage slug.",
+      "anyOf": [
+        { "const": ["*"] },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/slug" }
+        }
+      ]
+    },
+    "set": {
+      "description": "Write or replace the override entry of this id with exactly these selectors.",
+      "type": "object",
+      "required": ["op", "id", "action", "levels", "stages"],
+      "properties": {
+        "op": { "const": "set" },
+        "id": { "$ref": "#/$defs/diagnosticId" },
+        "action": { "$ref": "#/$defs/ruleAction" },
+        "levels": { "$ref": "#/$defs/selector" },
+        "stages": { "$ref": "#/$defs/selector" },
+        "justification": {
+          "description": "Why the organization overrides this rule; stored in the override entry. Optional (D37).",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "remove": {
+      "description": "Delete the override entry of this id with exactly these selectors.",
+      "type": "object",
+      "required": ["op", "id", "levels", "stages"],
+      "properties": {
+        "op": { "const": "remove" },
+        "id": { "$ref": "#/$defs/diagnosticId" },
+        "levels": { "$ref": "#/$defs/selector" },
+        "stages": { "$ref": "#/$defs/selector" }
+      },
+      "additionalProperties": false
+    },
+    "release": {
+      "description": "Remove this id from quarantine.<stage>.json of every listed stage.",
+      "type": "object",
+      "required": ["op", "id", "stages"],
+      "properties": {
+        "op": { "const": "release" },
+        "id": { "$ref": "#/$defs/diagnosticId" },
+        "stages": { "$ref": "#/$defs/selector" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": ["version", "changes"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "note": {
+      "description": "Optional. Becomes the first paragraph of the pull request body.",
+      "type": "string"
+    },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/set" },
+          { "$ref": "#/$defs/remove" },
+          { "$ref": "#/$defs/release" }
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}
