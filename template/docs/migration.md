@@ -175,7 +175,7 @@ The exercise on a real setup (a shared base, a per-tenant overlay with mostly Ap
 | Message | Cause | Fix |
 |---|---|---|
 | C7 "`<id>` is not in catalog/diagnostics.json (...)" on your `overrides.json` | An id you copied from the old tree is unknown to your catalog: a renamed LinterCop id, a typo, or a rule the analyzers no longer ship (a warning until the first scan, an error after). | Rename it (section 7), fix it, or drop it. |
-| The Change Rule run reports a no-op for an entry you expected | The level already gives that action: the entry would be dead ([changing-a-rule.md](changing-a-rule.md) section 4). | Nothing to do; it was not a difference. |
+| The Change Rule run reports a no-op for an entry you expected | The level already gives that action: the entry would be dead ([changing-a-rule.md](changing-a-rule.md) section 5). | Nothing to do; it was not a difference. |
 | A project reports a rule stricter than the old tree seemed to say | A sibling include out-ranked the overlay you read (strictest wins, section 3), so the old effective action was stricter than its overlay. | Resolve the old root again; reproduce the effective action, not the overlay. |
 | An overlay's rules never applied in the old setup | It was included with action `None`, which does not load the file. | Leave it out of the resolution. |
 | The old root fails with AL1033 when you compile against it | One file of the old tree cannot be loaded and the compiler discards the whole tree: the editor then runs on the analyzer defaults, while `alc` and pipelines stop with exit code 1. | Repair the old file and resolve the repaired tree; use the analyzer defaults as the old effective list only for a root you know ran that way (editor only). |

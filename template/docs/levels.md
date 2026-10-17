@@ -72,7 +72,7 @@ Update-RulebookEndpoints -RepositoryRoot .
 New-RulebookSkeleton -SettingsPath .github/Rulebook-Settings.json -OutputPath skeletons
 ```
 
-The Change Rule form lists then follow with the next update ([changing-a-rule.md](changing-a-rule.md) section 7).
+The Change Rule form lists then follow with the next update ([changing-a-rule.md](changing-a-rule.md) section 8).
 
 The update's own pull request or commit may say "No effective change." under its effective diff even though it creates or deletes endpoint files (*observed*): the effective diff compares the inputs of the two commits, and your branch already declares the change. The files are in its change list.
 
@@ -202,7 +202,7 @@ After the update (or a local regeneration and the next update for the form):
 - **Endpoints**: `rulesets/<level>.ruleset.json` for `default` and `rulesets/<level>.<stage>.ruleset.json` for the other stages, published by the Publish workflow at `<baseUrl>/rulesets/...`.
 - **Skeletons**: `skeletons/<level>.<stage>.ruleset.json`, one per stage, offered on the index page at `baseUrl`.
 - **Index page and `rulebook.json`**: one row per level in settings order. In the live run `rulebook.json` listed off, baseline, recommended, house, strict and complete (*observed*).
-- **Change Rule form**: the level and stage choices follow the settings after one update ([changing-a-rule.md](changing-a-rule.md) section 7). `off` is written quoted (`'off'`) because a bare `off` is a boolean in YAML (*observed*).
+- **Change Rule form**: the level and stage choices follow the settings after one update ([changing-a-rule.md](changing-a-rule.md) section 8). `off` is written quoted (`'off'`) because a bare `off` is a boolean in YAML (*observed*).
 - **Init script**: `Get-RulebookSkeletons.ps1 -Level <slug or name>` downloads the skeletons of a published level ([al-project.md](al-project.md)). For a level that is not published it stops with "Level 'essential' is not published at https://arthurvdv.github.io/rulebook-e2e-levels. Published levels: off, baseline, recommended, house, strict, complete (use the slug or the name)." (*observed*).
 
 ## 10. Troubleshooting
@@ -231,4 +231,4 @@ After the update (or a local regeneration and the next update for the form):
 | "'`<Name>`' is already a published level; -Force would replace base/`<slug>`.ruleset.json with an everything-off file" (warning) | `-Name` names one of your levels, for example `-Name Strict`. | Use another name; `-Force` would replace that level's rules. |
 | "Level '`<Name>`' cannot have a page: its slug collides with the index README.md" | A level named README. | Choose another name. |
 | "Level '`<slug>`' is not published at `<baseUrl>`. Published levels: ... (use the slug or the name)." | The init script was given a level the settings do not publish, for example after an alias (*observed*). | Use one of the listed levels. |
-| The Change Rule form does not offer your new level or stage | The update that rewrites the form lists has not run since the settings change. | Run the update (section 3); [changing-a-rule.md](changing-a-rule.md) section 7. |
+| The Change Rule form does not offer your new level or stage | The update that rewrites the form lists has not run since the settings change. | Run the update (section 3); [changing-a-rule.md](changing-a-rule.md) section 8. |
