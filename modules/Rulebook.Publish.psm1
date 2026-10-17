@@ -379,6 +379,9 @@ function New-RulebookPublishStage {
     }
 
     # The site data (Read-RulebookSiteModel throws when the catalog is missing), or the model the caller built for it.
+    if ($null -ne $SiteModel -and $SiteModel.Document['baseUrl'] -cne $BaseUrl) {
+        throw "The site model was built for baseUrl '$($SiteModel.Document['baseUrl'])', not '$BaseUrl'; build it with the same base URL (Read-RulebookSiteModel)."
+    }
     if ($null -eq $SiteModel) { $SiteModel = Read-RulebookSiteModel -RepositoryRoot $inputs.Root -BaseUrl $BaseUrl -Inputs $inputs -Repository $Repository -GeneratedAt $GeneratedAt -EngineRef (Get-RulebookEngineRef) }
     $catalogBytes = [System.IO.File]::ReadAllBytes((Join-Path $inputs.Root $script:CatalogPath))
 

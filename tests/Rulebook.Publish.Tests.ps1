@@ -11,6 +11,7 @@ BeforeAll {
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
     Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Publish.psd1') -Force
+    Import-Module (Join-Path $repoRoot 'modules' 'Rulebook.Site.psd1') -Force
     $script:baseUrl = 'https://contoso.github.io/rulebook'
     $script:utf8 = [System.Text.UTF8Encoding]::new($false)
 
@@ -135,6 +136,11 @@ Describe 'New-RulebookPublishStage on template/' {
         $text | Should-MatchString '\A\{
   "generatedAt": "2026-10-17T00:00:00Z",
 '
+    }
+
+    It 'refuses a site model built for another base URL' {
+        $model = Read-RulebookSiteModel -RepositoryRoot $stageRoot -BaseUrl 'https://other.example.com/rulebook'
+        { New-RulebookPublishStage -RepositoryRoot $stageRoot -BaseUrl $baseUrl -OutputPath (Get-TestFolder) -SiteModel $model } | Should-Throw -ExceptionMessage "The site model was built for baseUrl 'https://other.example.com/rulebook', not '$baseUrl'*"
     }
 
     It 'refuses a repository without catalog/diagnostics.json' {
