@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+{{ partial "head.html" . }}
+<body>
+{{ partial "header.html" . }}
+<main id="content">
+{{ block "main" . }}{{ end }}
+</main>
+{{ partial "cart.html" . }}
+{{ partial "popover.html" . }}
+<footer class="site-footer">
+{{- with hugo.Data.rulebook }}
+<p>Generated {{ .generatedAt }} from {{ with .repository }}<code>{{ . }}</code>{{ else }}this repository{{ end }}. Endpoints, skeletons and <a href="{{ "rulebook.json" | relURL }}"><code>rulebook.json</code></a> are published next to this site.</p>
+{{- end }}
+</footer>
+{{ partial "scripts.html" . }}
+</body>
+</html>
