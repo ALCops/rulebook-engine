@@ -82,7 +82,7 @@ No test talks to a server outside the runner. That is a rule kept by review, not
 - **Actions:** four of the five action suites pass `-ApiUrl 'http://127.0.0.1:9'` (a port that refuses every connection), so an unmocked call fails at once; the ScanDiagnostics suite stops before any request, at the token guard, an earlier outcome or the `-PublishCommand` seam. The update reads `-TemplatePath` folders instead of downloading.
 - **git:** real git runs only against repositories in `TestDrive`: bare origins from `New-BareFixtureRepo`, with `Add-RejectPushHook` standing in for branch protection. The token reaches git only as an environment header, and the GitHub suite checks that it never lands in the git config of a clone.
 
-Real packages and real deploys run only in CI jobs and live runs: `scan-action` scans the real packages on nuget.org, `publish-action` installs the pinned Hugo from its GitHub release, builds the site, stages without deploying, serves the staging folder on `127.0.0.1` and runs the cart tests with `node --test tests/site/` (Node of `ubuntu-latest`, no npm, no package), and the live runs of the mechanics pages ([update](update-mechanics.md), [scan](scan-mechanics.md), [change](change-mechanics.md)) exercised GitHub itself.
+Real packages and real deploys run only in CI jobs and live runs: `scan-action` scans the real packages on nuget.org, `publish-action` installs the pinned Hugo from its GitHub release, builds the site, stages without deploying, serves the staging folder on `127.0.0.1` and runs the cart tests with `node --test tests/site/*.test.mjs` (Node of `ubuntu-latest`, no npm, no package), and the live runs of the mechanics pages ([update](update-mechanics.md), [scan](scan-mechanics.md), [change](change-mechanics.md)) exercised GitHub itself.
 
 ## 6. Accepted untested paths
 
@@ -100,7 +100,7 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `actions/Publish/Publish.ps1` | 40 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/Publish/Publish.ps1` | 82 | 1 | Settings that are not JSON in the Install phase; the step then skips, and the stage step reports the file. |
 | `actions/Publish/Publish.ps1` | 149-151 | 3 | Pages preflight of a real deploy (`-Deploy`); the module function is tested, the action branch runs in the live publish runs only. |
-| `actions/Publish/Publish.ps1` | 255-258 | 4 | Reachability reasons of a deployed site; `Test-PublishedEndpoint` is tested in the Publish suite, the action wording only in live runs. |
+| `actions/Publish/Publish.ps1` | 256-259 | 4 | Reachability reasons of a deployed site; `Test-PublishedEndpoint` is tested in the Publish suite, the action wording only in live runs. |
 | `actions/ScanDiagnostics/ScanDiagnostics.ps1` | 36 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/ScanDiagnostics/ScanDiagnostics.ps1` | 218 | 1 | The job summary file cannot be written (a runner fault); not reproducible in-process. |
 | `actions/Validate/Validate.ps1` | 39 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
@@ -138,7 +138,7 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `modules/Rulebook.Publish.psm1` | 89 | 1 | A response without the requested header; the mocked responses always send it. |
 | `modules/Rulebook.Publish.psm1` | 512-513 | 2 | `Invoke-WebRequest` returned nothing (a network fault); the suites mock a response. |
 | `modules/Rulebook.Publish.psm1` | 525 | 1 | An HTTP status other than 200, 30x or 404 from the published site. |
-| `modules/Rulebook.Site.psm1` | 392-399, 404, 410-411 | 10 | The real `hugo version`, the platform check and `sudo dpkg -i` of `Install-Hugo`: mocked in the Site suite; the `publish-action` job runs them on `ubuntu-latest` through the action's Install Hugo step. |
+| `modules/Rulebook.Site.psm1` | 434-441, 446, 452-453 | 10 | The real `hugo version`, the platform check and `sudo dpkg -i` of `Install-Hugo`: mocked in the Site suite; the `publish-action` job runs them on `ubuntu-latest` through the action's Install Hugo step. |
 | `modules/Rulebook.Scan.psm1` | 38 | 1 | Scan package label of an unknown package id. |
 | `modules/Rulebook.Scan.psm1` | 183, 221 | 2 | An input the plan cannot read after the settings passed (C5 or later); the Validate suite covers the same inputs. |
 | `modules/Rulebook.Scan.psm1` | 206-207 | 2 | A NuGet index without a stable version; both real packages have one. |

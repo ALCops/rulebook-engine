@@ -227,7 +227,7 @@ jobs:
         shell: bash
         run: |
           node --version
-          node --test tests/site/
+          node --test tests/site/*.test.mjs
 
       # The init script over real HTTP: the staged site served from 127.0.0.1. The skeletons include
       # https://example.github.io/rulebook, so the script warns that the site was published with another baseUrl.

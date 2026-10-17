@@ -324,7 +324,7 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
             $number = 0
             foreach ($line in [System.IO.File]::ReadAllLines($file.FullName)) {
                 $number++
-                if ($line -match 'ALCops/|raw\.githubusercontent\.com|/main/|@main|the `main` branch|\bpreview\b|\bv1\b') { "$($file.Name):$number $($Matches[0])" }
+                if ($line -match 'ALCops/|raw\.githubusercontent\.com|/main/|(blob|tree|raw)/main\b|@main|the `main` branch|\bpreview\b|\bv1\b') { "$($file.Name):$number $($Matches[0])" }
             }
         }
         @($hits) | Should-BeCollection @()

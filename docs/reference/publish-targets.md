@@ -103,7 +103,7 @@ The job summary lists every URL with its result, HTTP status, attempts and secon
 | `skipCheck` | `'false'` | `'true'` skips the reachability check. |
 | `checkWindowSeconds` | `'660'` | How long the check waits for every URL. |
 | `token` | `github.token` | Token for the Pages preflight. |
-| `hugoPath` | `'hugo'` | The Hugo that builds the site. `'hugo'` installs the pinned version on a Linux runner when `site.enabled` is true; any other value (a path to Hugo 0.156.0 or later, extended) is used as it is and nothing is installed. |
+| `hugoPath` | `'hugo'` | The Hugo that builds the site. `'hugo'` installs the pinned version on a Linux runner when `site.enabled` is true (off Linux an installed extended Hugo 0.156.0 or later is used as it is); any other value (a path to Hugo 0.156.0 or later, extended) is used as it is and nothing is installed. |
 
 | Output | Meaning |
 |---|---|
