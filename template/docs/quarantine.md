@@ -94,6 +94,8 @@ Every quarantine entry carries its reason, for example
 
 **Set it with an override.** An entry in `overrides.json` wins over quarantine in the endpoints for the levels and stages it selects; the Change Rule workflow writes one for you ([changing-a-rule.md](changing-a-rule.md)). It does not release the quarantine entry: the entry is no C13 warning and the scan never removes it, so it stays in the quarantine file until a level file mentions the diagnostic or you delete it by hand. Delete it in the same pull request when the override is your decision.
 
+On the dashboard of your site, **Release** on a quarantined cell or next to an id in a stage's quarantine list puts the release into a change set that arrives as an issue; until a workflow applies change sets, a maintainer applies a release as the hand edit below ([changing-a-rule.md](changing-a-rule.md) section 3).
+
 **Delete the entry by hand.** Removing an entry from a quarantine file also adopts the diagnostic, at its default severity (or at the action a level file or an override gives it).
 
 **Regenerate the endpoints in the same pull request.** A level file, `overrides.json` or a quarantine file you change by hand leaves `rulesets/` out of date: Validate fails with C12 ("... would be modified; run Update-RulebookEndpoints and commit the result") and Publish refuses to deploy ([hosting.md](hosting.md)). For an override, the Change Rule workflow regenerates in its own pull request ([changing-a-rule.md](changing-a-rule.md)). For a hand edit there are two ways:
