@@ -63,13 +63,13 @@ The Update Rulebook System Files, Scan Diagnostics and Change Rule workflows pus
 
 ## 6. Publish
 
-Run Actions > **Publish** > Run workflow on `main` (it also runs by itself on every push to `main` that changes `rulesets/`, `skeletons/`, the settings or the workflow). It validates the rulebook, publishes the endpoints, the skeletons with your `baseUrl` filled in, `rulebook.json` and an index page, and waits until every URL serves the committed file ([hosting.md](hosting.md) section 1).
+Run Actions > **Publish** > Run workflow on `main` (it also runs by itself on every push to `main` that changes `rulesets/`, `skeletons/`, `site/`, `catalog/diagnostics.json`, the settings or the workflow). It validates the rulebook, publishes the endpoints, the skeletons with your `baseUrl` filled in, `rulebook.json`, `catalog/diagnostics.json` and the dashboard site ([dashboard.md](dashboard.md)), and waits until every URL serves the committed file ([hosting.md](hosting.md) section 1).
 
 ## 7. Check the result
 
 Open these three addresses in a browser, with your `baseUrl`:
 
-1. `<baseUrl>/`: the index page, one table per stage, one row per level, with the endpoint URL and a skeleton download link.
+1. `<baseUrl>/`: the dashboard, the grid of the first stage with one row per rule and one column per level ([dashboard.md](dashboard.md)). Its link **Set up an AL project** opens `<baseUrl>/setup/`: one table per stage, one row per level, with the endpoint URL and a skeleton download link. With `site.enabled` set to `false`, `<baseUrl>/` is that plain index page instead.
 2. `<baseUrl>/rulebook.json`: the levels and stages of your rulebook.
 3. `<baseUrl>/rulesets/strict.ruleset.json`: an endpoint, a JSON file with a `rules` array.
 

@@ -132,7 +132,7 @@ This is the simple route, and it works under one condition: **the id must not be
 - **The endpoint lists the id.** At Essential most marketplace checks (AS0084, AS0054, AS0051, ...) are explicitly `None`, so they are listed, and at Essential you do not need to suppress them anyway. If your organization overrides one of these ids in its `overrides.json`, it becomes listed and only route C works for it.
 - **Your project ruleset file lists the id.** A rule in the `rules` of your own ruleset file (route C) is a ruleset entry like any other.
 
-To know what an endpoint lists, open it: the URL in your skeleton file returns the JSON. The Rulebook index page shows the number of listed ids per endpoint.
+To know what an endpoint lists, open it: the URL in your skeleton file returns the JSON. The setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off) shows the number of listed ids per endpoint, and the dashboard shows the action of every rule on every endpoint ([dashboard.md](dashboard.md)).
 
 ## 5. Route C: a project ruleset file
 
