@@ -454,6 +454,15 @@ Describe 'Get-EffectiveAction precedence' {
         $result.Source | Should-Be $Source
         if ($null -eq $Detail) { $result.Detail | Should-BeNull } else { $result.Detail | Should-Be $Detail }
     }
+
+    It 'exposes the winning override as Entry and null otherwise' {
+        # LC0029 has one entry (index 1, recommended.ci); the site export leaves Entry out to compute the fallback.
+        $won = Get-EffectiveAction -Inputs $inputs -Id 'LC0029' -Level 'recommended' -Stage 'ci'
+        [object]::ReferenceEquals($won.Entry, $inputs.OverridesById['LC0029'][0]) | Should-BeTrue
+        '{0} {1} {2}' -f $won.Entry.Id, $won.Entry.Index, $won.Entry.Action | Should-Be 'LC0029 1 None'
+        (Get-EffectiveAction -Inputs $inputs -Id 'LC0029' -Level 'strict' -Stage 'ci').Entry | Should-BeNull
+        (Get-EffectiveAction -Inputs $inputs -Id 'AL0432' -Level 'recommended' -Stage 'ci').Entry | Should-BeNull
+    }
 }
 
 Describe 'Sparse endpoints' {

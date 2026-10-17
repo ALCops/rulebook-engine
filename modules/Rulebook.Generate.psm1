@@ -359,8 +359,10 @@ function Test-OverrideMatch {
 }
 
 function ConvertTo-EffectiveResult {
-    # Action and Default stay untyped: a [string] parameter would turn $null (unknown default) into ''.
-    param([string]$Id, $Action, [string]$Source, $Detail, $Default)
+    # Action and Default stay untyped: a [string] parameter would turn $null (unknown default) into ''. Entry is the
+    # winning Rulebook.Override of an override result, else $null: the site export (Rulebook.Site) leaves it out to
+    # compute the action the cell would have without it.
+    param([string]$Id, $Action, [string]$Source, $Detail, $Default, $Entry = $null)
     if ([string]::IsNullOrEmpty($Action)) { $Action = $null }
     if ([string]::IsNullOrEmpty($Default)) { $Default = $null }
     # An unknown default ($null) never equals anything, so an id absent from the catalog is always written.
@@ -373,6 +375,7 @@ function ConvertTo-EffectiveResult {
         Detail     = $Detail
         Default    = $Default
         Listed     = $listed
+        Entry      = $Entry
     }
 }
 
@@ -403,7 +406,7 @@ function Resolve-Effective {
             $best = $override
         }
     }
-    if ($null -ne $best) { return ConvertTo-EffectiveResult $Id $best.Action 'override' $best.Justification $default }
+    if ($null -ne $best) { return ConvertTo-EffectiveResult $Id $best.Action 'override' $best.Justification $default $best }
 
     # 2. twins: the losing side of every pair is None
     if ($null -ne $Twins) {
@@ -787,7 +790,8 @@ function Get-EffectiveAction {
     losing twin side, else the stage entry where the level result is not None (S-4), else the level result. The level
     result is the chain where a file mentions the id, else None when the stage's quarantine lists it, else the
     analyzer default. Returns Id, Action, Source (override, twins, stage:<slug>, level:<slug>, quarantine, default),
-    Detail (the deciding entry's justification or the twin pair title), Default and Listed.
+    Detail (the deciding entry's justification or the twin pair title), Default, Listed and Entry (the winning
+    Rulebook.Override when Source is override, else $null).
     #>
     [CmdletBinding(DefaultParameterSetName = 'Inputs')]
     param(
