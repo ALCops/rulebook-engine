@@ -553,6 +553,8 @@ Describe 'Build-Template.ps1' {
     BeforeAll {
         $script:wrapper = Join-Path $repoRoot 'tools' 'rulebook' 'Build-Template.ps1'
         $script:handWritten = @(
+            '.github/ISSUE_TEMPLATE/config.yml'
+            '.github/ISSUE_TEMPLATE/rulebook-change.yml'
             '.github/Rulebook-Settings.json'
             '.github/workflows/ChangeRule.yaml'
             '.github/workflows/Publish.yaml'
@@ -583,7 +585,7 @@ Describe 'Build-Template.ps1' {
         @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()
     }
 
-    It 'regenerates template/ and the level pages byte for byte from the 12 hand-written files and docs/' {
+    It 'regenerates template/ and the level pages byte for byte from the 14 hand-written files and docs/' {
         $scratch = Get-TestFolder
         # Outside $scratch: a page under it would break the hash comparison with template/.
         $pages = Get-TestFolder

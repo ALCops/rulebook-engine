@@ -1,0 +1,22 @@
+name: Rulebook change
+description: Apply a change set produced by the Rulebook dashboard. Submitting opens a pull request (or commits, per the settings).
+title: "Rulebook change"
+labels: [rulebook-change]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The dashboard filled this form. Submit it as is; a workflow validates the change set, regenerates the endpoints and opens a pull request. Only repository collaborators can submit.
+  - type: textarea
+    id: changes
+    attributes:
+      label: Changes
+      description: The change set, JSON. Edit only if you know the schema.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: note
+    attributes:
+      label: Note
+      description: Optional. Becomes the first paragraph of the pull request.
