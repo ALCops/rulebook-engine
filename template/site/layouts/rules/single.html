@@ -15,13 +15,13 @@
 </dl>
 {{- if $rule.justifications }}
 <h2>Justifications</h2>
+{{- /* Keyed by source token (level:<slug>, stage:<slug>); a range over the map walks the keys alphabetically, so the
+  level files come first. A level file can be one that is not published itself (the root of a chain). */}}
 <dl class="justifications">
-  {{- range $data.levels }}{{ $token := printf "level:%s" .slug }}{{ with index $rule.justifications $token }}
-  <dt>Level file {{ $token }}</dt><dd>{{ . }}</dd>
-  {{- end }}{{ end }}
-  {{- range $data.stages }}{{ $token := printf "stage:%s" .slug }}{{ with index $rule.justifications $token }}
-  <dt>Stage file {{ $token }}</dt><dd>{{ . }}</dd>
-  {{- end }}{{ end }}
+  {{- range $token, $text := $rule.justifications }}
+  {{- $parts := split $token ":" }}
+  <dt>{{ if eq (index $parts 0) "stage" }}Stage file{{ else }}Level file{{ end }} <code>{{ index $parts 1 }}</code></dt><dd>{{ $text }}</dd>
+  {{- end }}
 </dl>
 {{- end }}
 <h2>Every endpoint</h2>
