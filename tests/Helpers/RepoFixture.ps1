@@ -137,6 +137,30 @@ function New-SyntheticRulebook {
     return (Resolve-Path -LiteralPath $Destination).ProviderPath
 }
 
+function New-TinyFixtureRepo {
+    # A repository built from the tiny matrix (tests/fixtures/matrix/tiny): level files, twins.json, stages/ci.json,
+    # the catalog and a settings file with Core, Extended basedOn Core and the stages default and CI. Needs
+    # Rulebook.Template imported by the suite (Build-RulebookBase, Build-RulebookStages, Build-RulebookCatalog).
+    # Returns the destination path.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+    param([Parameter(Mandatory)][string]$Destination)
+    $tiny = Join-Path (Split-Path -Parent $PSScriptRoot) 'fixtures' 'matrix' 'tiny'
+    $null = Build-RulebookBase -RulebookDir $tiny -OutputPath (Join-Path $Destination 'base')
+    $null = Build-RulebookStages -RulebookDir $tiny -OutputPath (Join-Path $Destination 'stages')
+    $null = Build-RulebookCatalog -RulebookDir $tiny -OutputPath (Join-Path $Destination 'catalog' 'diagnostics.json')
+    Write-FixtureText -Path (Join-Path $Destination '.github' 'Rulebook-Settings.json') -Text @'
+{
+  "twins": "both",
+  "levels": [
+    { "name": "Core", "description": "The tiny root." },
+    { "name": "Extended", "basedOn": "Core" }
+  ],
+  "stages": [ { "name": "default" }, { "name": "CI" } ]
+}
+'@
+    return (Resolve-Path -LiteralPath $Destination).ProviderPath
+}
+
 $script:FixtureTemplatesRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'fixtures' 'templates'
 
 function Copy-FixtureTemplate {

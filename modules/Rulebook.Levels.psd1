@@ -5,7 +5,7 @@
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook levels: the everything-off root level of an organization (New-RulebookOffLevel) and the generated level pages (New-RulebookLevelDocs) with their model (Get-RulebookLevelSummary). See docs/authoring-levels.md.'
+    Description          = 'Rulebook levels: the everything-off root level of an organization (New-RulebookOffLevel) and the generated level pages (New-RulebookLevelDocs) with their model (Get-RulebookLevelSummary), and the model of a stage page (Get-RulebookStageSummary). See docs/authoring-levels.md.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
@@ -13,6 +13,7 @@
         'ConvertTo-LevelDocsMarkdown'
         'Get-RulebookLevelSummary'
         'Get-RulebookOffLevelEntry'
+        'Get-RulebookStageSummary'
         'New-RulebookLevelDocs'
         'New-RulebookOffLevel'
     )

@@ -4,7 +4,8 @@
 # D25); Get-RulebookLevelSummary is the model of one level page (its rows, its basedOn and its counts per stage) and
 # New-RulebookLevelDocs writes the Markdown pages from it for any repository. tools/rulebook/Build-Template.ps1 writes
 # the pages of the shipped levels into docs/levels/ of this repository; the WP14 site builds an organization's own
-# pages from the same model. Contract and recipes: docs/authoring-levels.md.
+# pages from the same model, and its stage pages from Get-RulebookStageSummary (#84). Contract and recipes:
+# docs/authoring-levels.md.
 
 Set-StrictMode -Version 3.0
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
@@ -155,6 +156,42 @@ function Get-EntryNoun {
     param([Parameter(Mandatory)][int]$Count)
     if ($Count -eq 1) { return '1 entry' }
     return "$Count entries"
+}
+
+function Get-CatalogRowInfo {
+    # Analyzer, Title and Docs of an id for a summary row: the catalog values, the id prefix when the catalog names
+    # no analyzer, '' for a missing title or docs link.
+    param([Parameter(Mandatory)]$Catalog, [Parameter(Mandatory)][string]$Id)
+    $entry = if ($Catalog.Entries.Contains($Id)) { $Catalog.Entries[$Id] } else { $null }
+    return [pscustomobject]@{
+        Analyzer = if ($null -ne $entry -and -not [string]::IsNullOrEmpty($entry.Analyzer)) { $entry.Analyzer } else { ([regex]::Match($Id, '^[A-Za-z]+')).Value }
+        Title    = if ($null -ne $entry -and $null -ne $entry.Title) { $entry.Title } else { '' }
+        Docs     = if ($null -ne $entry -and $null -ne $entry.Docs) { $entry.Docs } else { '' }
+    }
+}
+
+function Get-AnalyzerGroup {
+    # Rows grouped by Analyzer in order of first appearance (Group-Object would sort by name): { Analyzer, Count, Rows }.
+    # Unrolled: wrap in @().
+    param([AllowEmptyCollection()][object[]]$Rows)
+    $groupMap = Get-OrdinalMap
+    foreach ($row in $Rows) {
+        if (-not $groupMap.Contains($row.Analyzer)) { $groupMap[$row.Analyzer] = [System.Collections.Generic.List[object]]::new() }
+        $groupMap[$row.Analyzer].Add($row)
+    }
+    return @(foreach ($key in $groupMap.Keys) { [pscustomobject]@{ Analyzer = $key; Count = $groupMap[$key].Count; Rows = $groupMap[$key].ToArray() } })
+}
+
+function Get-EndpointTally {
+    # The actions of one endpoint over every catalog id: a hashtable Error, Warning, Info, Hidden, None. An id the
+    # endpoint does not list as a candidate is at its analyzer default.
+    param([Parameter(Mandatory)]$Inputs, [Parameter(Mandatory)]$Endpoint)
+    $tally = @{ Error = 0; Warning = 0; Info = 0; Hidden = 0; None = 0 }
+    foreach ($id in $Inputs.Catalog.Keys) {
+        $action = if ($Endpoint.Table.Contains($id)) { $Endpoint.Table[$id].Action } else { Get-AnalyzerDefault -Catalog $Inputs.Catalog -Id $id }
+        $tally[$action]++
+    }
+    return $tally
 }
 
 #endregion
@@ -328,14 +365,13 @@ function Get-RulebookLevelSummary {
             $from = Get-AnalyzerDefault -Catalog $Inputs.Catalog -Id $id
             $fromSource = 'default'
         }
-        $catalogEntry = if ($Catalog.Entries.Contains($id)) { $Catalog.Entries[$id] } else { $null }
-        $analyzer = if ($null -ne $catalogEntry -and -not [string]::IsNullOrEmpty($catalogEntry.Analyzer)) { $catalogEntry.Analyzer } else { ([regex]::Match($id, '^[A-Za-z]+')).Value }
+        $info = Get-CatalogRowInfo -Catalog $Catalog -Id $id
         $to = $rule.Value.Action
         $sorted[(Get-DiagnosticSortKey -Id $id) + '|' + $id] = [pscustomobject]@{
             Id            = $id
-            Analyzer      = $analyzer
-            Title         = if ($null -ne $catalogEntry -and $null -ne $catalogEntry.Title) { $catalogEntry.Title } else { '' }
-            Docs          = if ($null -ne $catalogEntry -and $null -ne $catalogEntry.Docs) { $catalogEntry.Docs } else { '' }
+            Analyzer      = $info.Analyzer
+            Title         = $info.Title
+            Docs          = $info.Docs
             From          = $from
             FromSource    = $fromSource
             To            = $to
@@ -344,13 +380,7 @@ function Get-RulebookLevelSummary {
         }
     }
     $rows = @($sorted.Values)
-
-    $groupMap = Get-OrdinalMap
-    foreach ($row in $rows) {
-        if (-not $groupMap.Contains($row.Analyzer)) { $groupMap[$row.Analyzer] = [System.Collections.Generic.List[object]]::new() }
-        $groupMap[$row.Analyzer].Add($row)
-    }
-    $groups = @(foreach ($key in $groupMap.Keys) { [pscustomobject]@{ Analyzer = $key; Count = $groupMap[$key].Count; Rows = $groupMap[$key].ToArray() } })
+    $groups = @(Get-AnalyzerGroup -Rows $rows)
 
     $overrideCount = @($Inputs.Overrides | Where-Object {
             ($_.Levels.Count -eq 1 -and $_.Levels[0] -eq '*') -or ($Level -cin $_.Levels)
@@ -358,11 +388,7 @@ function Get-RulebookLevelSummary {
 
     $counts = @(foreach ($stage in $Inputs.Stages) {
             $endpoint = Get-RulebookEndpoint -Inputs $Inputs -Level $Level -Stage $stage.Slug
-            $tally = @{ Error = 0; Warning = 0; Info = 0; Hidden = 0; None = 0 }
-            foreach ($id in $Inputs.Catalog.Keys) {
-                $action = if ($endpoint.Table.Contains($id)) { $endpoint.Table[$id].Action } else { Get-AnalyzerDefault -Catalog $Inputs.Catalog -Id $id }
-                $tally[$action]++
-            }
+            $tally = Get-EndpointTally -Inputs $Inputs -Endpoint $endpoint
             [pscustomobject]@{
                 Stage   = $stage.Slug
                 Error   = $tally['Error']
@@ -392,6 +418,109 @@ function Get-RulebookLevelSummary {
         Rows             = $rows
         Groups           = $groups
         Counts           = $counts
+    }
+}
+
+function Get-RulebookStageSummary {
+    <#
+    .SYNOPSIS
+    The model of one stage page: the stage file's entries, where they have no effect, and the counts per level.
+    .DESCRIPTION
+    -Inputs is a Rulebook.Inputs (Read-RulebookInputs), -Catalog the Rulebook.Catalog of the same repository
+    (Read-CatalogFile, for analyzer, title and docs), -Stage a settings stage slug. Returns a Rulebook.StageSummary
+    { Name, Slug, Description, File (stages/<slug>.json, $null for default), IsDefault, EntryCount, Rows, Groups,
+    QuarantineIds, QuarantineCount, Counts, CatalogCount, TwinsSetting, OverrideCount }.
+
+    Rows: one per entry of the stage file, sorted by Get-DiagnosticSortKey: { Id, Analyzer, Title, Docs, Action,
+    Justification, NoEffect, Quarantined, Overridden }. NoEffect lists the level slugs (settings order) where the
+    level result (the chain, else this stage's quarantine, else the analyzer default) is None, so the entry does not
+    apply there (S-4); Quarantined is true when this stage's quarantine file lists the id (C15); Overridden lists the
+    level slugs whose endpoint for this stage takes the id from an override. The default stage has no file and no
+    rows. Groups: { Analyzer, Count, Rows } in order of first appearance. QuarantineIds: the ids of
+    quarantine.<slug>.json sorted by Get-DiagnosticSortKey. Counts: one per settings level { Level, Error, Warning,
+    Info, Hidden, None, Listed } over every catalog id, the same tally as Get-RulebookLevelSummary. OverrideCount:
+    the overrides whose stages selector matches this stage. Pure; the WP14 site builds its stage pages from it (#84).
+    #>
+    [CmdletBinding()]
+    [OutputType('Rulebook.StageSummary')]
+    param([Parameter(Mandatory)]$Inputs, [Parameter(Mandatory)]$Catalog, [Parameter(Mandatory)][string]$Stage)
+    $entry = $null
+    foreach ($item in $Inputs.Stages) { if ($item.Slug -ceq $Stage) { $entry = $item } }
+    if ($null -eq $entry) { throw "Unknown stage slug '$Stage'" }
+    $isDefault = $Stage -ceq 'default'
+    $stageDelta = if ($Inputs.StageDeltas.Contains($Stage)) { $Inputs.StageDeltas[$Stage] } else { $null }
+    $quarantine = if ($Inputs.Quarantine.Contains($Stage)) { $Inputs.Quarantine[$Stage] } else { $null }
+
+    $endpoints = Get-OrdinalMap
+    foreach ($level in $Inputs.Levels) { $endpoints[$level.Slug] = Get-RulebookEndpoint -Inputs $Inputs -Level $level.Slug -Stage $Stage }
+
+    $sorted = [System.Collections.Generic.SortedDictionary[string, object]]::new([System.StringComparer]::Ordinal)
+    if ($null -ne $stageDelta) {
+        foreach ($rule in $stageDelta.GetEnumerator()) {
+            $id = [string]$rule.Key
+            $noEffect = [System.Collections.Generic.List[string]]::new()
+            $overridden = [System.Collections.Generic.List[string]]::new()
+            foreach ($level in $Inputs.Levels) {
+                # The level result alone: the generator's resolver without overrides, twins and the stage file.
+                $levelResult = Get-EffectiveAction -Id $id -Level $level.Slug -Stage $Stage -Chain $Inputs.Chains[$level.Slug] -StageDelta $null `
+                    -Twins $null -Overrides @() -Quarantine $quarantine -Catalog $Inputs.Catalog
+                if ($levelResult.Action -ceq 'None') { $noEffect.Add($level.Slug) }
+                $table = $endpoints[$level.Slug].Table
+                if ($table.Contains($id) -and $table[$id].Source -ceq 'override') { $overridden.Add($level.Slug) }
+            }
+            $info = Get-CatalogRowInfo -Catalog $Catalog -Id $id
+            $sorted[(Get-DiagnosticSortKey -Id $id) + '|' + $id] = [pscustomobject]@{
+                Id            = $id
+                Analyzer      = $info.Analyzer
+                Title         = $info.Title
+                Docs          = $info.Docs
+                Action        = $rule.Value.Action
+                Justification = $rule.Value.Justification
+                NoEffect      = $noEffect.ToArray()
+                Quarantined   = ($null -ne $quarantine) -and $quarantine.Contains($id)
+                Overridden    = $overridden.ToArray()
+            }
+        }
+    }
+    $rows = @($sorted.Values)
+    $quarantineSorted = [System.Collections.Generic.SortedDictionary[string, string]]::new([System.StringComparer]::Ordinal)
+    if ($null -ne $quarantine) { foreach ($id in $quarantine.Keys) { $quarantineSorted[(Get-DiagnosticSortKey -Id $id) + '|' + $id] = $id } }
+    [string[]]$quarantineIds = @($quarantineSorted.Values)
+
+    $overrideCount = @($Inputs.Overrides | Where-Object {
+            ($_.Stages.Count -eq 1 -and $_.Stages[0] -eq '*') -or ($Stage -cin $_.Stages)
+        }).Count
+
+    $counts = @(foreach ($level in $Inputs.Levels) {
+            $endpoint = $endpoints[$level.Slug]
+            $tally = Get-EndpointTally -Inputs $Inputs -Endpoint $endpoint
+            [pscustomobject]@{
+                Level   = $level.Slug
+                Error   = $tally['Error']
+                Warning = $tally['Warning']
+                Info    = $tally['Info']
+                Hidden  = $tally['Hidden']
+                None    = $tally['None']
+                Listed  = $endpoint.Entries.Count
+            }
+        })
+
+    return [pscustomobject]@{
+        PSTypeName      = 'Rulebook.StageSummary'
+        Name            = $entry.Name
+        Slug            = $Stage
+        Description     = $entry.Description
+        File            = if ($isDefault) { $null } else { "stages/$Stage.json" }
+        IsDefault       = $isDefault
+        EntryCount      = $rows.Count
+        Rows            = $rows
+        Groups          = @(Get-AnalyzerGroup -Rows $rows)
+        QuarantineIds   = $quarantineIds
+        QuarantineCount = $quarantineIds.Count
+        Counts          = $counts
+        CatalogCount    = $Inputs.Catalog.Count
+        TwinsSetting    = $Inputs.TwinsSetting
+        OverrideCount   = $overrideCount
     }
 }
 
@@ -557,6 +686,7 @@ Export-ModuleMember -Function @(
     'ConvertTo-LevelDocsMarkdown'
     'Get-RulebookLevelSummary'
     'Get-RulebookOffLevelEntry'
+    'Get-RulebookStageSummary'
     'New-RulebookLevelDocs'
     'New-RulebookOffLevel'
 )
