@@ -116,60 +116,118 @@ The matrix is rendered by Hugo as static HTML; JavaScript hides rows, switches t
 
 ## 5. Data contract
 
-`site/data/rulebook.json`, one file, written by `Export-RulebookSiteData` (WP14):
+`rulebook.json`, one document, written by `Export-RulebookSiteData` (`modules/Rulebook.Site.psm1`, WP14) to `site/data/rulebook.json` for Hugo and served by the Publish action at `<baseUrl>/rulebook.json` for other tooling. The model is `Get-RulebookSiteModel`, the writer `ConvertTo-RulebookSiteDataJson`; `tests/fixtures/site-data/rulebook.json` is the export of the `valid-minimal` fixture, kept byte for byte by a drift test.
 
-> **Status:** `<baseUrl>/rulebook.json` is published since WP06 ([#8](https://github.com/ALCops/rulebook-engine/issues/8), [D43](adr/0043-rulebook-json-is-published-from-wp06-with-levels-and-stages.md)) in its minimal form: `generatedAt`, `repository` (when the Publish action knows it), `baseUrl`, `levels[]` (`name`, `slug`, `basedOn`, `description`) and `stages[]` (`name`, `slug`, `description`), written by `ConvertTo-RulebookManifestJson`. `basedOn` is the **slug** of the level (D28), not its name as in the example below, and `description` is left out when it is empty. `issueTemplate`, `rules`, `overrides` and `quarantine` come with WP14, which extends the same file; readers such as the init script ignore keys they do not know.
+> **Status:** since WP06 ([#8](https://github.com/ALCops/rulebook-engine/issues/8), [D43](adr/0043-rulebook-json-is-published-from-wp06-with-levels-and-stages.md)) `<baseUrl>/rulebook.json` is published in its minimal form (`generatedAt`, `repository`, `baseUrl`, `levels[]` with `name`, `slug`, `basedOn`, `description`, `stages[]` with `name`, `slug`, `description`, written by `ConvertTo-RulebookManifestJson`). WP14 extends the same file: the keys of the minimal form keep their names, order and meaning, every other key follows them, and readers such as the init script ignore keys they do not know.
+
+Key order: `generatedAt`, `repository` (when the Publish action knows it), `baseUrl`, `issueTemplate`, `docsUrl`, `levels`, `stages`, `rules`, `overrides`, `quarantine`. Trimmed from the fixture (two of 30 rules, one level and one stage, counts, entries and cells cut short):
 
 ```json
 {
-  "generatedAt": "2026-10-03T12:00:00Z",
+  "generatedAt": "2026-10-17T00:00:00Z",
   "repository": "contoso/rulebook",
   "baseUrl": "https://contoso.github.io/rulebook",
   "issueTemplate": "rulebook-change.yml",
+  "docsUrl": "https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md",
   "levels": [
-    { "name": "Essential", "slug": "essential", "description": "..." },
-    { "name": "Recommended", "slug": "recommended", "basedOn": "Essential", "description": "..." }
+    {
+      "name": "Recommended",
+      "slug": "recommended",
+      "basedOn": "essential",
+      "description": "Every default-on rule at its author severity; marketplace checks join here.",
+      "file": "base/recommended.ruleset.json",
+      "chain": ["essential", "recommended"],
+      "basedOnName": "Essential",
+      "basedOnPublished": true,
+      "entryCount": 11,
+      "loweredCount": 0,
+      "overrideCount": 2,
+      "counts": [
+        { "stage": "default", "error": 9, "warning": 14, "info": 3, "hidden": 1, "none": 3, "listed": 4 }
+      ],
+      "entries": [
+        { "id": "AW0006", "analyzer": "AW", "title": "", "from": "Warning", "fromSource": "default", "to": "Error", "lowered": false, "justification": "Fixture: raised above its Warning default from Recommended" }
+      ]
+    }
   ],
   "stages": [
-    { "name": "default", "slug": "default", "description": "..." },
-    { "name": "CI", "slug": "ci", "description": "..." }
+    {
+      "name": "CI",
+      "slug": "ci",
+      "description": "Pull request and release builds. Postponable diagnostics relaxed to Info.",
+      "file": "stages/ci.json",
+      "entryCount": 3,
+      "quarantineCount": 1,
+      "overrideCount": 2,
+      "counts": [
+        { "level": "essential", "error": 7, "warning": 7, "info": 4, "hidden": 1, "none": 11, "listed": 12 }
+      ],
+      "entries": [
+        { "id": "AL0432", "analyzer": "AL", "title": "", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI; S-2", "noEffect": ["essential"], "quarantined": false, "overridden": [] }
+      ]
+    }
   ],
   "rules": [
     {
       "id": "AL0432",
-      "analyzer": "Compiler",
-      "title": "Obsolete pending: replacement may not exist yet",
-      "docsUrl": "https://learn.microsoft.com/...",
+      "analyzer": "AL",
+      "title": "",
+      "docsUrl": "",
       "default": "Warning",
       "enabledByDefault": true,
-      "justifications": { "recommended": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05", "stage:ci": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
+      "justifications": { "stage:ci": "Replacement may not exist yet; advisory in CI; S-2" },
       "cells": {
-        "essential.default": { "action": "None", "source": "level:essential" },
-        "recommended.ci":    { "action": "Info", "source": "stage:ci" },
-        "strict.ci":         { "action": "None", "source": "override" }
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "recommended.ci": { "action": "Info", "source": "stage:ci" }
+      }
+    },
+    {
+      "id": "LC0029",
+      "analyzer": "LC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "recommended.ci": { "action": "None", "source": "override", "override": 1, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "recommended.vnext": { "action": "Error", "source": "stage:vnext" }
       }
     }
   ],
   "overrides": [
-    { "id": "AL0432", "action": "None", "levels": ["strict"], "stages": ["ci"] }
+    { "id": "AA0072", "action": "Info", "levels": ["*"], "stages": ["*"] },
+    { "id": "LC0029", "action": "None", "levels": ["recommended"], "stages": ["ci"] }
   ],
   "quarantine": {
-    "ci": [ { "id": "LC0099" } ]
+    "default": [
+      { "id": "LC0099" }
+    ],
+    "ci": [
+      { "id": "LC0099" }
+    ],
+    "vnext": []
   }
 }
 ```
 
 Rules:
 
-- `cells` has one entry per published level and stage, keyed `<levelSlug>.<stageSlug>`, the `default` stage written. `source` is the input that decided the action in the precedence of ARCHITECTURE section 5.1: `override`, `twins`, `stage:<slug>`, `level:<slug>`, `quarantine`, `default`. The generator already walks that chain, so the export records which input won instead of recomputing it in the browser.
-- `justifications` carries the level and stage justifications from the engine's files. They are public already (the engine repository is public) and are always included.
-- `overrides[].justification` and `quarantine.<stage>[].justification` are written only when `site.includeJustifications` is true (D36).
-- `rules` is in inventory order, unknown ids after the known ones sorted by id, the same order the endpoints use.
-- Ids in the catalog that no level mentions and that are at their default appear with every cell at `default`, so the matrix shows the whole catalog, not only the deviations.
+- `generatedAt` is UTC text, `yyyy-MM-ddTHH:mm:ssZ`, and the first key. A PowerShell reader parses the file with `ConvertFrom-Json -DateKind String` (PowerShell 7.5 and later) or reads the value from the text: plain `ConvertFrom-Json` turns it into a `DateTime` ([#62](https://github.com/ALCops/rulebook-engine/issues/62)). The engine's tests check it with a regular expression on the text.
+- `issueTemplate` is the constant `rulebook-change.yml` (section 7); `repository` and `issueTemplate` build the cart's issue URL. `docsUrl` is the dashboard user page on the template ref the engine ref maps to (`Get-RulebookDocsUrl`: engine `v1` reads the template's `main`, engine `main` its `preview`, a tag the same tag); it is the only value that names a branch.
+- `levels[]` and `stages[]` are in settings order and carry the keys of the minimal form first (`basedOn` and `description` only when set), then the page model. A level has the `Get-RulebookLevelSummary` facts (`file`, `chain` root first, `basedOnName`, `basedOnPublished`, `entryCount`, `loweredCount`, `overrideCount`), `counts` per stage over every catalog id and the `entries` of the level file against the chain below it. A stage has the `Get-RulebookStageSummary` facts (`file`, absent for `default`, `entryCount`, `quarantineCount`, `overrideCount`), `counts` per level and the `entries` of the stage file with `noEffect` (the levels where the id is None before the stage applies: level result or twins, so the entry does not apply, S-4), `quarantined` (the stage's quarantine lists the id, C15) and `overridden` (the levels where an override decides the cell). One data file holds every page of the site.
+- `rules` holds every catalog id and every id an input mentions, in the id order of [composition.md](rulebook/composition.md) section 3 (`Get-DiagnosticSortKey`: prefix order, then number, then the `i` suffix; an unknown prefix after the known ones, an id outside the pattern last), whatever input produced the id: the order the endpoints use ([#51](https://github.com/ALCops/rulebook-engine/issues/51)). An id outside the catalog sorts by the same key and has `unknown: true`, `default: null` and `enabledByDefault: null`. `default` is the catalog's `defaultSeverity`; the analyzers apply it only when `enabledByDefault` is true, otherwise the id is at None.
+- `cells` has one entry per published level and stage, keyed `<levelSlug>.<stageSlug>` in settings order, the `default` stage written; a template iterates `levels` x `stages` and looks a cell up by its key, because a range over the map walks the keys alphabetically. `action` and `source` come from the generator (`Get-RulebookEndpoint`, `Get-EffectiveAction`), `source` being the input that decided the action in the precedence of ARCHITECTURE section 5.1: `override`, `twins`, `stage:<slug>`, `level:<slug>`, `quarantine`, `default`. An id no input mentions has every cell at `default`, so the matrix shows the whole catalog; a cell of an unknown id that no input of that endpoint mentions has `action: null`.
+- An override cell also has `override`, the index of the winning entry in `overrides` (the order of `overrides.json`), and `fallback` and `fallbackSource`, the action and source the cell would have without that entry. A quarantine cell has `fallback` and `fallbackSource` without the quarantine. Both are computed by `Get-EffectiveAction` with that one input left out, so the cart shows the after of a `remove` or a `release` without repeating the precedence in the browser. The fallback of an override cell can itself come from a lower-precedence override (`fallbackSource: override`); no index is written for that one, and the cart treats it like any other fallback. Twins, stage, level and default cells have no fallback.
+- `justifications` carries the level and stage justifications of the id from the files, keyed by source token (`level:<slug>` of the file that sets the id, `stage:<slug>`), so a cell finds its own by `source`. They are public already (the engine repository is public, and an organization's own level and stage files are part of its rulebook) and are always written, `{}` when there is none.
+- `overrides[]` repeats `overrides.json` in file order; `quarantine` has one array per settings stage in the order of its `quarantine.<stage>.json` (the stage summaries sort their quarantine ids by the id key instead), empty arrays written, and is always written one stage per line. `overrides[].justification` and `quarantine.<stage>[].justification` are written only when `site.includeJustifications` is the boolean `true` (D36).
+- Writer: two-space indent, LF, no BOM; an object whose values are scalars or arrays of scalars (a cell, a counts row, an entry, an override) and an array of scalars on one line. The text is byte-stable: the same inputs give the same bytes apart from `generatedAt`. Size: about 1.2 MB for the 628 ids of the shipped template with 12 cells each.
 
 ## 6. Change set
 
 One JSON document, schema `schemas/rulebook-changeset.schema.json` in the engine:
+
+> **Status:** the schema ships with WP14 (draft 2020-12, no `$id`, its URL is the row in [naming.md](reference/naming.md) section 6): `version` is the constant 1, `note` an optional string, `changes` a non-empty array whose items are exactly one of the three ops below, each closed (no other key). The fixtures under `tests/fixtures/schemas/<valid|invalid>/rulebook-changeset/` show what it accepts and rejects. The checks it cannot make (catalog ids, settings slugs, duplicate changes) and the workflow that applies a change set are WP15 ([#17](https://github.com/ALCops/rulebook-engine/issues/17)).
 
 ```json
 {
@@ -200,16 +258,18 @@ A released id falls back to the level chain or the analyzer default on the next 
 
 `template/.github/ISSUE_TEMPLATE/rulebook-change.yml`:
 
+> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Until the apply workflow of section 8 ships (WP15), a submitted form is only an issue: a maintainer applies each change with the Change Rule workflow, and the form says so. GitHub applies the label `rulebook-change` only when it exists in the repository.
+
 ```yaml
 name: Rulebook change
-description: Apply a change set produced by the Rulebook dashboard. Submitting opens a pull request (or commits, per the settings).
+description: A change set produced by the Rulebook dashboard.
 title: "Rulebook change"
 labels: [rulebook-change]
 body:
   - type: markdown
     attributes:
       value: |
-        The dashboard filled this form. Submit it as is; a workflow validates the change set, regenerates the endpoints and opens a pull request. Only repository collaborators can submit.
+        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change with the Change Rule workflow.
   - type: textarea
     id: changes
     attributes:
@@ -222,7 +282,7 @@ body:
     id: note
     attributes:
       label: Note
-      description: Optional. Becomes the first paragraph of the pull request.
+      description: Optional. Why the change is made.
 ```
 
 The dashboard opens
@@ -231,11 +291,11 @@ The dashboard opens
 https://github.com/<owner>/<repo>/issues/new?template=rulebook-change.yml&changes=<urlencoded change set>&note=<urlencoded note>
 ```
 
-GitHub prefills issue form fields from query parameters named after the field `id`. The user sees the filled form, can read the JSON, and clicks "Submit new issue" with their own GitHub session. `repository` and `issueTemplate` come from the data file, so an organization that renames the template or the repository changes one setting.
+GitHub prefills issue form fields from query parameters named after the field `id`. The user sees the filled form, can read the JSON, and clicks "Submit new issue" with their own GitHub session. `repository` (the repository the Publish action runs in) and `issueTemplate` (the constant `rulebook-change.yml`, no settings key) come from the data file (section 5).
 
 **URL limit.** GitHub answers `414 URI Too Long` once the full prefilled URL reaches 8192 bytes; 8191 bytes still opens the form with every field filled byte-identical, `render: json` included ([spike (g)](reference/spikes/g-prefilled-issue-url-limit.md), Edge 154; Chrome assumed equivalent, Firefox not tested). The cart serializes the change set minified, measures the full URL it opens and shows it against 7372 bytes (90 % of the threshold), which holds about 28 changes with a justification or 46 without. Logged-out users were not tested in a browser: GitHub re-encodes the whole URL into the login redirect's `return_to`, and anonymous requests already failed there from about 7 KB, so a user who is not signed in may hit a limit earlier. When a cart exceeds it the dashboard offers two routes: split the cart into several submissions, or copy the change set to the clipboard and paste it into the empty form. No compact encoding (`LC0015=None@strict/ci`): it would fit about 228 changes but drops justifications and needs a second parser.
 
-`.github/ISSUE_TEMPLATE/config.yml` keeps `blank_issues_enabled: true`: organizations use issues for other things.
+No `.github/ISSUE_TEMPLATE/config.yml` ships: blank issues stay enabled (the GitHub default; organizations use issues for other things), and an organization's own `config.yml` (contact links, for example) is never touched by the update.
 
 ## 8. Apply workflow
 

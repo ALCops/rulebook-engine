@@ -1,0 +1,22 @@
+name: Rulebook change
+description: A change set produced by the Rulebook dashboard.
+title: "Rulebook change"
+labels: [rulebook-change]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change with the Change Rule workflow.
+  - type: textarea
+    id: changes
+    attributes:
+      label: Changes
+      description: The change set, JSON. Edit only if you know the schema.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: note
+    attributes:
+      label: Note
+      description: Optional. Why the change is made.

@@ -29,29 +29,6 @@ BeforeAll {
         return New-FixtureRepo -Name $Name -Destination (Get-TestFolder)
     }
 
-    function New-TinyRepo {
-        # A repository built from the tiny matrix: level files, twins.json, stages/ci.json, the catalog and a
-        # settings file with Core, Extended basedOn Core and the stages default and CI.
-        [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
-        param()
-        $root = Get-TestFolder
-        $tiny = Join-Path $PSScriptRoot 'fixtures' 'matrix' 'tiny'
-        $null = Build-RulebookBase -RulebookDir $tiny -OutputPath (Join-Path $root 'base')
-        $null = Build-RulebookStages -RulebookDir $tiny -OutputPath (Join-Path $root 'stages')
-        $null = Build-RulebookCatalog -RulebookDir $tiny -OutputPath (Join-Path $root 'catalog' 'diagnostics.json')
-        Write-FixtureText -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Text @'
-{
-  "twins": "both",
-  "levels": [
-    { "name": "Core", "description": "The tiny root." },
-    { "name": "Extended", "basedOn": "Core" }
-  ],
-  "stages": [ { "name": "default" }, { "name": "CI" } ]
-}
-'@
-        return (Resolve-Path -LiteralPath $root).ProviderPath
-    }
-
     function Get-Summary {
         param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$Level)
         $inputs = Read-RulebookInputs -RepositoryRoot $Root
@@ -329,9 +306,100 @@ Describe 'Get-RulebookLevelSummary' {
     }
 }
 
+Describe 'Get-RulebookStageSummary' {
+    BeforeAll {
+        function Get-StageSummary {
+            param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$Stage)
+            $inputs = Read-RulebookInputs -RepositoryRoot $Root
+            $catalog = Read-CatalogFile -Path (Join-Path $Root 'catalog' 'diagnostics.json')
+            return Get-RulebookStageSummary -Inputs $inputs -Catalog $catalog -Stage $Stage
+        }
+
+        function Get-RowText {
+            # 'Id Action [NoEffect] quarantined [Overridden]' per row.
+            param([Parameter(Mandatory)]$Summary)
+            return @($Summary.Rows | ForEach-Object { '{0} {1} [{2}] {3} [{4}]' -f $_.Id, $_.Action, ($_.NoEffect -join ','), $_.Quarantined, ($_.Overridden -join ',') })
+        }
+    }
+
+    It 'lists the CI entries of the tiny repository with the levels where the id is None before the stage applies (S-4)' {
+        $root = New-TinyFixtureRepo -Destination (Get-TestFolder)
+        # AL0200 is None at Core and Warning at Extended: a CI entry on it has no effect at Core.
+        Edit-FixtureJson -Path (Join-Path $root 'stages' 'ci.json') -Script { $_['rules'] = @($_['rules']) + @{ id = 'AL0200'; action = 'Info'; justification = 'Fixture: no effect at Core' } }
+        $summary = Get-StageSummary -Root $root -Stage 'ci'
+        '{0} {1} {2} {3}' -f $summary.Name, $summary.Slug, $summary.File, $summary.IsDefault | Should-Be 'CI ci stages/ci.json False'
+        $summary.EntryCount | Should-Be 2
+        Get-RowText $summary | Should-BeCollection @('AL0200 Info [core] False []', 'AL0432 Info [] False []')
+        $summary.Rows[0].Justification | Should-Be 'Fixture: no effect at Core'
+        '{0} {1}' -f $summary.Rows[1].Title, $summary.Rows[1].Docs | Should-Be 'Field is marked for removal https://example.invalid/al0432'
+        @($summary.Groups | ForEach-Object { '{0} {1}' -f $_.Analyzer, $_.Count }) | Should-BeCollection @('Compiler 2')
+        @($summary.Counts | ForEach-Object Level) | Should-BeCollection @('core', 'extended')
+        '{0} {1} {2} {3}' -f $summary.CatalogCount, $summary.TwinsSetting, $summary.OverrideCount, $summary.QuarantineCount | Should-Be '6 both 0 0'
+    }
+
+    It 'gives the default stage no file and no rows, but its counts per level' {
+        $summary = Get-StageSummary -Root (New-TinyFixtureRepo -Destination (Get-TestFolder)) -Stage 'default'
+        $summary.File | Should-BeNull
+        $summary.IsDefault | Should-BeTrue
+        $summary.EntryCount | Should-Be 0
+        $summary.Rows | Should-BeCollection @()
+        $summary.Groups | Should-BeCollection @()
+        # The extended row equals the default row of the hand-derived Extended page (Level pages below).
+        @($summary.Counts | ForEach-Object { '{0} {1} {2} {3} {4} {5} {6}' -f $_.Level, $_.Error, $_.Warning, $_.Info, $_.Hidden, $_.None, $_.Listed })[1] | Should-Be 'extended 2 3 1 0 0 2'
+    }
+
+    It 'marks an entry the stage quarantines (C15) and lists the quarantine ids of the stage' {
+        $summary = Get-StageSummary -Root (Copy-Fixture 'quarantined-stage-entry') -Stage 'ci'
+        Get-RowText $summary | Should-BeCollection @('AL0432 Info [essential] False []', 'AL0603 Info [] False []', 'AL1026 Info [] False []', 'LC0099 Info [essential,recommended,strict,complete] True []')
+        $summary.QuarantineIds | Should-BeCollection @('LC0099')
+        $summary.QuarantineCount | Should-Be 1
+        (Get-StageSummary -Root (Copy-Fixture) -Stage 'vnext').QuarantineIds | Should-BeCollection @()
+    }
+
+    It 'gives an entry on the losing twin side no effect on every level (twins appsource)' {
+        $root = Copy-Fixture 'twins-appsource'
+        Edit-FixtureJson -Path (Join-Path $root 'stages' 'ci.json') -Script { $_['rules'] = @($_['rules']) + @{ id = 'PTE0003'; action = 'Info' } + @{ id = 'AS0061'; action = 'Info' } }
+        $summary = Get-StageSummary -Root $root -Stage 'ci'
+        @(Get-RowText $summary | Where-Object { $_ -match '^(PTE0003|AS0061) ' }) | Should-BeCollection @('PTE0003 Info [essential,recommended,strict,complete] False []', 'AS0061 Info [] False []')
+    }
+
+    It 'lists the levels where an override decides an entry, and counts the overrides of the stage' {
+        $root = Copy-Fixture
+        Edit-FixtureJson -Path (Join-Path $root 'overrides.json') -Script { $_['rules'] = @($_['rules']) + @{ id = 'AL0603'; action = 'None'; levels = @('strict', 'complete'); stages = @('ci') } }
+        $summary = Get-StageSummary -Root $root -Stage 'ci'
+        @(Get-RowText $summary)[1] | Should-Be 'AL0603 Info [] False [strict,complete]'
+        $summary.OverrideCount | Should-Be 3
+        (Get-StageSummary -Root $root -Stage 'vnext').OverrideCount | Should-Be 1
+    }
+
+    It 'counts like Get-RulebookLevelSummary, transposed, on valid-minimal' {
+        $root = Copy-Fixture
+        $inputs = Read-RulebookInputs -RepositoryRoot $root
+        $catalog = Read-CatalogFile -Path (Join-Path $root 'catalog' 'diagnostics.json')
+        $byLevel = [string[]]@(foreach ($level in $inputs.Levels) {
+                foreach ($count in (Get-RulebookLevelSummary -Inputs $inputs -Catalog $catalog -Level $level.Slug).Counts) {
+                    '{0}.{1} {2} {3} {4} {5} {6} {7}' -f $level.Slug, $count.Stage, $count.Error, $count.Warning, $count.Info, $count.Hidden, $count.None, $count.Listed
+                }
+            })
+        $byStage = [string[]]@(foreach ($stage in $inputs.Stages) {
+                foreach ($count in (Get-RulebookStageSummary -Inputs $inputs -Catalog $catalog -Stage $stage.Slug).Counts) {
+                    '{0}.{1} {2} {3} {4} {5} {6} {7}' -f $count.Level, $stage.Slug, $count.Error, $count.Warning, $count.Info, $count.Hidden, $count.None, $count.Listed
+                }
+            })
+        $byLevel.Count | Should-Be 12
+        [System.Array]::Sort($byLevel, [System.StringComparer]::Ordinal)
+        [System.Array]::Sort($byStage, [System.StringComparer]::Ordinal)
+        $byStage | Should-BeCollection $byLevel
+    }
+
+    It 'throws on a slug the settings do not list' {
+        { Get-StageSummary -Root (Copy-Fixture) -Stage 'nightly' } | Should-Throw -ExceptionMessage "Unknown stage slug 'nightly'"
+    }
+}
+
 Describe 'Level pages' {
     It 'writes the Extended page of the tiny repository as derived by hand (one lowered row)' {
-        $root = New-TinyRepo
+        $root = New-TinyFixtureRepo -Destination (Get-TestFolder)
         $out = Get-TestFolder
         $changes = @(New-RulebookLevelDocs -RepositoryRoot $root -OutputPath $out)
         @($changes | ForEach-Object { '{0} {1}' -f (Split-Path -Leaf $_.Path), $_.Change }) | Should-BeCollection @('core.md created', 'extended.md created', 'README.md created')
@@ -377,7 +445,7 @@ Generated by `New-RulebookLevelDocs` from the settings, `base/extended.ruleset.j
     }
 
     It 'marks both rows of the tiny root Core as lowered against the analyzer default' {
-        $summary = Get-Summary -Root (New-TinyRepo) -Level 'core'
+        $summary = Get-Summary -Root (New-TinyFixtureRepo -Destination (Get-TestFolder)) -Level 'core'
         @($summary.Rows | ForEach-Object { '{0} {1} {2} {3} {4}' -f $_.Id, $_.From, $_.FromSource, $_.To, $_.Lowered }) |
             Should-BeCollection @('AL0200 Warning default None True', 'AS0061 Error default None True')
         $summary.LoweredCount | Should-Be 2

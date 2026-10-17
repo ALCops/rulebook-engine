@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "note": 42,
+  "changes": [
+    { "op": "set", "id": "LC0089i", "action": "Hidden", "levels": ["complete"], "stages": ["default"] }
+  ]
+}

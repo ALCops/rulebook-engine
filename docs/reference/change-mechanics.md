@@ -195,5 +195,5 @@ The update rewrites the `levels` and `stages` options from the settings (D30, [u
 
 - `Invoke-RulebookChangeSet` already takes a change set with several items, applies them all or nothing and regenerates once; `Get-RulebookChangeTitle` names a multi-item change `Rulebook change: <n> changes`; the body has one sentence and table per item.
 - `release` is reserved in `Test-RulebookChangeSet`; WP15 implements it on the quarantine files (`Rulebook.Quarantine`).
-- The change set schema `schemas/rulebook-changeset.schema.json` and the issue-form parsing are WP15.
+- The change set schema `schemas/rulebook-changeset.schema.json` and the issue form `rulebook-change.yml` ship with WP14 ([#16](https://github.com/ALCops/rulebook-engine/issues/16)). The schema accepts `release`, which `Test-RulebookChangeSet` still refuses until WP15 implements it, and requires `version: 1`, which `ConvertTo-RulebookChangeSet` does not write today. The issue-form parsing is WP15.
 - `Publish-RulebookChange -BranchPrefix` is `change-rule/<ruleId>` for the form and `rulebook-change/<issue>` for the issue path; the landing rule (D33, D47) is the same.

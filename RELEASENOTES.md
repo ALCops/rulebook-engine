@@ -1,5 +1,9 @@
 # Release notes
 
+## v1.0.0-beta.4
+
+- Dashboard data: rulebook.json gets every rule with its cells, the deciding input and the fallback of override and quarantine cells, the level and stage page models, the change set schema and the issue form ([#110](https://github.com/ALCops/rulebook-engine/pull/110))
+
 ## v1.0.0-beta.3
 
 - Update: templateUrl accepts a tag, the pin of a release ([#108](https://github.com/ALCops/rulebook-engine/pull/108))

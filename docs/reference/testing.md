@@ -41,9 +41,10 @@ Everything under `tests/fixtures/`:
 | `templates/` | `v1` and `v2`, two versions of a mini template, with the exact difference list and the derivation of `repos/update-org` in its [README](../../tests/fixtures/templates/README.md). | The update suites, the `update-action` job. |
 | `schemas/` | `<valid\|invalid>/<schema>/<reason>.json`, each invalid file a one-change mutation of a valid one. | `Schemas.Tests.ps1`. |
 | `stub-analyzers/` | C# stubs of the compiler and the cop assemblies, compiled with the Roslyn of pwsh into fixture packages once per source hash into the temp folder ([README](../../tests/fixtures/stub-analyzers/README.md)). | The Extract and Scan module suites and the ScanDiagnostics action suite. |
-| `matrix/tiny` | A six-id level content in the layout of `docs/rulebook/`. | The Template and Levels suites. |
+| `matrix/tiny` | A six-id level content in the layout of `docs/rulebook/`; `New-TinyFixtureRepo` builds a repository from it. | The Template, Levels and Site suites. |
 | `ci/` | Trimmed captures of the NUnit and JaCoCo files Pester writes. | `Write-TestSummary.Tests.ps1`. |
 | `deploy/` | `template-main`, a mini template with every engine and template reference form the deploy rewrites, the forms it leaves alone and a binary PNG; `keep.txt`, a keep list with a nested entry. | `Rulebook.Deploy.Tests.ps1` (with bare template and engine repositories built in `TestDrive`). |
+| `site-data/` | `rulebook.json`, the site data export of `repos/valid-minimal` (`Export-RulebookSiteData` with `-GeneratedAt 2026-10-17T00:00:00Z`), and its [README](../../tests/fixtures/site-data/README.md) with the regeneration command. | `Rulebook.Site.Tests.ps1` (the drift test). |
 
 `tests/Fixtures.Tests.ps1` is the one place that says what each repository fixture is and proves: its kind, the exact unique findings of `Test-Rulebook`, and the list `Get-RulebookEndpointChange` would regenerate (or the error the generator throws). It also checks that the template fixtures validate and stay in step with the engine, that every folder under `repos/` has a row in that table and every row a folder, and that every fixture folder is used by a suite, a helper or `ci.yml`.
 
@@ -151,7 +152,6 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `modules/Rulebook.Update.psm1` | 203 | 1 | `templateSha` not on a line of its own; the settings writer always puts it on its own line. |
 | `modules/Rulebook.Update.psm1` | 258 | 1 | A one-line YAML key at the path the workflow edit looks for; the shipped workflows use a block. |
 | `modules/Rulebook.Update.psm1` | 429 | 1 | The REST commit list returns no commits; a repository always has one. |
-| `modules/Rulebook.Update.psm1` | 658 | 1 | `.github/ISSUE_TEMPLATE/` files: the template ships none yet (the dashboard, WP14). |
 | `modules/Rulebook.Update.psm1` | 922-923, 985-986 | 4 | An input the plan cannot read after the settings passed (C5 or later); the Validate suite covers the same inputs. |
 | `modules/Rulebook.Update.psm1` | 1000 | 1 | An `unusedRulebookFiles` entry for a file present but not managed by the template; no fixture has one. |
 | `modules/Rulebook.Update.psm1` | 1151 | 1 | Rendering of a plan with no file changes; no suite renders the sections of such a plan (the runs end as nothing-new or no-op first). |

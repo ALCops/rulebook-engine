@@ -1,0 +1,877 @@
+{
+  "generatedAt": "2026-10-17T00:00:00Z",
+  "repository": "contoso/rulebook",
+  "baseUrl": "https://contoso.github.io/rulebook",
+  "issueTemplate": "rulebook-change.yml",
+  "docsUrl": "https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md",
+  "levels": [
+    {
+      "name": "Essential",
+      "slug": "essential",
+      "description": "Cannot ship without: runtime failures, the deployment blockers of both Microsoft cops, compiler future errors, PlatformCop.",
+      "file": "base/essential.ruleset.json",
+      "chain": ["essential"],
+      "basedOnName": null,
+      "basedOnPublished": false,
+      "entryCount": 9,
+      "loweredCount": 9,
+      "overrideCount": 1,
+      "counts": [
+        { "stage": "default", "error": 7, "warning": 9, "info": 2, "hidden": 1, "none": 11, "listed": 10 },
+        { "stage": "ci", "error": 7, "warning": 7, "info": 4, "hidden": 1, "none": 11, "listed": 12 },
+        { "stage": "vnext", "error": 8, "warning": 9, "info": 2, "hidden": 1, "none": 10, "listed": 10 }
+      ],
+      "entries": [
+        { "id": "AL0200", "analyzer": "AL", "title": "", "from": "Warning", "fromSource": "default", "to": "None", "lowered": true, "justification": null },
+        { "id": "AL0432", "analyzer": "AL", "title": "", "from": "Warning", "fromSource": "default", "to": "None", "lowered": true, "justification": null },
+        { "id": "AA0001", "analyzer": "AA", "title": "", "from": "Warning", "fromSource": "default", "to": "None", "lowered": true, "justification": null },
+        { "id": "AA0072", "analyzer": "AA", "title": "", "from": "Warning", "fromSource": "default", "to": "None", "lowered": true, "justification": null },
+        { "id": "AS0084", "analyzer": "AS", "title": "", "from": "Error", "fromSource": "default", "to": "None", "lowered": true, "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential" },
+        { "id": "LC0015", "analyzer": "LC", "title": "", "from": "Info", "fromSource": "default", "to": "None", "lowered": true, "justification": null },
+        { "id": "LC0029", "analyzer": "LC", "title": "", "from": "Warning", "fromSource": "default", "to": "None", "lowered": true, "justification": null },
+        { "id": "LC0089i", "analyzer": "LC", "title": "", "from": "Info", "fromSource": "default", "to": "None", "lowered": true, "justification": null },
+        { "id": "DC0001", "analyzer": "DC", "title": "", "from": "Warning", "fromSource": "default", "to": "None", "lowered": true, "justification": null }
+      ]
+    },
+    {
+      "name": "Recommended",
+      "slug": "recommended",
+      "basedOn": "essential",
+      "description": "Every default-on rule at its author severity; marketplace checks join here.",
+      "file": "base/recommended.ruleset.json",
+      "chain": ["essential", "recommended"],
+      "basedOnName": "Essential",
+      "basedOnPublished": true,
+      "entryCount": 11,
+      "loweredCount": 0,
+      "overrideCount": 2,
+      "counts": [
+        { "stage": "default", "error": 9, "warning": 14, "info": 3, "hidden": 1, "none": 3, "listed": 4 },
+        { "stage": "ci", "error": 9, "warning": 10, "info": 6, "hidden": 1, "none": 4, "listed": 8 },
+        { "stage": "vnext", "error": 11, "warning": 13, "info": 3, "hidden": 1, "none": 2, "listed": 5 }
+      ],
+      "entries": [
+        { "id": "AL0200", "analyzer": "AL", "title": "", "from": "None", "fromSource": "level:essential", "to": "Warning", "lowered": false, "justification": null },
+        { "id": "AL0432", "analyzer": "AL", "title": "", "from": "None", "fromSource": "level:essential", "to": "Warning", "lowered": false, "justification": null },
+        { "id": "AA0001", "analyzer": "AA", "title": "", "from": "None", "fromSource": "level:essential", "to": "Warning", "lowered": false, "justification": null },
+        { "id": "AA0072", "analyzer": "AA", "title": "", "from": "None", "fromSource": "level:essential", "to": "Warning", "lowered": false, "justification": null },
+        { "id": "AW0006", "analyzer": "AW", "title": "", "from": "Warning", "fromSource": "default", "to": "Error", "lowered": false, "justification": "Fixture: raised above its Warning default from Recommended" },
+        { "id": "AS0084", "analyzer": "AS", "title": "", "from": "None", "fromSource": "level:essential", "to": "Error", "lowered": false, "justification": null },
+        { "id": "AC0001", "analyzer": "AC", "title": "", "from": "Info", "fromSource": "default", "to": "Warning", "lowered": false, "justification": null },
+        { "id": "LC0015", "analyzer": "LC", "title": "", "from": "None", "fromSource": "level:essential", "to": "Info", "lowered": false, "justification": null },
+        { "id": "LC0029", "analyzer": "LC", "title": "", "from": "None", "fromSource": "level:essential", "to": "Warning", "lowered": false, "justification": null },
+        { "id": "LC0089i", "analyzer": "LC", "title": "", "from": "None", "fromSource": "level:essential", "to": "Info", "lowered": false, "justification": null },
+        { "id": "DC0001", "analyzer": "DC", "title": "", "from": "None", "fromSource": "level:essential", "to": "Warning", "lowered": false, "justification": null }
+      ]
+    },
+    {
+      "name": "Strict",
+      "slug": "strict",
+      "basedOn": "recommended",
+      "description": "Recommended with advisory rules promoted to Warning.",
+      "file": "base/strict.ruleset.json",
+      "chain": ["essential", "recommended", "strict"],
+      "basedOnName": "Recommended",
+      "basedOnPublished": true,
+      "entryCount": 5,
+      "loweredCount": 1,
+      "overrideCount": 1,
+      "counts": [
+        { "stage": "default", "error": 10, "warning": 13, "info": 5, "hidden": 0, "none": 2, "listed": 9 },
+        { "stage": "ci", "error": 10, "warning": 11, "info": 7, "hidden": 0, "none": 2, "listed": 11 },
+        { "stage": "vnext", "error": 12, "warning": 12, "info": 5, "hidden": 0, "none": 1, "listed": 10 }
+      ],
+      "entries": [
+        { "id": "AL0603", "analyzer": "AL", "title": "", "from": "Warning", "fromSource": "default", "to": "Info", "lowered": true, "justification": "Fixture: a level lowers an id that is enabled by default" },
+        { "id": "AA0137", "analyzer": "AA", "title": "", "from": "Warning", "fromSource": "default", "to": "Error", "lowered": false, "justification": null },
+        { "id": "LC0015", "analyzer": "LC", "title": "", "from": "Info", "fromSource": "level:recommended", "to": "Warning", "lowered": false, "justification": null },
+        { "id": "FC0001", "analyzer": "FC", "title": "", "from": "Hidden", "fromSource": "default", "to": "Info", "lowered": false, "justification": null },
+        { "id": "CM0001", "analyzer": "CM", "title": "", "from": "None", "fromSource": "default", "to": "Info", "lowered": false, "justification": null }
+      ]
+    },
+    {
+      "name": "Complete",
+      "slug": "complete",
+      "basedOn": "strict",
+      "description": "Strict plus every opt-in rule.",
+      "file": "base/complete.ruleset.json",
+      "chain": ["essential", "recommended", "strict", "complete"],
+      "basedOnName": "Strict",
+      "basedOnPublished": true,
+      "entryCount": 3,
+      "loweredCount": 0,
+      "overrideCount": 1,
+      "counts": [
+        { "stage": "default", "error": 11, "warning": 13, "info": 5, "hidden": 0, "none": 1, "listed": 11 },
+        { "stage": "ci", "error": 11, "warning": 11, "info": 7, "hidden": 0, "none": 1, "listed": 13 },
+        { "stage": "vnext", "error": 13, "warning": 12, "info": 5, "hidden": 0, "none": 0, "listed": 12 }
+      ],
+      "entries": [
+        { "id": "PC0001", "analyzer": "PC", "title": "", "from": "Warning", "fromSource": "default", "to": "Error", "lowered": false, "justification": null },
+        { "id": "LC0054", "analyzer": "LC", "title": "", "from": "None", "fromSource": "default", "to": "Info", "lowered": false, "justification": null },
+        { "id": "CM0001", "analyzer": "CM", "title": "", "from": "Info", "fromSource": "level:strict", "to": "Warning", "lowered": false, "justification": null }
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "name": "default",
+      "slug": "default",
+      "description": "Editor and any consumer without its own stage. The level result as is.",
+      "entryCount": 0,
+      "quarantineCount": 1,
+      "overrideCount": 1,
+      "counts": [
+        { "level": "essential", "error": 7, "warning": 9, "info": 2, "hidden": 1, "none": 11, "listed": 10 },
+        { "level": "recommended", "error": 9, "warning": 14, "info": 3, "hidden": 1, "none": 3, "listed": 4 },
+        { "level": "strict", "error": 10, "warning": 13, "info": 5, "hidden": 0, "none": 2, "listed": 9 },
+        { "level": "complete", "error": 11, "warning": 13, "info": 5, "hidden": 0, "none": 1, "listed": 11 }
+      ],
+      "entries": []
+    },
+    {
+      "name": "CI",
+      "slug": "ci",
+      "description": "Pull request and release builds. Postponable diagnostics relaxed to Info.",
+      "file": "stages/ci.json",
+      "entryCount": 3,
+      "quarantineCount": 1,
+      "overrideCount": 2,
+      "counts": [
+        { "level": "essential", "error": 7, "warning": 7, "info": 4, "hidden": 1, "none": 11, "listed": 12 },
+        { "level": "recommended", "error": 9, "warning": 10, "info": 6, "hidden": 1, "none": 4, "listed": 8 },
+        { "level": "strict", "error": 10, "warning": 11, "info": 7, "hidden": 0, "none": 2, "listed": 11 },
+        { "level": "complete", "error": 11, "warning": 11, "info": 7, "hidden": 0, "none": 1, "listed": 13 }
+      ],
+      "entries": [
+        { "id": "AL0432", "analyzer": "AL", "title": "", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI; S-2", "noEffect": ["essential"], "quarantined": false, "overridden": [] },
+        { "id": "AL0603", "analyzer": "AL", "title": "", "action": "Info", "justification": "Implicit conversion is advisory in CI; S-2", "noEffect": [], "quarantined": false, "overridden": [] },
+        { "id": "AL1026", "analyzer": "AL", "title": "", "action": "Info", "justification": null, "noEffect": [], "quarantined": false, "overridden": [] }
+      ]
+    },
+    {
+      "name": "vNext",
+      "slug": "vnext",
+      "description": "Builds against the next platform. Future errors at Error, obsolete-pending at Warning.",
+      "file": "stages/vnext.json",
+      "entryCount": 2,
+      "quarantineCount": 0,
+      "overrideCount": 1,
+      "counts": [
+        { "level": "essential", "error": 8, "warning": 9, "info": 2, "hidden": 1, "none": 10, "listed": 10 },
+        { "level": "recommended", "error": 11, "warning": 13, "info": 3, "hidden": 1, "none": 2, "listed": 5 },
+        { "level": "strict", "error": 12, "warning": 12, "info": 5, "hidden": 0, "none": 1, "listed": 10 },
+        { "level": "complete", "error": 13, "warning": 12, "info": 5, "hidden": 0, "none": 0, "listed": 12 }
+      ],
+      "entries": [
+        { "id": "AL0604", "analyzer": "AL", "title": "", "action": "Error", "justification": "Future error on the next platform; S-1", "noEffect": [], "quarantined": false, "overridden": [] },
+        { "id": "LC0029", "analyzer": "LC", "title": "", "action": "Error", "justification": null, "noEffect": ["essential"], "quarantined": false, "overridden": [] }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "AL0001",
+      "analyzer": "AL",
+      "title": "",
+      "docsUrl": "",
+      "default": "Error",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Error", "source": "default" },
+        "essential.ci": { "action": "Error", "source": "default" },
+        "essential.vnext": { "action": "Error", "source": "default" },
+        "recommended.default": { "action": "Error", "source": "default" },
+        "recommended.ci": { "action": "Error", "source": "default" },
+        "recommended.vnext": { "action": "Error", "source": "default" },
+        "strict.default": { "action": "Error", "source": "default" },
+        "strict.ci": { "action": "Error", "source": "default" },
+        "strict.vnext": { "action": "Error", "source": "default" },
+        "complete.default": { "action": "Error", "source": "default" },
+        "complete.ci": { "action": "Error", "source": "default" },
+        "complete.vnext": { "action": "Error", "source": "default" }
+      }
+    },
+    {
+      "id": "AL0200",
+      "analyzer": "AL",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "level:essential" },
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "essential.vnext": { "action": "None", "source": "level:essential" },
+        "recommended.default": { "action": "Warning", "source": "level:recommended" },
+        "recommended.ci": { "action": "Warning", "source": "level:recommended" },
+        "recommended.vnext": { "action": "Warning", "source": "level:recommended" },
+        "strict.default": { "action": "Warning", "source": "level:recommended" },
+        "strict.ci": { "action": "Warning", "source": "level:recommended" },
+        "strict.vnext": { "action": "Warning", "source": "level:recommended" },
+        "complete.default": { "action": "Warning", "source": "level:recommended" },
+        "complete.ci": { "action": "Warning", "source": "level:recommended" },
+        "complete.vnext": { "action": "Warning", "source": "level:recommended" }
+      }
+    },
+    {
+      "id": "AL0432",
+      "analyzer": "AL",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": { "stage:ci": "Replacement may not exist yet; advisory in CI; S-2" },
+      "cells": {
+        "essential.default": { "action": "None", "source": "level:essential" },
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "essential.vnext": { "action": "None", "source": "level:essential" },
+        "recommended.default": { "action": "Warning", "source": "level:recommended" },
+        "recommended.ci": { "action": "Info", "source": "stage:ci" },
+        "recommended.vnext": { "action": "Warning", "source": "level:recommended" },
+        "strict.default": { "action": "Warning", "source": "level:recommended" },
+        "strict.ci": { "action": "Info", "source": "stage:ci" },
+        "strict.vnext": { "action": "Warning", "source": "level:recommended" },
+        "complete.default": { "action": "Warning", "source": "level:recommended" },
+        "complete.ci": { "action": "Info", "source": "stage:ci" },
+        "complete.vnext": { "action": "Warning", "source": "level:recommended" }
+      }
+    },
+    {
+      "id": "AL0603",
+      "analyzer": "AL",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": { "level:strict": "Fixture: a level lowers an id that is enabled by default", "stage:ci": "Implicit conversion is advisory in CI; S-2" },
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Info", "source": "stage:ci" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "Warning", "source": "default" },
+        "recommended.ci": { "action": "Info", "source": "stage:ci" },
+        "recommended.vnext": { "action": "Warning", "source": "default" },
+        "strict.default": { "action": "Info", "source": "level:strict" },
+        "strict.ci": { "action": "Info", "source": "stage:ci" },
+        "strict.vnext": { "action": "Info", "source": "level:strict" },
+        "complete.default": { "action": "Info", "source": "level:strict" },
+        "complete.ci": { "action": "Info", "source": "stage:ci" },
+        "complete.vnext": { "action": "Info", "source": "level:strict" }
+      }
+    },
+    {
+      "id": "AL0604",
+      "analyzer": "AL",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": { "stage:vnext": "Future error on the next platform; S-1" },
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Warning", "source": "default" },
+        "essential.vnext": { "action": "Error", "source": "stage:vnext" },
+        "recommended.default": { "action": "Warning", "source": "default" },
+        "recommended.ci": { "action": "Warning", "source": "default" },
+        "recommended.vnext": { "action": "Error", "source": "stage:vnext" },
+        "strict.default": { "action": "Warning", "source": "default" },
+        "strict.ci": { "action": "Warning", "source": "default" },
+        "strict.vnext": { "action": "Error", "source": "stage:vnext" },
+        "complete.default": { "action": "Warning", "source": "default" },
+        "complete.ci": { "action": "Warning", "source": "default" },
+        "complete.vnext": { "action": "Error", "source": "stage:vnext" }
+      }
+    },
+    {
+      "id": "AL1026",
+      "analyzer": "AL",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Info", "source": "stage:ci" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "Warning", "source": "default" },
+        "recommended.ci": { "action": "Info", "source": "stage:ci" },
+        "recommended.vnext": { "action": "Warning", "source": "default" },
+        "strict.default": { "action": "Warning", "source": "default" },
+        "strict.ci": { "action": "Info", "source": "stage:ci" },
+        "strict.vnext": { "action": "Warning", "source": "default" },
+        "complete.default": { "action": "Warning", "source": "default" },
+        "complete.ci": { "action": "Info", "source": "stage:ci" },
+        "complete.vnext": { "action": "Warning", "source": "default" }
+      }
+    },
+    {
+      "id": "AA0001",
+      "analyzer": "AA",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "level:essential" },
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "essential.vnext": { "action": "None", "source": "level:essential" },
+        "recommended.default": { "action": "Warning", "source": "level:recommended" },
+        "recommended.ci": { "action": "Warning", "source": "level:recommended" },
+        "recommended.vnext": { "action": "Warning", "source": "level:recommended" },
+        "strict.default": { "action": "Warning", "source": "level:recommended" },
+        "strict.ci": { "action": "Warning", "source": "level:recommended" },
+        "strict.vnext": { "action": "Warning", "source": "level:recommended" },
+        "complete.default": { "action": "Warning", "source": "level:recommended" },
+        "complete.ci": { "action": "Warning", "source": "level:recommended" },
+        "complete.vnext": { "action": "Warning", "source": "level:recommended" }
+      }
+    },
+    {
+      "id": "AA0072",
+      "analyzer": "AA",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Info", "source": "override", "override": 0, "fallback": "None", "fallbackSource": "level:essential" },
+        "essential.ci": { "action": "Info", "source": "override", "override": 0, "fallback": "None", "fallbackSource": "level:essential" },
+        "essential.vnext": { "action": "Info", "source": "override", "override": 0, "fallback": "None", "fallbackSource": "level:essential" },
+        "recommended.default": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "recommended.ci": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "recommended.vnext": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "strict.default": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "strict.ci": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "strict.vnext": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "complete.default": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "complete.ci": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "complete.vnext": { "action": "Info", "source": "override", "override": 0, "fallback": "Warning", "fallbackSource": "level:recommended" }
+      }
+    },
+    {
+      "id": "AA0137",
+      "analyzer": "AA",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Warning", "source": "default" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "Warning", "source": "default" },
+        "recommended.ci": { "action": "Warning", "source": "default" },
+        "recommended.vnext": { "action": "Warning", "source": "default" },
+        "strict.default": { "action": "Error", "source": "level:strict" },
+        "strict.ci": { "action": "Error", "source": "level:strict" },
+        "strict.vnext": { "action": "Error", "source": "level:strict" },
+        "complete.default": { "action": "Error", "source": "level:strict" },
+        "complete.ci": { "action": "Error", "source": "level:strict" },
+        "complete.vnext": { "action": "Error", "source": "level:strict" }
+      }
+    },
+    {
+      "id": "AW0006",
+      "analyzer": "AW",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": { "level:recommended": "Fixture: raised above its Warning default from Recommended" },
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Warning", "source": "default" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "Error", "source": "level:recommended" },
+        "recommended.ci": { "action": "Error", "source": "level:recommended" },
+        "recommended.vnext": { "action": "Error", "source": "level:recommended" },
+        "strict.default": { "action": "Error", "source": "level:recommended" },
+        "strict.ci": { "action": "Error", "source": "level:recommended" },
+        "strict.vnext": { "action": "Error", "source": "level:recommended" },
+        "complete.default": { "action": "Error", "source": "level:recommended" },
+        "complete.ci": { "action": "Error", "source": "level:recommended" },
+        "complete.vnext": { "action": "Error", "source": "level:recommended" }
+      }
+    },
+    {
+      "id": "PTE0001",
+      "analyzer": "PTE",
+      "title": "",
+      "docsUrl": "",
+      "default": "Error",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Error", "source": "default" },
+        "essential.ci": { "action": "Error", "source": "default" },
+        "essential.vnext": { "action": "Error", "source": "default" },
+        "recommended.default": { "action": "Error", "source": "default" },
+        "recommended.ci": { "action": "Error", "source": "default" },
+        "recommended.vnext": { "action": "Error", "source": "default" },
+        "strict.default": { "action": "Error", "source": "default" },
+        "strict.ci": { "action": "Error", "source": "default" },
+        "strict.vnext": { "action": "Error", "source": "default" },
+        "complete.default": { "action": "Error", "source": "default" },
+        "complete.ci": { "action": "Error", "source": "default" },
+        "complete.vnext": { "action": "Error", "source": "default" }
+      }
+    },
+    {
+      "id": "PTE0003",
+      "analyzer": "PTE",
+      "title": "",
+      "docsUrl": "",
+      "default": "Error",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Error", "source": "default" },
+        "essential.ci": { "action": "Error", "source": "default" },
+        "essential.vnext": { "action": "Error", "source": "default" },
+        "recommended.default": { "action": "Error", "source": "default" },
+        "recommended.ci": { "action": "Error", "source": "default" },
+        "recommended.vnext": { "action": "Error", "source": "default" },
+        "strict.default": { "action": "Error", "source": "default" },
+        "strict.ci": { "action": "Error", "source": "default" },
+        "strict.vnext": { "action": "Error", "source": "default" },
+        "complete.default": { "action": "Error", "source": "default" },
+        "complete.ci": { "action": "Error", "source": "default" },
+        "complete.vnext": { "action": "Error", "source": "default" }
+      }
+    },
+    {
+      "id": "PTE0011",
+      "analyzer": "PTE",
+      "title": "",
+      "docsUrl": "",
+      "default": "Error",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Error", "source": "default" },
+        "essential.ci": { "action": "Error", "source": "default" },
+        "essential.vnext": { "action": "Error", "source": "default" },
+        "recommended.default": { "action": "Error", "source": "default" },
+        "recommended.ci": { "action": "Error", "source": "default" },
+        "recommended.vnext": { "action": "Error", "source": "default" },
+        "strict.default": { "action": "Error", "source": "default" },
+        "strict.ci": { "action": "Error", "source": "default" },
+        "strict.vnext": { "action": "Error", "source": "default" },
+        "complete.default": { "action": "Error", "source": "default" },
+        "complete.ci": { "action": "Error", "source": "default" },
+        "complete.vnext": { "action": "Error", "source": "default" }
+      }
+    },
+    {
+      "id": "AS0001",
+      "analyzer": "AS",
+      "title": "",
+      "docsUrl": "",
+      "default": "Error",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Error", "source": "default" },
+        "essential.ci": { "action": "Error", "source": "default" },
+        "essential.vnext": { "action": "Error", "source": "default" },
+        "recommended.default": { "action": "Error", "source": "default" },
+        "recommended.ci": { "action": "Error", "source": "default" },
+        "recommended.vnext": { "action": "Error", "source": "default" },
+        "strict.default": { "action": "Error", "source": "default" },
+        "strict.ci": { "action": "Error", "source": "default" },
+        "strict.vnext": { "action": "Error", "source": "default" },
+        "complete.default": { "action": "Error", "source": "default" },
+        "complete.ci": { "action": "Error", "source": "default" },
+        "complete.vnext": { "action": "Error", "source": "default" }
+      }
+    },
+    {
+      "id": "AS0048",
+      "analyzer": "AS",
+      "title": "",
+      "docsUrl": "",
+      "default": "Error",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Error", "source": "default" },
+        "essential.ci": { "action": "Error", "source": "default" },
+        "essential.vnext": { "action": "Error", "source": "default" },
+        "recommended.default": { "action": "Error", "source": "default" },
+        "recommended.ci": { "action": "Error", "source": "default" },
+        "recommended.vnext": { "action": "Error", "source": "default" },
+        "strict.default": { "action": "Error", "source": "default" },
+        "strict.ci": { "action": "Error", "source": "default" },
+        "strict.vnext": { "action": "Error", "source": "default" },
+        "complete.default": { "action": "Error", "source": "default" },
+        "complete.ci": { "action": "Error", "source": "default" },
+        "complete.vnext": { "action": "Error", "source": "default" }
+      }
+    },
+    {
+      "id": "AS0061",
+      "analyzer": "AS",
+      "title": "",
+      "docsUrl": "",
+      "default": "Error",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Error", "source": "default" },
+        "essential.ci": { "action": "Error", "source": "default" },
+        "essential.vnext": { "action": "Error", "source": "default" },
+        "recommended.default": { "action": "Error", "source": "default" },
+        "recommended.ci": { "action": "Error", "source": "default" },
+        "recommended.vnext": { "action": "Error", "source": "default" },
+        "strict.default": { "action": "Error", "source": "default" },
+        "strict.ci": { "action": "Error", "source": "default" },
+        "strict.vnext": { "action": "Error", "source": "default" },
+        "complete.default": { "action": "Error", "source": "default" },
+        "complete.ci": { "action": "Error", "source": "default" },
+        "complete.vnext": { "action": "Error", "source": "default" }
+      }
+    },
+    {
+      "id": "AS0084",
+      "analyzer": "AS",
+      "title": "",
+      "docsUrl": "",
+      "default": "Error",
+      "enabledByDefault": true,
+      "justifications": { "level:essential": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential" },
+      "cells": {
+        "essential.default": { "action": "None", "source": "level:essential" },
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "essential.vnext": { "action": "None", "source": "level:essential" },
+        "recommended.default": { "action": "Error", "source": "level:recommended" },
+        "recommended.ci": { "action": "Error", "source": "level:recommended" },
+        "recommended.vnext": { "action": "Error", "source": "level:recommended" },
+        "strict.default": { "action": "Error", "source": "level:recommended" },
+        "strict.ci": { "action": "Error", "source": "level:recommended" },
+        "strict.vnext": { "action": "Error", "source": "level:recommended" },
+        "complete.default": { "action": "Error", "source": "level:recommended" },
+        "complete.ci": { "action": "Error", "source": "level:recommended" },
+        "complete.vnext": { "action": "Error", "source": "level:recommended" }
+      }
+    },
+    {
+      "id": "PC0001",
+      "analyzer": "PC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Warning", "source": "default" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "Warning", "source": "default" },
+        "recommended.ci": { "action": "Warning", "source": "default" },
+        "recommended.vnext": { "action": "Warning", "source": "default" },
+        "strict.default": { "action": "Warning", "source": "default" },
+        "strict.ci": { "action": "Warning", "source": "default" },
+        "strict.vnext": { "action": "Warning", "source": "default" },
+        "complete.default": { "action": "Error", "source": "level:complete" },
+        "complete.ci": { "action": "Error", "source": "level:complete" },
+        "complete.vnext": { "action": "Error", "source": "level:complete" }
+      }
+    },
+    {
+      "id": "AC0001",
+      "analyzer": "AC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Info",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Info", "source": "default" },
+        "essential.ci": { "action": "Info", "source": "default" },
+        "essential.vnext": { "action": "Info", "source": "default" },
+        "recommended.default": { "action": "Warning", "source": "level:recommended" },
+        "recommended.ci": { "action": "Warning", "source": "level:recommended" },
+        "recommended.vnext": { "action": "Warning", "source": "level:recommended" },
+        "strict.default": { "action": "Warning", "source": "level:recommended" },
+        "strict.ci": { "action": "Warning", "source": "level:recommended" },
+        "strict.vnext": { "action": "Warning", "source": "level:recommended" },
+        "complete.default": { "action": "Warning", "source": "level:recommended" },
+        "complete.ci": { "action": "Warning", "source": "level:recommended" },
+        "complete.vnext": { "action": "Warning", "source": "level:recommended" }
+      }
+    },
+    {
+      "id": "LC0001",
+      "analyzer": "LC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Warning", "source": "default" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "Warning", "source": "default" },
+        "recommended.ci": { "action": "Warning", "source": "default" },
+        "recommended.vnext": { "action": "Warning", "source": "default" },
+        "strict.default": { "action": "Warning", "source": "default" },
+        "strict.ci": { "action": "Warning", "source": "default" },
+        "strict.vnext": { "action": "Warning", "source": "default" },
+        "complete.default": { "action": "Warning", "source": "default" },
+        "complete.ci": { "action": "Warning", "source": "default" },
+        "complete.vnext": { "action": "Warning", "source": "default" }
+      }
+    },
+    {
+      "id": "LC0015",
+      "analyzer": "LC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Info",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "level:essential" },
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "essential.vnext": { "action": "None", "source": "level:essential" },
+        "recommended.default": { "action": "Info", "source": "level:recommended" },
+        "recommended.ci": { "action": "Info", "source": "level:recommended" },
+        "recommended.vnext": { "action": "Info", "source": "level:recommended" },
+        "strict.default": { "action": "Warning", "source": "level:strict" },
+        "strict.ci": { "action": "Warning", "source": "level:strict" },
+        "strict.vnext": { "action": "Warning", "source": "level:strict" },
+        "complete.default": { "action": "Warning", "source": "level:strict" },
+        "complete.ci": { "action": "Warning", "source": "level:strict" },
+        "complete.vnext": { "action": "Warning", "source": "level:strict" }
+      }
+    },
+    {
+      "id": "LC0029",
+      "analyzer": "LC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "level:essential" },
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "essential.vnext": { "action": "None", "source": "level:essential" },
+        "recommended.default": { "action": "Warning", "source": "level:recommended" },
+        "recommended.ci": { "action": "None", "source": "override", "override": 1, "fallback": "Warning", "fallbackSource": "level:recommended" },
+        "recommended.vnext": { "action": "Error", "source": "stage:vnext" },
+        "strict.default": { "action": "Warning", "source": "level:recommended" },
+        "strict.ci": { "action": "Warning", "source": "level:recommended" },
+        "strict.vnext": { "action": "Error", "source": "stage:vnext" },
+        "complete.default": { "action": "Warning", "source": "level:recommended" },
+        "complete.ci": { "action": "Warning", "source": "level:recommended" },
+        "complete.vnext": { "action": "Error", "source": "stage:vnext" }
+      }
+    },
+    {
+      "id": "LC0054",
+      "analyzer": "LC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Info",
+      "enabledByDefault": false,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "default" },
+        "essential.ci": { "action": "None", "source": "default" },
+        "essential.vnext": { "action": "None", "source": "default" },
+        "recommended.default": { "action": "None", "source": "default" },
+        "recommended.ci": { "action": "None", "source": "default" },
+        "recommended.vnext": { "action": "None", "source": "default" },
+        "strict.default": { "action": "None", "source": "default" },
+        "strict.ci": { "action": "None", "source": "default" },
+        "strict.vnext": { "action": "None", "source": "default" },
+        "complete.default": { "action": "Info", "source": "level:complete" },
+        "complete.ci": { "action": "Info", "source": "level:complete" },
+        "complete.vnext": { "action": "Info", "source": "level:complete" }
+      }
+    },
+    {
+      "id": "LC0089",
+      "analyzer": "LC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Warning", "source": "default" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "Warning", "source": "default" },
+        "recommended.ci": { "action": "Warning", "source": "default" },
+        "recommended.vnext": { "action": "Warning", "source": "default" },
+        "strict.default": { "action": "Warning", "source": "default" },
+        "strict.ci": { "action": "Warning", "source": "default" },
+        "strict.vnext": { "action": "Warning", "source": "default" },
+        "complete.default": { "action": "Warning", "source": "default" },
+        "complete.ci": { "action": "Warning", "source": "default" },
+        "complete.vnext": { "action": "Warning", "source": "default" }
+      }
+    },
+    {
+      "id": "LC0089i",
+      "analyzer": "LC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Info",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "level:essential" },
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "essential.vnext": { "action": "None", "source": "level:essential" },
+        "recommended.default": { "action": "Info", "source": "level:recommended" },
+        "recommended.ci": { "action": "Info", "source": "level:recommended" },
+        "recommended.vnext": { "action": "Info", "source": "level:recommended" },
+        "strict.default": { "action": "Info", "source": "level:recommended" },
+        "strict.ci": { "action": "Info", "source": "level:recommended" },
+        "strict.vnext": { "action": "Info", "source": "level:recommended" },
+        "complete.default": { "action": "Info", "source": "level:recommended" },
+        "complete.ci": { "action": "Info", "source": "level:recommended" },
+        "complete.vnext": { "action": "Info", "source": "level:recommended" }
+      }
+    },
+    {
+      "id": "LC0099",
+      "analyzer": "LC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "quarantine", "fallback": "Warning", "fallbackSource": "default" },
+        "essential.ci": { "action": "None", "source": "quarantine", "fallback": "Warning", "fallbackSource": "default" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "None", "source": "quarantine", "fallback": "Warning", "fallbackSource": "default" },
+        "recommended.ci": { "action": "None", "source": "quarantine", "fallback": "Warning", "fallbackSource": "default" },
+        "recommended.vnext": { "action": "Warning", "source": "default" },
+        "strict.default": { "action": "None", "source": "quarantine", "fallback": "Warning", "fallbackSource": "default" },
+        "strict.ci": { "action": "None", "source": "quarantine", "fallback": "Warning", "fallbackSource": "default" },
+        "strict.vnext": { "action": "Warning", "source": "default" },
+        "complete.default": { "action": "None", "source": "quarantine", "fallback": "Warning", "fallbackSource": "default" },
+        "complete.ci": { "action": "None", "source": "quarantine", "fallback": "Warning", "fallbackSource": "default" },
+        "complete.vnext": { "action": "Warning", "source": "default" }
+      }
+    },
+    {
+      "id": "DC0001",
+      "analyzer": "DC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "level:essential" },
+        "essential.ci": { "action": "None", "source": "level:essential" },
+        "essential.vnext": { "action": "None", "source": "level:essential" },
+        "recommended.default": { "action": "Warning", "source": "level:recommended" },
+        "recommended.ci": { "action": "Warning", "source": "level:recommended" },
+        "recommended.vnext": { "action": "Warning", "source": "level:recommended" },
+        "strict.default": { "action": "Warning", "source": "level:recommended" },
+        "strict.ci": { "action": "Warning", "source": "level:recommended" },
+        "strict.vnext": { "action": "Warning", "source": "level:recommended" },
+        "complete.default": { "action": "Warning", "source": "level:recommended" },
+        "complete.ci": { "action": "Warning", "source": "level:recommended" },
+        "complete.vnext": { "action": "Warning", "source": "level:recommended" }
+      }
+    },
+    {
+      "id": "FC0001",
+      "analyzer": "FC",
+      "title": "",
+      "docsUrl": "",
+      "default": "Hidden",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Hidden", "source": "default" },
+        "essential.ci": { "action": "Hidden", "source": "default" },
+        "essential.vnext": { "action": "Hidden", "source": "default" },
+        "recommended.default": { "action": "Hidden", "source": "default" },
+        "recommended.ci": { "action": "Hidden", "source": "default" },
+        "recommended.vnext": { "action": "Hidden", "source": "default" },
+        "strict.default": { "action": "Info", "source": "level:strict" },
+        "strict.ci": { "action": "Info", "source": "level:strict" },
+        "strict.vnext": { "action": "Info", "source": "level:strict" },
+        "complete.default": { "action": "Info", "source": "level:strict" },
+        "complete.ci": { "action": "Info", "source": "level:strict" },
+        "complete.vnext": { "action": "Info", "source": "level:strict" }
+      }
+    },
+    {
+      "id": "TA0001",
+      "analyzer": "TA",
+      "title": "",
+      "docsUrl": "",
+      "default": "Warning",
+      "enabledByDefault": true,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "Warning", "source": "default" },
+        "essential.ci": { "action": "Warning", "source": "default" },
+        "essential.vnext": { "action": "Warning", "source": "default" },
+        "recommended.default": { "action": "Warning", "source": "default" },
+        "recommended.ci": { "action": "Warning", "source": "default" },
+        "recommended.vnext": { "action": "Warning", "source": "default" },
+        "strict.default": { "action": "Warning", "source": "default" },
+        "strict.ci": { "action": "Warning", "source": "default" },
+        "strict.vnext": { "action": "Warning", "source": "default" },
+        "complete.default": { "action": "Warning", "source": "default" },
+        "complete.ci": { "action": "Warning", "source": "default" },
+        "complete.vnext": { "action": "Warning", "source": "default" }
+      }
+    },
+    {
+      "id": "CM0001",
+      "analyzer": "CM",
+      "title": "",
+      "docsUrl": "",
+      "default": "Info",
+      "enabledByDefault": false,
+      "justifications": {},
+      "cells": {
+        "essential.default": { "action": "None", "source": "default" },
+        "essential.ci": { "action": "None", "source": "default" },
+        "essential.vnext": { "action": "None", "source": "default" },
+        "recommended.default": { "action": "None", "source": "default" },
+        "recommended.ci": { "action": "None", "source": "default" },
+        "recommended.vnext": { "action": "None", "source": "default" },
+        "strict.default": { "action": "Info", "source": "level:strict" },
+        "strict.ci": { "action": "Info", "source": "level:strict" },
+        "strict.vnext": { "action": "Info", "source": "level:strict" },
+        "complete.default": { "action": "Warning", "source": "level:complete" },
+        "complete.ci": { "action": "Warning", "source": "level:complete" },
+        "complete.vnext": { "action": "Warning", "source": "level:complete" }
+      }
+    }
+  ],
+  "overrides": [
+    { "id": "AA0072", "action": "Info", "levels": ["*"], "stages": ["*"] },
+    { "id": "LC0029", "action": "None", "levels": ["recommended"], "stages": ["ci"] }
+  ],
+  "quarantine": {
+    "default": [
+      { "id": "LC0099" }
+    ],
+    "ci": [
+      { "id": "LC0099" }
+    ],
+    "vnext": []
+  }
+}

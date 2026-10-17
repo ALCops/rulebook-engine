@@ -39,8 +39,11 @@ BeforeDiscovery {
     }
 
     $fixturesRoot = Join-Path $PSScriptRoot 'fixtures'
+    # A group holds fixture folders; site-data holds fixture files (its README.md describes them).
     $script:folderCases = @(foreach ($group in 'repos', 'templates', 'matrix', 'deploy') {
             foreach ($folder in Get-ChildItem -LiteralPath (Join-Path $fixturesRoot $group) -Directory) { @{ Group = $group; Name = $folder.Name } }
+        }) + @(foreach ($group in @('site-data')) {
+            foreach ($file in Get-ChildItem -LiteralPath (Join-Path $fixturesRoot $group) -File | Where-Object Name -NE 'README.md') { @{ Group = $group; Name = $file.Name } }
         })
     $script:repoFolderCases = @($folderCases | Where-Object { $_.Group -eq 'repos' })
 }

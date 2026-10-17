@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "changes": [
+    { "op": "rename", "id": "LC0015", "levels": ["strict"], "stages": ["ci"] }
+  ]
+}
