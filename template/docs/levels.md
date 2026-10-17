@@ -201,7 +201,7 @@ After the update (or a local regeneration and the next update for the form):
 
 - **Endpoints**: `rulesets/<level>.ruleset.json` for `default` and `rulesets/<level>.<stage>.ruleset.json` for the other stages, published by the Publish workflow at `<baseUrl>/rulesets/...`.
 - **Skeletons**: `skeletons/<level>.<stage>.ruleset.json`, one per stage, offered on the setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off).
-- **Setup page, dashboard and `rulebook.json`**: one row (on the dashboard one column) per level in settings order, and a page `<baseUrl>/levels/<slug>/` for every level ([dashboard.md](dashboard.md)). In the live run `rulebook.json` listed off, baseline, recommended, house, strict and complete (*observed*).
+- **Setup page, dashboard and `rulebook.json`**: one row per level on the setup page, one column on the dashboard, in settings order, and a page `<baseUrl>/levels/<slug>/` for every level ([dashboard.md](dashboard.md)). In the live run `rulebook.json` listed off, baseline, recommended, house, strict and complete (*observed*).
 - **Change Rule form**: the level and stage choices follow the settings after one update ([changing-a-rule.md](changing-a-rule.md) section 8). `off` is written quoted (`'off'`) because a bare `off` is a boolean in YAML (*observed*).
 - **Init script**: `Get-RulebookSkeletons.ps1 -Level <slug or name>` downloads the skeletons of a published level ([al-project.md](al-project.md)). For a level that is not published it stops with "Level 'essential' is not published at https://arthurvdv.github.io/rulebook-e2e-levels. Published levels: off, baseline, recommended, house, strict, complete (use the slug or the name)." (*observed*).
 
