@@ -42,8 +42,11 @@ BeforeDiscovery {
     ) | ForEach-Object { @{ Name = $_; Path = Join-Path $fixtureDir $_; Hub = $hub } }
 
     # Every JSON file under template/ with the schema of its folder (naming.md section 2); $null when none applies.
+    # site/data/ is skipped: the site data export (WP14) lands there in a local Hugo build and is gitignored.
     $templateDir = Join-Path $repoRoot 'template'
-    $script:templateCases = @(Get-ChildItem -Path $templateDir -Recurse -File -Force -Filter '*.json' | ForEach-Object {
+    $script:templateCases = @(Get-ChildItem -Path $templateDir -Recurse -File -Force -Filter '*.json' | Where-Object {
+            -not ([System.IO.Path]::GetRelativePath($templateDir, $_.FullName) -replace '\\', '/').StartsWith('site/data/', [System.StringComparison]::Ordinal)
+        } | ForEach-Object {
             $relative = [System.IO.Path]::GetRelativePath($templateDir, $_.FullName) -replace '\\', '/'
             $base = switch -Regex ($relative) {
                 '^base/twins\.json$' { 'rulebook-twins'; break }
