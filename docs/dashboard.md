@@ -80,13 +80,14 @@ site/
   .gitignore                 data/, resources/, public/, .hugo_build.lock
   content/
     _index.md                front matter only: the home page
-    _content.gotmpl          content adapter: one page per stage, level and rule of hugo.Data.rulebook
+    _content.gotmpl          content adapter: setup/ and one page per stage, level and rule of hugo.Data.rulebook
   layouts/
     baseof.html              head, header, main block, cart, popover, footer, scripts
     index.html               "/": the matrix of the first stage and the legend
     stages/single.html       stages/<slug>/: the matrix of the stage, the legend, the stage summary
     levels/single.html       levels/<slug>/: the level facts, the counts per stage, the entries of the level file
     rules/single.html        rules/<id>/: the facts of the rule, its justifications, the levels x stages cells
+    setup/single.html        setup/: "Set up an AL project", the section of the plain index page
     partials/                head, header, stage-switcher, filters, matrix, cell, stage-summary, legend,
                              cart, popover, scripts
   assets/css/site.css        plain CSS; the colours are variables under :root
@@ -105,7 +106,7 @@ The Publish action stages `catalog/diagnostics.json` and the full `rulebook.json
 
 1. The step **Install Hugo** (`Publish.ps1 -Phase Install`, `Install-Hugo`) downloads `hugo_extended_0.167.0_linux-amd64.deb` from the Hugo release, compares its SHA256 with the value pinned in `actions/Publish/action.yaml` (`HUGO_VERSION`, `HUGO_SHA256`), installs it with `sudo dpkg -i` and checks `hugo version`. It does nothing when the pinned version is installed already, when the site is off, or when the `hugoPath` input names another Hugo. On Linux any other version is replaced by the pin; off Linux an installed extended Hugo 0.156.0 or later is used as it is, and without one the step fails with failure `site`. Hugo 0.156.0 is the floor (`hugo.Data`, [spike (h)](reference/spikes/h-hugo-content-adapter.md)).
 2. The stage step stages the endpoints, skeletons, data files and the plain `index.html` (`New-RulebookPublishStage`), copies the staged `rulebook.json` to `site/data/rulebook.json` and runs `Build-RulebookSite`: `hugo --source site --destination <staging> --baseURL <baseUrl>/ --quiet --noBuildLock`, without `--cleanDestinationDir`, so the staged files stay and Hugo's `index.html` replaces the plain one. A failed build fails the run with failure `site` and the last 20 lines of Hugo's output; the previous deployment stays live.
-3. The manifest gains one entry of kind `page` for every stage page, every level page and the first rule page, and the reachability check requests them with the catalog.
+3. The manifest gains one entry of kind `page` for every stage page, every level page, the setup page and the first rule page, and the reachability check requests them with the catalog.
 
 A missing `site/hugo.yaml` (an organization that has not updated since the site shipped) is a warning: "run Update Rulebook System Files to get site/, or set site.enabled to false", and the plain `index.html` is published. A built `index.html` without the attribute `data-rulebook-matrix` is a warning only, because a customised layout may drop the matrix. With `site.enabled` false the plain `index.html` of WP05 is published, unchanged.
 
@@ -121,11 +122,12 @@ The site is meaningful for `publish.target: pages` and for `azure-blob` with sta
 | Level page: `levels/<slug>/` | The level file, the chain, the level it is based on, the counts per stage, the entries of the level file with the action below it and after it. | Links to the rule pages. |
 | Rule page: `rules/<id>/` | Title, analyzer, default severity and enablement, docs link, the justifications from the level and stage files, every endpoint's cell with the same markers. | The same popover as the matrix. |
 | Cart | A side panel with the items, the before and after per affected endpoint, the "all levels" and "all stages" toggles, an optional justification per `set`, an optional note, the byte count of the issue link against 7372 bytes. Persisted in `localStorage` under `rulebook-cart:<repository>`. | **Submit on GitHub** opens the prefilled issue form (section 7) in a new tab and clears the cart when the user confirms. Widening or narrowing a change onto the selection of another change keeps the one just changed and drops the other. Over the limit: **Submit in parts** (one click per part, a greedy split in the order of the items) and **Copy change set** with a link to the empty form. |
+| Setup page: `setup/` | The "Set up an AL project" section of the plain index page, heading id `al-project`: the two commands of the init script with the first level as the example (`initScriptUrl`, `baseUrl`, `engineRef`), the `al.ruleSetPath` and AL-Go `rulesetFile` lines with the `al-project.md` link (`alProjectDocsUrl`), the levels, and per stage a table of levels with the endpoint URL, the listed ids and the skeleton. A link that pointed at `<baseUrl>/#al-project` of the plain page points at `<baseUrl>/setup/#al-project` when the site is on. | Linked from the header and the legend. |
 | Legend | A `<details>` block on the matrix and rule pages: what the markers mean, how to change a cell, the help link. | |
 
 Hugo renders every grid and page as static HTML; without JavaScript the pages are complete and the filters, the popover and the cart stay hidden. The before and after come from the data file and nothing else: a `set` shows the chosen action on every matching cell, a `remove` the `fallback` of every cell whose `override` is the index of the removed entry, a `release` the `fallback` of the stage's quarantine cells. The cart repeats no precedence rule. Known limit: after a `set` is widened to every level or stage, a more specific override that already decides a cell still wins there; the cart shows the chosen action, and the pull request of the apply workflow (WP15) is authoritative.
 
-Sizes of the shipped template (628 rules, four levels, three stages; local build with Hugo 0.165.0, CI prints them for every run in the job summary of `publish-action`): about 0.59 MB for `/` and each stage page (0.65 MB for `vnext`), 14 KB to 143 KB per level page, 7.4 KB to 8.8 KB per rule page, 7.7 MB of HTML in 636 pages, built in under half a second.
+Sizes of the shipped template (628 rules, four levels, three stages; local build with Hugo 0.165.0, CI prints them for every run in the job summary of `publish-action`): about 0.59 MB for `/` and each stage page (0.65 MB for `vnext`), about 11 KB for `setup/`, 14 KB to 143 KB per level page, 7.4 KB to 8.8 KB per rule page, 7.7 MB of HTML in 637 pages, built in under half a second.
 
 ## 5. Data contract
 
@@ -133,7 +135,7 @@ Sizes of the shipped template (628 rules, four levels, three stages; local build
 
 > **Status:** since WP06 ([#8](https://github.com/ALCops/rulebook-engine/issues/8), [D43](adr/0043-rulebook-json-is-published-from-wp06-with-levels-and-stages.md)) `<baseUrl>/rulebook.json` is published in its minimal form (`generatedAt`, `repository`, `baseUrl`, `levels[]` with `name`, `slug`, `basedOn`, `description`, `stages[]` with `name`, `slug`, `description`, written by `ConvertTo-RulebookManifestJson`). WP14 extends the same file: the keys of the minimal form keep their names, order and meaning, every other key follows them, and readers such as the init script ignore keys they do not know.
 
-Key order: `generatedAt`, `repository` (when the Publish action knows it), `baseUrl`, `issueTemplate`, `docsUrl`, `levels`, `stages`, `rules`, `overrides`, `quarantine`. Trimmed from the fixture (two of 30 rules, one level and one stage, counts, entries and cells cut short):
+Key order: `generatedAt`, `repository` (when the Publish action knows it), `baseUrl`, `issueTemplate`, `docsUrl`, `initScriptUrl`, `engineRef`, `alProjectDocsUrl`, `levels`, `stages`, `rules`, `overrides`, `quarantine`. Trimmed from the fixture (two of 30 rules, one level and one stage, counts, entries and cells cut short):
 
 ```json
 {
@@ -142,6 +144,9 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
   "baseUrl": "https://contoso.github.io/rulebook",
   "issueTemplate": "rulebook-change.yml",
   "docsUrl": "https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md",
+  "initScriptUrl": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1",
+  "engineRef": "main",
+  "alProjectDocsUrl": "https://github.com/ALCops/rulebook/blob/preview/docs/al-project.md",
   "levels": [
     {
       "name": "Recommended",
@@ -227,7 +232,7 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
 Rules:
 
 - `generatedAt` is UTC text, `yyyy-MM-ddTHH:mm:ssZ`, and the first key. A PowerShell reader parses the file with `ConvertFrom-Json -DateKind String` (PowerShell 7.5 and later) or reads the value from the text: plain `ConvertFrom-Json` turns it into a `DateTime` ([#62](https://github.com/ALCops/rulebook-engine/issues/62)). The engine's tests check it with a regular expression on the text.
-- `issueTemplate` is the constant `rulebook-change.yml` (section 7); `repository` and `issueTemplate` build the cart's issue URL. `docsUrl` is the dashboard user page on the template ref the engine ref maps to (`Get-RulebookDocsUrl`: engine `v1` reads the template's `main`, engine `main` its `preview`, a tag the same tag); it is the only value that names a branch.
+- `issueTemplate` is the constant `rulebook-change.yml` (section 7); `repository` and `issueTemplate` build the cart's issue URL. `docsUrl` is the dashboard user page on the template ref the engine ref maps to (`Get-RulebookDocsUrl`: engine `v1` reads the template's `main`, engine `main` its `preview`, a tag the same tag). `initScriptUrl` (the init script `scripts/Get-RulebookSkeletons.ps1` at the engine ref, `Get-RulebookScriptUrl`), `engineRef` (that ref, which the init command passes as `-Ref`) and `alProjectDocsUrl` (the user page `al-project.md`, `Get-RulebookDocsUrl`) feed the setup page (section 4), the same values the plain index page prints. These four are the only values that name a branch; they are computed at publish time from the ref the action runs at, never written into a shipped file.
 - `levels[]` and `stages[]` are in settings order and carry the keys of the minimal form first (`basedOn` and `description` only when set), then the page model. A level has the `Get-RulebookLevelSummary` facts (`file`, `chain` root first, `basedOnName`, `basedOnPublished`, `entryCount`, `loweredCount`, `overrideCount`), `counts` per stage over every catalog id and the `entries` of the level file against the chain below it. A stage has the `Get-RulebookStageSummary` facts (`file`, absent for `default`, `entryCount`, `quarantineCount`, `overrideCount`), `counts` per level and the `entries` of the stage file with `noEffect` (the levels where the id is None before the stage applies: level result or twins, so the entry does not apply, S-4), `quarantined` (the stage's quarantine lists the id, C15) and `overridden` (the levels where an override decides the cell). One data file holds every page of the site.
 - `rules` holds every catalog id and every id an input mentions, in the id order of [composition.md](rulebook/composition.md) section 3 (`Get-DiagnosticSortKey`: prefix order, then number, then the `i` suffix; an unknown prefix after the known ones, an id outside the pattern last), whatever input produced the id: the order the endpoints use ([#51](https://github.com/ALCops/rulebook-engine/issues/51)). An id outside the catalog sorts by the same key and has `unknown: true`, `default: null` and `enabledByDefault: null`. `default` is the catalog's `defaultSeverity`; the analyzers apply it only when `enabledByDefault` is true, otherwise the id is at None.
 - `cells` has one entry per published level and stage, keyed `<levelSlug>.<stageSlug>` in settings order, the `default` stage written; a template iterates `levels` x `stages` and looks a cell up by its key, because a range over the map walks the keys alphabetically. `action` and `source` come from the generator (`Get-RulebookEndpoint`, `Get-EffectiveAction`), `source` being the input that decided the action in the precedence of ARCHITECTURE section 5.1: `override`, `twins`, `stage:<slug>`, `level:<slug>`, `quarantine`, `default`. An id no input mentions has every cell at `default`, so the matrix shows the whole catalog; a cell of an unknown id that no input of that endpoint mentions has `action: null`.

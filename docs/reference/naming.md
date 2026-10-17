@@ -90,6 +90,7 @@ With `site.enabled` true the dashboard site replaces `index.html` and adds, with
 <baseUrl>/stages/<stage>/                          the matrix of one stage and its stage summary (/ is the first stage)
 <baseUrl>/levels/<level>/                          one page per level
 <baseUrl>/rules/<id lowercased>/                   one page per rule
+<baseUrl>/setup/                                   Set up an AL project (#al-project), the section of the plain index
 <baseUrl>/css/site.css, <baseUrl>/js/*.js|*.mjs    the assets, without fingerprints
 ```
 
