@@ -416,6 +416,8 @@ Describe 'Build-RulebookSite' {
 
         function New-SiteCopy {
             # template/site with the committed site data fixture as data/rulebook.json.
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+            param()
             $site = Join-Path (Get-TestFolder) 'site'
             Copy-FixtureTree -Source (Join-Path $repoRoot 'template' 'site') -Destination $site
             if (Test-Path -LiteralPath (Join-Path $site 'data')) { Remove-Item -LiteralPath (Join-Path $site 'data') -Recurse -Force }
@@ -426,6 +428,8 @@ Describe 'Build-RulebookSite' {
 
         function New-Staging {
             # A staging folder that already holds what New-RulebookPublishStage writes before the build.
+            [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
+            param()
             $staging = Get-TestFolder
             [void](New-Item -ItemType Directory -Path (Join-Path $staging 'rulesets'), (Join-Path $staging 'catalog') -Force)
             Set-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Value '{}' -NoNewline

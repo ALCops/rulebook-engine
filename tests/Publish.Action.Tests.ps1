@@ -28,9 +28,11 @@ BeforeAll {
         Copy-FixtureTree -Source $script:templateDir -Destination $destination
         $data = Join-Path $destination 'site' 'data'
         if (Test-Path -LiteralPath $data) { Remove-Item -LiteralPath $data -Recurse -Force }
+        $setBaseUrl = -not $EmptyBaseUrl
+        $siteOff = [bool]$NoSite
         Edit-FixtureJson -Path (Join-Path $destination '.github' 'Rulebook-Settings.json') -Script {
-            if (-not $EmptyBaseUrl) { $_.baseUrl = 'https://contoso.github.io/rulebook' }
-            if ($NoSite) { $_.site.enabled = $false }
+            if ($setBaseUrl) { $_.baseUrl = 'https://contoso.github.io/rulebook' }
+            if ($siteOff) { $_.site.enabled = $false }
         }
         return (Resolve-Path -LiteralPath $destination).ProviderPath
     }
