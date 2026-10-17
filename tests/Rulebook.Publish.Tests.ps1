@@ -106,7 +106,7 @@ Describe 'New-RulebookPublishStage on template/' {
     It 'writes the full site data document, whose head is the minimal form of ConvertTo-RulebookManifestJson' {
         $text = [System.IO.File]::ReadAllText((Join-Path $output 'rulebook.json'), $utf8)
         $json = $text | ConvertFrom-Json -AsHashtable
-        @($json.Keys) | Should-BeCollection @('generatedAt', 'baseUrl', 'issueTemplate', 'docsUrl', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
+        @($json.Keys) | Should-BeCollection @('generatedAt', 'baseUrl', 'issueTemplate', 'docsUrl', 'initScriptUrl', 'engineRef', 'alProjectDocsUrl', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
         $json['issueTemplate'] | Should-Be 'rulebook-change.yml'
         $json['docsUrl'] | Should-Be 'https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md'
         @($json['rules']).Count | Should-Be 628

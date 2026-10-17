@@ -183,19 +183,23 @@ Describe 'Get-RulebookSiteModel' {
         $with.Document['quarantine']['vnext'] | Should-BeCollection @()
     }
 
-    It 'writes issueTemplate, repository and the docsUrl of engine ref <Ref>' -ForEach @(
-        @{ Ref = ''; Expected = 'https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md' }
-        @{ Ref = 'main'; Expected = 'https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md' }
-        @{ Ref = 'v1'; Expected = 'https://github.com/ALCops/rulebook/blob/main/docs/dashboard.md' }
-        @{ Ref = 'v1.0.0-beta.4'; Expected = 'https://github.com/ALCops/rulebook/blob/v1.0.0-beta.4/docs/dashboard.md' }
+    It 'writes issueTemplate, repository, the docsUrl and the setup URLs of engine ref <Ref>' -ForEach @(
+        @{ Ref = ''; Engine = 'main'; Template = 'preview' }
+        @{ Ref = 'main'; Engine = 'main'; Template = 'preview' }
+        @{ Ref = 'v1'; Engine = 'v1'; Template = 'main' }
+        @{ Ref = 'v1.0.0-beta.4'; Engine = 'v1.0.0-beta.4'; Template = 'v1.0.0-beta.4' }
     ) {
         $model = Get-Model -Root $validRoot -EngineRef $Ref
         $document = $model.Document
-        Should-BeCollection -Actual ([string[]]@($document.Keys)) -Expected @('generatedAt', 'repository', 'baseUrl', 'issueTemplate', 'docsUrl', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
+        Should-BeCollection -Actual ([string[]]@($document.Keys)) -Expected @('generatedAt', 'repository', 'baseUrl', 'issueTemplate', 'docsUrl', 'initScriptUrl', 'engineRef', 'alProjectDocsUrl', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
         $document['issueTemplate'] | Should-Be 'rulebook-change.yml'
         $document['repository'] | Should-Be 'contoso/rulebook'
         $document['baseUrl'] | Should-Be $baseUrl
-        $document['docsUrl'] | Should-Be $Expected
+        $document['docsUrl'] | Should-Be "https://github.com/ALCops/rulebook/blob/$Template/docs/dashboard.md"
+        # The setup page: the same init script, ref and user page as the plain index page.
+        $document['initScriptUrl'] | Should-Be "https://raw.githubusercontent.com/ALCops/rulebook-engine/$Engine/scripts/Get-RulebookSkeletons.ps1"
+        $document['engineRef'] | Should-Be $Engine
+        $document['alProjectDocsUrl'] | Should-Be "https://github.com/ALCops/rulebook/blob/$Template/docs/al-project.md"
     }
 
     It 'leaves repository out when it is not known' {
@@ -499,7 +503,7 @@ Describe 'Build-RulebookSite' {
         Get-Content -LiteralPath (Join-Path $staging 'catalog' 'diagnostics.json') -Raw | Should-Be '{}'
         Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw | Should-MatchString 'data-rulebook-matrix="default"'
         $result.MarkerPresent | Should-BeTrue
-        $result.PageCount | Should-Be 38
+        $result.PageCount | Should-Be 39
         $result.Pages[0] | Should-Be 'index.html'
         foreach ($page in 'stages/ci/index.html', 'levels/strict/index.html', 'rules/lc0089i/index.html') { $result.Pages -ccontains $page | Should-BeTrue }
         $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js')
@@ -537,8 +541,9 @@ Describe 'Build-RulebookSite' {
         $staging = New-Staging
         $result = Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination $staging
         $result.MarkerPresent | Should-BeTrue
-        # 30 rules, 3 stages, 4 levels and the home page; no rules/, levels/ or stages/ list page and no 404 page.
-        $result.PageCount | Should-Be 38
+        # 30 rules, 3 stages, 4 levels, the setup page and the home page; no list page for rules/, levels/ or stages/
+        # and no 404 page.
+        $result.PageCount | Should-Be 39
         foreach ($page in 'rules/index.html', 'levels/index.html', 'stages/index.html', '404.html', 'sitemap.xml', 'index.xml') { Test-Path -LiteralPath (Join-Path $staging $page) | Should-BeFalse }
         Test-Path -LiteralPath (Join-Path $site '.hugo_build.lock') | Should-BeFalse
         $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js')
@@ -571,6 +576,16 @@ Describe 'Build-RulebookSite' {
         $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/ci/" data-stage-link="ci" aria-current="page">CI</a>'))
         $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/" data-stage-link="default" aria-current="page">default</a>'))
         Get-Content -LiteralPath (Join-Path $staging 'levels' 'recommended' 'index.html') -Raw | Should-MatchString ([regex]::Escape('<a href="/rulebook/levels/essential/">Essential</a>'))
+        # setup/: the "Set up an AL project" section of the plain index, from the data file, with the al-project anchor.
+        $setup = Get-Content -LiteralPath (Join-Path $staging 'setup' 'index.html') -Raw
+        $setup | Should-MatchString '<h1 id="al-project">Set up an AL project</h1>'
+        $setup | Should-MatchString ([regex]::Escape('Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1'))
+        $setup | Should-MatchString ([regex]::Escape('./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level essential -Ref main'))
+        $setup | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/preview/docs/al-project.md">docs/al-project.md</a>'))
+        $setup | Should-MatchString ([regex]::Escape('<a href="https://contoso.github.io/rulebook/rulesets/strict.ruleset.json"><code>https://contoso.github.io/rulebook/rulesets/strict.ruleset.json</code></a></td><td class="count">9</td><td><a href="https://contoso.github.io/rulebook/skeletons/strict.default.ruleset.json"'))
+        $setup | Should-MatchString ([regex]::Escape('href="https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json"'))
+        $index | Should-MatchString ([regex]::Escape('<a class="nav-setup" href="/rulebook/setup/">Set up an AL project</a>'))
+        $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/setup/#al-project">Set up an AL project</a>'))
         # The two URLs the site shows come from the data file.
         $index | Should-MatchString ([regex]::Escape('href="https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md"'))
         $index | Should-MatchString ([regex]::Escape('href="https://github.com/contoso/rulebook/issues/new?template=rulebook-change.yml"'))

@@ -25,6 +25,9 @@ $script:IssueTemplate = 'rulebook-change.yml'
 $script:MatrixMarker = 'data-rulebook-matrix'
 # The user page the site links, on the template ref the engine ref maps to (Get-RulebookDocsUrl, D53).
 $script:DashboardDocsPage = 'dashboard.md'
+# The init script and the user page the setup page names, as the plain index page does (ConvertTo-RulebookIndexHtml).
+$script:SkeletonScriptName = 'Get-RulebookSkeletons.ps1'
+$script:AlProjectDocsPage = 'al-project.md'
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:Invariant = [System.Globalization.CultureInfo]::InvariantCulture
 # Top-level keys whose object the writer puts one member per line by structure, not by content.
@@ -157,7 +160,8 @@ function Get-RulebookSiteModel {
     Document keys in order: generatedAt (UTC, yyyy-MM-ddTHH:mm:ssZ; a -GeneratedAt of kind Unspecified, such as
     [datetime]'2026-10-17T00:00:00', is read as UTC, not as local time), repository (only when -Repository is set),
     baseUrl, issueTemplate (rulebook-change.yml), docsUrl (the dashboard user page for -EngineRef, Get-RulebookDocsUrl),
-    levels (the keys of the minimal form, then the Get-RulebookLevelSummary model), stages (the same, then the
+    initScriptUrl (Get-RulebookScriptUrl of Get-RulebookSkeletons.ps1), engineRef (the ref the init command passes as
+    -Ref: -EngineRef trimmed, or Get-RulebookEngineRef), alProjectDocsUrl (the al-project.md user page), levels (the keys of the minimal form, then the Get-RulebookLevelSummary model), stages (the same, then the
     Get-RulebookStageSummary model), rules, overrides, quarantine (every settings stage, empty arrays written).
 
     rules: the catalog ids and every id an endpoint lists as a candidate, sorted once by Get-DiagnosticSortKey; an id
@@ -296,6 +300,12 @@ function Get-RulebookSiteModel {
     $document['baseUrl'] = $BaseUrl
     $document['issueTemplate'] = $script:IssueTemplate
     $document['docsUrl'] = Get-RulebookDocsUrl -Page $script:DashboardDocsPage -Ref $EngineRef
+    # The setup page of the site repeats the "Set up an AL project" section of the plain index: one engine ref for the
+    # download and for -Ref, resolved at publish time like docsUrl.
+    $ref = if ([string]::IsNullOrWhiteSpace($EngineRef)) { Get-RulebookEngineRef } else { $EngineRef.Trim() }
+    $document['initScriptUrl'] = Get-RulebookScriptUrl -Name $script:SkeletonScriptName -Ref $ref
+    $document['engineRef'] = $ref
+    $document['alProjectDocsUrl'] = Get-RulebookDocsUrl -Page $script:AlProjectDocsPage -Ref $ref
     $document['levels'] = $levelItems
     $document['stages'] = $stageItems
     $document['rules'] = $rules.ToArray()
