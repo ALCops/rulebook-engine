@@ -1,0 +1,19 @@
+{{- $data := hugo.Data.rulebook -}}
+<header class="site-header">
+  <a class="brand" href="{{ "" | relURL }}">{{ site.Title }}</a>
+  <nav aria-label="Site">
+    {{ partial "stage-switcher.html" (dict "data" $data "page" .) }}
+    <ul class="nav-levels" aria-label="Levels">
+      {{- range $data.levels }}
+      {{- $href := printf "levels/%s/" .slug | relURL }}
+      <li><a href="{{ $href }}"{{ if eq $href $.RelPermalink }} aria-current="page"{{ end }}>{{ .name }}</a></li>
+      {{- end }}
+    </ul>
+    {{- $setup := "setup/" | relURL }}
+    <a class="nav-setup" href="{{ $setup }}"{{ if eq $setup .RelPermalink }} aria-current="page"{{ end }}>Set up an AL project</a>
+    {{- with $data.docsUrl }}
+    <a class="nav-docs" href="{{ . }}">Help</a>
+    {{- end }}
+    <button type="button" class="cart-toggle" aria-controls="cart" aria-expanded="false" hidden>Cart <span class="cart-count">0</span></button>
+  </nav>
+</header>

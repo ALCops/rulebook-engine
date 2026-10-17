@@ -1,0 +1,5 @@
+# Written by the Publish action (data/rulebook.json) and by a local Hugo build.
+data/
+resources/
+public/
+.hugo_build.lock

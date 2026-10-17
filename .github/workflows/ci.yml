@@ -117,13 +117,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Publish writes site/data/rulebook.json into the repository it stages, so it runs on copies of template/ inside
+      # the workspace: .ci-org as shipped (site.enabled true), .ci-org-plain with site.enabled false.
+      - name: Copy the template
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath template -Destination .ci-org -Recurse
+          Copy-Item -LiteralPath template -Destination .ci-org-plain -Recurse
+          $settingsFile = '.ci-org-plain/.github/Rulebook-Settings.json'
+          $settings = Get-Content -LiteralPath $settingsFile -Raw | ConvertFrom-Json -AsHashtable
+          $settings['site']['enabled'] = $false
+          Set-Content -LiteralPath $settingsFile -Value ($settings | ConvertTo-Json -Depth 10)
+
       # deploy 'false' stages only: no Pages preflight, no deploy, no reachability check (the live run is documented
-      # in docs/reference/publish-targets.md).
+      # in docs/reference/publish-targets.md). The action's own Install Hugo step installs the pinned Hugo.
       - name: Stage template (must pass)
         id: stage
         uses: ./actions/Publish
         with:
-          repositoryRoot: template
+          repositoryRoot: .ci-org
           baseUrl: https://example.github.io/rulebook
           deploy: 'false'
 
@@ -139,7 +151,7 @@ jobs:
           $top = @(Get-ChildItem -LiteralPath $env:STAGING_PATH | ForEach-Object Name | Sort-Object)
           if ($endpoints.Count -ne 12) { $failures.Add("expected 12 endpoints, found $($endpoints.Count)") }
           if ($skeletons.Count -ne 12) { $failures.Add("expected 12 skeletons, found $($skeletons.Count)") }
-          if (($top -join ',') -cne 'index.html,rulebook.json,rulesets,skeletons') { $failures.Add("unexpected top level: $($top -join ', ')") }
+          if (($top -join ',') -cne 'catalog,css,index.html,js,levels,rulebook.json,rules,rulesets,setup,skeletons,stages') { $failures.Add("unexpected top level: $($top -join ', ')") }
           $skeleton = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'skeletons' 'strict.ci.ruleset.json') -Raw
           if (-not $skeleton.Contains('"path": "https://example.github.io/rulebook/rulesets/strict.ci.ruleset.json"')) { $failures.Add('skeletons/strict.ci.ruleset.json does not carry the rendered URL') }
           if (-not (Get-Content -LiteralPath template/skeletons/strict.ci.ruleset.json -Raw).Contains('{BASEURL}')) { $failures.Add('template/skeletons/strict.ci.ruleset.json lost {BASEURL}') }
@@ -149,11 +161,78 @@ jobs:
           if ($manifest.repository -cne $env:GITHUB_REPOSITORY) { $failures.Add("rulebook.json has repository '$($manifest.repository)'") }
           if ((@($manifest.levels.slug) -join ',') -cne 'essential,recommended,strict,complete') { $failures.Add("rulebook.json has the levels $(@($manifest.levels.slug) -join ', ')") }
           if ((@($manifest.stages.slug) -join ',') -cne 'default,ci,vnext') { $failures.Add("rulebook.json has the stages $(@($manifest.stages.slug) -join ', ')") }
-          if (-not (Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'index.html') -Raw).Contains('<h2 id="al-project">')) { $failures.Add('index.html has no "Set up an AL project" section') }
+          # The site data: every rule with its 12 cells, the issue form, the user page of the template ref the engine
+          # main maps to (preview), no override justification (site.includeJustifications is false).
+          $data = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'rulebook.json') -Raw | ConvertFrom-Json -AsHashtable
+          if (@($data['rules']).Count -ne 628) { $failures.Add("rulebook.json has $(@($data['rules']).Count) rules, expected 628") }
+          $short = @($data['rules'] | Where-Object { $_['cells'].Count -ne 12 })
+          if ($short.Count -gt 0) { $failures.Add("$($short.Count) rules of rulebook.json do not have 12 cells") }
+          if ($data['issueTemplate'] -cne 'rulebook-change.yml') { $failures.Add("rulebook.json has issueTemplate '$($data['issueTemplate'])'") }
+          if ($data['docsUrl'] -cne 'https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md') { $failures.Add("rulebook.json has docsUrl '$($data['docsUrl'])'") }
+          if (@($data['overrides'] | Where-Object { $_.Contains('justification') }).Count -gt 0) { $failures.Add('rulebook.json carries an override justification') }
+          $catalogSource = (Get-FileHash -LiteralPath .ci-org/catalog/diagnostics.json -Algorithm SHA256).Hash
+          $catalogStaged = (Get-FileHash -LiteralPath (Join-Path $env:STAGING_PATH 'catalog' 'diagnostics.json') -Algorithm SHA256).Hash
+          if ($catalogStaged -cne $catalogSource) { $failures.Add('catalog/diagnostics.json differs from the repository file') }
+          # The site: / is the grid of the first stage; one page per stage, level and rule; no list page, no 404 page.
+          $index = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'index.html') -Raw
+          if (-not $index.Contains('data-rulebook-matrix="default"')) { $failures.Add('index.html has no data-rulebook-matrix="default"') }
+          $rows = [regex]::Matches($index, '<tr data-id=').Count
+          if ($rows -ne 628) { $failures.Add("index.html has $rows rule rows, expected 628") }
+          $pages = @{ stages = 3; levels = 4; rules = 628 }
+          foreach ($folder in $pages.Keys) {
+            $count = @(Get-ChildItem -LiteralPath (Join-Path $env:STAGING_PATH $folder) -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'index.html') -PathType Leaf }).Count
+            if ($count -ne $pages[$folder]) { $failures.Add("$folder/ has $count pages, expected $($pages[$folder])") }
+          }
+          # setup/: the "Set up an AL project" section of the plain index, with the init command of the first level.
+          $setupFile = Join-Path $env:STAGING_PATH 'setup' 'index.html'
+          if (-not (Test-Path -LiteralPath $setupFile -PathType Leaf)) { $failures.Add('setup/index.html is missing') }
+          elseif (-not (Get-Content -LiteralPath $setupFile -Raw).Contains('./Get-RulebookSkeletons.ps1 -BaseUrl https://example.github.io/rulebook -Level essential -Ref main')) { $failures.Add('setup/index.html has no init command for essential') }
+          foreach ($asset in 'css/site.css', 'js/matrix.js', 'js/cart-core.mjs', 'js/cart.mjs') {
+            if (-not (Test-Path -LiteralPath (Join-Path $env:STAGING_PATH $asset) -PathType Leaf)) { $failures.Add("$asset is missing") }
+          }
+          foreach ($absent in 'rules/index.html', 'levels/index.html', 'stages/index.html', '404.html', '.hugo_build.lock') {
+            if (Test-Path -LiteralPath (Join-Path $env:STAGING_PATH $absent)) { $failures.Add("$absent was staged") }
+          }
+          if (Test-Path -LiteralPath .ci-org/site/.hugo_build.lock) { $failures.Add('the build left site/.hugo_build.lock') }
+          if (-not (Test-Path -LiteralPath .ci-org/site/data/rulebook.json -PathType Leaf)) { $failures.Add('site/data/rulebook.json was not written') }
           if ($env:PAGE_URL -cne 'https://example.github.io/rulebook/') { $failures.Add("pageUrl is '$($env:PAGE_URL)'") }
           foreach ($failure in $failures) { Write-Host "::error::$failure" }
           if ($failures.Count -gt 0) { exit 1 }
-          Write-Host "Staged $($endpoints.Count) endpoints, $($skeletons.Count) skeletons, rulebook.json and index.html"
+          Write-Host "Staged $($endpoints.Count) endpoints, $($skeletons.Count) skeletons, rulebook.json, the catalog and the site"
+
+      - name: Page sizes
+        shell: pwsh
+        env:
+          STAGING_PATH: ${{ steps.stage.outputs.stagingPath }}
+        run: |
+          $size = { param($Path) (Get-Item -LiteralPath (Join-Path $env:STAGING_PATH $Path)).Length }
+          $lines = [System.Collections.Generic.List[string]]::new()
+          $lines.Add('### Dashboard site page sizes')
+          $lines.Add('')
+          $lines.Add('| Page | Bytes |')
+          $lines.Add('|---|---|')
+          $lines.Add(('| index.html | {0:N0} |' -f (& $size 'index.html')))
+          $lines.Add(('| setup/ | {0:N0} |' -f (& $size 'setup/index.html')))
+          foreach ($folder in 'stages', 'levels') {
+            foreach ($page in Get-ChildItem -LiteralPath (Join-Path $env:STAGING_PATH $folder) -Directory | Sort-Object Name) { $lines.Add(('| {0}/{1}/ | {2:N0} |' -f $folder, $page.Name, (& $size "$folder/$($page.Name)/index.html"))) }
+          }
+          $rules = @(Get-ChildItem -LiteralPath (Join-Path $env:STAGING_PATH 'rules') -Recurse -File -Filter 'index.html' | Sort-Object Length, FullName)
+          $lines.Add(('| largest rule page rules/{0}/ | {1:N0} |' -f $rules[-1].Directory.Name, $rules[-1].Length))
+          $lines.Add(('| smallest rule page rules/{0}/ | {1:N0} |' -f $rules[0].Directory.Name, $rules[0].Length))
+          $lines.Add(('| all {0} rule pages | {1:N0} |' -f $rules.Count, ($rules | Measure-Object Length -Sum).Sum))
+          $html = @(Get-ChildItem -LiteralPath $env:STAGING_PATH -Recurse -File -Filter '*.html')
+          $lines.Add(('| all {0} HTML pages | {1:N0} |' -f $html.Count, ($html | Measure-Object Length -Sum).Sum))
+          $lines.Add(('| rulebook.json | {0:N0} |' -f (& $size 'rulebook.json')))
+          $lines.Add(('| staging folder, every file | {0:N0} |' -f (Get-ChildItem -LiteralPath $env:STAGING_PATH -Recurse -File | Measure-Object Length -Sum).Sum))
+          $lines | Write-Host
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value (($lines -join "`n") + "`n")
+
+      # The cart core of the site (template/site/assets/js/cart-core.mjs) against the committed site data fixture.
+      - name: Cart tests (node --test)
+        shell: bash
+        run: |
+          node --version
+          node --test tests/site/*.test.mjs
 
       # The init script over real HTTP: the staged site served from 127.0.0.1. The skeletons include
       # https://example.github.io/rulebook, so the script warns that the site was published with another baseUrl.
@@ -210,6 +289,30 @@ jobs:
           name: publish-staging
           path: ${{ steps.stage.outputs.stagingPath }}
           if-no-files-found: error
+
+      - name: Stage template with site.enabled false (must pass)
+        id: plain
+        uses: ./actions/Publish
+        with:
+          repositoryRoot: .ci-org-plain
+          baseUrl: https://example.github.io/rulebook
+          deploy: 'false'
+
+      - name: Check the plain index
+        shell: pwsh
+        env:
+          STAGING_PATH: ${{ steps.plain.outputs.stagingPath }}
+        run: |
+          $failures = [System.Collections.Generic.List[string]]::new()
+          $top = @(Get-ChildItem -LiteralPath $env:STAGING_PATH | ForEach-Object Name | Sort-Object)
+          if (($top -join ',') -cne 'catalog,index.html,rulebook.json,rulesets,skeletons') { $failures.Add("unexpected top level: $($top -join ', ')") }
+          $index = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'index.html') -Raw
+          if (-not $index.Contains('<h2 id="al-project">')) { $failures.Add('index.html has no "Set up an AL project" section') }
+          if ($index.Contains('data-rulebook-matrix')) { $failures.Add('index.html is the site, not the plain index') }
+          if (Test-Path -LiteralPath .ci-org-plain/site/data) { $failures.Add('site/data/ was written with site.enabled false') }
+          foreach ($failure in $failures) { Write-Host "::error::$failure" }
+          if ($failures.Count -gt 0) { exit 1 }
+          Write-Host 'site.enabled false: the plain index.html with both data files'
 
       - name: Stage template without baseUrl (must fail)
         id: nobaseurl

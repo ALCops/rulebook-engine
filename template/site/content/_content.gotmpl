@@ -1,0 +1,18 @@
+{{- /* One page per stage, level and rule of data/rulebook.json, which the Publish action writes. The export sorts
+  the rules and keeps the settings order of levels and stages, so nothing is sorted here. Each page carries the
+  position of its item; the layouts read the item from hugo.Data.rulebook (page params lowercase their keys). */ -}}
+{{- $data := hugo.Data.rulebook -}}
+{{- if not $data -}}
+  {{- errorf "site/data/rulebook.json is missing: the Publish action writes it before the build (Export-RulebookSiteData)" -}}
+{{- end -}}
+{{- /* setup/: how an AL project uses the endpoints, the section the plain index page has (#al-project). */ -}}
+{{- $.AddPage (dict "path" "setup" "kind" "page" "title" "Set up an AL project") -}}
+{{- range $i, $stage := $data.stages -}}
+  {{- $.AddPage (dict "path" (printf "stages/%s" $stage.slug) "kind" "page" "title" (printf "Stage %s" $stage.name) "params" (dict "item" $i)) -}}
+{{- end -}}
+{{- range $i, $level := $data.levels -}}
+  {{- $.AddPage (dict "path" (printf "levels/%s" $level.slug) "kind" "page" "title" (printf "Level %s" $level.name) "params" (dict "item" $i)) -}}
+{{- end -}}
+{{- range $i, $rule := $data.rules -}}
+  {{- $.AddPage (dict "path" (printf "rules/%s" $rule.id) "kind" "page" "title" $rule.id "params" (dict "item" $i)) -}}
+{{- end -}}

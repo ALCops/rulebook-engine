@@ -593,7 +593,7 @@ Describe 'Build-Template.ps1' {
         @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()
     }
 
-    It 'regenerates template/ and the level pages byte for byte from the 13 hand-written files and docs/' {
+    It 'regenerates template/ and the level pages byte for byte from the 13 hand-written files, docs/ and site/' {
         $scratch = Get-TestFolder
         # Outside $scratch: a page under it would break the hash comparison with template/.
         $pages = Get-TestFolder
@@ -602,8 +602,10 @@ Describe 'Build-Template.ps1' {
             [void](New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force)
             Copy-Item -LiteralPath (Join-Path $templateDir $file) -Destination $target
         }
-        # The user documentation (WP13) is hand-written too; Build-Template.ps1 never touches it.
+        # The user documentation (WP13) and the dashboard site (WP14) are hand-written too; Build-Template.ps1 never
+        # touches them. site/ is copied as it is, so a local site/data/ (gitignored) compares equal as well.
         Copy-Item -LiteralPath (Join-Path $templateDir 'docs') -Destination (Join-Path $scratch 'docs') -Recurse
+        Copy-FixtureTree -Source (Join-Path $templateDir 'site') -Destination (Join-Path $scratch 'site')
         $changes = @(& $wrapper -TemplateDir $scratch -LevelDocsDir $pages 6>$null)
         # Generated: the level files, twins.json, the non-default stage files, the catalog, the skeletons and endpoints,
         # and one page per level plus the README.md index.

@@ -1,0 +1,105 @@
+/* The dashboard site. Plain CSS, no framework; adapt the colours under :root. */
+
+:root {
+  --text: #1f2328;
+  --muted: #59636e;
+  --line: #d1d9e0;
+  --surface: #f6f8fa;
+  --accent: #0969da;
+  --error: #cf222e;
+  --error-bg: #ffebe9;
+  --warning: #9a6700;
+  --warning-bg: #fff8c5;
+  --info: #0969da;
+  --info-bg: #ddf4ff;
+  --hidden: #59636e;
+  --hidden-bg: #eef1f4;
+  --none: #8c959f;
+  --none-bg: #ffffff;
+  --override: #8250df;
+  --quarantine: #bc4c00;
+}
+
+* { box-sizing: border-box; }
+/* The hidden attribute wins over every display rule below: the filters, the cart and its buttons stay hidden until
+   the scripts show them, also without JavaScript. */
+[hidden] { display: none !important; }
+body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: #fff; }
+a { color: var(--accent); }
+code { font: 0.9em ui-monospace, SFMono-Regular, Consolas, monospace; }
+main { padding: 1rem 1.5rem 3rem; max-width: 90rem; }
+h1 .title, th .title { color: var(--muted); font-weight: normal; }
+.lead { color: var(--muted); max-width: 50rem; }
+
+/* Header and navigation */
+.site-header { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; padding: 0.5rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 600; color: var(--text); text-decoration: none; }
+.site-header nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; }
+.site-header ul { display: flex; gap: 0.25rem; margin: 0; padding: 0; list-style: none; }
+.site-header li a { display: block; padding: 0.15rem 0.6rem; border-radius: 1rem; text-decoration: none; }
+.site-header li a[aria-current="page"] { background: var(--accent); color: #fff; }
+.stage-switcher::before { content: "Stage"; color: var(--muted); margin-right: 0.25rem; align-self: center; }
+.nav-levels::before { content: "Level"; color: var(--muted); margin-right: 0.25rem; align-self: center; }
+.cart-toggle { margin-left: auto; }
+
+/* Filters */
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem 1rem; margin: 1rem 0; }
+.filters label { display: flex; flex-direction: column; font-size: 0.85em; color: var(--muted); }
+.row-count { color: var(--muted); font-size: 0.85em; }
+
+/* Tables */
+table { border-collapse: collapse; }
+th, td { padding: 0.2rem 0.5rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+thead th { position: sticky; top: 2.6rem; z-index: 2; background: #fff; border-bottom: 2px solid var(--line); }
+tr.group th { padding-top: 0.8rem; background: var(--surface); font-weight: 600; }
+.counts td { text-align: right; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+.matrix caption { text-align: left; color: var(--muted); padding-bottom: 0.5rem; }
+.matrix td { min-width: 6.5rem; cursor: pointer; white-space: nowrap; }
+.matrix td:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Actions */
+.a-error { color: var(--error); background: var(--error-bg); }
+.a-warning { color: var(--warning); background: var(--warning-bg); }
+.a-info { color: var(--info); background: var(--info-bg); }
+.a-hidden { color: var(--hidden); background: var(--hidden-bg); }
+.a-none, .a-unset { color: var(--none); background: var(--none-bg); }
+.action { padding: 0 0.3rem; border-radius: 0.2rem; }
+.source, .note { color: var(--muted); font-size: 0.85em; }
+
+/* Provenance markers: dot for a stage file, ring for the twins rule, badges for an override and the quarantine */
+.mark { display: inline-block; margin-left: 0.35rem; vertical-align: middle; }
+.mark-stage { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: currentColor; }
+.mark-twins { width: 0.6rem; height: 0.6rem; border-radius: 50%; border: 2px solid currentColor; }
+.mark-override, .mark-quarantine { padding: 0 0.3rem; border-radius: 0.2rem; color: #fff; font-size: 0.75em; font-weight: 600; line-height: 1.4; }
+.mark-override { background: var(--override); }
+.mark-quarantine { background: var(--quarantine); }
+.legend { margin: 1.5rem 0; max-width: 50rem; }
+.legend li { list-style: none; }
+
+/* Popover */
+.popover { position: absolute; z-index: 5; padding: 0.5rem; background: #fff; border: 1px solid var(--line); border-radius: 0.4rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+.popover-title { margin: 0 0 0.4rem; font-size: 0.85em; color: var(--muted); }
+.popover-actions { display: flex; gap: 0.25rem; margin-top: 0.25rem; }
+
+/* Cart */
+.cart { position: fixed; top: 3rem; right: 0; bottom: 0; z-index: 4; width: min(30rem, 100%); overflow-y: auto; padding: 1rem; background: #fff; border-left: 1px solid var(--line); box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08); }
+.cart h2 { margin-top: 0; }
+.cart-list { padding-left: 1.2rem; }
+.cart-list > li { margin-bottom: 0.8rem; }
+.cart-list table { font-size: 0.85em; margin: 0.3rem 0; }
+.cart-list input[type="text"] { width: 100%; }
+.cart-note textarea { display: block; width: 100%; }
+.cart-size meter { width: 12rem; }
+.cart-size.over { color: var(--error); font-weight: 600; }
+.cart-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.cart-nochange { color: var(--muted); font-style: italic; }
+
+.site-footer { padding: 1rem 1.5rem; color: var(--muted); font-size: 0.85em; border-top: 1px solid var(--line); }
+
+@media print {
+  .site-header, .filters, .cart, .legend { display: none; }
+  thead th { position: static; }
+}

@@ -3,6 +3,7 @@
 ## v1.0.0-beta.4
 
 - Dashboard data: rulebook.json gets every rule with its cells, the deciding input and the fallback of override and quarantine cells, the level and stage page models, the change set schema and the issue form ([#110](https://github.com/ALCops/rulebook-engine/pull/110))
+- Dashboard site: Publish builds the matrix with one page per stage, level and rule, the cart opens the rulebook-change issue form, and catalog/diagnostics.json is published ([#111](https://github.com/ALCops/rulebook-engine/pull/111))
 
 ## v1.0.0-beta.3
 

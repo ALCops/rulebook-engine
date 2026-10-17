@@ -5,7 +5,7 @@
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook publisher: stages the endpoints, the rendered skeletons, rulebook.json and index.html, explains the GitHub Pages preflight and checks that every published URL serves the staged file. See docs/reference/publish-targets.md.'
+    Description          = 'Rulebook publisher: stages the endpoints, the rendered skeletons, rulebook.json (the site data), catalog/diagnostics.json and index.html, explains the GitHub Pages preflight and checks that every published URL serves the staged file. See docs/reference/publish-targets.md.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(

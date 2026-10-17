@@ -1,0 +1,16 @@
+<details class="legend">
+  <summary>What the cells mean</summary>
+  <p>A cell is the action the endpoint of that level and stage gives the rule. The marker says which input decided it, in the order the generator applies them:</p>
+  <ul>
+    <li><span class="mark mark-override">O</span> an entry of <code>overrides.json</code> (point at the badge for its position in the file, from 0)</li>
+    <li><span class="mark mark-twins"></span> the twins rule of the settings</li>
+    <li><span class="mark mark-stage"></span> the stage file</li>
+    <li>no marker: the level file, or the analyzer default</li>
+    <li><span class="mark mark-quarantine">Q</span> the quarantine of the stage, for an id no level file names</li>
+  </ul>
+  <p>Click a cell, or focus it and press Enter, to put a change in the cart: an action, Reset on an override cell (remove the override), Release on a quarantine cell. The cart opens the change set as an issue in this repository; a maintainer applies it. {{ with .data.docsUrl }}<a href="{{ . }}">More in the documentation.</a>{{ end }}</p>
+  <p>To use an endpoint in an AL project, see <a href="{{ "setup/" | relURL }}#al-project">Set up an AL project</a>.</p>
+  {{- with .stage }}
+  <p>This page shows the stage <strong>{{ .name }}</strong>. The stage links at the top switch the grid and keep the filters.</p>
+  {{- end }}
+</details>

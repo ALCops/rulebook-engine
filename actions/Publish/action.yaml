@@ -1,5 +1,5 @@
 name: Rulebook Publish
-description: Stages the endpoints, the rendered skeletons, rulebook.json and index.html of an organization rulebook repository, deploys them to GitHub Pages and checks that every published URL serves the committed file.
+description: Stages the endpoints, the rendered skeletons, rulebook.json and catalog/diagnostics.json of an organization rulebook repository with the dashboard site built by Hugo (or the plain index.html), deploys them to GitHub Pages and checks that every published URL serves the staged file.
 author: ALCops
 
 inputs:
@@ -31,14 +31,18 @@ inputs:
     description: Token for the Pages preflight (GET /repos/{owner}/{repo}/pages); needs pages read access.
     required: false
     default: ${{ github.token }}
+  hugoPath:
+    description: "The Hugo that builds the site when site.enabled is true. 'hugo' installs the pinned version on a Linux runner; any other value (a path) is used as it is and nothing is installed."
+    required: false
+    default: 'hugo'
 
 outputs:
   stagingPath:
     description: The staging folder that was deployed.
     value: ${{ steps.stage.outputs.stagingPath }}
   failure:
-    description: "Why the stage step failed, empty on success: target, baseUrl-empty, baseUrl-invalid, preflight, stage or error."
-    value: ${{ steps.stage.outputs.failure }}
+    description: "Why the install or stage step failed, empty on success: target, baseUrl-empty, baseUrl-invalid, preflight, stage, site (Hugo missing, its install or the build failed) or error."
+    value: ${{ steps.hugo.outputs.failure || steps.stage.outputs.failure }}
   pageUrl:
     description: The URL of the published site.
     value: ${{ steps.deploy.outputs.page_url || steps.stage.outputs.pageUrl }}
@@ -46,6 +50,26 @@ outputs:
 runs:
   using: composite
   steps:
+    # Only when site.enabled is true in the settings and hugoPath is 'hugo'; otherwise the step prints why it skips.
+    # The pin: hugo_extended_<HUGO_VERSION>_linux-amd64.deb of the Hugo release, its sha256 from
+    # hugo_<HUGO_VERSION>_checksums.txt of the same release.
+    - name: Install Hugo
+      id: hugo
+      shell: pwsh
+      env:
+        INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
+        INPUT_HUGOPATH: ${{ inputs.hugoPath }}
+        HUGO_VERSION: '0.167.0'
+        HUGO_SHA256: '2d012c4490248195e2db07e89ce7f76af8bead93233e930bdf3733c53acd3b23'
+      run: |
+        $parameters = @{
+          Phase          = 'Install'
+          RepositoryRoot = $env:INPUT_REPOSITORYROOT
+        }
+        $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'Publish.ps1') @parameters)[-1]
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['ExitCode']) { Write-Host '::error::Publish.ps1 returned no result'; exit 1 }
+        exit $result.ExitCode
+
     - name: Stage the published files
       id: stage
       shell: pwsh
@@ -56,6 +80,7 @@ runs:
         INPUT_TARGET: ${{ inputs.target }}
         INPUT_DEPLOY: ${{ inputs.deploy }}
         INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_HUGOPATH: ${{ inputs.hugoPath }}
       run: |
         $parameters = @{
           Phase          = 'Stage'
