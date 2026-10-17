@@ -144,6 +144,7 @@ if (config && panel && toggle) {
     } catch (error) {
       meter.value = 0;
       bytesText.textContent = '';
+      size.classList.remove('over');
       submit.disabled = true;
       parts.hidden = true;
       fail(error);
@@ -229,6 +230,7 @@ if (config && panel && toggle) {
     }
     const part = pendingParts.list[pendingParts.next];
     if (part.oversize) {
+      pendingParts.skipped = (pendingParts.skipped || 0) + 1;
       status.textContent = `Part ${pendingParts.next + 1}: the note and this change are too large for a link; use Copy change set and paste it into the empty form.`;
     } else {
       window.open(part.url, '_blank', 'noopener');
@@ -238,9 +240,14 @@ if (config && panel && toggle) {
     pendingParts.next++;
     if (pendingParts.next >= pendingParts.list.length) {
       const opened = pendingParts.opened || 0;
+      const skipped = pendingParts.skipped || 0;
       pendingParts = null;
-      // Ask to clear only when a form opened; an all-oversize cart stays for Copy change set.
-      if (opened > 0) confirmClear();
+      // Ask to clear only when every part opened; a part too large for a link keeps the cart for Copy change set.
+      if (skipped > 0) {
+        status.textContent = `${opened} part(s) opened; ${skipped} too large for a link stay in the cart: use Copy change set.`;
+      } else if (opened > 0) {
+        confirmClear();
+      }
     } else {
       parts.textContent = `Submit part ${pendingParts.next + 1} of ${pendingParts.list.length}`;
     }
