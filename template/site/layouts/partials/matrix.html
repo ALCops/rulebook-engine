@@ -4,7 +4,7 @@
 {{- $stage := .stage -}}
 {{- $levels := $data.levels -}}
 {{ partial "filters.html" (dict "data" $data) }}
-<section class="matrix-root" data-rulebook-matrix="{{ $stage.slug }}" data-repository="{{ $data.repository }}" data-issue-template="{{ $data.issueTemplate }}" data-rulebook-json="{{ "rulebook.json" | relURL }}">
+<section class="matrix-root" data-rulebook-matrix="{{ $stage.slug }}">
 <table class="matrix">
   <caption>Stage {{ $stage.name }}: the action of every rule per level, {{ len $data.rules }} rules</caption>
   <thead><tr><th scope="col">Rule</th>{{ range $levels }}<th scope="col"><a href="{{ printf "levels/%s/" .slug | relURL }}">{{ .name }}</a></th>{{ end }}</tr></thead>

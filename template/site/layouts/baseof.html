@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 {{ partial "head.html" . }}
-<body>
+{{- $data := hugo.Data.rulebook }}
+{{- /* The values the cart needs on every page: the repository and the issue form for the issue URL, the data file
+  for the before and after of each change. */}}
+<body data-repository="{{ $data.repository }}" data-issue-template="{{ $data.issueTemplate }}" data-rulebook-json="{{ "rulebook.json" | relURL }}">
 {{ partial "header.html" . }}
 <main id="content">
 {{ block "main" . }}{{ end }}

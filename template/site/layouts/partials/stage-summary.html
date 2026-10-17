@@ -10,7 +10,7 @@
   <dt>Stage file</dt><dd>{{ with $stage.file }}<code>{{ . }}</code>{{ else }}none: this stage is the level result as is{{ end }}</dd>
   <dt>Entries</dt><dd>{{ $stage.entryCount }}</dd>
   <dt>Quarantined ids</dt><dd>{{ $stage.quarantineCount }}</dd>
-  <dt>Overrides</dt><dd>{{ $stage.overrideCount }} {{ if eq $stage.overrideCount 1 }}override decides{{ else }}overrides decide{{ end }} a cell of this stage</dd>
+  <dt>Overrides</dt><dd>{{ $stage.overrideCount }} {{ if eq (int $stage.overrideCount) 1 }}override decides{{ else }}overrides decide{{ end }} a cell of this stage</dd>
 </dl>
 <h3>Counts per level</h3>
 <table class="counts">

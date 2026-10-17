@@ -8,7 +8,7 @@
   <dt>Chain</dt><dd>{{ range $i, $file := $level.chain }}{{ if $i }} &rarr; {{ end }}<code>{{ $file }}</code>{{ end }}</dd>
   <dt>Based on</dt><dd>{{ with $level.basedOnName }}{{ if $level.basedOnPublished }}<a href="{{ printf "levels/%s/" $level.basedOn | relURL }}">{{ . }}</a>{{ else }}{{ . }} (not published){{ end }}{{ else }}nothing: the root of the chain{{ end }}</dd>
   <dt>Entries</dt><dd>{{ $level.entryCount }}, {{ $level.loweredCount }} lowered</dd>
-  <dt>Overrides</dt><dd>{{ $level.overrideCount }} {{ if eq $level.overrideCount 1 }}override decides{{ else }}overrides decide{{ end }} a cell of this level</dd>
+  <dt>Overrides</dt><dd>{{ $level.overrideCount }} {{ if eq (int $level.overrideCount) 1 }}override decides{{ else }}overrides decide{{ end }} a cell of this level</dd>
 </dl>
 <h2>Counts per stage</h2>
 <table class="counts">
