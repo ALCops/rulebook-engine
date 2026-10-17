@@ -9,6 +9,9 @@ BeforeAll {
     $script:entry = Join-Path $script:actionDir 'Publish.ps1'
     $script:templateDir = Join-Path $script:repoRoot 'template'
     $script:stub = Join-Path $PSScriptRoot 'Helpers' 'HugoStub.ps1'
+    # Loaded here too, so the mocks of Install-Hugo and Resolve-RulebookPublishTarget find them in a filtered run.
+    Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Publish.psd1') -Force
+    Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Site.psd1') -Force
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
 
     # On GitHub Actions these point at the real job; the tests must not write into them.
@@ -60,7 +63,7 @@ AfterAll {
     $env:GITHUB_STEP_SUMMARY = $script:saved.Summary
     $env:GITHUB_REPOSITORY = $script:saved.Repository
     $env:INPUT_TOKEN = $script:saved.Token
-    Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Publish, Rulebook.Site, Rulebook.Levels, Rulebook.Catalog, Rulebook.Generate, Rulebook.Action, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'actions/Publish/action.yaml' {
@@ -372,6 +375,13 @@ Describe 'Publish.ps1 -Phase Install' {
         $run.Result.ExitCode | Should-Be 0
         $run.Lines | Should-ContainCollection @('Installed hugo v0.167.0+extended linux/amd64')
         Should-Invoke Install-Hugo -Times 1 -Exactly -ParameterFilter { $Version -eq '0.167.0' -and $Sha256 -eq ('a' * 64) }
+    }
+
+    It 'fails a repository root that does not exist with error' {
+        $run = Invoke-Entry @{ Phase = 'Install'; RepositoryRoot = (Join-Path $TestDrive 'no-such-repo') }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'error'
+        $run.Result.Annotations[0] | Should-BeLikeString '::error title=Publish::*no-such-repo*'
     }
 
     It 'fails with site when the install fails' {

@@ -49,7 +49,7 @@ BeforeAll {
 
 AfterAll {
     Restore-EngineRefEnvironment -Saved $script:savedEngineRef
-    Remove-Module Rulebook.Publish, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
+    Remove-Module Rulebook.Publish, Rulebook.Site, Rulebook.Levels, Rulebook.Catalog, Rulebook.Generate, Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'New-RulebookPublishStage on template/' {
