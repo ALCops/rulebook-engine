@@ -1,15 +1,21 @@
 #requires -Version 7.4
 # Rulebook.Publish: stages what an organization publishes (the levels x stages endpoints of rulesets/, the skeletons
-# with {BASEURL} rendered, the rulebook.json manifest, a plain index.html), explains a missing or misconfigured GitHub
-# Pages site, and checks after the deploy that every published URL serves the staged bytes. Publish is a gate and
+# with {BASEURL} rendered, rulebook.json, catalog/diagnostics.json, a plain index.html that the dashboard site replaces
+# when it is built), explains a missing or misconfigured GitHub Pages site, and checks after the deploy that every
+# published URL serves the staged bytes. Publish is a gate and
 # never commits (D42): the staging refuses endpoints that differ from what Rulebook.Generate produces.
 # Contract: docs/ARCHITECTURE.md sections 7.2 and 9. Setup per target: docs/reference/publish-targets.md.
 
 Set-StrictMode -Version 3.0
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Catalog.psd1')
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Site.psd1')
 
 $script:SettingsPath = '.github/Rulebook-Settings.json'
+$script:CatalogPath = 'catalog/diagnostics.json'
+# The manifest kinds the reachability check requests; every other kind is staged but not checked.
+$script:CheckedKinds = @('endpoint', 'skeleton', 'manifest', 'catalog', 'index', 'page')
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 # https, a DNS host name (letters, digits and hyphens per label, dots between) with an optional numeric port and no
 # user info, path segments without '.' or '..', no query, fragment, whitespace, control character, quote or
@@ -241,8 +247,10 @@ function ConvertTo-RulebookIndexHtml {
 function ConvertTo-RulebookManifestJson {
     <#
     .SYNOPSIS
-    The text of rulebook.json: the published levels and stages, machine-readable (D43).
+    The minimal form of rulebook.json: the published levels and stages, machine-readable (D43).
     .DESCRIPTION
+    Since WP14 New-RulebookPublishStage writes the full document (Get-RulebookSiteModel, ConvertTo-RulebookSiteDataJson),
+    whose head is this text; this writer stays for callers that need only the levels and stages.
     The minimal form of the dashboard data contract (docs/dashboard.md section 5): generatedAt (UTC,
     yyyy-MM-ddTHH:mm:ssZ), repository (only when -Repository is set), baseUrl, levels (name, slug, basedOn as a slug
     when set, description when set) and stages (name, slug, description when set), in settings order. WP14 adds
@@ -286,18 +294,22 @@ function ConvertTo-RulebookManifestJson {
 function New-RulebookPublishStage {
     <#
     .SYNOPSIS
-    Writes the folder Publish deploys: the levels x stages endpoints, the rendered skeletons, rulebook.json and index.html.
+    Writes the folder Publish deploys: the levels x stages endpoints, the rendered skeletons, rulebook.json, catalog/diagnostics.json and index.html.
     .DESCRIPTION
     Clears and creates -OutputPath. Copies exactly the expected rulesets/<endpoint> files (never a folder glob, so
     a stray or removed file is not published) after checking that each equals what Update-RulebookEndpoints would
     write (Publish is a gate, D42); a missing or stale endpoint throws with the fix. Writes
     skeletons/<level>.<stage>.ruleset.json with {BASEURL} replaced by -BaseUrl (ordinal; the repository copy is
     untouched; a missing skeleton or one without the placeholder throws, and each rendered skeleton must parse as
-    JSON), rulebook.json (ConvertTo-RulebookManifestJson with -Repository, D43) and index.html. Nothing else in
+    JSON), rulebook.json (the site data document of Get-RulebookSiteModel with -Repository and -GeneratedAt, D43,
+    docs/dashboard.md section 5; site.includeJustifications decides the override and quarantine justifications, D36),
+    catalog/diagnostics.json byte for byte, and the plain index.html. Both data files are staged whatever
+    site.enabled says; the dashboard site, when Publish builds it, replaces only index.html. Nothing else in
     skeletons/ is staged, so skeletons/README.md is not published. Returns one manifest entry per file, endpoints
-    and skeletons in settings order, then rulebook.json and index.html: Path (relative, '/'), Url, Kind (endpoint,
-    skeleton, manifest, index) and StagedFile (full path). -Inputs reuses a Read-RulebookInputs result of the same
-    repository. -OutputPath must not be the repository, a folder that contains it, or a drive root.
+    and skeletons in settings order, then rulebook.json, catalog/diagnostics.json and index.html: Path (relative,
+    '/'), Url, Kind (endpoint, skeleton, manifest, catalog, index) and StagedFile (full path). -Inputs reuses a
+    Read-RulebookInputs result of the same repository. -OutputPath must not be the repository, a folder that
+    contains it, or a drive root.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Writes only the staging folder the caller names; -WhatIf would stage nothing to check')]
     [CmdletBinding()]
@@ -307,7 +319,8 @@ function New-RulebookPublishStage {
         [Parameter(Mandatory)][string]$BaseUrl,
         [Parameter(Mandatory)][string]$OutputPath,
         [AllowNull()]$Inputs,
-        [AllowNull()][AllowEmptyString()][string]$Repository
+        [AllowNull()][AllowEmptyString()][string]$Repository,
+        [datetime]$GeneratedAt = [datetime]::UtcNow
     )
     if ($BaseUrl -cnotmatch $script:BaseUrlPattern) { throw "BaseUrl must be an https URL with a host name, without quotes, backslashes, a query, a fragment, dot segments or a trailing slash: '$BaseUrl'" }
     $inputs = if ($null -ne $Inputs) { $Inputs } else { Read-RulebookInputs -RepositoryRoot $RepositoryRoot }
@@ -363,6 +376,12 @@ function New-RulebookPublishStage {
         }
     }
 
+    $catalogSource = Join-Path $inputs.Root $script:CatalogPath
+    if (-not (Test-Path -LiteralPath $catalogSource -PathType Leaf)) { throw "$($script:CatalogPath) is missing. It comes with the template and the daily scan keeps it current; restore it from the template or the git history." }
+    $catalogBytes = [System.IO.File]::ReadAllBytes($catalogSource)
+    $include = (Get-SettingValue $inputs.Settings 'site', 'includeJustifications') -is [bool] -and (Get-SettingValue $inputs.Settings 'site', 'includeJustifications')
+    $siteModel = Get-RulebookSiteModel -Inputs $inputs -Catalog (Read-CatalogFile -Path $catalogSource) -BaseUrl $BaseUrl -Repository $Repository -IncludeJustifications:$include -GeneratedAt $GeneratedAt -EngineRef (Get-RulebookEngineRef)
+
     if (Test-Path -LiteralPath $outputFull) { Remove-Item -LiteralPath $outputFull -Recurse -Force }
     $output = [System.IO.Directory]::CreateDirectory($outputFull).FullName
     $manifest = [System.Collections.Generic.List[object]]::new()
@@ -381,8 +400,11 @@ function New-RulebookPublishStage {
         $manifest.Add([pscustomobject]@{ Path = $path; Url = "$BaseUrl/$path"; Kind = 'skeleton'; StagedFile = $staged })
     }
     $rulebookJson = Join-Path $output 'rulebook.json'
-    Write-StagedFile -Path $rulebookJson -Bytes ($script:Utf8NoBom.GetBytes((ConvertTo-RulebookManifestJson -Inputs $inputs -BaseUrl $BaseUrl -Repository $Repository)))
+    Write-StagedFile -Path $rulebookJson -Bytes ($script:Utf8NoBom.GetBytes((ConvertTo-RulebookSiteDataJson -Model $siteModel)))
     $manifest.Add([pscustomobject]@{ Path = 'rulebook.json'; Url = "$BaseUrl/rulebook.json"; Kind = 'manifest'; StagedFile = $rulebookJson })
+    $catalogStaged = Join-Path $output $script:CatalogPath
+    Write-StagedFile -Path $catalogStaged -Bytes $catalogBytes
+    $manifest.Add([pscustomobject]@{ Path = $script:CatalogPath; Url = "$BaseUrl/$($script:CatalogPath)"; Kind = 'catalog'; StagedFile = $catalogStaged })
     $index = Join-Path $output 'index.html'
     Write-StagedFile -Path $index -Bytes ($script:Utf8NoBom.GetBytes((ConvertTo-RulebookIndexHtml -Inputs $inputs -BaseUrl $BaseUrl -Endpoints $endpoints.ToArray())))
     $manifest.Add([pscustomobject]@{ Path = 'index.html'; Url = "$BaseUrl/"; Kind = 'index'; StagedFile = $index })
@@ -454,7 +476,7 @@ function Get-PagesPreflightResult {
 function Test-RulebookEndpoints {
     <#
     .SYNOPSIS
-    GETs every URL of a staging manifest (endpoints, skeletons, rulebook.json, index.html) until each serves the staged bytes or the window ends.
+    GETs every URL of a staging manifest (endpoints, skeletons, rulebook.json, the catalog, index.html, the site pages) until each serves the staged bytes or the window ends.
     .DESCRIPTION
     The first pass requests every URL with -TimeoutSeconds per request (the compiler uses 15 s). A URL passes on
     HTTP 200 with a body equal to the staged file (both UTF-8 decoded, compared ordinally). Pending URLs are
@@ -478,7 +500,7 @@ function Test-RulebookEndpoints {
     )
     $results = [System.Collections.Generic.List[object]]::new()
     foreach ($entry in $Manifest) {
-        if ($entry.Kind -cnotin 'endpoint', 'skeleton', 'manifest', 'index') { continue }
+        if ($entry.Kind -cnotin $script:CheckedKinds) { continue }
         $item = [pscustomobject]@{
             Path = $entry.Path; Url = $entry.Url; Kind = $entry.Kind; Status = 0; Reason = 'pending'; Attempts = 0; Seconds = 0.0; Detail = $null
             Expected = $null

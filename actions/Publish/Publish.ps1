@@ -1,14 +1,22 @@
 #requires -Version 7.4
 <#
 .SYNOPSIS
-Entry script of the Publish action: stage the published files (-Phase Stage) or check the deployed URLs (-Phase Check).
+Entry script of the Publish action: install Hugo (-Phase Install), stage the published files (-Phase Stage) or check
+the deployed URLs (-Phase Check).
 .DESCRIPTION
--Phase Stage reads the settings, resolves the target (only 'pages' is implemented) and the base URL, prints a notice
-when site.enabled is set (the dashboard arrives with WP14), runs the GitHub Pages preflight when -Deploy is set,
-stages the endpoints, the rendered skeletons, rulebook.json (with -Repository) and index.html into -StagingPath
-(New-RulebookPublishStage, which refuses stale endpoints: Publish is a gate and never commits, D42), writes the
-manifest to -ManifestPath, the URL list to the job summary and the outputs stagingPath, manifestPath and pageUrl to
-GITHUB_OUTPUT.
+-Phase Install installs the Hugo the action pins (-HugoVersion, -HugoSha256; Install-Hugo) when site.enabled is true
+in the settings and -HugoPath is the default 'hugo'; otherwise it prints why it skips. A failed install is failure
+'site'.
+
+-Phase Stage reads the settings, resolves the target (only 'pages' is implemented) and the base URL, runs the GitHub
+Pages preflight when -Deploy is set, stages the endpoints, the rendered skeletons, rulebook.json (with -Repository),
+catalog/diagnostics.json and the plain index.html into -StagingPath (New-RulebookPublishStage, which refuses stale
+endpoints: Publish is a gate and never commits, D42). When site.enabled is true it then copies the staged
+rulebook.json to site/data/rulebook.json and builds site/ with Hugo into the staging folder (Build-RulebookSite), so
+the dashboard replaces the plain index.html; a target that cannot serve HTML or a missing site/hugo.yaml is a warning
+and keeps the plain page, a missing Hugo or a failed build is failure 'site'. It writes the manifest to -ManifestPath
+(with one page entry per stage and level page and the first rule page), the URL list to the job summary and the
+outputs stagingPath, manifestPath and pageUrl to GITHUB_OUTPUT.
 
 -Phase Check reads -ManifestPath and runs Test-RulebookEndpoints: one error annotation per URL that is missing or
 differs after -WindowSeconds, and the result table in the job summary.
@@ -18,7 +26,7 @@ in-process; action.yaml exits with ExitCode.
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [ValidateSet('Stage', 'Check')][string]$Phase = 'Stage',
+    [ValidateSet('Install', 'Stage', 'Check')][string]$Phase = 'Stage',
     [string]$RepositoryRoot = '.',
     [AllowEmptyString()][string]$BaseUrl,
     [AllowEmptyString()][string]$Target,
@@ -32,13 +40,17 @@ param(
     [string]$ApiUrl = $(if ($env:GITHUB_API_URL) { $env:GITHUB_API_URL } else { 'https://api.github.com' }),
     [string]$Token = $env:INPUT_TOKEN,
     [string]$SummaryPath = $env:GITHUB_STEP_SUMMARY,
-    [string]$WorkspaceRoot = $env:GITHUB_WORKSPACE
+    [string]$WorkspaceRoot = $env:GITHUB_WORKSPACE,
+    [string]$HugoPath = $(if ($env:INPUT_HUGOPATH) { $env:INPUT_HUGOPATH } else { 'hugo' }),
+    [string]$HugoVersion = $env:HUGO_VERSION,
+    [string]$HugoSha256 = $env:HUGO_SHA256
 )
 
 Set-StrictMode -Version 3.0
 $modules = Join-Path $PSScriptRoot '..' '..' 'modules'
 Import-Module (Join-Path $modules 'Rulebook.Generate.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Publish.psd1') -Force
+Import-Module (Join-Path $modules 'Rulebook.Site.psd1') -Force
 Import-Module (Join-Path $modules 'Rulebook.Action.psd1') -Force
 
 $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
@@ -48,14 +60,61 @@ if ([string]::IsNullOrEmpty($ManifestPath)) { $ManifestPath = Join-Path $tempRoo
 $StagingPath = Resolve-ActionPath $StagingPath
 $ManifestPath = Resolve-ActionPath $ManifestPath
 # Failure is the first reason the run failed, written as the output 'failure': target, baseUrl-empty,
-# baseUrl-invalid, preflight, stage or check (anything else is error).
+# baseUrl-invalid, preflight, stage, site or check (anything else is error).
 $ctx = New-ActionContext -Title 'Publish'
 $summary = [System.Text.StringBuilder]::new()
+
+function Test-SiteEnabled {
+    # site.enabled of the settings dictionary; only the boolean true turns the site on.
+    param($Settings)
+    $site = if ($Settings -is [System.Collections.IDictionary] -and $Settings.Contains('site')) { $Settings['site'] } else { $null }
+    return $site -is [System.Collections.IDictionary] -and $site.Contains('enabled') -and $site['enabled'] -is [bool] -and $site['enabled']
+}
+
+if ($Phase -eq 'Install') {
+    $failed = $false
+    $hugo = $null
+    try {
+        $root = (Resolve-Path -LiteralPath $RepositoryRoot -ErrorAction Stop).ProviderPath
+        $settingsFile = Join-Path $root '.github' 'Rulebook-Settings.json'
+        $settings = $null
+        if (Test-Path -LiteralPath $settingsFile -PathType Leaf) {
+            try { $settings = Get-Content -LiteralPath $settingsFile -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop } catch { $settings = $null }
+        }
+        if (-not (Test-SiteEnabled $settings)) {
+            Write-Host 'Hugo is not installed: site.enabled is not true in .github/Rulebook-Settings.json, so Publish stages the plain index.html.'
+        } elseif ($HugoPath -cne 'hugo') {
+            Write-Host "Hugo is not installed: the hugoPath input names $HugoPath."
+        } else {
+            try {
+                $hugo = Install-Hugo -Version $HugoVersion -Sha256 $HugoSha256 -DownloadRoot $tempRoot
+            } catch {
+                Add-Annotation -Context $ctx -Message "Installing Hugo $HugoVersion failed: $($_.Exception.Message)"
+                Add-Failure -Context $ctx -Kind 'site'
+                $failed = $true
+            }
+            if ($hugo) { Write-Host $(if ($hugo.Installed) { "Installed $($hugo.Version)" } else { "Hugo is installed already: $($hugo.Version)" }) }
+        }
+    } catch {
+        Add-Annotation -Context $ctx -Message $_.Exception.Message
+        Add-Failure -Context $ctx -Kind 'error'
+        $failed = $true
+    }
+    if ($failed) { Write-ActionOutput -Outputs ([ordered]@{ failure = $ctx.Failure }) }
+    return [pscustomobject]@{
+        ExitCode    = $(if ($failed) { 1 } else { 0 })
+        Phase       = $Phase
+        Failure     = $ctx.Failure
+        Hugo        = $hugo
+        Annotations = $ctx.Annotations.ToArray()
+    }
+}
 
 if ($Phase -eq 'Stage') {
     $manifest = @()
     $resolvedBaseUrl = $null
     $preflight = $null
+    $siteBuilt = $null
     $failed = $false
     [void]$summary.AppendLine('## Rulebook publish').AppendLine()
     try {
@@ -85,10 +144,6 @@ if ($Phase -eq 'Stage') {
         }
         if (-not $failed) {
             Write-Host "Publish target: $resolvedTarget, base URL: $resolvedBaseUrl"
-            $site = $settings['site']
-            if ($site -is [System.Collections.IDictionary] -and $site.Contains('enabled') -and $site['enabled'] -eq $true) {
-                Add-Annotation -Context $ctx -Command notice -Message 'site.enabled is true: the dashboard site arrives with WP14 (https://github.com/ALCops/rulebook-engine/issues/16). This run publishes the plain index.html.'
-            }
             if ($Deploy) {
                 if ([string]::IsNullOrEmpty($Repository)) { throw 'The Pages preflight needs the repository (GITHUB_REPOSITORY) as owner/name.' }
                 $preflight = Invoke-PagesPreflight -Repository $Repository -ApiUrl $ApiUrl -Token $Token -BaseUrl $resolvedBaseUrl
@@ -106,8 +161,47 @@ if ($Phase -eq 'Stage') {
             }
             $manifestParent = Split-Path -Parent $ManifestPath
             if (-not (Test-Path -LiteralPath $manifestParent)) { [void](New-Item -ItemType Directory -Path $manifestParent -Force) }
-            [System.IO.File]::WriteAllText($ManifestPath, (ConvertTo-Json -InputObject $manifest -Depth 3), [System.Text.UTF8Encoding]::new($false))
-            Write-Host ('Staged {0} endpoints, {1} skeletons, rulebook.json and index.html in {2}' -f @($manifest | Where-Object Kind -CEQ 'endpoint').Count, @($manifest | Where-Object Kind -CEQ 'skeleton').Count, $StagingPath)
+            Write-Host ('Staged {0} endpoints, {1} skeletons, rulebook.json, catalog/diagnostics.json and index.html in {2}' -f @($manifest | Where-Object Kind -CEQ 'endpoint').Count, @($manifest | Where-Object Kind -CEQ 'skeleton').Count, $StagingPath)
+            if (Test-SiteEnabled $settings) {
+                $siteDir = Join-Path $root 'site'
+                if ($resolvedTarget -cne 'pages') {
+                    Add-Annotation -Context $ctx -Command warning -Message "site.enabled is true, but the publish target '$resolvedTarget' serves HTML as plain text: this run publishes the plain index.html."
+                } elseif (-not (Test-Path -LiteralPath (Join-Path $siteDir 'hugo.yaml') -PathType Leaf)) {
+                    Add-Annotation -Context $ctx -Command warning -Message 'site.enabled is true, but site/hugo.yaml is missing: this run publishes the plain index.html. Run Update Rulebook System Files to get site/, or set site.enabled to false.'
+                } elseif ($null -eq (Get-Command -Name $HugoPath -ErrorAction SilentlyContinue)) {
+                    Add-Annotation -Context $ctx -Message "site.enabled is true, but Hugo was not found ('$HugoPath'). The Publish action installs it on Linux runners; elsewhere install Hugo 0.156.0 or later (extended) and pass its path as the hugoPath input, or set site.enabled to false."
+                    Add-Failure -Context $ctx -Kind 'site'
+                    $failed = $true
+                } else {
+                    $dataFile = Join-Path $siteDir 'data' 'rulebook.json'
+                    [void][System.IO.Directory]::CreateDirectory((Split-Path -Parent $dataFile))
+                    Copy-Item -LiteralPath (Join-Path $StagingPath 'rulebook.json') -Destination $dataFile -Force
+                    $site = $null
+                    try {
+                        $site = Build-RulebookSite -SitePath $siteDir -BaseUrl $resolvedBaseUrl -Destination $StagingPath -HugoPath $HugoPath
+                    } catch {
+                        Add-Annotation -Context $ctx -Message "The site build failed: $($_.Exception.Message)"
+                        Add-Failure -Context $ctx -Kind 'site'
+                        $failed = $true
+                    }
+                    if ($site) {
+                        Write-Host ('Built the site: {0} pages in {1} s' -f $site.PageCount, $site.Seconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))
+                        if (-not $site.MarkerPresent) { Add-Annotation -Context $ctx -Command warning -Message 'The built index.html has no data-rulebook-matrix marker: site/layouts may have dropped the matrix. The site is published as built.' }
+                        $data = Get-Content -LiteralPath (Join-Path $StagingPath 'rulebook.json') -Raw | ConvertFrom-Json -AsHashtable
+                        # Hugo lowercases page paths; the check requests every stage and level page and the first rule page.
+                        $pagePaths = @(foreach ($stage in $inputs.Stages) { "stages/$($stage.Slug)/" }) + @(foreach ($level in $inputs.Levels) { "levels/$($level.Slug)/" })
+                        if (@($data['rules']).Count -gt 0) { $pagePaths += "rules/$(([string]$data['rules'][0]['id']).ToLowerInvariant())/" }
+                        foreach ($pagePath in $pagePaths) {
+                            if ($site.Pages -cnotcontains "$($pagePath)index.html") { continue }
+                            $manifest += [pscustomobject]@{ Path = "$($pagePath)index.html"; Url = "$resolvedBaseUrl/$pagePath"; Kind = 'page'; StagedFile = (Join-Path $StagingPath $pagePath 'index.html') }
+                        }
+                        $siteBuilt = $site
+                    }
+                }
+            }
+            if (-not $failed) {
+                [System.IO.File]::WriteAllText($ManifestPath, (ConvertTo-Json -InputObject $manifest -Depth 3), [System.Text.UTF8Encoding]::new($false))
+            }
         }
     } catch {
         Add-Annotation -Context $ctx -Message $_.Exception.Message
@@ -123,6 +217,7 @@ if ($Phase -eq 'Stage') {
     } else {
         $mode = if ($Deploy) { 'Deploying to GitHub Pages' } else { 'Staged only (deploy is off)' }
         [void]$summary.AppendLine(('{0}: {1} files for `{2}`.' -f $mode, $manifest.Count, $resolvedBaseUrl)).AppendLine()
+        if ($siteBuilt) { [void]$summary.AppendLine(('The dashboard site: {0} pages built with Hugo in {1} s; the table lists the pages the check requests.' -f $siteBuilt.PageCount, $siteBuilt.Seconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))).AppendLine() }
         [void]$summary.AppendLine('| Kind | URL |').AppendLine('|---|---|')
         foreach ($entry in $manifest) { [void]$summary.AppendLine(('| {0} | {1} |' -f $entry.Kind, $entry.Url)) }
         [void]$summary.AppendLine()
@@ -139,6 +234,7 @@ if ($Phase -eq 'Stage') {
         ManifestPath = $ManifestPath
         Manifest     = $manifest
         Preflight    = $preflight
+        Site         = $siteBuilt
         Annotations  = $ctx.Annotations.ToArray()
         Summary      = $summaryText
     }
@@ -151,9 +247,9 @@ $failed = $false
 try {
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Manifest not found: $ManifestPath (run -Phase Stage first)" }
     $manifest = @(Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json)
-    Write-Host "Checking $(@($manifest | Where-Object Kind -CIn 'endpoint', 'skeleton', 'manifest', 'index').Count) URLs for up to $WindowSeconds s"
+    Write-Host "Checking $(@($manifest | Where-Object Kind -CIn 'endpoint', 'skeleton', 'manifest', 'catalog', 'index', 'page').Count) URLs for up to $WindowSeconds s"
     $results = @(Test-RulebookEndpoints -Manifest $manifest -TimeoutSeconds $TimeoutSeconds -WindowSeconds $WindowSeconds -IntervalSeconds $IntervalSeconds)
-    if ($results.Count -eq 0) { throw "No URL was checked: the manifest $ManifestPath lists no endpoint, skeleton, manifest or index." }
+    if ($results.Count -eq 0) { throw "No URL was checked: the manifest $ManifestPath lists no endpoint, skeleton, manifest, catalog, index or page." }
     foreach ($result in $results | Where-Object Reason -CNE 'ok') {
         $reason = switch ($result.Reason) {
             'missing' { 'is missing (HTTP 404)' }

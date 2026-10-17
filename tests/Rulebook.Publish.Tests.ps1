@@ -40,8 +40,9 @@ BeforeAll {
             $file = Join-Path $folder $path
             [void](New-Item -ItemType Directory -Path (Split-Path -Parent $file) -Force)
             [System.IO.File]::WriteAllText($file, $Bodies[$path], $script:utf8)
-            $kind = if ($path -like 'skeletons/*') { 'skeleton' } elseif ($path -eq 'index.html') { 'index' } elseif ($path -eq 'rulebook.json') { 'manifest' } else { 'endpoint' }
-            [pscustomobject]@{ Path = $path; Url = "$script:baseUrl/$path"; Kind = $kind; StagedFile = $file }
+            $kind = if ($path -like 'skeletons/*') { 'skeleton' } elseif ($path -eq 'index.html') { 'index' } elseif ($path -eq 'rulebook.json') { 'manifest' } elseif ($path -like 'catalog/*') { 'catalog' } elseif ($path -like '*/index.html') { 'page' } else { 'endpoint' }
+            $url = if ($kind -eq 'page') { "$script:baseUrl/$($path.Substring(0, $path.Length - 'index.html'.Length))" } else { "$script:baseUrl/$path" }
+            [pscustomobject]@{ Path = $path; Url = $url; Kind = $kind; StagedFile = $file }
         }
     }
 }
@@ -58,29 +59,32 @@ Describe 'New-RulebookPublishStage on template/' {
         $script:manifest = @(New-RulebookPublishStage -RepositoryRoot $stageRoot -BaseUrl $baseUrl -OutputPath $output)
     }
 
-    It 'stages exactly the 12 endpoints, the 12 skeletons, rulebook.json and index.html' {
+    It 'stages exactly the 12 endpoints, the 12 skeletons, rulebook.json, catalog/diagnostics.json and index.html' {
         $files = Get-RelativeFileList -Root $output
-        $files.Count | Should-Be 26
+        $files.Count | Should-Be 27
         @($files | Where-Object { $_ -like 'rulesets/*' }).Count | Should-Be 12
         @($files | Where-Object { $_ -like 'skeletons/*' }).Count | Should-Be 12
-        foreach ($file in 'index.html', 'rulebook.json', 'rulesets/strict.ruleset.json', 'rulesets/strict.ci.ruleset.json', 'skeletons/strict.default.ruleset.json') { $files -ccontains $file | Should-BeTrue }
-        @($files | Where-Object { $_ -match '^(base|catalog|site|stages)/' -or $_ -like '.github/*' }).Count | Should-Be 0
+        foreach ($file in 'index.html', 'rulebook.json', 'catalog/diagnostics.json', 'rulesets/strict.ruleset.json', 'rulesets/strict.ci.ruleset.json', 'skeletons/strict.default.ruleset.json') { $files -ccontains $file | Should-BeTrue }
+        @($files | Where-Object { ($_ -match '^(base|catalog|site|stages)/' -and $_ -cne 'catalog/diagnostics.json') -or $_ -like '.github/*' }).Count | Should-Be 0
         # The template ships skeletons/README.md; staging copies by expected name, so it is not published.
         Test-Path -LiteralPath (Join-Path $stageRoot 'skeletons' 'README.md') -PathType Leaf | Should-BeTrue
         $files -ccontains 'skeletons/README.md' | Should-BeFalse
     }
 
     It 'returns a manifest in settings order with URLs under the base URL' {
-        $manifest.Count | Should-Be 26
+        $manifest.Count | Should-Be 27
         @($manifest | Where-Object Kind -EQ 'endpoint').Count | Should-Be 12
         @($manifest | Where-Object Kind -EQ 'skeleton').Count | Should-Be 12
         $manifest[0].Path | Should-Be 'rulesets/essential.ruleset.json'
         $manifest[1].Path | Should-Be 'rulesets/essential.ci.ruleset.json'
         $manifest[0].Url | Should-Be "$baseUrl/rulesets/essential.ruleset.json"
         $manifest[12].Path | Should-Be 'skeletons/essential.default.ruleset.json'
-        $manifest[-2].Kind | Should-Be 'manifest'
-        $manifest[-2].Path | Should-Be 'rulebook.json'
-        $manifest[-2].Url | Should-Be "$baseUrl/rulebook.json"
+        $manifest[-3].Kind | Should-Be 'manifest'
+        $manifest[-3].Path | Should-Be 'rulebook.json'
+        $manifest[-3].Url | Should-Be "$baseUrl/rulebook.json"
+        $manifest[-2].Kind | Should-Be 'catalog'
+        $manifest[-2].Path | Should-Be 'catalog/diagnostics.json'
+        $manifest[-2].Url | Should-Be "$baseUrl/catalog/diagnostics.json"
         $manifest[-1].Kind | Should-Be 'index'
         $manifest[-1].Url | Should-Be "$baseUrl/"
         foreach ($entry in $manifest) { Test-Path -LiteralPath $entry.StagedFile -PathType Leaf | Should-BeTrue }
@@ -91,6 +95,53 @@ Describe 'New-RulebookPublishStage on template/' {
             $source = [System.IO.File]::ReadAllBytes((Join-Path $stageRoot $entry.Path))
             [System.Linq.Enumerable]::SequenceEqual([byte[]][System.IO.File]::ReadAllBytes($entry.StagedFile), [byte[]]$source) | Should-BeTrue
         }
+    }
+
+    It 'copies catalog/diagnostics.json byte for byte' {
+        $source = [System.IO.File]::ReadAllBytes((Join-Path $stageRoot 'catalog' 'diagnostics.json'))
+        [System.Linq.Enumerable]::SequenceEqual([byte[]][System.IO.File]::ReadAllBytes((Join-Path $output 'catalog' 'diagnostics.json')), [byte[]]$source) | Should-BeTrue
+    }
+
+    It 'writes the full site data document, whose head is the minimal form of ConvertTo-RulebookManifestJson' {
+        $text = [System.IO.File]::ReadAllText((Join-Path $output 'rulebook.json'), $utf8)
+        $json = $text | ConvertFrom-Json -AsHashtable
+        @($json.Keys) | Should-BeCollection @('generatedAt', 'baseUrl', 'issueTemplate', 'docsUrl', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
+        $json['issueTemplate'] | Should-Be 'rulebook-change.yml'
+        $json['docsUrl'] | Should-Be 'https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md'
+        @($json['rules']).Count | Should-Be 628
+        @($json['rules'][0]['cells'].Keys).Count | Should-Be 12
+        # The levels and stages carry the keys of the minimal form first, with the same values.
+        $minimal = ConvertTo-RulebookManifestJson -Inputs (Read-RulebookInputs -RepositoryRoot $stageRoot) -BaseUrl $baseUrl | ConvertFrom-Json -AsHashtable
+        foreach ($key in 'levels', 'stages') {
+            for ($i = 0; $i -lt @($minimal[$key]).Count; $i++) {
+                $short = $minimal[$key][$i]
+                @($json[$key][$i].Keys)[0..($short.Count - 1)] | Should-BeCollection @($short.Keys)
+                foreach ($name in $short.Keys) { $json[$key][$i][$name] | Should-Be $short[$name] }
+            }
+        }
+        # No override or quarantine justification without site.includeJustifications (D36).
+        foreach ($override in $json['overrides']) { $override.Contains('justification') | Should-BeFalse }
+    }
+
+    It 'writes the override justifications with site.includeJustifications true' {
+        $root = Copy-Template
+        Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_['site']['includeJustifications'] = $true }
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'tests' 'fixtures' 'repos' 'valid-minimal' 'overrides.json') -Destination (Join-Path $root 'overrides.json') -Force
+        $null = Update-RulebookEndpoints -RepositoryRoot $root
+        $folder = Get-TestFolder
+        $null = New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath $folder -GeneratedAt ([datetime]'2026-10-17T00:00:00Z')
+        $text = [System.IO.File]::ReadAllText((Join-Path $folder 'rulebook.json'), $utf8)
+        $text | Should-MatchString ([regex]::Escape('{ "id": "AA0072", "action": "Info", "levels": ["*"], "stages": ["*"], "justification": "House style" }'))
+        $text | Should-MatchString '\A\{
+  "generatedAt": "2026-10-17T00:00:00Z",
+'
+    }
+
+    It 'refuses a repository without catalog/diagnostics.json' {
+        $root = Copy-Template
+        $inputs = Read-RulebookInputs -RepositoryRoot $root
+        Remove-Item -LiteralPath (Join-Path $root 'catalog' 'diagnostics.json')
+        { New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) -Inputs $inputs } | Should-Throw -ExceptionMessage 'catalog/diagnostics.json is missing*'
     }
 
     It 'renders the base URL into the staged skeletons and leaves the repository copy alone' {
@@ -139,7 +190,7 @@ Describe 'New-RulebookPublishStage on template/' {
         Set-Content -LiteralPath (Join-Path $folder 'rulesets' 'removed.vnext.ruleset.json') -Value '{}'
         $null = New-RulebookPublishStage -RepositoryRoot $stageRoot -BaseUrl $baseUrl -OutputPath $folder
         Test-Path -LiteralPath (Join-Path $folder 'rulesets' 'removed.vnext.ruleset.json') | Should-BeFalse
-        (Get-RelativeFileList -Root $folder).Count | Should-Be 26
+        (Get-RelativeFileList -Root $folder).Count | Should-Be 27
     }
 }
 
@@ -223,7 +274,7 @@ Describe 'New-RulebookPublishStage guards' {
         Test-Path -LiteralPath (Join-Path $root '.github' 'Rulebook-Settings.json') | Should-BeTrue
         # A sibling whose name starts with the repository's name is not a parent.
         $output = "$root-stage"
-        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath $output).Count | Should-Be 26
+        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath $output).Count | Should-Be 27
     }
 
     It 'resolves a relative output path against the current location' {
@@ -236,7 +287,7 @@ Describe 'New-RulebookPublishStage guards' {
         } finally {
             Pop-Location
         }
-        $manifest.Count | Should-Be 26
+        $manifest.Count | Should-Be 27
         $expected = Join-Path (Split-Path -Parent $root) 'relative-stage'
         Test-Path -LiteralPath (Join-Path $expected 'index.html') | Should-BeTrue
         $manifest[0].StagedFile | Should-BeLikeString "$expected*"
@@ -247,7 +298,7 @@ Describe 'New-RulebookPublishStage guards' {
         $root = Copy-Template
         $inputs = Read-RulebookInputs -RepositoryRoot $root
         Mock Read-RulebookInputs -ModuleName Rulebook.Publish { throw 'read again' }
-        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) -Inputs $inputs).Count | Should-Be 26
+        @(New-RulebookPublishStage -RepositoryRoot $root -BaseUrl $baseUrl -OutputPath (Get-TestFolder) -Inputs $inputs).Count | Should-Be 27
     }
 
     It 'refuses a missing skeleton' {
@@ -515,6 +566,16 @@ Describe 'Test-RulebookEndpoints' {
         ($results | Where-Object Kind -EQ 'manifest').Url | Should-Be "$baseUrl/rulebook.json"
         $results[0].Status | Should-Be 200
         Should-Invoke Start-Sleep -ModuleName Rulebook.Publish -Times 0 -Exactly
+    }
+
+    It 'checks the catalog and the site pages (kinds catalog and page) at their URLs' {
+        $extra = [ordered]@{ 'catalog/diagnostics.json' = "{ `"diagnostics`": [] }`n"; 'stages/ci/index.html' = "<section data-rulebook-matrix=`"ci`"></section>`n" }
+        $script:served["$baseUrl/catalog/diagnostics.json"] = $extra['catalog/diagnostics.json']
+        $script:served["$baseUrl/stages/ci/"] = $extra['stages/ci/index.html']
+        $manifest = @(New-TestManifest -Bodies $extra)
+        @($manifest | ForEach-Object Kind) | Should-BeCollection @('catalog', 'page')
+        $results = @(Test-RulebookEndpoints -Manifest $manifest -WindowSeconds 0)
+        @($results | ForEach-Object { "$($_.Kind) $($_.Url) $($_.Reason)" }) | Should-BeCollection @("catalog $baseUrl/catalog/diagnostics.json ok", "page $baseUrl/stages/ci/ ok")
     }
 
     It 'skips an entry of another kind' {

@@ -3,12 +3,15 @@ name: Publish
 on:
   push:
     branches: [ main ]
-    # Only what is published, how it is addressed, and this workflow; run it by hand for anything else.
+    # Only what is published, how it is addressed, what builds the site, and this workflow; run it by hand for
+    # anything else.
     paths:
       - 'rulesets/**'
       - 'skeletons/**'
       - '.github/Rulebook-Settings.json'
       - '.github/workflows/Publish.yaml'
+      - 'site/**'
+      - 'catalog/diagnostics.json'
   workflow_dispatch:
 
 permissions:
