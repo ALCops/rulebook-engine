@@ -3,6 +3,7 @@
 // Every decision is in cart-core.mjs; this file only reads and writes the page.
 import * as core from './cart-core.mjs';
 
+// The body of every page carries the repository, the issue form and the data file (baseof.html).
 const config = document.querySelector('[data-rulebook-json]');
 const panel = document.getElementById('cart');
 const toggle = document.querySelector('.cart-toggle');
@@ -19,17 +20,17 @@ if (config && panel && toggle) {
   const status = panel.querySelector('.cart-status');
   const submit = panel.querySelector('[data-cart="submit"]');
   const parts = panel.querySelector('[data-cart="parts"]');
+  const hasCells = document.querySelector('td[data-level]') !== null;
   let data = null;
   let pendingParts = null;
 
+  // Whatever is stored goes through sanitize: every page of the same host shares localStorage.
   const load = () => {
     try {
-      const stored = JSON.parse(localStorage.getItem(key) || 'null');
-      if (stored && Array.isArray(stored.changes)) return stored;
+      return core.sanitize(JSON.parse(localStorage.getItem(key) || 'null'));
     } catch (error) {
-      // A cart that cannot be read starts empty.
+      return core.emptyCart();
     }
-    return core.emptyCart();
   };
   let cart = load();
 
@@ -37,10 +38,19 @@ if (config && panel && toggle) {
     try { localStorage.setItem(key, JSON.stringify(cart)); } catch (error) { /* private mode: the cart lives until the page closes */ }
   };
 
+  // Fetched once; a failed fetch is not kept, so the next action tries again.
   const loadData = () => {
-    if (!data) data = fetch(config.dataset.rulebookJson).then((response) => response.json());
+    if (!data) {
+      data = fetch(config.dataset.rulebookJson).then((response) => {
+        if (!response.ok) throw new Error(`rulebook.json answered HTTP ${response.status}`);
+        return response.json();
+      });
+      data.catch(() => { data = null; });
+    }
     return data;
   };
+
+  const fail = (error) => { status.textContent = error && error.message ? error.message : String(error); };
 
   const element = (tag, text, className) => {
     const node = document.createElement(tag);
@@ -68,7 +78,11 @@ if (config && panel && toggle) {
     const box = element('input');
     box.type = 'checkbox';
     box.checked = row.change[axis].includes('*');
-    box.addEventListener('change', () => update(box.checked ? core.widen(cart, row.index, axis) : core.narrow(cart, row.index, axis)));
+    box.addEventListener('change', () => {
+      const before = cart.changes.length;
+      update(box.checked ? core.widen(cart, row.index, axis) : core.narrow(cart, row.index, axis));
+      if (cart.changes.length < before) status.textContent = `${row.change.id}: merged with an equal change of the cart, which this one replaces.`;
+    });
     const wrap = element('label', undefined);
     wrap.append(box, ` ${label}`);
     return wrap;
@@ -110,14 +124,14 @@ if (config && panel && toggle) {
     return item;
   };
 
-  const render = () => {
+  const show = () => {
     const count = cart.changes.length;
-    toggle.hidden = false;
+    // On a page without cells (a level page) the toggle shows only when the cart holds something.
+    toggle.hidden = !hasCells && count === 0;
     toggle.querySelector('.cart-count').textContent = String(count);
     panel.querySelector('.cart-empty').hidden = count > 0;
     if (document.activeElement !== note) note.value = cart.note;
-    const url = core.issueUrl(repository, issueTemplate, cart);
-    const fit = core.fits(url);
+    const fit = core.fits(core.issueUrl(repository, issueTemplate, cart));
     meter.value = Math.min(fit.bytes, fit.limit);
     bytesText.textContent = `${fit.bytes} of ${fit.limit} bytes of the issue link`;
     size.classList.toggle('over', !fit.ok);
@@ -133,6 +147,16 @@ if (config && panel && toggle) {
     });
   };
 
+  // A throw (a repository the data file does not name, a broken character) shows in the status, never a dead cart.
+  const render = () => {
+    try {
+      show();
+    } catch (error) {
+      submit.disabled = true;
+      fail(error);
+    }
+  };
+
   const confirmClear = () => {
     if (window.confirm('Did GitHub open the filled form? Clear the cart?')) update(core.clearCart());
   };
@@ -146,7 +170,7 @@ if (config && panel && toggle) {
         const entry = cell && cell.source === 'override' ? loaded.overrides[cell.override] : null;
         if (!entry) { status.textContent = `No override decides ${id} on ${level}.${stage}.`; return; }
         update(core.addChange(cart, { op: 'remove', id, levels: entry.levels, stages: entry.stages }));
-      });
+      }).catch(fail);
     } else if (action === 'release') {
       update(core.addChange(cart, { op: 'release', id, stages: [stage] }));
     } else {
@@ -163,18 +187,29 @@ if (config && panel && toggle) {
 
   note.addEventListener('input', () => {
     cart = core.setNote(cart, note.value);
+    pendingParts = null;
     save();
     render();
   });
 
   submit.addEventListener('click', () => {
-    window.open(core.issueUrl(repository, issueTemplate, cart), '_blank', 'noopener');
+    try {
+      window.open(core.issueUrl(repository, issueTemplate, cart), '_blank', 'noopener');
+    } catch (error) {
+      fail(error);
+      return;
+    }
     confirmClear();
   });
 
   // One click per part: a browser opens one new tab per click.
   parts.addEventListener('click', () => {
-    if (!pendingParts) pendingParts = { list: core.splitParts(repository, issueTemplate, cart), next: 0 };
+    try {
+      if (!pendingParts) pendingParts = { list: core.splitParts(repository, issueTemplate, cart), next: 0 };
+    } catch (error) {
+      fail(error);
+      return;
+    }
     const part = pendingParts.list[pendingParts.next];
     if (part.oversize) {
       status.textContent = `Part ${pendingParts.next + 1} is one change too large for a link: copy the change set and paste it into the empty form.`;

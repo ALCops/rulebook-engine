@@ -114,10 +114,11 @@
   var template = document.getElementById('cell-popover');
   var open = null;
 
-  function close() {
+  // refocus: back to the cell after Escape or a choice; an outside click leaves the focus where the user put it.
+  function close(refocus) {
     if (!open) return;
     open.popover.remove();
-    open.cell.focus();
+    if (refocus) open.cell.focus();
     open = null;
   }
 
@@ -136,7 +137,7 @@
       var button = event.target.closest('button[data-choose]');
       if (!button) return;
       choose({ id: data.id, level: data.level, stage: data.stage, action: button.dataset.choose });
-      close();
+      close(true);
     });
     document.body.appendChild(popover);
     var box = cell.getBoundingClientRect();
@@ -153,7 +154,7 @@
       if (open && !open.popover.contains(event.target)) close();
     });
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') { close(); return; }
+      if (event.key === 'Escape') { close(true); return; }
       var cell = event.target.closest && event.target.closest('td[data-level]');
       if (cell && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); show(cell); }
     });

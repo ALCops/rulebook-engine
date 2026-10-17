@@ -13,6 +13,8 @@
 export const LIMIT_BYTES = 7372;
 export const ACTIONS = ['Error', 'Warning', 'Info', 'Hidden', 'None'];
 const ALL = '*';
+const ID_PATTERN = /^[A-Z]{2,3}[0-9]{4}i?$/;
+const REPOSITORY_PATTERN = /^[\w.-]+\/[\w.-]+$/;
 
 export function storageKey(repository) {
   return 'rulebook-cart:' + (repository || '');
@@ -37,6 +39,39 @@ function copyCart(cart) {
     note: typeof source.note === 'string' ? source.note : '',
     changes: (source.changes || []).map(copyChange),
   };
+}
+
+function isSelector(value) {
+  return Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === 'string' && item.length > 0);
+}
+
+// A cart read back from storage, kept only as far as it has the shape of the change set: localStorage is shared by
+// every page of the same host (every project site under <owner>.github.io), so anything can be there. A change that
+// does not fit is dropped; anything that is not a cart gives the empty cart.
+export function sanitize(value) {
+  if (!value || typeof value !== 'object' || value.version !== 1 || !Array.isArray(value.changes)) return emptyCart();
+  const changes = [];
+  for (const change of value.changes) {
+    if (!change || typeof change !== 'object') continue;
+    if (!['set', 'remove', 'release'].includes(change.op)) continue;
+    if (typeof change.id !== 'string' || !ID_PATTERN.test(change.id)) continue;
+    if (!isSelector(change.stages)) continue;
+    if (change.op !== 'release' && !isSelector(change.levels)) continue;
+    if (change.op === 'set' && !ACTIONS.includes(change.action)) continue;
+    const item = { op: change.op, id: change.id };
+    if (change.op === 'set') item.action = change.action;
+    if (change.op !== 'release') item.levels = [...change.levels];
+    item.stages = [...change.stages];
+    if (change.op === 'set' && typeof change.justification === 'string') item.justification = change.justification;
+    item.origin = { stages: [...item.stages] };
+    if (item.levels) item.origin.levels = [...item.levels];
+    if (change.origin && typeof change.origin === 'object') {
+      if (isSelector(change.origin.stages)) item.origin.stages = [...change.origin.stages];
+      if (item.levels && isSelector(change.origin.levels)) item.origin.levels = [...change.origin.levels];
+    }
+    changes.push(item);
+  }
+  return { version: 1, note: typeof value.note === 'string' ? value.note : '', changes };
 }
 
 function sameList(a, b) {
@@ -69,26 +104,32 @@ export function addChange(cart, change) {
   return next;
 }
 
+// Drops every other change with the same selection as change i: the change the user just touched wins, so no two
+// changes with the same op, id, levels and stages survive.
+function dropTwins(cart, i) {
+  const kept = cart.changes[i];
+  cart.changes = cart.changes.filter((other, j) => j === i || !sameSelection(other, kept));
+  return cart;
+}
+
 // Widens change i to every level or every stage (axis 'levels' or 'stages'). A remove names one override entry
-// exactly and is never widened. When the widened change equals another one, the two become one: the other one, in
-// its place, keeps its action, justification and the selection it was added with.
+// exactly and is never widened. When the widened change equals another one, the widened change stays and the other
+// one goes (the cart has fewer changes afterwards; cart.mjs says so).
 export function widen(cart, i, axis) {
   const next = copyCart(cart);
   const change = next.changes[i];
   if (!change || change.op === 'remove' || !change[axis]) return next;
   change[axis] = [ALL];
-  const twin = next.changes.findIndex((other, j) => j !== i && sameSelection(other, change));
-  if (twin >= 0) next.changes.splice(i, 1);
-  return next;
+  return dropTwins(next, i);
 }
 
-// Narrows change i back to the levels or stages it had when it was added.
+// Narrows change i back to the levels or stages it had when it was added, with the same twin rule as widen.
 export function narrow(cart, i, axis) {
   const next = copyCart(cart);
   const change = next.changes[i];
   if (!change || !change.origin || !change.origin[axis]) return next;
   change[axis] = [...change.origin[axis]];
-  return next;
+  return dropTwins(next, i);
 }
 
 // Only a set carries a justification (the schema refuses one on remove and release).
@@ -186,15 +227,27 @@ export function serialize(cart) {
   return JSON.stringify(changeSet(cart));
 }
 
-// The address of the empty issue form of the repository.
+// encodeURIComponent throws on a lone surrogate (a broken character pasted into a note or justification).
+function encode(text, what) {
+  try {
+    return encodeURIComponent(text);
+  } catch (error) {
+    throw new Error('The ' + what + ' holds a character that cannot go into a link; retype it.');
+  }
+}
+
+// The address of the empty issue form of the repository (owner/name, from the data file).
 export function emptyFormUrl(repository, issueTemplate) {
-  return 'https://github.com/' + repository + '/issues/new?template=' + encodeURIComponent(issueTemplate);
+  if (typeof repository !== 'string' || !REPOSITORY_PATTERN.test(repository)) {
+    throw new Error('The data file names no repository as owner/name, so the site cannot open its issue form.');
+  }
+  return 'https://github.com/' + repository + '/issues/new?template=' + encode(issueTemplate, 'issue form name');
 }
 
 // The address of the form with the change set and the note filled in; the note parameter only when there is one.
 export function issueUrl(repository, issueTemplate, cart) {
-  let url = emptyFormUrl(repository, issueTemplate) + '&changes=' + encodeURIComponent(serialize(cart));
-  if (cart.note) url += '&note=' + encodeURIComponent(cart.note);
+  let url = emptyFormUrl(repository, issueTemplate) + '&changes=' + encode(serialize(cart), 'change set');
+  if (cart.note) url += '&note=' + encode(cart.note, 'note');
   return url;
 }
 
