@@ -276,7 +276,7 @@ A released id falls back to the level chain or the analyzer default on the next 
 
 `template/.github/ISSUE_TEMPLATE/rulebook-change.yml`:
 
-> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Until the apply workflow of section 8 ships (WP15), a submitted form is only an issue: a maintainer applies each change with the Change Rule workflow, and the form says so. GitHub applies the label `rulebook-change` only when it exists in the repository.
+> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Until the apply workflow of section 8 ships (WP15), a submitted form is only an issue: a maintainer applies each change by hand or with the Change Rule workflow (a `set` fits the form; a `remove` of a multi-selector entry or a `release` is an edit of `overrides.json` or the quarantine file), and the form says so. GitHub applies the label `rulebook-change` only when it exists in the repository.
 
 ```yaml
 name: Rulebook change
@@ -287,7 +287,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change with the Change Rule workflow.
+        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change by hand or with the Change Rule workflow.
   - type: textarea
     id: changes
     attributes:
