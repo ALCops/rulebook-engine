@@ -197,10 +197,10 @@ Describe 'Get-RulebookFileClass' {
         (Get-RulebookFileClass -Path 'docs/README.md' -TemplatePaths $v2Paths -Settings $overwrite).Class | Should-Be 'customizable'
     }
 
-    It 'overwrites the shipped issue forms of .github/ISSUE_TEMPLATE/ (WP14) and leaves an organization form alone' {
-        $paths = @('.github/ISSUE_TEMPLATE/rulebook-change.yml', '.github/ISSUE_TEMPLATE/config.yml')
+    It 'overwrites the shipped issue forms of .github/ISSUE_TEMPLATE/ (WP14) and leaves an organization's own forms and config.yml alone' {
+        $paths = @('.github/ISSUE_TEMPLATE/rulebook-change.yml')
         Get-RulebookFileClass -Path '.github/ISSUE_TEMPLATE/rulebook-change.yml' -TemplatePaths $paths -Settings $settings | Should-BeEquivalent ([pscustomobject]@{ Class = 'overwrite'; Kind = 'issue-template' })
-        (Get-RulebookFileClass -Path '.github/ISSUE_TEMPLATE/config.yml' -TemplatePaths $paths -Settings $settings).Class | Should-Be 'overwrite'
+        (Get-RulebookFileClass -Path '.github/ISSUE_TEMPLATE/config.yml' -TemplatePaths $paths -Settings $settings).Class | Should-Be 'org-owned'
         (Get-RulebookFileClass -Path '.github/ISSUE_TEMPLATE/bug.yml' -TemplatePaths $paths -Settings $settings).Class | Should-Be 'org-owned'
     }
 

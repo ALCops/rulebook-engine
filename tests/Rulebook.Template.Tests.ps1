@@ -529,6 +529,15 @@ Describe 'Shipped template content' {
         @($withCr) | Should-BeCollection @()
     }
 
+    It 'ships the rulebook-change issue form byte for byte as docs/dashboard.md section 7, and no config.yml' {
+        $dashboard = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'docs' 'dashboard.md')).Replace("`r`n", "`n")
+        $section = [regex]::Match($dashboard, '(?ms)^## 7\. Issue form\n(.*?)^## 8\.').Groups[1].Value
+        $block = [regex]::Match($section, '(?ms)^```yaml\n(.*?)^```').Groups[1].Value
+        $block | Should-MatchString '^name: Rulebook change\n'
+        [System.IO.File]::ReadAllText((Join-Path $templateDir '.github' 'ISSUE_TEMPLATE' 'rulebook-change.yml')) | Should-Be $block
+        @(Get-ChildItem -LiteralPath (Join-Path $templateDir '.github' 'ISSUE_TEMPLATE') -File | ForEach-Object Name) | Should-BeCollection @('rulebook-change.yml')
+    }
+
     It 'composes every cell of matrix/resolved.json from the files on disk (V13)' {
         $resolved = Get-Content -LiteralPath (Join-Path $rulebookDir 'matrix' 'resolved.json') -Raw | ConvertFrom-Json -AsHashtable
         $mismatches = [System.Collections.Generic.List[string]]::new()
@@ -553,7 +562,6 @@ Describe 'Build-Template.ps1' {
     BeforeAll {
         $script:wrapper = Join-Path $repoRoot 'tools' 'rulebook' 'Build-Template.ps1'
         $script:handWritten = @(
-            '.github/ISSUE_TEMPLATE/config.yml'
             '.github/ISSUE_TEMPLATE/rulebook-change.yml'
             '.github/Rulebook-Settings.json'
             '.github/workflows/ChangeRule.yaml'
@@ -585,7 +593,7 @@ Describe 'Build-Template.ps1' {
         @(& $wrapper -WhatIf 6>$null) | Should-BeCollection @()
     }
 
-    It 'regenerates template/ and the level pages byte for byte from the 14 hand-written files and docs/' {
+    It 'regenerates template/ and the level pages byte for byte from the 13 hand-written files and docs/' {
         $scratch = Get-TestFolder
         # Outside $scratch: a page under it would break the hash comparison with template/.
         $pages = Get-TestFolder
