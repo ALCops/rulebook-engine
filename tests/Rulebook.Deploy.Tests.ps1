@@ -277,7 +277,7 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
         $changed = Update-DeployReference -Root $root -EngineBranch 'v1' -TemplateBranch 'main'
         foreach ($file in 'skeletons/README.md', 'docs/al-project.md') { $changed | Should-ContainCollection $file }
-        $left = foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.md', '*.yaml', '*.json') {
+        $left = foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.md', '*.yaml', '*.yml', '*.json', '*.html', '*.js', '*.mjs', '*.css', '*.gotmpl') {
             $text = Get-Text $file.FullName
             if ($text -match $enginePattern) { "$($file.Name): $($Matches[0])" }
         }
@@ -294,7 +294,7 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         Copy-FixtureTree -Source (Join-Path $repoRoot 'template') -Destination $root
         $changed = Update-DeployReference -Root $root -EngineBranch 'main' -TemplateBranch 'preview'
         foreach ($file in '.github/Rulebook-Settings.json', 'docs/README.md') { $changed | Should-ContainCollection $file }
-        $left = foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.md', '*.yaml', '*.json') {
+        $left = foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Include '*.md', '*.yaml', '*.yml', '*.json', '*.html', '*.js', '*.mjs', '*.css', '*.gotmpl') {
             $text = Get-Text $file.FullName
             if ($text -match $templatePattern) { "$($file.Name): $($Matches[0])" }
         }
@@ -313,6 +313,21 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         # The switch-back sentence of section 4 tells a preview follower to return to the release.
         $text | Should-MatchString 'To switch back, set `templateUrl` to end in `@main` again'
         $text | Should-MatchString 'set `templateUrl` to end in `@preview`'
+    }
+
+    It 'names no ALCops URL and no branch in the site files, which the rewrite does not reach (.js, .mjs, .css, .gotmpl)' {
+        # The site reads docsUrl and repository from data/rulebook.json; data/, public/ and resources/ are build output.
+        $siteDir = Join-Path $repoRoot 'template' 'site'
+        $files = @(Get-ChildItem -LiteralPath $siteDir -Recurse -File -Force | Where-Object { [System.IO.Path]::GetRelativePath($siteDir, $_.FullName).Replace('\', '/') -notmatch '^(data|public|resources)/' })
+        $files.Count | Should-BeGreaterThan 20
+        $hits = foreach ($file in $files) {
+            $number = 0
+            foreach ($line in [System.IO.File]::ReadAllLines($file.FullName)) {
+                $number++
+                if ($line -match 'ALCops/|raw\.githubusercontent\.com|/main/|@main|the `main` branch|\bpreview\b|\bv1\b') { "$($file.Name):$number $($Matches[0])" }
+            }
+        }
+        @($hits) | Should-BeCollection @()
     }
 
     It 'spells out no engine branch in the prose of the shipped pages, which the rewrite cannot reach' {
