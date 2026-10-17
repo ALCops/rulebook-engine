@@ -215,12 +215,12 @@ Rules:
 
 - `generatedAt` is UTC text, `yyyy-MM-ddTHH:mm:ssZ`, and the first key. A PowerShell reader parses the file with `ConvertFrom-Json -DateKind String` (PowerShell 7.5 and later) or reads the value from the text: plain `ConvertFrom-Json` turns it into a `DateTime` ([#62](https://github.com/ALCops/rulebook-engine/issues/62)). The engine's tests check it with a regular expression on the text.
 - `issueTemplate` is the constant `rulebook-change.yml` (section 7); `repository` and `issueTemplate` build the cart's issue URL. `docsUrl` is the dashboard user page on the template ref the engine ref maps to (`Get-RulebookDocsUrl`: engine `v1` reads the template's `main`, engine `main` its `preview`, a tag the same tag); it is the only value that names a branch.
-- `levels[]` and `stages[]` are in settings order and carry the keys of the minimal form first (`basedOn` and `description` only when set), then the page model. A level has the `Get-RulebookLevelSummary` facts (`file`, `chain` root first, `basedOnName`, `basedOnPublished`, `entryCount`, `loweredCount`, `overrideCount`), `counts` per stage over every catalog id and the `entries` of the level file against the chain below it. A stage has the `Get-RulebookStageSummary` facts (`file`, absent for `default`, `entryCount`, `quarantineCount`, `overrideCount`), `counts` per level and the `entries` of the stage file with `noEffect` (the levels where the level result is None, so the entry does not apply, S-4), `quarantined` (the stage's quarantine lists the id, C15) and `overridden` (the levels where an override decides the cell). One data file holds every page of the site.
+- `levels[]` and `stages[]` are in settings order and carry the keys of the minimal form first (`basedOn` and `description` only when set), then the page model. A level has the `Get-RulebookLevelSummary` facts (`file`, `chain` root first, `basedOnName`, `basedOnPublished`, `entryCount`, `loweredCount`, `overrideCount`), `counts` per stage over every catalog id and the `entries` of the level file against the chain below it. A stage has the `Get-RulebookStageSummary` facts (`file`, absent for `default`, `entryCount`, `quarantineCount`, `overrideCount`), `counts` per level and the `entries` of the stage file with `noEffect` (the levels where the id is None before the stage applies: level result or twins, so the entry does not apply, S-4), `quarantined` (the stage's quarantine lists the id, C15) and `overridden` (the levels where an override decides the cell). One data file holds every page of the site.
 - `rules` holds every catalog id and every id an input mentions, in the id order of [composition.md](rulebook/composition.md) section 3 (`Get-DiagnosticSortKey`: prefix order, then number, then the `i` suffix; an unknown prefix after the known ones, an id outside the pattern last), whatever input produced the id: the order the endpoints use ([#51](https://github.com/ALCops/rulebook-engine/issues/51)). An id outside the catalog sorts by the same key and has `unknown: true`, `default: null` and `enabledByDefault: null`. `default` is the catalog's `defaultSeverity`; the analyzers apply it only when `enabledByDefault` is true, otherwise the id is at None.
 - `cells` has one entry per published level and stage, keyed `<levelSlug>.<stageSlug>` in settings order, the `default` stage written; a template iterates `levels` x `stages` and looks a cell up by its key, because a range over the map walks the keys alphabetically. `action` and `source` come from the generator (`Get-RulebookEndpoint`, `Get-EffectiveAction`), `source` being the input that decided the action in the precedence of ARCHITECTURE section 5.1: `override`, `twins`, `stage:<slug>`, `level:<slug>`, `quarantine`, `default`. An id no input mentions has every cell at `default`, so the matrix shows the whole catalog; a cell of an unknown id that no input of that endpoint mentions has `action: null`.
 - An override cell also has `override`, the index of the winning entry in `overrides` (the order of `overrides.json`), and `fallback` and `fallbackSource`, the action and source the cell would have without that entry. A quarantine cell has `fallback` and `fallbackSource` without the quarantine. Both are computed by `Get-EffectiveAction` with that one input left out, so the cart shows the after of a `remove` or a `release` without repeating the precedence in the browser. Twins, stage, level and default cells have no fallback.
 - `justifications` carries the level and stage justifications of the id from the files, keyed by source token (`level:<slug>` of the file that sets the id, `stage:<slug>`), so a cell finds its own by `source`. They are public already (the engine repository is public, and an organization's own level and stage files are part of its rulebook) and are always written, `{}` when there is none.
-- `overrides[]` repeats `overrides.json` in file order; `quarantine` has one array per settings stage, empty arrays written. `overrides[].justification` and `quarantine.<stage>[].justification` are written only when `site.includeJustifications` is the boolean `true` (D36).
+- `overrides[]` repeats `overrides.json` in file order; `quarantine` has one array per settings stage in the order of its `quarantine.<stage>.json` (the stage summaries sort their quarantine ids by the id key instead), empty arrays written, and is always written one stage per line. `overrides[].justification` and `quarantine.<stage>[].justification` are written only when `site.includeJustifications` is the boolean `true` (D36).
 - Writer: two-space indent, LF, no BOM; an object whose values are scalars or arrays of scalars (a cell, a counts row, an entry, an override) and an array of scalars on one line. The text is byte-stable: the same inputs give the same bytes apart from `generatedAt`. Size: about 1.2 MB for the 628 ids of the shipped template with 12 cells each.
 
 ## 6. Change set
@@ -258,18 +258,18 @@ A released id falls back to the level chain or the analyzer default on the next 
 
 `template/.github/ISSUE_TEMPLATE/rulebook-change.yml`:
 
-> **Status:** the form and `config.yml` ship with WP14, byte for byte as below; the update overwrites both (`.github/ISSUE_TEMPLATE/*`, ARCHITECTURE section 7.3). The workflow that reads a submitted form comes with WP15, and GitHub applies the label `rulebook-change` only when it exists in the repository.
+> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Until the apply workflow of section 8 ships (WP15), a submitted form is only an issue: a maintainer applies each change with the Change Rule workflow, and the form says so. GitHub applies the label `rulebook-change` only when it exists in the repository.
 
 ```yaml
 name: Rulebook change
-description: Apply a change set produced by the Rulebook dashboard. Submitting opens a pull request (or commits, per the settings).
+description: A change set produced by the Rulebook dashboard.
 title: "Rulebook change"
 labels: [rulebook-change]
 body:
   - type: markdown
     attributes:
       value: |
-        The dashboard filled this form. Submit it as is; a workflow validates the change set, regenerates the endpoints and opens a pull request. Only repository collaborators can submit.
+        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change with the Change Rule workflow.
   - type: textarea
     id: changes
     attributes:
@@ -282,7 +282,7 @@ body:
     id: note
     attributes:
       label: Note
-      description: Optional. Becomes the first paragraph of the pull request.
+      description: Optional. Why the change is made.
 ```
 
 The dashboard opens
@@ -295,7 +295,7 @@ GitHub prefills issue form fields from query parameters named after the field `i
 
 **URL limit.** GitHub answers `414 URI Too Long` once the full prefilled URL reaches 8192 bytes; 8191 bytes still opens the form with every field filled byte-identical, `render: json` included ([spike (g)](reference/spikes/g-prefilled-issue-url-limit.md), Edge 154; Chrome assumed equivalent, Firefox not tested). The cart serializes the change set minified, measures the full URL it opens and shows it against 7372 bytes (90 % of the threshold), which holds about 28 changes with a justification or 46 without. Logged-out users were not tested in a browser: GitHub re-encodes the whole URL into the login redirect's `return_to`, and anonymous requests already failed there from about 7 KB, so a user who is not signed in may hit a limit earlier. When a cart exceeds it the dashboard offers two routes: split the cart into several submissions, or copy the change set to the clipboard and paste it into the empty form. No compact encoding (`LC0015=None@strict/ci`): it would fit about 228 changes but drops justifications and needs a second parser.
 
-`.github/ISSUE_TEMPLATE/config.yml` keeps `blank_issues_enabled: true`: organizations use issues for other things.
+No `.github/ISSUE_TEMPLATE/config.yml` ships: blank issues stay enabled (the GitHub default; organizations use issues for other things), and an organization's own `config.yml` (contact links, for example) is never touched by the update.
 
 ## 8. Apply workflow
 
