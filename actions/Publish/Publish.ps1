@@ -15,7 +15,7 @@ endpoints: Publish is a gate and never commits, D42). When site.enabled is true 
 rulebook.json to site/data/rulebook.json and builds site/ with Hugo into the staging folder (Build-RulebookSite), so
 the dashboard replaces the plain index.html; a target that cannot serve HTML or a missing site/hugo.yaml is a warning
 and keeps the plain page, a missing Hugo or a failed build is failure 'site'. It writes the manifest to -ManifestPath
-(with one page entry per stage and level page and the first rule page), the URL list to the job summary and the
+(with one page entry per stage and level page, the setup page and the first rule page), the URL list to the job summary and the
 outputs stagingPath, manifestPath and pageUrl to GITHUB_OUTPUT.
 
 -Phase Check reads -ManifestPath and runs Test-RulebookEndpoints: one error annotation per URL that is missing or
@@ -188,8 +188,9 @@ if ($Phase -eq 'Stage') {
                     if ($site) {
                         Write-Host ('Built the site: {0} pages in {1} s' -f $site.PageCount, $site.Seconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))
                         if (-not $site.MarkerPresent) { Add-Annotation -Context $ctx -Command warning -Message 'The built index.html has no data-rulebook-matrix marker: site/layouts may have dropped the matrix. The site is published as built.' }
-                        # Hugo lowercases page paths; the check requests every stage and level page and the first rule page.
-                        $pagePaths = @(foreach ($stage in $inputs.Stages) { "stages/$($stage.Slug)/" }) + @(foreach ($level in $inputs.Levels) { "levels/$($level.Slug)/" })
+                        # Hugo lowercases page paths; the check requests every stage and level page, the setup page and
+                        # the first rule page.
+                        $pagePaths = @(foreach ($stage in $inputs.Stages) { "stages/$($stage.Slug)/" }) + @(foreach ($level in $inputs.Levels) { "levels/$($level.Slug)/" }) + @('setup/')
                         $rules = @($siteModel.Document['rules'])
                         if ($rules.Count -gt 0) { $pagePaths += "rules/$(([string]$rules[0]['id']).ToLowerInvariant())/" }
                         foreach ($pagePath in $pagePaths) {

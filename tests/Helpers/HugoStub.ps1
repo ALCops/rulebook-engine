@@ -3,7 +3,8 @@
 # Pester suites need no Hugo. It takes Hugo's arguments as they are (--source <site> --destination <folder>
 # --baseURL <url> ...), appends them to $env:HUGO_STUB_LOG (one line, tab-separated) when that is set, and writes into
 # the destination what the shipped site writes, from <site>/data/rulebook.json: index.html with the matrix marker of the
-# first stage, stages/<slug>/index.html, levels/<slug>/index.html, rules/<id lowercased>/index.html and the four assets.
+# first stage, stages/<slug>/index.html, levels/<slug>/index.html, setup/index.html with the init command of the first
+# level, rules/<id lowercased>/index.html and the four assets.
 # $env:HUGO_STUB_NOMARKER set: index.html without the marker. $env:HUGO_STUB_EXIT set: prints 25 lines and exits with it.
 
 $arguments = @($args | ForEach-Object { [string]$_ })
@@ -39,6 +40,7 @@ $marker = if ([string]::IsNullOrEmpty($env:HUGO_STUB_NOMARKER)) { " data-ruleboo
 Write-Page 'index.html' "<!DOCTYPE html>`n<section$marker>stub</section>`n"
 foreach ($stage in $data['stages']) { Write-Page "stages/$($stage['slug'])/index.html" "<section data-rulebook-matrix=`"$($stage['slug'])`">stub</section>`n" }
 foreach ($level in $data['levels']) { Write-Page "levels/$($level['slug'])/index.html" "<h1>$($level['name'])</h1>`n" }
+Write-Page 'setup/index.html' "<h1 id=`"al-project`">Set up an AL project</h1>`n<pre><code>./Get-RulebookSkeletons.ps1 -BaseUrl $($data['baseUrl']) -Level $($data['levels'][0]['slug']) -Ref $($data['engineRef'])</code></pre>`n"
 foreach ($rule in $data['rules']) { Write-Page "rules/$(([string]$rule['id']).ToLowerInvariant())/index.html" "<h1>$($rule['id'])</h1>`n" }
 foreach ($asset in 'css/site.css', 'js/matrix.js', 'js/cart-core.mjs', 'js/cart.mjs') { Write-Page $asset "/* stub */`n" }
 Write-Output 'Start building sites (stub)'

@@ -1,0 +1,34 @@
+{{ define "main" }}
+{{- /* The "Set up an AL project" section of the plain index page (ConvertTo-RulebookIndexHtml), from the data file:
+  the init script and its ref, the user page and the base URL come from rulebook.json, never a literal here. The file
+  names follow Get-EndpointFileName (the default stage has no suffix) and Get-SkeletonFileName (always the stage). */ -}}
+{{- $data := hugo.Data.rulebook -}}
+{{- $base := $data.baseUrl -}}
+{{- $first := index $data.levels 0 -}}
+<h1 id="al-project">Set up an AL project</h1>
+<p>An AL project keeps one file per stage in <code>.rulebook/</code>: the skeleton of its level, which includes the endpoint, with the project exceptions in its <code>rules</code>. The init script downloads the files of a level, for example:</p>
+<pre><code>Invoke-WebRequest {{ $data.initScriptUrl }} -OutFile Get-RulebookSkeletons.ps1
+./Get-RulebookSkeletons.ps1 -BaseUrl {{ $base }} -Level {{ $first.slug }} -Ref {{ $data.engineRef }}</code></pre>
+<p>Then point VS Code at the default stage with <code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code> and AL-Go at the CI stage with <code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>. Details: <a href="{{ $data.alProjectDocsUrl }}">docs/al-project.md</a>. The levels and stages of this site, machine-readable: <a href="{{ "rulebook.json" | relURL }}"><code>{{ $base }}/rulebook.json</code></a>.</p>
+<h2>Levels</h2>
+<dl class="facts">
+  {{- range $data.levels }}
+  <dt><a href="{{ printf "levels/%s/" .slug | relURL }}">{{ .name }}</a></dt><dd>{{ .description }}</dd>
+  {{- end }}
+</dl>
+{{- range $stage := $data.stages }}
+<h2 id="stage-{{ $stage.slug }}">Stage {{ $stage.name }}</h2>
+{{ with $stage.description }}<p>{{ . }}</p>{{ end }}
+<table class="endpoints">
+  <thead><tr><th scope="col">Level</th><th scope="col">Endpoint</th><th scope="col">Listed ids</th><th scope="col">Skeleton</th></tr></thead>
+  <tbody>
+  {{- range $level := $data.levels }}
+  {{- $endpoint := cond (eq $stage.slug "default") (printf "%s/rulesets/%s.ruleset.json" $base $level.slug) (printf "%s/rulesets/%s.%s.ruleset.json" $base $level.slug $stage.slug) }}
+  {{- $skeleton := printf "%s.%s.ruleset.json" $level.slug $stage.slug }}
+  {{- $listed := "" }}{{ range $level.counts }}{{ if eq .stage $stage.slug }}{{ $listed = .listed }}{{ end }}{{ end }}
+  <tr><td>{{ $level.name }}</td><td><a href="{{ $endpoint }}"><code>{{ $endpoint }}</code></a></td><td class="count">{{ $listed }}</td><td><a href="{{ printf "%s/skeletons/%s" $base $skeleton }}" download="{{ $skeleton }}">{{ $skeleton }}</a></td></tr>
+  {{- end }}
+  </tbody>
+</table>
+{{- end }}
+{{ end }}

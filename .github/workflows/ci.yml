@@ -151,7 +151,7 @@ jobs:
           $top = @(Get-ChildItem -LiteralPath $env:STAGING_PATH | ForEach-Object Name | Sort-Object)
           if ($endpoints.Count -ne 12) { $failures.Add("expected 12 endpoints, found $($endpoints.Count)") }
           if ($skeletons.Count -ne 12) { $failures.Add("expected 12 skeletons, found $($skeletons.Count)") }
-          if (($top -join ',') -cne 'catalog,css,index.html,js,levels,rulebook.json,rules,rulesets,skeletons,stages') { $failures.Add("unexpected top level: $($top -join ', ')") }
+          if (($top -join ',') -cne 'catalog,css,index.html,js,levels,rulebook.json,rules,rulesets,setup,skeletons,stages') { $failures.Add("unexpected top level: $($top -join ', ')") }
           $skeleton = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'skeletons' 'strict.ci.ruleset.json') -Raw
           if (-not $skeleton.Contains('"path": "https://example.github.io/rulebook/rulesets/strict.ci.ruleset.json"')) { $failures.Add('skeletons/strict.ci.ruleset.json does not carry the rendered URL') }
           if (-not (Get-Content -LiteralPath template/skeletons/strict.ci.ruleset.json -Raw).Contains('{BASEURL}')) { $failures.Add('template/skeletons/strict.ci.ruleset.json lost {BASEURL}') }
@@ -183,6 +183,10 @@ jobs:
             $count = @(Get-ChildItem -LiteralPath (Join-Path $env:STAGING_PATH $folder) -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'index.html') -PathType Leaf }).Count
             if ($count -ne $pages[$folder]) { $failures.Add("$folder/ has $count pages, expected $($pages[$folder])") }
           }
+          # setup/: the "Set up an AL project" section of the plain index, with the init command of the first level.
+          $setupFile = Join-Path $env:STAGING_PATH 'setup' 'index.html'
+          if (-not (Test-Path -LiteralPath $setupFile -PathType Leaf)) { $failures.Add('setup/index.html is missing') }
+          elseif (-not (Get-Content -LiteralPath $setupFile -Raw).Contains('./Get-RulebookSkeletons.ps1 -BaseUrl https://example.github.io/rulebook -Level essential -Ref main')) { $failures.Add('setup/index.html has no init command for essential') }
           foreach ($asset in 'css/site.css', 'js/matrix.js', 'js/cart-core.mjs', 'js/cart.mjs') {
             if (-not (Test-Path -LiteralPath (Join-Path $env:STAGING_PATH $asset) -PathType Leaf)) { $failures.Add("$asset is missing") }
           }
@@ -208,6 +212,7 @@ jobs:
           $lines.Add('| Page | Bytes |')
           $lines.Add('|---|---|')
           $lines.Add(('| index.html | {0:N0} |' -f (& $size 'index.html')))
+          $lines.Add(('| setup/ | {0:N0} |' -f (& $size 'setup/index.html')))
           foreach ($folder in 'stages', 'levels') {
             foreach ($page in Get-ChildItem -LiteralPath (Join-Path $env:STAGING_PATH $folder) -Directory | Sort-Object Name) { $lines.Add(('| {0}/{1}/ | {2:N0} |' -f $folder, $page.Name, (& $size "$folder/$($page.Name)/index.html"))) }
           }

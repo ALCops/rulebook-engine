@@ -9,6 +9,8 @@
       <li><a href="{{ $href }}"{{ if eq $href $.RelPermalink }} aria-current="page"{{ end }}>{{ .name }}</a></li>
       {{- end }}
     </ul>
+    {{- $setup := "setup/" | relURL }}
+    <a class="nav-setup" href="{{ $setup }}"{{ if eq $setup .RelPermalink }} aria-current="page"{{ end }}>Set up an AL project</a>
     {{- with $data.docsUrl }}
     <a class="nav-docs" href="{{ . }}">Help</a>
     {{- end }}

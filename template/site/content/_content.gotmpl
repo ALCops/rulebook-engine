@@ -5,6 +5,8 @@
 {{- if not $data -}}
   {{- errorf "site/data/rulebook.json is missing: the Publish action writes it before the build (Export-RulebookSiteData)" -}}
 {{- end -}}
+{{- /* setup/: how an AL project uses the endpoints, the section the plain index page has (#al-project). */ -}}
+{{- $.AddPage (dict "path" "setup" "kind" "page" "title" "Set up an AL project") -}}
 {{- range $i, $stage := $data.stages -}}
   {{- $.AddPage (dict "path" (printf "stages/%s" $stage.slug) "kind" "page" "title" (printf "Stage %s" $stage.name) "params" (dict "item" $i)) -}}
 {{- end -}}
