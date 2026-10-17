@@ -19,7 +19,7 @@ How an AL-Go for GitHub repository compiles against your rulebook: the skeleton 
 ## 1. What you need
 
 - An AL-Go for GitHub repository, created from [AL-Go-PTE](https://github.com/microsoft/AL-Go-PTE) or [AL-Go-AppSource](https://github.com/microsoft/AL-Go-AppSource).
-- Your published rulebook: `<baseUrl>/` opens the index page ([getting-started.md](getting-started.md)).
+- Your published rulebook: the setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off) lists the endpoints and skeletons ([getting-started.md](getting-started.md)).
 - The level your apps build against, for example `strict` ([levels.md](levels.md)).
 
 ## 2. Put the skeletons in the app

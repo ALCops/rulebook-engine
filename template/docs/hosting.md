@@ -1,6 +1,6 @@
 # Hosting your endpoints
 
-Your AL projects fetch their rules from URLs. This page explains where those URLs come from: the Publish workflow puts your endpoints, the skeletons, `rulebook.json` and an index page on GitHub Pages and then checks that every URL serves what you committed.
+Your AL projects fetch their rules from URLs. This page explains where those URLs come from: the Publish workflow puts your endpoints, the skeletons, `rulebook.json`, the catalog and the dashboard site (or a plain index page) on GitHub Pages and then checks that every URL serves what you committed.
 
 > **Status:** written 2026-10-06 with the Publish work package of the engine ([WP05, #7](https://github.com/ALCops/rulebook-engine/issues/7)). GitHub Pages is the only host available in version 1. The contributor reference, with the preflight messages and the live test run, is the engine's [publish-targets.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/reference/publish-targets.md).
 
@@ -15,12 +15,14 @@ Your AL projects fetch their rules from URLs. This page explains where those URL
 
 | URL | Content |
 |---|---|
-| `<baseUrl>/` | An index page: how to set up an AL project with the init script, then one table per stage, one row per level, with the endpoint URL, the number of rules it lists and a download link for the skeleton. |
-| `<baseUrl>/rulebook.json` | The levels and stages of your rulebook, machine-readable; the init script reads it ([al-project.md](al-project.md)). |
+| `<baseUrl>/` | With `site.enabled` set to `true` (shipped): the dashboard, the grid of the first stage ([dashboard.md](dashboard.md)). With `false`: an index page, how to set up an AL project with the init script, then one table per stage, one row per level, with the endpoint URL, the number of rules it lists and a download link for the skeleton. |
+| `<baseUrl>/setup/`, `<baseUrl>/stages/<stage>/`, `<baseUrl>/levels/<level>/`, `<baseUrl>/rules/<id>/` | The other pages of the dashboard, only with `site.enabled` set to `true`: the setup page with the content of the index page above, a grid per stage, a page per level and per rule ([dashboard.md](dashboard.md) section 1). The site's styles and scripts are under `css/` and `js/`. |
+| `<baseUrl>/rulebook.json` | Your rulebook, machine-readable: the levels and stages, which the init script reads ([al-project.md](al-project.md)), and every rule with its action on every endpoint and the input that decides it, the data of the dashboard ([dashboard.md](dashboard.md) section 6). |
+| `<baseUrl>/catalog/diagnostics.json` | Your `catalog/diagnostics.json`, byte for byte. |
 | `<baseUrl>/rulesets/<level>.ruleset.json` and `<baseUrl>/rulesets/<level>.<stage>.ruleset.json` | The endpoints, exactly as committed in `rulesets/`. The `default` stage has no suffix. |
 | `<baseUrl>/skeletons/<level>.<stage>.ruleset.json` | The skeletons, with your `baseUrl` filled in. The copies in your repository keep the placeholder `{BASEURL}`. |
 
-Nothing else is published: not your level and stage files, not `overrides.json`, the quarantine files, the catalog or the settings. A level or stage you remove from the settings disappears from the site on the next run.
+Nothing else is published as a file: not your level and stage files, `overrides.json`, the quarantine files or the settings. Their content shows up only where the dashboard and `rulebook.json` describe it: the entries and justifications of the level and stage files, the overrides and the quarantine ids, and the justification text of overrides and quarantine entries only with `site.includeJustifications` set to `true` ([dashboard.md](dashboard.md) section 4). A level or stage you remove from the settings disappears from the site on the next run.
 
 Publish never changes your repository. It publishes what is committed, and it stops when `rulesets/` is out of date instead of regenerating it. Endpoints only change through a pull request, where the Validate workflow shows the effective change per endpoint.
 
@@ -38,9 +40,9 @@ Publish never changes your repository. It publishes what is committed, and it st
    - `https://<owner>.github.io/<repository>`, for example `https://contoso.github.io/rulebook`;
    - `https://<owner>.github.io` if the repository is named `<owner>.github.io`;
    - your custom domain, if you set one (below).
-3. **Merge the change into `main`.** The Publish workflow runs on every push to `main` that changes `rulesets/`, `skeletons/`, the settings or the workflow itself, and you can run it by hand under Actions > Publish. After the first run, `baseUrl` opens the index page. To confirm the site works, open `<baseUrl>/`, `<baseUrl>/rulebook.json` and one endpoint such as `<baseUrl>/rulesets/strict.ruleset.json`: all three must open without a redirect.
+3. **Merge the change into `main`.** The Publish workflow runs on every push to `main` that changes `rulesets/`, `skeletons/`, `site/`, `catalog/diagnostics.json`, the settings or the workflow itself, and you can run it by hand under Actions > Publish. After the first run, `baseUrl` opens the dashboard (or the index page when `site.enabled` is `false`). To confirm the site works, open `<baseUrl>/`, `<baseUrl>/rulebook.json` and one endpoint such as `<baseUrl>/rulesets/strict.ruleset.json`: all three must open without a redirect.
 
-Then set up your AL projects: the index page shows the two commands of the init script, which downloads the skeletons of a level into `.rulebook/`, one file per stage. See [al-project.md](al-project.md).
+Then set up your AL projects: the setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off) shows the two commands of the init script, which downloads the skeletons of a level into `.rulebook/`, one file per stage. See [al-project.md](al-project.md).
 
 ### Custom domain
 
@@ -69,6 +71,7 @@ Publish checks before it deploys and after it deploys. Its message says what to 
 | `An organization administrator has disabled Pages creation` | The organization policy forbids new Pages sites. | Ask an organization owner to allow Pages creation (Public). |
 | `The committed endpoints do not match their inputs` | `rulesets/` is out of date. | Open a pull request that regenerates it; the Validate workflow names the files. |
 | `Publish target '...' is not implemented yet` | `publish.target` names a planned target. | Set `publish.target` to `pages` (section 4). |
+| Failure `site`, or a warning about `site/hugo.yaml` or the matrix marker | The dashboard site could not be built, or is built from changed files. | [dashboard.md](dashboard.md) section 7. |
 | `... is missing`, `... serves a different body`, `... answers with a redirect` | After the deploy, a URL did not serve the committed file. | Check `baseUrl` (a redirect means it is not the final address), then run Publish again. |
 
 ## 4. Other hosts
