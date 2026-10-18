@@ -37,7 +37,7 @@ inputs:
 
 outputs:
   result:
-    description: "pull-request, direct-commit, no-op (nothing written), refused (the author cannot push), pull-request-exists or skipped (a closed issue or a pull request); empty on failure."
+    description: "pull-request, direct-commit, no-op (nothing written), refused (the author cannot push), pull-request-exists or skipped (a closed issue, a pull request, or an edit whose body changed again since or did not change); empty on failure."
     value: ${{ steps.apply.outputs.result }}
   noop:
     description: "'true' when nothing would change; nothing was written."
@@ -68,8 +68,9 @@ runs:
       id: apply
       shell: pwsh
       # Inputs reach the script through the environment, never interpolated into the script (script injection).
-      # GITHUB_TOKEN reads the issue and the permission of its author and editor and writes the comments, the label and
-      # the state. The script reads the event file of the run (GITHUB_EVENT_PATH) for the sender of an edit.
+      # GITHUB_TOKEN reads the issue, its comments and the permission of its author and editor and writes the comments,
+      # the label and the state. The script reads the event file of the run (GITHUB_EVENT_PATH) for the sender of an
+      # edit and the body before it.
       env:
         INPUT_ISSUENUMBER: ${{ inputs.issueNumber }}
         INPUT_TOKEN: ${{ inputs.token }}

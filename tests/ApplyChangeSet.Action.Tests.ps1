@@ -95,10 +95,12 @@ BeforeAll {
 
     function New-EventFile {
         # The event file of an issues run (GITHUB_EVENT_PATH): the action, the sender and the issue with its body as
-        # New-IssueData writes it (-Issue as for New-IssueData; -Login is the sender, -NoSender leaves it out).
+        # New-IssueData writes it (-Issue as for New-IssueData; -Login is the sender, -NoSender leaves it out; -Changes is
+        # the changes object of an edited event).
         [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
-        param([hashtable]$Issue = @{}, [string]$Action = 'opened', [string]$Login = 'octo', [switch]$NoSender)
+        param([hashtable]$Issue = @{}, [string]$Action = 'opened', [string]$Login = 'octo', [switch]$NoSender, [System.Collections.IDictionary]$Changes)
         $data = [ordered]@{ action = $Action; issue = (New-IssueData @Issue) }
+        if ($null -ne $Changes) { $data['changes'] = $Changes }
         if (-not $NoSender) { $data['sender'] = [ordered]@{ login = $Login; type = 'User' } }
         $path = "$(Get-TestFolder).event.json"
         Write-FixtureText -Path $path -Text (ConvertTo-Json -InputObject $data -Depth 6)
@@ -221,7 +223,9 @@ BeforeAll {
             [string]$Pulls = '[]',
             [int]$PullsStatus = 200,
             [int]$CommentStatus = 201,
-            [int]$CloseStatus = 200
+            [int]$CloseStatus = 200,
+            [string]$Comments = '[]',
+            [int]$CommentsStatus = 200
         )
         $base = '/repos/Contoso/rulebook'
         return @{
@@ -232,6 +236,7 @@ BeforeAll {
             "POST $base/labels"                           = @{ Status = 201; Body = '{"name":"rulebook-change"}' }
             "POST $base/issues/12/labels"                 = @{ Status = 200; Body = '[{"name":"rulebook-change"}]' }
             "GET $base/pulls"                             = @{ Status = $PullsStatus; Body = $Pulls }
+            "GET $base/issues/12/comments"                = @{ Status = $CommentsStatus; Body = $(if ($CommentsStatus -eq 200) { $Comments } else { '{"message":"Server Error"}' }) }
             "POST $base/issues/12/comments"               = @{ Status = $CommentStatus; Body = '{"id":1,"html_url":"https://github.com/Contoso/rulebook/issues/12#issuecomment-1"}' }
             "PATCH $base/issues/12"                       = @{ Status = $CloseStatus; Body = '{"number":12,"html_url":"https://github.com/Contoso/rulebook/issues/12"}' }
         }
@@ -705,8 +710,11 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $seen = @{}
             $publish = { param($Title, [Parameter(ValueFromRemainingArguments)][object[]]$Rest) $null = $Rest; $seen['Title'] = $Title; & $pullRequest }
             $changes = '{"version":1,"changes":[{"op":"set","id":"LC0015","action":"None","levels":["strict"],"stages":["ci"]},{"op":"release","id":"LC0099","stages":["ci"]}]}'
-            $null = Invoke-Entry @{ IssuePath = (New-IssueFile -Issue @{ Changes = $changes }); Token = 'ghp_x'; PublishCommand = $publish }
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile -Issue @{ Changes = $changes }); Token = 'ghp_x'; PublishCommand = $publish }
             $seen.Title | Should-Be 'Rulebook change: 2 changes (#12)'
+            # Each item shows its own justification: no 'No justification given.' above the items (live run 2026-10-18).
+            Get-Comment $run | Should-MatchString '\APull request: https://github\.com/Contoso/rulebook/pull/7\n\nSets LC0015 to None'
+            Get-Comment $run | Should-NotMatchString 'No justification given'
         }
 
         It 'caps the engine title at 200 characters before the issue number' {
@@ -1000,8 +1008,9 @@ Describe 'ApplyChangeSet.ps1 against the GitHub API' {
         $run.Result.Result | Should-Be 'refused'
         @($run.Result.IssueActions | ForEach-Object Posted) | Should-BeCollection @($true, $true)
         $requests = @($api.Requests.ToArray())
-        @($requests | ForEach-Object Key) | Should-BeCollection @('GET /repos/Contoso/rulebook/issues/12', 'GET /repos/Contoso/rulebook/collaborators/octo/permission', 'POST /repos/Contoso/rulebook/issues/12/comments', 'PATCH /repos/Contoso/rulebook/issues/12')
-        ($requests[3].Body | ConvertFrom-Json -AsHashtable)['state_reason'] | Should-Be 'not_planned'
+        @($requests | ForEach-Object Key) | Should-BeCollection @('GET /repos/Contoso/rulebook/issues/12', 'GET /repos/Contoso/rulebook/collaborators/octo/permission', 'GET /repos/Contoso/rulebook/issues/12/comments', 'POST /repos/Contoso/rulebook/issues/12/comments', 'PATCH /repos/Contoso/rulebook/issues/12')
+        $requests[2].Query | Should-Be '?per_page=100'
+        ($requests[4].Body | ConvertFrom-Json -AsHashtable)['state_reason'] | Should-Be 'not_planned'
     }
 
     It 'reads the permission of the author only on an edit by the author' {
@@ -1057,6 +1066,84 @@ Describe 'ApplyChangeSet.ps1 against the GitHub API' {
         $body = (New-IssueData)['body'].Replace("`n", "`r`n")
         $run = Invoke-Entry @{ ApiUrl = $api.Url; EventPath = (New-EventFile -Issue @{ Body = $body }) }
         $run.Result.Failure | Should-Be 'token'
+    }
+
+    It 'skips an edit that left the body as it was: <Name>' -ForEach @(
+        @{ Name = 'the same text'; CrLf = $false }
+        @{ Name = 'the same text with CRLF line ends'; CrLf = $true }
+    ) {
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute)
+        $from = (New-IssueData)['body']
+        if ($CrLf) { $from = $from.Replace("`n", "`r`n") }
+        $changes = [ordered]@{ body = [ordered]@{ from = $from }; title = [ordered]@{ from = 'Old title' } }
+        $run = Invoke-Entry @{ ApiUrl = $api.Url; EventPath = (New-EventFile -Action 'edited' -Login 'mallory' -Changes $changes) }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.Result | Should-Be 'skipped'
+        @($run.Result.IssueActions) | Should-BeCollection @()
+        $run.Result.Annotations | Should-BeCollection @('::notice title=ApplyChangeSet::The issue body did not change; nothing to do.')
+        $run.Output | Should-MatchString '(?m)^result=skipped$'
+        @($api.Requests.ToArray() | ForEach-Object Key) | Should-BeCollection @('GET /repos/Contoso/rulebook/issues/12')
+    }
+
+    It 'runs a title-only edit through the REST API, whose changes.body.from is empty (live run 2026-10-18)' {
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute)
+        $changes = [ordered]@{ body = [ordered]@{ from = '' }; title = [ordered]@{ from = 'Old title' } }
+        $run = Invoke-Entry @{ ApiUrl = $api.Url; EventPath = (New-EventFile -Action 'edited' -Login 'octo' -Changes $changes) }
+        $run.Result.Failure | Should-Be 'token'
+    }
+
+    It 'applies an edit whose changes.body.from is the older body' {
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute)
+        $changes = [ordered]@{ body = [ordered]@{ from = (New-IssueBody -Changes $noop) } }
+        $run = Invoke-Entry @{ ApiUrl = $api.Url; EventPath = (New-EventFile -Action 'edited' -Login 'octo' -Changes $changes) }
+        $run.Result.Failure | Should-Be 'token'
+    }
+
+    It 'does not post a comment again that a bot posted last (a title-only edit through the REST API)' {
+        $pulls = '[{"number":5,"html_url":"https://github.com/Contoso/rulebook/pull/5","title":"t","head":{"ref":"rulebook-change/12/261001000000","repo":{"full_name":"Contoso/rulebook"}}}]'
+        $text = "The pull request already exists: https://github.com/Contoso/rulebook/pull/5. Edits of this issue are not applied to it; close the pull request first to apply the edited change set.`r`n"
+        $comments = ConvertTo-Json -Compress -InputObject @(
+            [ordered]@{ id = 1; body = 'Pull request: https://github.com/Contoso/rulebook/pull/5'; user = [ordered]@{ login = 'github-actions[bot]'; type = 'Bot' } }
+            [ordered]@{ id = 2; body = $text; user = [ordered]@{ login = 'github-actions[bot]'; type = 'Bot' } }
+        )
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute -Pulls $pulls -Comments $comments)
+        $changes = [ordered]@{ body = [ordered]@{ from = '' }; title = [ordered]@{ from = 'Old title' } }
+        $run = Invoke-Entry @{ ApiUrl = $api.Url; EventPath = (New-EventFile -Action 'edited' -Login 'octo' -Changes $changes) }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.Result | Should-Be 'pull-request-exists'
+        $actions = @($run.Result.IssueActions)
+        $actions.Count | Should-Be 1
+        $actions[0].Kind | Should-Be 'comment'
+        $actions[0].Posted | Should-BeFalse
+        $actions[0].Skipped | Should-Be 'duplicate'
+        $run.Result.Annotations | Should-ContainCollection @('::notice title=ApplyChangeSet::The comment was not posted again: the most recent comment on issue #12, by github-actions[bot], says the same.')
+        @($api.Requests.ToArray() | Where-Object Key -EQ 'POST /repos/Contoso/rulebook/issues/12/comments') | Should-BeCollection @()
+    }
+
+    It 'posts a comment whose text was last written by <Name>' -ForEach @(
+        @{ Name = 'a user'; Last = 'same-user' }
+        @{ Name = 'a bot before another comment'; Last = 'other' }
+    ) {
+        $pulls = '[{"number":5,"html_url":"https://github.com/Contoso/rulebook/pull/5","title":"t","head":{"ref":"rulebook-change/12/261001000000","repo":{"full_name":"Contoso/rulebook"}}}]'
+        $text = "The pull request already exists: https://github.com/Contoso/rulebook/pull/5. Edits of this issue are not applied to it; close the pull request first to apply the edited change set.`n"
+        $list = [System.Collections.Generic.List[object]]::new()
+        $list.Add([ordered]@{ id = 1; body = $text; user = [ordered]@{ login = 'github-actions[bot]'; type = 'Bot' } })
+        $lastBody = if ($Last -eq 'same-user') { $text } else { 'Please look again.' }
+        $list.Add([ordered]@{ id = 2; body = $lastBody; user = [ordered]@{ login = 'octo'; type = 'User' } })
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute -Pulls $pulls -Comments (ConvertTo-Json -Compress -InputObject $list.ToArray()))
+        $run = Invoke-Entry @{ ApiUrl = $api.Url }
+        $run.Result.Result | Should-Be 'pull-request-exists'
+        @($run.Result.IssueActions)[0].Posted | Should-BeTrue
+        @($run.Result.IssueActions)[0].Skipped | Should-BeNull
+        @($api.Requests.ToArray() | Where-Object Key -EQ 'POST /repos/Contoso/rulebook/issues/12/comments').Count | Should-Be 1
+    }
+
+    It 'warns and posts the comment when the comments cannot be read' {
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute -CommentsStatus 500)
+        $run = Invoke-Entry @{ ApiUrl = $api.Url }
+        $run.Result.Failure | Should-Be 'token'
+        @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ApplyChangeSet::Could not read the comments of issue #12, so the comment is posted without the repeat check: *' }).Count | Should-Be 1
+        @($run.Result.IssueActions | Where-Object Kind -EQ 'comment')[0].Posted | Should-BeTrue
     }
 
     It 'fails with failure error when the event file is not a JSON object' {

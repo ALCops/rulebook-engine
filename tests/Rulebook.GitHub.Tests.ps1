@@ -832,6 +832,40 @@ Describe 'The issue helpers of the issue path' {
         $caught.Exception.Data['StatusCode'] | Should-Be 403
     }
 
+    It 'reads the comments of an issue over every page, oldest first' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rulebook/issues/12/comments?per_page=100' } {
+            Get-MockResponse -Json '[{"id":1,"body":"Looks good","html_url":"h1","created_at":"2026-10-18T13:36:00Z","user":{"login":"octocat","type":"User"}}]' -Headers @{ Link = '<https://api.github.com/repositories/9/issues/12/comments?per_page=100&page=2>; rel="next"' }
+        }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -ceq 'https://api.github.com/repositories/9/issues/12/comments?per_page=100&page=2' } {
+            Get-MockResponse -Json '[{"id":2,"body":null,"html_url":"h2","created_at":"2026-10-18T13:37:00Z","user":{"login":"github-actions[bot]","type":"Bot"}},{"id":3,"body":"x","user":null}]'
+        }
+        $comments = @(Get-GitHubIssueComments -Repository 'Contoso/rulebook' -Number 12 -Token 'tok')
+        $comments.Count | Should-Be 3
+        $comments[0].Id | Should-Be 1
+        $comments[0].Author | Should-Be 'octocat'
+        $comments[0].AuthorType | Should-Be 'User'
+        $comments[0].Body | Should-Be 'Looks good'
+        $comments[0].Url | Should-Be 'h1'
+        $comments[1].Author | Should-Be 'github-actions[bot]'
+        $comments[1].AuthorType | Should-Be 'Bot'
+        $comments[1].Body | Should-Be ''
+        $comments[2].Author | Should-Be ''
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly -ParameterFilter { $Method -eq 'GET' -and $Headers.Authorization -eq 'Bearer tok' }
+    }
+
+    It 'gives nothing for an issue without comments' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/issues/12/comments*' } { Get-MockResponse -Json '[]' }
+        @(Get-GitHubIssueComments -Repository 'Contoso/rulebook' -Number 12) | Should-BeCollection @()
+    }
+
+    It 'throws with the status when the comments cannot be read' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 403 -Json @{ message = 'Resource not accessible by integration' } }
+        $caught = $null
+        try { $null = Get-GitHubIssueComments -Repository 'Contoso/rulebook' -Number 12 } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not read the comments of issue #12 of Contoso/rulebook (HTTP 403: Resource not accessible by integration)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 403
+    }
+
     It 'closes an issue as <Reason> with PATCH' -ForEach @(
         @{ Reason = 'completed' }
         @{ Reason = 'not_planned' }

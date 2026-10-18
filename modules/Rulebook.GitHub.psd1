@@ -19,6 +19,7 @@
         'Get-GitHubBranchSha'
         'Get-GitHubCommitList'
         'Get-GitHubIssue'
+        'Get-GitHubIssueComments'
         'Get-GitHubPushEnvironment'
         'Get-GitHubRefSha'
         'Get-GitHubUserPermission'
