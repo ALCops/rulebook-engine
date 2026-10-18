@@ -112,7 +112,6 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `actions/Validate/Validate.ps1` | 193 | 1 | Listing note in the action's own copy of the effective-diff renderer; `Get-EffectiveDiffBlock` has the tested copy (spin-off: share it). |
 | `modules/Rulebook.Catalog.psm1` | 128 | 1 | Invalid JSON in a file the schema or Validate check reports first; the reader's own message is defensive. |
 | `modules/Rulebook.Catalog.psm1` | 226 | 1 | Writer branch for an empty array; no shipped or fixture file has one. |
-| `modules/Rulebook.Edit.psm1` | 119-122 | 4 | JSON value kinds no change set and no `overrides.json` has: the schema refuses `true`, `false` and `null` before `Read-RulebookChangeSetText` converts a change set (WP15), and the ChangeRule inputs are strings. |
 | `modules/Rulebook.Edit.psm1` | 160, 166 | 2 | Describe texts for an unchanged entry and a replaced entry with another action; the rendered cases cover the other branches. |
 | `modules/Rulebook.Edit.psm1` | 241 | 1 | overrides.json that is not JSON at change time; Validate reports it first (C10) and the change plan stops on validation. |
 | `modules/Rulebook.Edit.psm1` | 583-585, 600-602, 650-652, 702-704 | 12 | The rulebook cannot be read at plan time after Validate passed; defensive. |
@@ -122,9 +121,9 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `modules/Rulebook.Edit.psm1` | 951 | 1 | A planned deletion whose file is already gone in the clone (someone deleted it in between). |
 | `modules/Rulebook.Edit.psm1` | 969-970 | 2 | Nothing to commit after the plan saw changes (the base moved to the same content in between). |
 | `modules/Rulebook.Edit.psm1` | 975 | 1 | The effective diff fails in the clone after the push; the result carries a note instead. |
-| `modules/Rulebook.Edit.psm1` | 730-732 | 3 | (WP15 numbering, a Linux run of the Edit, ChangeRule and GitHub suites.) A quarantine file that cannot be read when a release is planned; `Read-RulebookInputs` reads every quarantine file first and stops the plan with "The rulebook cannot be read". |
-| `modules/Rulebook.Edit.psm1` | 1189-1190 | 2 | (WP15 numbering.) A JSON parse failure that is not a `JsonException`; `System.Text.Json` throws one for every syntax error. |
-| `modules/Rulebook.Edit.psm1` | 1213 | 1 | (WP15 numbering.) `Test-Json` rejects a change set without naming an error: *observed* with pwsh 7.6.7 on Windows for a change that matches none of the set, remove and release shapes; pwsh 7.6.3 on Linux names the errors, so a Linux run never reaches the fallback line. |
+| `modules/Rulebook.Edit.psm1` | 729-731 | 3 | (WP15 numbering, a Linux run of the Edit, ChangeRule and GitHub suites.) A quarantine file that cannot be read when a release is planned; `Read-RulebookInputs` reads every quarantine file first and stops the plan with "The rulebook cannot be read". |
+| `modules/Rulebook.Edit.psm1` | 1190-1191 | 2 | (WP15 numbering.) A JSON parse failure that is not a `JsonException`; `System.Text.Json` throws one for every syntax error. |
+| `modules/Rulebook.Edit.psm1` | 1214 | 1 | (WP15 numbering.) `Test-Json` rejects a change set without naming an error: *observed* with pwsh 7.6.7 on Windows for a change that matches none of the set, remove and release shapes; pwsh 7.6.3 on Linux names the errors, so a Linux run never reaches the fallback line. |
 | `modules/Rulebook.Extract.psm1` | 65-67 | 3 | pwsh not in `$PSHOME` (a .NET global tool install); the suites run the pwsh of `$PSHOME`. |
 | `modules/Rulebook.Extract.psm1` | 122, 129 | 2 | Defensive fallbacks for an assembly or package id outside the two known packages. |
 | `modules/Rulebook.Extract.psm1` | 205-208, 210 | 5 | The body of the `AssemblyResolve` handler of the in-process extraction: on `ubuntu-latest` the runtime finds the stub dependencies next to the loading assembly on its own and never asks the handler; on Windows it asks, and the in-process case covers these lines there. |

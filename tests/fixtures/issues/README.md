@@ -1,6 +1,6 @@
 # Issue body fixtures
 
-Bodies of `rulebook-change` issues for `ConvertFrom-RulebookIssueBody` and `Read-RulebookChangeSetText` (`modules/Rulebook.Edit.psm1`, [docs/reference/change-mechanics.md](../../../docs/reference/change-mechanics.md) section 12). GitHub renders an issue form as one `### <label>` section per field: the `render: json` textarea `Changes` as a fenced `json` block, the optional `Note` as plain text, an empty field as `_No response_`. The ids and slugs of the hand-made bodies are those of `tests/fixtures/repos/valid-minimal`.
+Bodies of `rulebook-change` issues for `ConvertFrom-RulebookIssueBody` and `Read-RulebookChangeSetText` (`modules/Rulebook.Edit.psm1`, [docs/reference/change-mechanics.md](../../../docs/reference/change-mechanics.md) section 12). GitHub documents that it renders an issue form as one `### <label>` section per field: the `render: json` textarea `Changes` as a fenced `json` block, the optional `Note` as plain text, an empty field as `_No response_`. That rendering is not yet observed here: the bodies below are written by hand in that shape until the WP15 live run captures a real one. The ids and slugs of the hand-made bodies are those of `tests/fixtures/repos/valid-minimal`.
 
 | File | Shape | Proves |
 |---|---|---|
