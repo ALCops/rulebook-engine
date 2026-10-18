@@ -145,10 +145,20 @@ function Hide-Secret {
     # The text with the exchanged token and the secret replaced by ***: ::add-mask:: masks the log, not a comment.
     param([AllowNull()][AllowEmptyString()][string]$Text)
     if ([string]::IsNullOrEmpty($Text)) { return '' }
-    foreach ($secret in @($(if ($null -ne $access) { [string]$access.Token }), $Token)) {
+    # The secret as given and trimmed: a value pasted with a line end may appear without it.
+    $candidates = @($(if ($null -ne $access) { [string]$access.Token }), $Token, $(if ($Token) { $Token.Trim() }))
+    foreach ($secret in $candidates) {
         if (-not [string]::IsNullOrEmpty($secret) -and $secret.Length -ge 4) { $Text = $Text.Replace($secret, '***') }
     }
     return $Text
+}
+
+function Format-Reason {
+    # A reason for a comment: secrets hidden, on one line, cut at 1000 characters.
+    param([AllowNull()][AllowEmptyString()][string]$Text)
+    $line = (ConvertTo-SingleLine (Hide-Secret $Text)).Trim()
+    if ($line.Length -gt 1000) { $line = $line.Substring(0, 997) + '...' }
+    return $line
 }
 
 function Format-ListComment {
@@ -446,12 +456,13 @@ try {
                             try {
                                 $access = Get-GitHubAccessToken -Token $Token -Repository $Repository -ApiUrl $ApiUrl
                             } catch {
-                                $tokenReason = (ConvertTo-SingleLine (Hide-Secret $_.Exception.Message)).Trim()
-                                if ($tokenReason.Length -gt 1000) { $tokenReason = $tokenReason.Substring(0, 997) + '...' }
+                                $tokenReason = $_.Exception.Message
                                 $tokenMessage = "The $secretName secret could not be used: $($_.Exception.Message)"
                             }
                         }
                         if ($null -ne $tokenMessage) {
+                            # The settings value or the exchange error: secrets hidden, one line, capped.
+                            $tokenReason = Format-Reason $tokenReason
                             Add-Annotation -Context $ctx -Message $tokenMessage
                             Add-Failure -Context $ctx -Kind 'token'
                             $summaryMessage = $tokenMessage

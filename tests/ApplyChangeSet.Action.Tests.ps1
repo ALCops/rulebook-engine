@@ -635,6 +635,29 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             Get-Comment $run | Should-BeLikeString "The change set is valid, but the GHTOKENWORKFLOW secret is missing or cannot be used, so nothing was pushed (The token secret starts with '{' but is not JSON.*). A maintainer sets it*"
         }
 
+        It 'puts an exchange error on one capped line without the secret' {
+            # A GitHub App secret whose installation lookup answers with a long, multi-line message that quotes it.
+            $rsa = [System.Security.Cryptography.RSA]::Create(2048)
+            try { $pem = $rsa.ExportRSAPrivateKeyPem() } finally { $rsa.Dispose() }
+            $secret = ConvertTo-Json -InputObject ([ordered]@{ GitHubAppClientId = 'Iv1.test'; PrivateKey = $pem }) -Compress
+            $message = "Not Found`nThe secret was: $secret`n" + ('x' * 1500)
+            $routes = @{ 'GET /repos/Contoso/rulebook/installation' = @{ Status = 404; Body = (ConvertTo-Json -InputObject @{ message = $message } -Compress) } }
+            $api = Start-FakeApi -Routes $routes
+            try {
+                $run = Invoke-Entry @{ IssuePath = (New-IssueFile); Token = $secret; ApiUrl = $api.Url }
+            } finally {
+                Stop-FakeApi -Api $api
+            }
+            $run.Result.Failure | Should-Be 'token'
+            $comment = Get-Comment $run
+            $comment.Contains($secret) | Should-BeFalse
+            $comment.Contains('The secret was: ***') | Should-BeTrue
+            $reason = [regex]::Match($comment, '(?s)so nothing was pushed \((.*)\)\. A maintainer').Groups[1].Value
+            $reason.Length | Should-Be 1000
+            $reason.EndsWith('...') | Should-BeTrue
+            $reason | Should-NotMatchString '[\r\n]'
+        }
+
         It 'masks the write token before any output names it' {
             $run = Invoke-Entry @{ IssuePath = (New-IssueFile); Token = 'ghp_secret_value'; RemoteUrl = (Join-Path (Get-TestFolder) 'never.git') }
             @($run.Lines | Where-Object { $_ -like '*ghp_secret_value*' }) | Should-BeCollection @('::add-mask::ghp_secret_value')
@@ -849,6 +872,20 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $comment | Should-MatchString 'x-access-token:\*\*\*@github\.com'
         }
 
+        It 'keeps the token out of the comment of a moved base branch' {
+            $publish = {
+                param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+                $null = $Ignored
+                $exception = [System.InvalidOperationException]::new('The base branch moved since the change was planned (ghp_secret_value); nothing was pushed. Run the workflow again.')
+                $exception.Data['Stage'] = 'push'
+                $exception.Data['Reason'] = 'base-moved'
+                throw $exception
+            }
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile); Token = "ghp_secret_value`n"; PublishCommand = $publish }
+            $run.Result.Failure | Should-Be 'push'
+            Get-Comment $run | Should-BeLikeString 'The base branch moved since the change was planned (`*`*`*); nothing was pushed.*'
+        }
+
         It 'reports a base branch that moved without the token hint' {
             $publish = {
                 param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
@@ -1020,6 +1057,16 @@ Describe 'ApplyChangeSet.ps1 against the GitHub API' {
         $body = (New-IssueData)['body'].Replace("`n", "`r`n")
         $run = Invoke-Entry @{ ApiUrl = $api.Url; EventPath = (New-EventFile -Issue @{ Body = $body }) }
         $run.Result.Failure | Should-Be 'token'
+    }
+
+    It 'fails with failure error when the event file is not a JSON object' {
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute)
+        $path = "$(Get-TestFolder).event.json"
+        Write-FixtureText -Path $path -Text '[]'
+        $run = Invoke-Entry @{ ApiUrl = $api.Url; EventPath = $path }
+        $run.Result.Failure | Should-Be 'error'
+        @($run.Result.IssueActions) | Should-BeCollection @()
+        $run.Result.Annotations[0] | Should-Be '::error title=ApplyChangeSet::Could not read the event file of the run: the file is not a JSON object'
     }
 
     It 'fails with failure error when the event file is missing' {
