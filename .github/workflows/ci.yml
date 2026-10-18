@@ -440,6 +440,111 @@ jobs:
           Write-Host "::error::ChangeRule outcomes: without token '$($env:NOTOKEN)' (expected failure/token), no-op '$($env:NOOP)' (expected true), invalid id '$($env:INVALID)' (expected failure/validation)"
           exit 1
 
+  # The issue path without GitHub: every issue comes from a file (issuePath), so nothing is read from or posted to an
+  # issue, and no step has a token for the push.
+  applychangeset-action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Prepare the fixture and the issues
+        id: fixture
+        shell: pwsh
+        run: |
+          . ./tests/Helpers/RepoFixture.ps1
+          $org = New-FixtureRepo -Name 'valid-minimal' -Destination (Join-Path $env:RUNNER_TEMP 'apply-org')
+          $fence = '`' * 3
+          $issues = [ordered]@{
+            valid   = @{ Changes = '{"version":1,"changes":[{"op":"set","id":"AA0001","action":"None","levels":["*"],"stages":["*"]}]}'; Permission = 'write' }
+            release = @{ Changes = '{"version":1,"changes":[{"op":"release","id":"LC0099","stages":["ci"]}]}'; Permission = 'write' }
+            noop    = @{ Changes = '{"version":1,"changes":[{"op":"set","id":"AA0072","action":"Info","levels":["*"],"stages":["*"]}]}'; Permission = 'write' }
+            invalid = @{ Changes = '{"version":1,"changes":[{"op":"set","id":"LC9999","action":"Warning","levels":["*"],"stages":["*"]}]}'; Permission = 'write' }
+            refused = @{ Changes = '{"version":1,"changes":[{"op":"set","id":"AA0001","action":"None","levels":["*"],"stages":["*"]}]}'; Permission = 'read' }
+          }
+          $lines = @("org=$org")
+          foreach ($name in $issues.Keys) {
+            $body = "### Changes`n`n$($fence)json`n$($issues[$name].Changes)`n$fence`n`n### Note`n`n_No response_`n"
+            $issue = [ordered]@{ number = 12; state = 'open'; body = $body; user = @{ login = 'octo'; type = 'User' }; labels = @(@{ name = 'rulebook-change' }); permission = $issues[$name].Permission }
+            $path = Join-Path $env:RUNNER_TEMP "issue-$name.json"
+            Set-Content -LiteralPath $path -Value (ConvertTo-Json -InputObject $issue -Depth 5)
+            $lines += "$name=$path"
+          }
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value $lines
+
+      - name: Valid change set without the token (must fail)
+        id: notoken
+        continue-on-error: true
+        uses: ./actions/ApplyChangeSet
+        with:
+          repositoryRoot: ${{ steps.fixture.outputs.org }}
+          issueNumber: '12'
+          issuePath: ${{ steps.fixture.outputs.valid }}
+
+      - name: Release from quarantine without the token (must fail)
+        id: release
+        continue-on-error: true
+        uses: ./actions/ApplyChangeSet
+        with:
+          repositoryRoot: ${{ steps.fixture.outputs.org }}
+          issueNumber: '12'
+          issuePath: ${{ steps.fixture.outputs.release }}
+
+      # valid-minimal already has AA0072 Info for every level and stage.
+      - name: No-op change set
+        id: noop
+        uses: ./actions/ApplyChangeSet
+        with:
+          repositoryRoot: ${{ steps.fixture.outputs.org }}
+          issueNumber: '12'
+          issuePath: ${{ steps.fixture.outputs.noop }}
+
+      - name: Unknown id (must fail)
+        id: invalid
+        continue-on-error: true
+        uses: ./actions/ApplyChangeSet
+        with:
+          repositoryRoot: ${{ steps.fixture.outputs.org }}
+          issueNumber: '12'
+          issuePath: ${{ steps.fixture.outputs.invalid }}
+
+      - name: Author without write permission
+        id: refused
+        uses: ./actions/ApplyChangeSet
+        with:
+          repositoryRoot: ${{ steps.fixture.outputs.org }}
+          issueNumber: '12'
+          issuePath: ${{ steps.fixture.outputs.refused }}
+
+      # The outputs name the outcome, so a crash or another error does not pass. The release case changes the four ci
+      # endpoints (tests/ApplyChangeSet.Action.Tests.ps1 asserts the same string).
+      - name: Require the five outcomes
+        shell: pwsh
+        env:
+          NOTOKEN: ${{ steps.notoken.outcome }}/${{ steps.notoken.outputs.failure }}
+          RELEASE: ${{ steps.release.outcome }}/${{ steps.release.outputs.failure }}/${{ steps.release.outputs.changedEndpoints }}
+          NOOP: ${{ steps.noop.outputs.noop }}/${{ steps.noop.outputs.issueState }}
+          INVALID: ${{ steps.invalid.outcome }}/${{ steps.invalid.outputs.failure }}/${{ steps.invalid.outputs.issueState }}
+          REFUSED: ${{ steps.refused.outputs.result }}/${{ steps.refused.outputs.issueState }}
+        run: |
+          $expected = [ordered]@{
+            NOTOKEN = 'failure/token'
+            RELEASE = 'failure/token/essential.ci,recommended.ci,strict.ci,complete.ci'
+            NOOP    = 'true/closed-completed'
+            INVALID = 'failure/validation/open'
+            REFUSED = 'refused/closed-not-planned'
+          }
+          $failed = $false
+          foreach ($name in $expected.Keys) {
+            $actual = [Environment]::GetEnvironmentVariable($name)
+            if ($actual -cne $expected[$name]) { Write-Host "::error::ApplyChangeSet outcome $($name): '$actual' (expected '$($expected[$name])')"; $failed = $true }
+          }
+          if ($failed) { exit 1 }
+          Write-Host 'ApplyChangeSet: the five outcomes as expected'
+
   # The scan against the real packages on nuget.org (the unit suites use stub packages). Every run is a dry run: no
   # token, nothing pushed. nuget.org moves, so the checks are lower bounds and the log prints the numbers.
   scan-action:
