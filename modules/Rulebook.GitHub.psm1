@@ -117,11 +117,11 @@ function Join-ApiPath {
 }
 
 function Get-NextLink {
-    # The rel="next" URL of a Link header, $null when there is none.
-    param([AllowNull()][string]$Link)
+    # The rel="next" URL of a Link header (-Rel names another relation, such as last), $null when there is none.
+    param([AllowNull()][string]$Link, [string]$Rel = 'next')
     if ([string]::IsNullOrEmpty($Link)) { return $null }
     foreach ($part in $Link.Split(',')) {
-        if ($part -match '<([^>]+)>\s*;\s*rel="next"') { return $Matches[1] }
+        if ($part -match ('<([^>]+)>\s*;\s*rel="' + [regex]::Escape($Rel) + '"')) { return $Matches[1] }
     }
     return $null
 }
@@ -767,6 +767,48 @@ function Add-GitHubIssueComment {
     return [pscustomobject]@{ Id = $answer['id']; Url = [string]$answer['html_url'] }
 }
 
+function Get-GitHubIssueComments {
+    <#
+    .SYNOPSIS
+    The comments of issue -Number of -Repository, oldest first, one object each: { Id, Author, AuthorType, Body, Url };
+    nothing for an issue without comments.
+    .DESCRIPTION
+    GET /repos/{r}/issues/{n}/comments?per_page=100, every page (Link rel="next"), in the order GitHub lists them
+    (ascending by creation). -LastPage reads only the last page instead: the first page, then the Link rel="last"
+    page when there is one, so the most recent comment costs at most two requests. Body is '' for a comment without
+    one; Author and AuthorType are user.login and user.type (User, Bot). The repeat check of the issue path reads the
+    most recent one. An answer other than 200 throws with the status in Data['StatusCode'].
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Returns every comment of the issue')]
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][int]$Number,
+        [switch]$LastPage,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $path = (Join-ApiPath -Part 'repos', $Repository, 'issues', ([string]$Number), 'comments') + '?per_page=100'
+    $response = Invoke-GitHubApi -Method GET -Path $path -Token $Token -ApiUrl $ApiUrl -Paginate:(-not $LastPage)
+    if ($LastPage -and $response.StatusCode -eq 200) {
+        $last = Get-NextLink -Link (Get-ResponseHeader $response 'Link') -Rel 'last'
+        if ($null -ne $last) { $response = Invoke-GitHubApi -Method GET -Uri $last -Token $Token }
+    }
+    if ($response.StatusCode -ne 200) { throw (New-ApiException -Message "Could not read the comments of issue #$Number of $Repository" -Response $response) }
+    foreach ($comment in @($response.Body)) {
+        if ($comment -isnot [System.Collections.IDictionary]) { continue }
+        $user = if ($comment['user'] -is [System.Collections.IDictionary]) { $comment['user'] } else { @{} }
+        [pscustomobject]@{
+            Id         = $comment['id']
+            Author     = [string]$user['login']
+            AuthorType = [string]$user['type']
+            Body       = [string]$comment['body']
+            Url        = [string]$comment['html_url']
+        }
+    }
+}
+
 function Close-GitHubIssue {
     <#
     .SYNOPSIS
@@ -1027,6 +1069,7 @@ Export-ModuleMember -Function @(
     'Get-GitHubBranchSha'
     'Get-GitHubCommitList'
     'Get-GitHubIssue'
+    'Get-GitHubIssueComments'
     'Get-GitHubPushEnvironment'
     'Get-GitHubRefSha'
     'Get-GitHubUserPermission'

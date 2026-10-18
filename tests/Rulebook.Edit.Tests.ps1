@@ -234,7 +234,7 @@ Describe 'ConvertTo-RulebookChangeSet and Test-RulebookChangeSet' {
         $set = ConvertTo-RulebookChangeSet -RuleId 'LC0015' -Action 'None' -Levels 'strict', 'strict', 'complete' -Stages ''
         $set['changes'][0]['levels'] | Should-BeCollection @('strict', 'complete')
         $findings = @(Test-RulebookChangeSet -ChangeSet $set -Inputs $inputs)
-        $findings[0].Message | Should-Be 'change 0 has no stages; use a slug from the settings or ["*"]'
+        $findings[0].Message | Should-Be 'change 1 has no stages; use a slug from the settings or ["*"]'
     }
 
     It 'accepts a valid set' {
@@ -245,12 +245,12 @@ Describe 'ConvertTo-RulebookChangeSet and Test-RulebookChangeSet' {
         @{ Name = 'a bad id'; Set = @{ changes = @(@{ op = 'set'; id = 'lc15'; action = 'None'; levels = @('*'); stages = @('*') }) }; Message = "'lc15' is not a diagnostic id*" }
         @{ Name = 'an id outside the catalog'; Set = @{ changes = @(@{ op = 'set'; id = 'LC9999'; action = 'None'; levels = @('*'); stages = @('*') }) }; Message = 'LC9999 is not in catalog/diagnostics.json' }
         @{ Name = 'a bad action'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'Default'; levels = @('*'); stages = @('*') }) }; Message = "action 'Default': use Error, Warning, Info, Hidden or None" }
-        @{ Name = 'an unknown slug (C10 wording)'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('house'); stages = @('*') }) }; Message = "change 0 names unknown level 'house'; use a slug from the settings or *" }
-        @{ Name = 'a release with levels'; Set = @{ changes = @(@{ op = 'release'; id = 'LC0099'; levels = @('*'); stages = @('*') }) }; Message = "change 0: op 'release' takes no levels; it releases the id from the quarantine of the listed stages" }
-        @{ Name = 'an unsupported op'; Set = @{ changes = @(@{ op = 'rename'; id = 'LC0015'; levels = @('*'); stages = @('*') }) }; Message = "change 0: op 'rename' is not supported; use set, remove or release" }
-        @{ Name = 'a wildcard mixed with slugs'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('*', 'strict'); stages = @('ci') }) }; Message = "change 0 mixes '*' with other values in levels; use *" }
+        @{ Name = 'an unknown slug (C10 wording)'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('house'); stages = @('*') }) }; Message = "change 1 names unknown level 'house'; use a slug from the settings or *" }
+        @{ Name = 'a release with levels'; Set = @{ changes = @(@{ op = 'release'; id = 'LC0099'; levels = @('*'); stages = @('*') }) }; Message = "change 1: op 'release' takes no levels; it releases the id from the quarantine of the listed stages" }
+        @{ Name = 'an unsupported op'; Set = @{ changes = @(@{ op = 'rename'; id = 'LC0015'; levels = @('*'); stages = @('*') }) }; Message = "change 1: op 'rename' is not supported; use set, remove or release" }
+        @{ Name = 'a wildcard mixed with slugs'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('*', 'strict'); stages = @('ci') }) }; Message = "change 1 mixes '*' with other values in levels; use *" }
         @{ Name = 'an empty change list'; Set = @{ changes = @() }; Message = 'The change set has no changes.' }
-        @{ Name = 'a duplicate'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('strict', 'complete'); stages = @('ci') }, @{ op = 'set'; id = 'LC0015'; action = 'Info'; levels = @('complete', 'strict'); stages = @('ci') }) }; Message = 'change 1 repeats an earlier change*' }
+        @{ Name = 'a duplicate'; Set = @{ changes = @(@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('strict', 'complete'); stages = @('ci') }, @{ op = 'set'; id = 'LC0015'; action = 'Info'; levels = @('complete', 'strict'); stages = @('ci') }) }; Message = 'change 2 repeats an earlier change*' }
     ) {
         $findings = @(Test-RulebookChangeSet -ChangeSet $Set -Inputs $inputs)
         $findings.Count | Should-Be 1
@@ -699,19 +699,19 @@ Describe 'Test-RulebookChangeSet: version and release' {
         $change[$Key] = $Value
         $findings = @(Test-RulebookChangeSet -ChangeSet (Get-ChangeSetValue -Changes @($change)) -Inputs $inputs)
         $findings.Count | Should-Be 1
-        $findings[0].Message | Should-Be "change 0: op 'remove' takes no $Key; it deletes the override entry with these levels and stages"
+        $findings[0].Message | Should-Be "change 1: op 'remove' takes no $Key; it deletes the override entry with these levels and stages"
     }
 
     It 'reports a release <Name>' -ForEach @(
-        @{ Name = 'with levels'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; levels = @('*'); stages = @('ci') }); Message = "change 0: op 'release' takes no levels; it releases the id from the quarantine of the listed stages" }
-        @{ Name = 'with an action'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; action = 'None'; stages = @('ci') }); Message = "change 0: op 'release' takes no action; it releases the id from the quarantine of the listed stages" }
-        @{ Name = 'without stages'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099' }); Message = 'change 0 has no stages; use a slug from the settings or ["*"]' }
-        @{ Name = 'with an unknown stage'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('house') }); Message = "change 0 names unknown stage 'house'; use a slug from the settings or [`"*`"]" }
+        @{ Name = 'with levels'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; levels = @('*'); stages = @('ci') }); Message = "change 1: op 'release' takes no levels; it releases the id from the quarantine of the listed stages" }
+        @{ Name = 'with an action'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; action = 'None'; stages = @('ci') }); Message = "change 1: op 'release' takes no action; it releases the id from the quarantine of the listed stages" }
+        @{ Name = 'without stages'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099' }); Message = 'change 1 has no stages; use a slug from the settings or ["*"]' }
+        @{ Name = 'with an unknown stage'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('house') }); Message = "change 1 names unknown stage 'house'; use a slug from the settings or [`"*`"]" }
         @{ Name = 'with an id outside the catalog'; Changes = @([ordered]@{ op = 'release'; id = 'LC9999'; stages = @('ci') }); Message = 'LC9999 is not in catalog/diagnostics.json' }
-        @{ Name = 'with a justification'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci'); justification = 'x' }); Message = "change 0: op 'release' takes no justification; it releases the id from the quarantine of the listed stages" }
-        @{ Name = 'twice for one stage (ci and *)'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('*') }); Message = 'change 1: release LC0099 appears twice for stage ci' }
-        @{ Name = 'twice for two stages'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('*') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci', 'vnext') }); Message = 'change 1: release LC0099 appears twice for stages ci, vnext' }
-        @{ Name = 'twice (same stage set, any order)'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci', 'default') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('default', 'ci') }); Message = 'change 1 repeats an earlier change (same op, id, levels and stages)' }
+        @{ Name = 'with a justification'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci'); justification = 'x' }); Message = "change 1: op 'release' takes no justification; it releases the id from the quarantine of the listed stages" }
+        @{ Name = 'twice for one stage (ci and *)'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('*') }); Message = 'change 2: release LC0099 appears twice for stage ci' }
+        @{ Name = 'twice for two stages'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('*') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci', 'vnext') }); Message = 'change 2: release LC0099 appears twice for stages ci, vnext' }
+        @{ Name = 'twice (same stage set, any order)'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci', 'default') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('default', 'ci') }); Message = 'change 2 repeats an earlier change (same op, id, levels and stages)' }
     ) {
         $findings = @(Test-RulebookChangeSet -ChangeSet (Get-ChangeSetValue -Changes $Changes) -Inputs $inputs)
         $findings.Count | Should-Be 1
@@ -973,13 +973,18 @@ Describe 'Rendering: notes, releases and the issue path' {
         ConvertTo-ChangePullRequestBody -Plan $noted | Should-MatchString '\AAdopted\n\nReleases LC0099'
     }
 
-    It 'says No justification given. for a set of several items without a note' {
+    It 'opens a set of several items without a note with the first item, no justification sentence' {
         $set = [ordered]@{ version = 1; changes = @(
                 [ordered]@{ op = 'set'; id = 'LC0015'; action = 'None'; levels = @('strict'); stages = @('ci'); justification = 'One' }
                 [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci') }
             ) }
         $plan = Invoke-RulebookChangeSet -RepositoryRoot (Copy-Minimal) -ChangeSet $set -WorkPath (Get-TestFolder)
-        ConvertTo-ChangePullRequestBody -Plan $plan | Should-MatchString '\ANo justification given\.\n\nSets LC0015'
+        $body = ConvertTo-ChangePullRequestBody -Plan $plan
+        $body | Should-MatchString '\ASets LC0015'
+        $body | Should-NotMatchString 'No justification given'
+        $set['note'] = 'Agreed'
+        $noted = Invoke-RulebookChangeSet -RepositoryRoot (Copy-Minimal) -ChangeSet $set -WorkPath (Get-TestFolder)
+        ConvertTo-ChangePullRequestBody -Plan $noted | Should-MatchString '\AAgreed\n\nSets LC0015'
     }
 
     It 'adds the prefix and the suffix around the generated body, and only the generated part is shortened' {
@@ -1016,15 +1021,19 @@ Describe 'ConvertFrom-RulebookIssueBody' {
         }
     }
 
-    It 'reads the change set and the note of the submitted form (issues/rulebook-change-opened.md)' {
-        $parsed = ConvertFrom-RulebookIssueBody -Body (Get-IssueText 'rulebook-change-opened.md')
+    It 'reads the change set and the empty note of the body GitHub wrote for the form (issues/rulebook-change-opened.md)' {
+        # Captured on the live run of 2026-10-18: no final line end, the empty Note as _No response_.
+        $text = Get-IssueText 'rulebook-change-opened.md'
+        $text | Should-MatchString '\A### Changes\n\n```json\n'
+        $text | Should-MatchString '\n### Note\n\n_No response_\z'
+        $parsed = ConvertFrom-RulebookIssueBody -Body $text
         @($parsed.Errors) | Should-BeCollection @()
         $parsed.ChangesText | Should-MatchString '\A\{.*\}\z'
-        $parsed.Note | Should-NotBe ''
+        $parsed.Note | Should-Be ''
         $read = Read-RulebookChangeSetText -Text $parsed.ChangesText
         @($read.Errors) | Should-BeCollection @()
         $read.ChangeSet['version'] | Should-Be 1
-        @($read.ChangeSet['changes']).Count | Should-BeGreaterThan 0
+        @($read.ChangeSet['changes'] | ForEach-Object { '{0} {1}' -f $_['op'], $_['id'] }) | Should-BeCollection @('set LC0031', 'set AA0072', 'release AW0008')
     }
 
     It 'reads a CRLF body as the LF body' {

@@ -8,7 +8,8 @@ request (or a direct commit), reporting the outcome on the issue.
 1. Reads the issue (Get-GitHubIssue with GITHUB_TOKEN, or -IssuePath). A pull request or an issue that is not open is
    skipped: one notice, result skipped, no comment (an edit of a closed issue never applies it again).
    In API mode the event file of the run (-EventPath, GITHUB_EVENT_PATH) gives the action, the sender and the body
-   the run was triggered with; a body that changed since is skipped with one notice (the newer edit has its own run).
+   the run was triggered with; a body that changed since is skipped with one notice (the newer edit has its own run),
+   and so is an edited event whose changes.body.from equals the current body (the body did not change).
 2. The gate (D55): the issue author must be able to push (Get-GitHubUserPermission answers admin or write); anyone
    else gets the refusal comment and the issue is closed as not planned, result refused. On an edit by another
    account (the sender of an edited event; an edited event without a sender is gated as none) that account must be
@@ -41,6 +42,11 @@ unless an earlier failure kind was recorded); after the pull request or the dire
 unexpected failure (failure error) after the issue was read gets one generic comment with the run link, best effort.
 Neither the exchanged token nor the secret ever reaches a comment: both are replaced with *** first.
 Every comment stays below 60000 characters: a long list is cut with one line that points at the job log.
+The repeat check: before a comment is posted, the last page of the issue's comments is read
+(Get-GitHubIssueComments -LastPage); when the most recent one is by a bot (user.type Bot) and has the same body (line
+ends aside), the comment is not posted again: one notice, and the action is recorded with Posted $false and Skipped
+'duplicate'. A title-only edit through the REST API sends changes.body.from '' and runs the job again. A failed read
+is one warning and the comment is posted.
 With -IssuePath (a JSON file shaped like GET /repos/{r}/issues/{n}, plus optional top-level keys permission of the
 author, default none, editor, the login of an edit, default none, and editorPermission, default none) no GitHub call
 is made for the issue and no event file is read: the gate reads the permissions from the file, the duplicate guard is
@@ -208,8 +214,17 @@ function Invoke-IssueWrite {
         StateReason = $(if ($Kind -eq 'close') { $StateReason } else { $null })
         Label       = $(if ($Kind -eq 'label') { $Label } else { $null })
         Posted      = $false
+        Skipped     = $null
     }
     $issueActions.Add($action)
+    if ($Kind -eq 'comment' -and -not $fileMode) {
+        $repeated = Find-RepeatedComment -Body $Body
+        if ($null -ne $repeated) {
+            $action.Skipped = 'duplicate'
+            Add-Annotation -Context $ctx -Command notice -Message "The comment was not posted again: the most recent comment on issue #$number, by $($repeated.Author), says the same."
+            return
+        }
+    }
     if ($fileMode) {
         # The body is not printed: a line of it could read as a workflow command.
         Write-Host "Issue #$($number): $Kind recorded, not posted (issuePath)"
@@ -235,6 +250,23 @@ function Invoke-IssueWrite {
         }
     }
     if ($Kind -eq 'close') { $state.IssueState = if ($StateReason -eq 'not_planned') { 'closed-not-planned' } else { 'closed-completed' } }
+}
+
+function Find-RepeatedComment {
+    # The most recent comment of the issue when a bot wrote it with the same body (line ends aside), else $null. A
+    # comment list that cannot be read is one warning, and $null: the comment is posted.
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Body)
+    try {
+        $comments = @(Get-GitHubIssueComments -Repository $Repository -Number $number -LastPage -Token $GitHubToken -ApiUrl $ApiUrl)
+    } catch {
+        Add-Annotation -Context $ctx -Command warning -Message "Could not read the comments of issue #$number, so the comment is posted without the repeat check: $($_.Exception.Message)"
+        return $null
+    }
+    if ($comments.Count -eq 0) { return $null }
+    $last = $comments[$comments.Count - 1]
+    $same = $last.Body.Replace("`r`n", "`n").TrimEnd() -ceq $Body.Replace("`r`n", "`n").TrimEnd()
+    if ($last.AuthorType -ceq 'Bot' -and $same) { return $last }
+    return $null
 }
 
 function ConvertTo-IssueObject {
@@ -303,6 +335,8 @@ try {
     $editorChecked = $false
     $editor = ''
     $eventBody = $null
+    # changes.body.from of an edited event, the body before the edit; $null when the event has none.
+    $previousBody = $null
     if ($fileMode) {
         $editor = $null
     } else {
@@ -319,6 +353,10 @@ try {
             # An edit is gated on its sender too; an edit without one is gated as none.
             $editorChecked = $true
             $editor = if ($eventData['sender'] -is [System.Collections.IDictionary]) { [string]$eventData['sender']['login'] } else { '' }
+            $changes = $eventData['changes']
+            if ($changes -is [System.Collections.IDictionary] -and $changes['body'] -is [System.Collections.IDictionary] -and $changes['body'].Contains('from') -and $null -ne $changes['body']['from']) {
+                $previousBody = ([string]$changes['body']['from']).Replace("`r`n", "`n")
+            }
         }
     }
 
@@ -348,6 +386,11 @@ try {
         # The body was edited again after this run was triggered: the gate below would judge this run's sender while
         # the body is another edit's. The newest edit's run sees equal bodies.
         $summaryMessage = 'The issue body changed after this run was triggered; the newer edit has its own run.'
+        Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
+        $result = 'skipped'
+    } elseif ($null -ne $previousBody -and $previousBody -ceq $eventBody) {
+        # The edit left the body as it was (the event names the body among the changes all the same).
+        $summaryMessage = 'The issue body did not change; nothing to do.'
         Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
         $result = 'skipped'
     } else {
