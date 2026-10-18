@@ -720,11 +720,12 @@ function Get-GitHubUserPermission {
     .SYNOPSIS
     The permission of -User on -Repository: { Permission (admin, write, read, none), RoleName }.
     .DESCRIPTION
-    GET /repos/{r}/collaborators/{user}/permission: the highest grant across the repository, its teams, the
-    organization and the enterprise (maintain reads as write, triage as read; RoleName is the exact role). A 404 (the
-    user is no collaborator or does not exist, or the token cannot read the collaborators) is Permission none and
-    RoleName $null, so a gate on it fails closed; any other answer than 200 throws with the status in
-    Data['StatusCode'].
+    GET /repos/{r}/collaborators/{user}/permission. As GitHub documents it (not observed here): the highest grant
+    across the repository, its teams, the organization and the enterprise, maintain reported as write and triage as
+    read (RoleName is the exact role), readable with metadata read. A 404 (the user is no collaborator or does not
+    exist, or, by the same documentation, the token cannot read the collaborators, which would refuse everyone) is
+    Permission none and RoleName $null, so a gate on it fails closed; any other answer than 200 throws with the status
+    in Data['StatusCode'].
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]

@@ -30,8 +30,12 @@ inputs:
     description: The label of a change set issue; created in the repository and added to the issue when missing.
     required: false
     default: 'rulebook-change'
+  editor:
+    description: The account that triggered the run (the workflow passes github.event.sender.login). When it is not the issue author, it must be able to push too (D55); empty checks the author only.
+    required: false
+    default: ''
   issuePath:
-    description: A JSON file with the issue (shaped like GET /repos/{owner}/{repo}/issues/{number}, plus an optional permission of its author, default write) instead of the API; nothing is posted to the issue. For the engine's CI; do not set in a workflow.
+    description: A JSON file with the issue (shaped like GET /repos/{owner}/{repo}/issues/{number}, plus an optional permission of its author and editorPermission of the editor, each default none) instead of the API; nothing is posted to the issue. For the engine's CI; do not set in a workflow.
     required: false
     default: ''
 
@@ -77,6 +81,7 @@ runs:
         INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
         INPUT_ACTOR: ${{ inputs.actor }}
         INPUT_LABEL: ${{ inputs.label }}
+        INPUT_EDITOR: ${{ inputs.editor }}
         INPUT_ISSUEPATH: ${{ inputs.issuePath }}
         GITHUB_TOKEN: ${{ github.token }}
       run: |
@@ -88,6 +93,7 @@ runs:
           BaseBranch     = $env:INPUT_BASEBRANCH
           Actor          = $env:INPUT_ACTOR
           Label          = $env:INPUT_LABEL
+          Editor         = $env:INPUT_EDITOR
           IssuePath      = $env:INPUT_ISSUEPATH
           GitHubToken    = $env:GITHUB_TOKEN
         }

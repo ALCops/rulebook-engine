@@ -7,15 +7,16 @@ request (or a direct commit), reporting the outcome on the issue.
 0. Reads the settings: the secret name (ghTokenWorkflowSecretName) and the labels (commitOptions.pullRequestLabels).
 1. Reads the issue (Get-GitHubIssue with GITHUB_TOKEN, or -IssuePath). A pull request or an issue that is not open is
    skipped: one notice, result skipped, no comment (an edit of a closed issue never applies it again).
-2. The gate (D55): the issue author must be able to push (Get-GitHubUserPermission answers admin or write). Anyone
-   else gets the refusal comment and the issue is closed as not planned, result refused, before the body is read.
-3. The label: when the issue does not carry -Label (rulebook-change), Confirm-GitHubLabel creates it when missing and
-   adds it; a failure is one warning.
-4. The duplicate guard (D33): an open pull request from a branch rulebook-change/<issue>/ gets the comment 'Pull
-   request already exists: <url>', result pull-request-exists. A listing that fails is one warning.
-5. The body: ConvertFrom-RulebookIssueBody and Read-RulebookChangeSetText (schemas/rulebook-changeset.schema.json of
+2. The gate (D55): the issue author must be able to push (Get-GitHubUserPermission answers admin or write), and so
+   must -Editor, the account that edited the body, when it is another account. Anyone else gets the refusal comment
+   and the issue is closed as not planned, result refused, before the body is read.
+3. The duplicate guard (D33): an open pull request from a branch rulebook-change/<issue>/ gets a comment with its
+   link, result pull-request-exists. A listing that fails is one warning.
+4. The body: ConvertFrom-RulebookIssueBody and Read-RulebookChangeSetText (schemas/rulebook-changeset.schema.json of
    this engine); a non-empty Note field replaces the change set's note. Errors: one error annotation each, one
    comment with one line per error, failure validation; the issue stays open (an edit of the body runs it again).
+5. The label: once the body parsed, when the issue does not carry -Label (rulebook-change), Confirm-GitHubLabel
+   creates it when missing and adds it; a failure is one warning.
 6. The plan (Invoke-RulebookChangeSet on a candidate copy): findings as ChangeRule plus one comment, failure
    validation.
 7. A no-op (D48): the comment 'Nothing to change.' with one line per item, the issue closed as completed, result
@@ -32,10 +33,13 @@ request (or a direct commit), reporting the outcome on the issue.
    read for a skipped issue) and failure (validation, token, push, pull-request, issue, error).
 Every issue read and write goes through GITHUB_TOKEN (-GitHubToken); the push and the pull request use the exchanged
 GHTOKENWORKFLOW token. A failed issue read, gate or write before the change landed fails the run (failure issue,
-unless an earlier failure kind was recorded); after the pull request or the direct commit exists it is a warning.
-With -IssuePath (a JSON file shaped like GET /repos/{r}/issues/{n}, plus an optional top-level permission, default
-write) no GitHub call is made for the issue: the gate reads the permission from the file, the duplicate guard is
-skipped and every issue write is recorded in IssueActions with Posted $false.
+unless an earlier failure kind was recorded); after the pull request or the direct commit exists it is a warning. An
+unexpected failure (failure error) after the issue was read gets one generic comment with the run link, best effort.
+Every comment stays below 60000 characters: a long list is cut with one line that points at the job log.
+With -IssuePath (a JSON file shaped like GET /repos/{r}/issues/{n}, plus an optional top-level permission of the
+author, default none, and editorPermission of -Editor, default none) no GitHub call is made for the issue: the gate
+reads the permissions from the file, the duplicate guard is skipped and every issue write is recorded in
+IssueActions with Posted $false.
 Returns { ExitCode, Result, NoOp, Failure, Issue, IssueActions, Plan, Publish, Annotations, Summary, Outputs } and
 never calls exit, so tests run it in-process; action.yaml exits with ExitCode. -RemoteUrl, -ApiUrl, -WorkPath,
 -SummaryLimit, -Now, -PublishCommand, -IssuePath and -GitHubToken are test seams; a -WorkPath the caller passes is
@@ -50,6 +54,8 @@ param(
     [AllowEmptyString()][string]$BaseBranch = $env:GITHUB_REF_NAME,
     [AllowEmptyString()][string]$Actor = $env:GITHUB_ACTOR,
     [AllowEmptyString()][string]$Label = 'rulebook-change',
+    # The account that triggered the run (the sender of the event): on an edit by another account it is gated too.
+    [AllowEmptyString()][string]$Editor,
     [AllowEmptyString()][string]$Repository = $env:GITHUB_REPOSITORY,
     # Test seam: the issue as a JSON file instead of the API (the engine's CI); never set in a workflow.
     [AllowEmptyString()][string]$IssuePath,
@@ -81,8 +87,10 @@ $docsUrl = Get-RulebookDocsUrl -Page 'ghtokenworkflow.md'
 $schemaPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..' '..' 'schemas' 'rulebook-changeset.schema.json'))
 # GitHub refuses a pull request title above 256 characters; the engine title is capped before ' (#<n>)'.
 $titleLimit = 200
-# A comment is limited to 65536 characters; an error list stays well below it.
+# A comment is limited to 65536 characters; every comment stays below this.
 $commentLimit = 60000
+$refusal = 'Only repository collaborators with write access can submit or edit Rulebook changes.'
+$rerun = 'Edit the issue body to run it again.'
 
 $ownWork = [string]::IsNullOrEmpty($WorkPath)
 if ($ownWork) {
@@ -127,30 +135,46 @@ function Format-CodeSpan {
     return '`' + $line + '`'
 }
 
-function Format-ErrorComment {
-    # The heading, one '- `<line>`' per line while the comment stays below the limit, and the closing sentence.
-    param([Parameter(Mandatory)][string]$Heading, [AllowEmptyCollection()][string[]]$Lines, [string]$Closing)
+function Format-ListComment {
+    # The heading, the list lines while the comment stays below the limit (then one line that names how many more are
+    # in the job log), and the closing sentence. -CodeSpan makes each line '- `<text>`'.
+    param(
+        [Parameter(Mandatory)][string]$Heading,
+        [AllowEmptyCollection()][string[]]$Lines,
+        [string]$Closing,
+        [switch]$CodeSpan,
+        [string]$Noun = 'errors'
+    )
     $text = [System.Text.StringBuilder]::new()
     [void]$text.Append($Heading).Append("`n`n")
     $all = @($Lines)
     $shown = 0
     foreach ($line in $all) {
-        $entry = '- ' + (Format-CodeSpan $line) + "`n"
+        $entry = $(if ($CodeSpan) { '- ' + (Format-CodeSpan $line) } else { $line }) + "`n"
         if ($text.Length + $entry.Length -gt $commentLimit - 500) { break }
         [void]$text.Append($entry)
         $shown++
     }
-    if ($shown -lt $all.Count) { [void]$text.Append("- _$($all.Count - $shown) more errors are in the job log._`n") }
+    if ($shown -lt $all.Count) { [void]$text.Append("- _$($all.Count - $shown) more $Noun are in the job log._`n") }
     if ($Closing) { [void]$text.Append("`n").Append($Closing).Append("`n") }
     return $text.ToString()
 }
 
+function Format-ChangeComment {
+    # The first line (the pull request or the commit), a blank line and the pull request body without the closing
+    # keyword, the body cut so the comment stays below the limit.
+    param([Parameter(Mandatory)][string]$Heading)
+    return "$Heading`n`n" + (ConvertTo-ChangePullRequestBody -Plan $plan -Limit ($commentLimit - $Heading.Length - 2))
+}
+
 function Invoke-IssueWrite {
     # Posts one comment, label or close on the issue (or records it with -IssuePath) and adds it to IssueActions.
+    # -BestEffort makes a failure a warning, as after the landing.
     param(
         [Parameter(Mandatory)][ValidateSet('comment', 'close', 'label')][string]$Kind,
         [string]$Body,
-        [ValidateSet('completed', 'not_planned')][string]$StateReason
+        [ValidateSet('completed', 'not_planned')][string]$StateReason,
+        [switch]$BestEffort
     )
     $action = [pscustomobject]@{
         Kind        = $Kind
@@ -175,7 +199,7 @@ function Invoke-IssueWrite {
             $what = switch ($Kind) { 'comment' { "comment on issue #$number" } 'close' { "close issue #$number" } default { "add the label $Label to issue #$number" } }
             $message = "Could not $($what): $($_.Exception.Message)"
             # The label only serves the workflow filter; after the landing the pull request or the commit exists.
-            if ($Kind -eq 'label' -or $state.Landed) {
+            if ($Kind -eq 'label' -or $state.Landed -or $BestEffort) {
                 Add-Annotation -Context $ctx -Command warning -Message $message
                 return
             }
@@ -188,7 +212,8 @@ function Invoke-IssueWrite {
 }
 
 function ConvertTo-IssueObject {
-    # The issue JSON of -IssuePath as Get-GitHubIssue returns it, plus Permission (default write).
+    # The issue JSON of -IssuePath as Get-GitHubIssue returns it, plus Permission (default none) and EditorPermission
+    # ($null when the file has none).
     param([Parameter(Mandatory)][System.Collections.IDictionary]$Data)
     $user = if ($Data['user'] -is [System.Collections.IDictionary]) { $Data['user'] } else { @{} }
     $names = [string[]]@(@($Data['labels']) | ForEach-Object {
@@ -206,7 +231,24 @@ function ConvertTo-IssueObject {
         Labels            = $names
         Url               = [string]$Data['html_url']
         IsPullRequest     = $Data.Contains('pull_request') -and $null -ne $Data['pull_request']
-        Permission        = $(if ($null -ne $Data['permission']) { [string]$Data['permission'] } else { 'write' })
+        Permission        = $(if ($null -ne $Data['permission']) { [string]$Data['permission'] } else { 'none' })
+        EditorPermission  = $(if ($null -ne $Data['editorPermission']) { [string]$Data['editorPermission'] } else { $null })
+    }
+}
+
+function Get-Permission {
+    # The permission of -User for the gate: from the issue file with -IssuePath, else from the API; a failed read
+    # stops the run (failure issue), so the gate is never skipped.
+    param([AllowEmptyString()][string]$User, [AllowNull()][AllowEmptyString()][string]$FromFile)
+    if ($fileMode) { return $(if ([string]::IsNullOrEmpty($FromFile)) { 'none' } else { $FromFile }) }
+    if ([string]::IsNullOrEmpty($User)) { return 'none' }
+    try {
+        return [string](Get-GitHubUserPermission -Repository $Repository -User $User -Token $GitHubToken -ApiUrl $ApiUrl).Permission
+    } catch {
+        $message = "Could not read the permission of $User on the repository, so the change set was not applied: $($_.Exception.Message)"
+        Add-Annotation -Context $ctx -Message $message
+        Add-Failure -Context $ctx -Kind 'issue'
+        throw (New-StopException $message)
     }
 }
 
@@ -251,27 +293,26 @@ try {
         Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
         $result = 'skipped'
     } else {
-        # 2. The gate (D55): the author can push to the repository. It runs before the body is read.
+        # 2. The gate (D55): the author, and an editor who is another account, can push to the repository. It runs
+        # before the body is read.
         $author = [string]$issue.Author
-        try {
-            $permission = if ($fileMode) { [string]$issue.Permission } elseif ([string]::IsNullOrEmpty($author)) { 'none' } else { (Get-GitHubUserPermission -Repository $Repository -User $author -Token $GitHubToken -ApiUrl $ApiUrl).Permission }
-        } catch {
-            $message = "Could not read the permission of $author on the repository, so the change set was not applied: $($_.Exception.Message)"
-            Add-Annotation -Context $ctx -Message $message
-            Add-Failure -Context $ctx -Kind 'issue'
-            throw (New-StopException $message)
-        }
+        $denied = $null
+        $permission = Get-Permission -User $author -FromFile $(if ($fileMode) { [string]$issue.Permission } else { $null })
         if ($permission -cnotin 'admin', 'write') {
-            Invoke-IssueWrite -Kind comment -Body "Only repository collaborators with write access can submit Rulebook changes.`n"
+            $denied = "the author $author has the permission '$permission' on the repository"
+        } elseif (-not [string]::IsNullOrEmpty($Editor) -and -not [string]::Equals($Editor, $author, [System.StringComparison]::OrdinalIgnoreCase)) {
+            # GitHub logins compare without case. In the issue file an editor without editorPermission is 'none'.
+            $editorPermission = Get-Permission -User $Editor -FromFile $(if ($fileMode) { [string]$issue.EditorPermission } else { $null })
+            if ($editorPermission -cnotin 'admin', 'write') { $denied = "the editor $Editor of the issue has the permission '$editorPermission' on the repository" }
+        }
+        if ($null -ne $denied) {
+            Invoke-IssueWrite -Kind comment -Body "$refusal`n"
             Invoke-IssueWrite -Kind close -StateReason not_planned
-            $summaryMessage = "Refused: the author $author has the permission '$permission' on the repository; only admin and write may submit Rulebook changes (D55). The issue was closed as not planned."
+            $summaryMessage = "Refused: $denied; only admin and write may submit or edit Rulebook changes (D55). The issue was closed as not planned."
             Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
             $result = 'refused'
         } else {
-            # 3. The label: the workflow filter knows an issue opened before the label existed by the form marker.
-            if (-not [string]::IsNullOrEmpty($Label) -and @($issue.Labels) -cnotcontains $Label) { Invoke-IssueWrite -Kind label }
-
-            # 4. The duplicate guard (D33): one open pull request per issue.
+            # 3. The duplicate guard (D33): one open pull request per issue.
             $existing = $null
             if (-not $fileMode) {
                 try {
@@ -281,12 +322,12 @@ try {
                 }
             }
             if ($null -ne $existing) {
-                Invoke-IssueWrite -Kind comment -Body "Pull request already exists: $($existing.Url)`n"
+                Invoke-IssueWrite -Kind comment -Body "The pull request already exists: $($existing.Url). Edits of this issue are not applied to it; close the pull request first to apply the edited change set.`n"
                 $summaryMessage = "Pull request already exists: $($existing.Url)"
                 Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
                 $result = 'pull-request-exists'
             } else {
-                # 5. The body: the change set and the note.
+                # 4. The body: the change set and the note.
                 $body = ConvertFrom-RulebookIssueBody -Body $issue.Body
                 [string[]]$readErrors = @($body.Errors)
                 $changeSet = $null
@@ -300,10 +341,14 @@ try {
                     $summaryMessage = 'The change set could not be read; nothing was written.'
                     $failed = $true
                     Add-Failure -Context $ctx -Kind 'validation'
-                    Invoke-IssueWrite -Kind comment -Body (Format-ErrorComment -Heading 'The change set could not be read:' -Lines $readErrors -Closing 'Nothing was written. Edit the issue body to run it again.')
+                    Invoke-IssueWrite -Kind comment -Body (Format-ListComment -Heading 'The change set could not be read:' -Lines $readErrors -CodeSpan -Closing "Nothing was written. $rerun")
                 } else {
                     # The Note field is what the submitter edits on the issue page; the cart writes both alike.
                     if (-not [string]::IsNullOrEmpty($body.Note)) { $changeSet['note'] = $body.Note }
+
+                    # 5. The label, only on a body that parsed: the workflow filter knows an issue opened before the
+                    # label existed by the form markers.
+                    if (-not [string]::IsNullOrEmpty($Label) -and @($issue.Labels) -cnotcontains $Label) { Invoke-IssueWrite -Kind label }
 
                     # 6. The plan, on a candidate copy.
                     $plan = Invoke-RulebookChangeSet -RepositoryRoot $root -ChangeSet $changeSet -WorkPath (Join-Path $WorkPath 'plan') -Now $Now
@@ -320,16 +365,18 @@ try {
                         $summaryMessage = if ($candidate) { 'The changed rulebook would not validate; nothing was pushed.' } else { 'The change set is not valid; nothing was written.' }
                         $failed = $true
                         Add-Failure -Context $ctx -Kind 'validation'
-                        Invoke-IssueWrite -Kind comment -Body (Format-ErrorComment -Heading $summaryMessage -Lines $lines.ToArray() -Closing 'Edit the issue body to run it again.')
+                        Invoke-IssueWrite -Kind comment -Body (Format-ListComment -Heading $summaryMessage -Lines $lines.ToArray() -CodeSpan -Closing $rerun)
                     } elseif ($plan.NoOp) {
                         # 7. Nothing would change (D48).
                         $summaryMessage = 'Nothing to change: every change of the change set is a no-op; nothing was written.'
                         Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
-                        Invoke-IssueWrite -Kind comment -Body ("Nothing to change.`n`n" + (ConvertTo-ChangeItemList -Plan $plan))
+                        [string[]]$items = @((ConvertTo-ChangeItemList -Plan $plan).Split("`n") | Where-Object { $_ -ne '' })
+                        Invoke-IssueWrite -Kind comment -Body (Format-ListComment -Heading 'Nothing to change.' -Lines $items -Noun 'items')
                         Invoke-IssueWrite -Kind close -StateReason completed
                         $result = 'no-op'
                     } else {
                         # 8. The token guard, after the plan: a validation error or a no-op needs no secret.
+                        if ([string]::IsNullOrEmpty($BaseBranch)) { throw 'The change needs baseBranch.' }
                         $tokenReason = $null
                         $tokenMessage = $null
                         $access = $null
@@ -353,11 +400,10 @@ try {
                             Add-Failure -Context $ctx -Kind 'token'
                             $summaryMessage = $tokenMessage
                             $failed = $true
-                            Invoke-IssueWrite -Kind comment -Body "The change set is valid, but the $secretName secret is missing or cannot be used, so nothing was pushed ($tokenReason). A maintainer sets it as described in $docsUrl; edit the issue to run again.`n"
+                            Invoke-IssueWrite -Kind comment -Body "The change set is valid, but the $secretName secret is missing or cannot be used, so nothing was pushed ($tokenReason). A maintainer sets it as described in $docsUrl; then edit the issue body to run it again.`n"
                         } else {
                             if (-not [string]::IsNullOrEmpty($access.Token)) { & $maskToken $access.Token }
                             Write-Host "Write token: $($access.Kind)"
-                            if ([string]::IsNullOrEmpty($BaseBranch)) { throw 'The change needs baseBranch.' }
 
                             # 9. Publish.
                             if (-not $plan.HeadSha) { Add-Annotation -Context $ctx -Command warning -Message 'base-move guard inactive: the checkout HEAD could not be read' }
@@ -387,20 +433,25 @@ try {
                                     Add-Annotation -Context $ctx -Command warning -Message "The direct push to $BaseBranch was refused; $fallbackOutcome$fallbackSuffix"
                                 }
                                 # The base branch moved between plan and publish: nothing is wrong with the token; run it again.
-                                $message = if ([string]$exception.Data['Reason'] -ceq 'base-moved') {
-                                    $exception.Message
+                                if ([string]$exception.Data['Reason'] -ceq 'base-moved') {
+                                    $message = $exception.Message
+                                    $commentBody = "$(ConvertTo-SingleLine $message)`n`n$rerun`n"
                                 } else {
                                     $what = if ($stage -eq 'pull-request') { 'Failed to create the pull request for the change set' } else { 'Failed to push the change set' }
-                                    "$what. Make sure that the token in the secret $secretName is not expired and may write contents and pull requests of $Repository. Read $docsUrl (Error was: $($exception.Message))"
+                                    $hint = "$what. Make sure that the token in the secret $secretName is not expired and may write contents and pull requests of $Repository. Read $docsUrl"
+                                    $message = "$hint (Error was: $($exception.Message))"
+                                    # The raw error inside a code span, as every other error line of a comment.
+                                    $commentBody = "$hint.`n`nError: $(Format-CodeSpan $exception.Message)`n`n$rerun`n"
                                 }
                                 Add-Annotation -Context $ctx -Message $message
                                 Add-Failure -Context $ctx -Kind $stage
                                 $summaryMessage = $message
                                 $failed = $true
-                                Invoke-IssueWrite -Kind comment -Body "$(ConvertTo-SingleLine $message)`n`nEdit the issue to run it again.`n"
+                                Invoke-IssueWrite -Kind comment -Body $commentBody
                             } else {
+                                $fellBack = $publish.PSObject.Properties['Fallback'] -and $publish.Fallback
                                 # The refused direct push as one warning annotation with the git output (#77).
-                                if ($publish.PSObject.Properties['Fallback'] -and $publish.Fallback) {
+                                if ($fellBack) {
                                     $fallbackReason = if ($publish.PSObject.Properties['FallbackReason'] -and $publish.FallbackReason) { " ($(ConvertTo-SingleLine $publish.FallbackReason))" } else { '' }
                                     Add-Annotation -Context $ctx -Command warning -Message "The direct push to $BaseBranch was refused; a pull request was created instead.$fallbackReason"
                                 }
@@ -411,7 +462,7 @@ try {
                                         $commitUrl = '{0}/{1}/commit/{2}' -f $server, $Repository, $publish.Sha
                                         $summaryMessage = "Change set committed to $($publish.Branch) ($(Get-ShortSha $publish.Sha))"
                                         Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
-                                        Invoke-IssueWrite -Kind comment -Body ("Committed to $($publish.Branch) ($commitUrl)`n`n" + (ConvertTo-ChangePullRequestBody -Plan $plan))
+                                        Invoke-IssueWrite -Kind comment -Body (Format-ChangeComment -Heading "Committed to $($publish.Branch) ($commitUrl)")
                                         Invoke-IssueWrite -Kind close -StateReason completed
                                     }
                                     'no-changes' {
@@ -424,11 +475,11 @@ try {
                                     }
                                     default {
                                         $state.Landed = $true
-                                        $refused = if ($publish.Fallback) { ' (the direct commit was refused)' } else { '' }
+                                        $refused = if ($fellBack) { ' (the direct commit was refused)' } else { '' }
                                         $summaryMessage = "Pull request: $($publish.PullRequestUrl)$refused"
                                         Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
                                         # The body without the closing keyword: the merge of the pull request closes the issue.
-                                        Invoke-IssueWrite -Kind comment -Body ("Pull request: $($publish.PullRequestUrl)$refused`n`n" + (ConvertTo-ChangePullRequestBody -Plan $plan))
+                                        Invoke-IssueWrite -Kind comment -Body (Format-ChangeComment -Heading "Pull request: $($publish.PullRequestUrl)$refused")
                                     }
                                 }
                             }
@@ -439,10 +490,17 @@ try {
         }
     }
 } catch {
-    if (-not $_.Exception.Data['Annotated']) { Add-Annotation -Context $ctx -Message $_.Exception.Message }
+    $annotated = [bool]$_.Exception.Data['Annotated']
+    if (-not $annotated) { Add-Annotation -Context $ctx -Message $_.Exception.Message }
     Add-Failure -Context $ctx -Kind 'error'
-    $summaryMessage = $_.Exception.Message
+    # A failed comment of an earlier failure keeps that failure's message in the summary.
+    if (-not ($annotated -and $summaryMessage)) { $summaryMessage = $_.Exception.Message }
     $failed = $true
+    # An unexpected failure after the issue was read gets one comment, best effort, unless the change landed.
+    if ($ctx.Failure -ceq 'error' -and $null -ne $issue -and -not $state.Landed) {
+        $runUrl = if ($env:GITHUB_RUN_ID -and $Repository) { " ($server/$Repository/actions/runs/$env:GITHUB_RUN_ID)" } else { '' }
+        Invoke-IssueWrite -Kind comment -Body "The Apply Rulebook Change run failed before anything was written; see the job log$runUrl.`n" -BestEffort
+    }
 } finally {
     if ($ownWork -and (Test-Path -LiteralPath $WorkPath)) { Remove-Item -LiteralPath $WorkPath -Recurse -Force -ErrorAction SilentlyContinue }
 }

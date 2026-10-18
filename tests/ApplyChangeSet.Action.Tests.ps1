@@ -80,11 +80,13 @@ BeforeAll {
     }
 
     function New-IssueFile {
-        # The -IssuePath file: the issue plus the permission of its author (left out with -NoPermission).
+        # The -IssuePath file: the issue plus the permission of its author (left out with -NoPermission) and, with
+        # -EditorPermission, that of the editor.
         [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Test helper; writes only to TestDrive')]
-        param([hashtable]$Issue = @{}, [string]$Permission = 'write', [switch]$NoPermission)
+        param([hashtable]$Issue = @{}, [string]$Permission = 'write', [switch]$NoPermission, [string]$EditorPermission)
         $data = New-IssueData @Issue
         if (-not $NoPermission) { $data['permission'] = $Permission }
+        if ($EditorPermission) { $data['editorPermission'] = $EditorPermission }
         $path = "$(Get-TestFolder).issue.json"
         Write-FixtureText -Path $path -Text (ConvertTo-Json -InputObject $data -Depth 6)
         return $path
@@ -196,6 +198,7 @@ BeforeAll {
             [hashtable]$Issue = @{},
             [string]$Permission = 'write',
             [int]$PermissionStatus = 200,
+            [string]$EditorPermission = 'read',
             [int]$LabelStatus = 200,
             [string]$Pulls = '[]',
             [int]$PullsStatus = 200,
@@ -206,6 +209,7 @@ BeforeAll {
         return @{
             "GET $base/issues/12"                         = @{ Status = 200; Body = (ConvertTo-Json -InputObject (New-IssueData @Issue) -Depth 6) }
             "GET $base/collaborators/octo/permission"     = @{ Status = $PermissionStatus; Body = $(if ($PermissionStatus -eq 200) { "{`"permission`":`"$Permission`",`"role_name`":`"$Permission`"}" } else { '{"message":"Server Error"}' }) }
+            "GET $base/collaborators/mallory/permission"  = @{ Status = 200; Body = "{`"permission`":`"$EditorPermission`",`"role_name`":`"$EditorPermission`"}" }
             "GET $base/labels/rulebook-change"            = @{ Status = $LabelStatus; Body = '{"name":"rulebook-change"}' }
             "POST $base/labels"                           = @{ Status = 201; Body = '{"name":"rulebook-change"}' }
             "POST $base/issues/12/labels"                 = @{ Status = 200; Body = '[{"name":"rulebook-change"}]' }
@@ -246,6 +250,7 @@ Describe 'actions/ApplyChangeSet/action.yaml' {
         @{ Name = 'repositoryRoot'; Default = "'.'" }
         @{ Name = 'actor'; Default = '${{ github.actor }}' }
         @{ Name = 'label'; Default = "'rulebook-change'" }
+        @{ Name = 'editor'; Default = "''" }
         @{ Name = 'issuePath'; Default = "''" }
     ) {
         $yaml | Should-MatchString ("(?ms)^  {0}:\n.*?^    default: {1}$" -f $Name, [regex]::Escape($Default))
@@ -271,7 +276,7 @@ Describe 'actions/ApplyChangeSet/action.yaml' {
     It 'passes inputs and the workflow token through env and never interpolates them into run' {
         $run = [regex]::Match($yaml, '(?ms)^      run: \|\n(.*)').Groups[1].Value
         $run | Should-NotMatchString '\$\{\{'
-        foreach ($name in 'ISSUENUMBER', 'TOKEN', 'DIRECTCOMMIT', 'BASEBRANCH', 'REPOSITORYROOT', 'ACTOR', 'LABEL', 'ISSUEPATH') {
+        foreach ($name in 'ISSUENUMBER', 'TOKEN', 'DIRECTCOMMIT', 'BASEBRANCH', 'REPOSITORYROOT', 'ACTOR', 'LABEL', 'EDITOR', 'ISSUEPATH') {
             $yaml | Should-MatchString "(?m)^        INPUT_$($name): \`$\{\{ inputs\.\w+ \}\}$"
         }
         # The issue is read and written with the workflow token, the change pushed with the secret's token.
@@ -316,10 +321,10 @@ Describe 'template/.github/workflows/ApplyRulebookChange.yaml' {
         $workflow | Should-NotMatchString '(?m)^  (push|pull_request|schedule|workflow_dispatch|issue_comment):'
     }
 
-    It 'runs on the label or the form marker, and on an edit only when the body changed' {
+    It 'runs on the label or both form headings, and on an edit only when the body changed' {
         $expected = @(
             '    if: >-'
-            "      (contains(github.event.issue.labels.*.name, 'rulebook-change') || contains(github.event.issue.body, '### Changes'))"
+            "      (contains(github.event.issue.labels.*.name, 'rulebook-change') || (contains(github.event.issue.body, '### Changes') && contains(github.event.issue.body, '### Note')))"
             "      && (github.event.action == 'opened' || contains(toJSON(github.event.changes), '`"body`"'))"
         ) -join "`n"
         $workflow.Contains("  apply:`n    # An issue from the Rulebook change form") | Should-BeTrue
@@ -328,8 +333,11 @@ Describe 'template/.github/workflows/ApplyRulebookChange.yaml' {
 
     It 'writes the issue with the workflow token and lists pull requests, one run per issue at a time' {
         $workflow | Should-MatchString '(?m)^permissions:\n  contents: read\n  issues: write\n  pull-requests: read\n\n'
-        $workflow | Should-MatchString '(?m)^concurrency:\n  group: apply-rulebook-change-\$\{\{ github\.event\.issue\.number \}\}\n  cancel-in-progress: false$'
-        $workflow | Should-MatchString '(?m)^        uses: actions/checkout@v7\n        with:\n          persist-credentials: false$'
+        # In the job: a run whose job is skipped never enters the group.
+        $workflow | Should-NotMatchString '(?m)^concurrency:'
+        $workflow | Should-MatchString '(?m)^    timeout-minutes: 15\n    # [^\n]*\n    concurrency:\n      group: apply-rulebook-change-\$\{\{ github\.event\.issue\.number \}\}\n      cancel-in-progress: false\n    steps:$'
+        # The default branch as it is now, not the commit of the event.
+        $workflow | Should-MatchString '(?m)^        uses: actions/checkout@v7\n        with:\n          # [^\n]*\n          ref: \$\{\{ github\.event\.repository\.default_branch \}\}\n          persist-credentials: false$'
     }
 
     It 'looks the secret up by the name from the settings and calls the engine action at main' {
@@ -337,6 +345,7 @@ Describe 'template/.github/workflows/ApplyRulebookChange.yaml' {
         $workflow | Should-MatchString '(?m)^          issueNumber: \$\{\{ github\.event\.issue\.number \}\}$'
         $workflow | Should-MatchString '(?m)^          token: \$\{\{ secrets\[steps\.settings\.outputs\.secretName\] \}\}$'
         $workflow | Should-MatchString '(?m)^          directCommit: \$\{\{ steps\.settings\.outputs\.directCommit \}\}$'
+        $workflow | Should-MatchString '(?m)^          editor: \$\{\{ github\.event\.sender\.login \}\}$'
         # issuePath is the engine CI's seam; the workflow never sets it.
         $workflow | Should-NotMatchString 'issuePath'
     }
@@ -368,9 +377,9 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $run.Result.Plan.Valid | Should-BeTrue
         }
 
-        It 'reads a missing permission as write' {
+        It 'reads a missing permission as none (fail closed)' {
             $run = Invoke-Entry @{ IssuePath = (New-IssueFile -NoPermission) }
-            $run.Result.Failure | Should-Be 'token'
+            $run.Result.Result | Should-Be 'refused'
         }
 
         It 'refuses an author with <Permission> permission before reading the body' -ForEach @(
@@ -385,10 +394,41 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $run.Result.Result | Should-Be 'refused'
             $run.Result.Plan | Should-BeNull
             Get-IssueAction $run | Should-BeCollection @('comment', 'close not_planned')
-            Get-Comment $run | Should-Be "Only repository collaborators with write access can submit Rulebook changes.`n"
+            Get-Comment $run | Should-Be "Only repository collaborators with write access can submit or edit Rulebook changes.`n"
             @($run.Result.IssueActions | Where-Object Posted) | Should-BeCollection @()
-            $run.Result.Annotations[-1] | Should-Be "::notice title=ApplyChangeSet::Refused: the author octo has the permission '$Permission' on the repository; only admin and write may submit Rulebook changes (D55). The issue was closed as not planned."
+            $run.Result.Annotations[-1] | Should-Be "::notice title=ApplyChangeSet::Refused: the author octo has the permission '$Permission' on the repository; only admin and write may submit or edit Rulebook changes (D55). The issue was closed as not planned."
             $run.Output | Should-Be "result=refused`nnoop=false`nchangedEndpoints=`npullRequestUrl=`nbranch=`nissue=12`nissueState=closed-not-planned`nfailure=`n"
+        }
+    }
+
+    Context 'the editor gate (D55)' {
+        It 'checks the editor once when it is the author: <Editor>' -ForEach @(
+            @{ Editor = 'octo' }
+            @{ Editor = 'Octo' }
+            @{ Editor = '' }
+        ) {
+            # No editorPermission in the file: an editor other than the author would be refused.
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile); Editor = $Editor }
+            $run.Result.Failure | Should-Be 'token'
+        }
+
+        It 'applies an edit by another account that can push' {
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile -EditorPermission 'write'); Editor = 'mallory' }
+            $run.Result.Failure | Should-Be 'token'
+            $run.Result.Plan.Valid | Should-BeTrue
+        }
+
+        It 'refuses an edit by another account with <Name>' -ForEach @(
+            @{ Name = 'read permission'; EditorPermission = 'read'; Shown = 'read' }
+            @{ Name = 'no permission in the file'; EditorPermission = ''; Shown = 'none' }
+        ) {
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile -EditorPermission $EditorPermission -Issue @{ Body = 'not a form' }); Editor = 'mallory' }
+            $run.Result.ExitCode | Should-Be 0
+            $run.Result.Result | Should-Be 'refused'
+            $run.Result.Plan | Should-BeNull
+            Get-IssueAction $run | Should-BeCollection @('comment', 'close not_planned')
+            Get-Comment $run | Should-Be "Only repository collaborators with write access can submit or edit Rulebook changes.`n"
+            $run.Result.Annotations[-1] | Should-Be "::notice title=ApplyChangeSet::Refused: the editor mallory of the issue has the permission '$Shown' on the repository; only admin and write may submit or edit Rulebook changes (D55). The issue was closed as not planned."
         }
     }
 
@@ -422,6 +462,12 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             @(Get-IssueAction $with | Where-Object { $_ -like 'label*' }) | Should-BeCollection @()
             $without = Invoke-Entry @{ IssuePath = (New-IssueFile -Issue @{ Labels = @('other') }) }
             (Get-IssueAction $without)[0] | Should-Be 'label rulebook-change'
+        }
+
+        It 'does not label a body that cannot be read' {
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile -Issue @{ Labels = @(); Changes = '{' }) }
+            $run.Result.Failure | Should-Be 'validation'
+            Get-IssueAction $run | Should-BeCollection @('comment')
         }
 
         It 'uses the label input and skips the label with an empty one' {
@@ -461,6 +507,15 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $lines.Count | Should-Be $run.Result.Annotations.Count
             foreach ($line in $lines) { $line | Should-MatchString '\A- `The change set does not match the schema: [^`]+`\z' }
             @($run.Result.IssueActions | Where-Object Kind -EQ 'close') | Should-BeCollection @()
+        }
+
+        It 'cuts a long error list below the comment limit and names the rest' {
+            $changes = '{"version":1,"changes":[' + ((5000..6499 | ForEach-Object { '{"op":"release","id":"LC' + $_ + '","stages":["ci"]}' }) -join ',') + ']}'
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile -Issue @{ Changes = $changes }) }
+            $run.Result.Failure | Should-Be 'validation'
+            $comment = Get-Comment $run
+            $comment.Length | Should-BeLessThan 60000
+            $comment | Should-MatchString '(?m)^- _\d+ more errors are in the job log\._\n\nEdit the issue body to run it again\.\n\z'
         }
 
         It 'keeps the text of a hostile body inside the code span (backticks dropped)' {
@@ -534,7 +589,7 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $run.Result.Failure | Should-Be 'token'
             $run.Result.Annotations | Should-BeCollection @('::error title=ApplyChangeSet::The GHTOKENWORKFLOW secret is needed to apply a change set. Read https://github.com/ALCops/rulebook/blob/preview/docs/ghtokenworkflow.md')
             Get-IssueAction $run | Should-BeCollection @('comment')
-            Get-Comment $run | Should-Be "The change set is valid, but the GHTOKENWORKFLOW secret is missing or cannot be used, so nothing was pushed (the secret is empty or not set). A maintainer sets it as described in https://github.com/ALCops/rulebook/blob/preview/docs/ghtokenworkflow.md; edit the issue to run again.`n"
+            Get-Comment $run | Should-Be "The change set is valid, but the GHTOKENWORKFLOW secret is missing or cannot be used, so nothing was pushed (the secret is empty or not set). A maintainer sets it as described in https://github.com/ALCops/rulebook/blob/preview/docs/ghtokenworkflow.md; then edit the issue body to run it again.`n"
             $run.Output | Should-Be "result=`nnoop=false`nchangedEndpoints=strict.ci`npullRequestUrl=`nbranch=`nissue=12`nissueState=open`nfailure=token`n"
         }
 
@@ -687,7 +742,7 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $run.Result.Failure | Should-Be $Stage
             $run.Result.Annotations[-1] | Should-BeLikeString "::error title=ApplyChangeSet::$What. Make sure that the token in the secret GHTOKENWORKFLOW*"
             Get-IssueAction $run | Should-BeCollection @('comment')
-            Get-Comment $run | Should-BeLikeString "$What. Make sure that the token*(Error was: Branch rulebook-change/12/261008091530 was pushed.*)`n`nEdit the issue to run it again.`n"
+            Get-Comment $run | Should-Be "$What. Make sure that the token in the secret GHTOKENWORKFLOW is not expired and may write contents and pull requests of Contoso/rulebook. Read https://github.com/ALCops/rulebook/blob/preview/docs/ghtokenworkflow.md.`n`nError: ``Branch rulebook-change/12/261008091530 was pushed. Could not create the pull request (HTTP 422).```n`nEdit the issue body to run it again.`n"
             $run.Output | Should-MatchString "(?m)^issueState=open\nfailure=$Stage\n\z"
         }
 
@@ -738,6 +793,19 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $run.Result.ExitCode | Should-Be 1
             $run.Result.Failure | Should-Be 'error'
             $run.Result.Annotations[-1] | Should-Be "::error title=ApplyChangeSet::$Message"
+        }
+
+        It 'comments an unexpected failure with the run link' {
+            $saved = @{ Run = $env:GITHUB_RUN_ID }
+            try {
+                $env:GITHUB_RUN_ID = '4242'
+                $run = Invoke-Entry @{ IssuePath = (New-IssueFile); Token = 'ghp_x'; BaseBranch = ''; PublishCommand = { throw 'never' } }
+            } finally {
+                $env:GITHUB_RUN_ID = $saved.Run
+            }
+            $run.Result.Failure | Should-Be 'error'
+            Get-Comment $run | Should-Be "The Apply Rulebook Change run failed before anything was written; see the job log (https://github.com/Contoso/rulebook/actions/runs/4242).`n"
+            $run.Summary | Should-MatchString '(?m)^The change needs baseBranch\.$'
         }
 
         It 'reports a base branch that moved without the token hint' {
@@ -858,6 +926,23 @@ Describe 'ApplyChangeSet.ps1 against the GitHub API' {
         ($requests[3].Body | ConvertFrom-Json -AsHashtable)['state_reason'] | Should-Be 'not_planned'
     }
 
+    It 'reads the permission of an editor who is not the author and refuses <EditorPermission>' -ForEach @(
+        @{ EditorPermission = 'read' }
+    ) {
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute -EditorPermission $EditorPermission)
+        $run = Invoke-Entry @{ ApiUrl = $api.Url; Editor = 'mallory' }
+        $run.Result.Result | Should-Be 'refused'
+        @($api.Requests.ToArray() | ForEach-Object Key | Where-Object { $_ -like '*/permission' }) | Should-BeCollection @('GET /repos/Contoso/rulebook/collaborators/octo/permission', 'GET /repos/Contoso/rulebook/collaborators/mallory/permission')
+    }
+
+    It 'posts the generic comment of an unexpected failure best effort' {
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute -CommentStatus 500)
+        $run = Invoke-Entry @{ ApiUrl = $api.Url; Token = 'ghp_x'; BaseBranch = ''; PublishCommand = { throw 'never' } }
+        $run.Result.Failure | Should-Be 'error'
+        @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ApplyChangeSet::Could not comment on issue #12: *' }).Count | Should-Be 1
+        @($run.Result.Annotations | Where-Object { $_ -ceq '::error title=ApplyChangeSet::The change needs baseBranch.' }).Count | Should-Be 1
+    }
+
     It 'fails closed with failure issue when the permission cannot be read' {
         $script:api = Start-FakeApi -Routes (Get-ApiRoute -PermissionStatus 500)
         $run = Invoke-Entry @{ ApiUrl = $api.Url }
@@ -900,7 +985,7 @@ Describe 'ApplyChangeSet.ps1 against the GitHub API' {
         $run.Result.ExitCode | Should-Be 0
         $run.Result.Result | Should-Be 'pull-request-exists'
         $run.Result.Plan | Should-BeNull
-        Get-Comment $run | Should-Be "Pull request already exists: https://github.com/Contoso/rulebook/pull/5`n"
+        Get-Comment $run | Should-Be "The pull request already exists: https://github.com/Contoso/rulebook/pull/5. Edits of this issue are not applied to it; close the pull request first to apply the edited change set.`n"
         $run.Output | Should-Be "result=pull-request-exists`nnoop=false`nchangedEndpoints=`npullRequestUrl=`nbranch=`nissue=12`nissueState=open`nfailure=`n"
         @($api.Requests.ToArray() | Where-Object Key -EQ 'GET /repos/Contoso/rulebook/pulls')[0].Query | Should-BeLikeString '*base=main*'
     }
