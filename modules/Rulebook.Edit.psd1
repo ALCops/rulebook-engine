@@ -5,10 +5,12 @@
     Author               = 'ALCops'
     CompanyName          = 'ALCops'
     Copyright            = '(c) ALCops. MIT License.'
-    Description          = 'Rulebook edit: reads and writes overrides.json, applies a change set (set, remove) to a candidate copy of an organization rulebook repository, plans the effective change per endpoint and the no-op rule, renders the table, pull request body and summary, and lands the change as a pull request or direct commit. See docs/reference/change-mechanics.md.'
+    Description          = 'Rulebook edit: reads and writes overrides.json, reads a change set from the body of a rulebook-change issue and checks it against the change set schema, applies it (set, remove, release from quarantine) to a candidate copy of an organization rulebook repository, plans the effective change per endpoint and the no-op rule, renders the table, pull request body and summary, and lands the change as a pull request or direct commit. See docs/reference/change-mechanics.md.'
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
+        'ConvertFrom-RulebookIssueBody'
+        'ConvertTo-ChangeItemList'
         'ConvertTo-ChangePullRequestBody'
         'ConvertTo-ChangeSummary'
         'ConvertTo-ChangeTable'
@@ -18,7 +20,9 @@
         'Invoke-RulebookChangeSet'
         'Publish-RulebookChange'
         'Read-OverridesFile'
+        'Read-RulebookChangeSetText'
         'Remove-RulebookOverride'
+        'Remove-RulebookQuarantine'
         'Set-RulebookOverride'
         'Test-RulebookChangeSet'
         'Write-OverridesFile'

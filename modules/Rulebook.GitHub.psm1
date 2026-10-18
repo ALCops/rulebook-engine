@@ -2,7 +2,9 @@
 # Rulebook.GitHub: the GitHub plumbing of the update workflow (WP07). One REST wrapper (Invoke-GitHubApi, the single
 # mock point of the suites), the GHTOKENWORKFLOW exchange (a personal access token passes through, GitHub App JSON
 # becomes a short-lived installation token, D44), the template download as a zipball, the pull request helpers,
-# and the clone, commit and push of the update and of the scan (WP08: the living pull request, a lease push).
+# and the clone, commit and push of the update and of the scan (WP08: the living pull request, a lease push). The
+# issue path of the dashboard (WP15) adds the issue helpers: read an issue, the author's permission, comment, close,
+# the rulebook-change label, and the duplicate guard over open pull requests by head prefix.
 # Imports only Rulebook.Common (git runner, ordinal collections), nothing from the rulebook logic or the action
 # layer. The token never enters a git URL or git config:
 # git receives it as an http.<server>/.extraheader through GIT_CONFIG_COUNT in the environment of each git call.
@@ -78,6 +80,22 @@ function Get-ApiMessage {
     $text = [string]$Response.Text
     if ($text.Length -gt 200) { $text = $text.Substring(0, 200) }
     return $text.Trim()
+}
+
+function New-ApiException {
+    # '<Message> (HTTP <status>: <GitHub message>)' with the status in Data['StatusCode'], as Get-GitHubBranchSha throws.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an exception; changes no state')]
+    param([Parameter(Mandatory)][string]$Message, [Parameter(Mandatory)]$Response)
+    $exception = [System.InvalidOperationException]::new("$Message (HTTP $($Response.StatusCode): $(Get-ApiMessage $Response))")
+    $exception.Data['StatusCode'] = $Response.StatusCode
+    return $exception
+}
+
+function Test-LabelExistsAnswer {
+    # A 422 answer whose errors name the code already_exists (a label created in between).
+    param([Parameter(Mandatory)]$Response)
+    $errors = if ($Response.Body -is [System.Collections.IDictionary]) { @($Response.Body['errors']) } else { @() }
+    return @($errors | Where-Object { $_ -is [System.Collections.IDictionary] -and [string]$_['code'] -ceq 'already_exists' }).Count -gt 0
 }
 
 function Get-DictionaryValue {
@@ -614,6 +632,205 @@ function New-GitHubPullRequest {
     return [pscustomobject]@{ Number = $number; Url = $url }
 }
 
+function Find-GitHubPullRequestByHeadPrefix {
+    <#
+    .SYNOPSIS
+    The first open pull request into -Base whose head branch starts with -HeadPrefix (ordinal), or $null:
+    { Number, Url, Title, Head }.
+    .DESCRIPTION
+    GET /repos/{r}/pulls?base=<base>&state=open&per_page=100, every page (Link rel="next"); the prefix is matched on
+    head.ref on this side, because the API filters the head by its exact name only, and only for a head branch of
+    -Repository itself (head.repo.full_name, ignoring case as GitHub does; a fork's branch or a deleted fork never
+    matches). The duplicate guard of the issue path (rulebook-change/<issue>/): end the prefix with '/' so issue 12
+    does not match rulebook-change/123/. An answer other than 200 throws with the status in Data['StatusCode'].
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][string]$Base,
+        [Parameter(Mandatory)][string]$HeadPrefix,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $query = 'base={0}&state=open&per_page=100' -f [System.Uri]::EscapeDataString($Base)
+    $response = Invoke-GitHubApi -Method GET -Path ((Join-ApiPath -Part 'repos', $Repository, 'pulls') + "?$query") -Token $Token -ApiUrl $ApiUrl -Paginate
+    if ($response.StatusCode -ne 200) { throw (New-ApiException -Message "Could not list the pull requests of $Repository" -Response $response) }
+    foreach ($pull in @($response.Body)) {
+        if ($pull -isnot [System.Collections.IDictionary] -or $pull['head'] -isnot [System.Collections.IDictionary]) { continue }
+        # Only a branch of this repository: a fork may name a branch rulebook-change/12/x too, and a pull request
+        # whose fork was deleted has no head repository.
+        $headRepository = $pull['head']['repo']
+        if ($headRepository -isnot [System.Collections.IDictionary] -or -not [string]::Equals([string]$headRepository['full_name'], $Repository, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+        $head = [string]$pull['head']['ref']
+        if ($head.StartsWith($HeadPrefix, [System.StringComparison]::Ordinal)) {
+            return [pscustomobject]@{ Number = [int]$pull['number']; Url = [string]$pull['html_url']; Title = [string]$pull['title']; Head = $head }
+        }
+    }
+    return $null
+}
+
+#endregion
+
+#region Issues
+
+function Get-GitHubIssue {
+    <#
+    .SYNOPSIS
+    Issue -Number of -Repository: { Number, Title, Body, State, StateReason, Author, AuthorType, AuthorAssociation,
+    Labels, Url, IsPullRequest }.
+    .DESCRIPTION
+    GET /repos/{r}/issues/{n}. Body is '' for an issue without one; Labels are the label names; Author and AuthorType
+    are user.login and user.type (User, Bot); IsPullRequest is true when the number is a pull request (the issues API
+    answers for both). An answer other than 200 throws with the status in Data['StatusCode'].
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][int]$Number,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $response = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'issues', ([string]$Number)) -Token $Token -ApiUrl $ApiUrl
+    if ($response.StatusCode -ne 200 -or $response.Body -isnot [System.Collections.IDictionary]) { throw (New-ApiException -Message "Could not read issue #$Number of $Repository" -Response $response) }
+    $issue = $response.Body
+    $user = if ($issue['user'] -is [System.Collections.IDictionary]) { $issue['user'] } else { @{} }
+    $labels = [string[]]@(@($issue['labels']) | ForEach-Object {
+            if ($_ -is [System.Collections.IDictionary]) { [string]$_['name'] } elseif ($null -ne $_) { [string]$_ }
+        })
+    return [pscustomobject]@{
+        PSTypeName        = 'Rulebook.GitHubIssue'
+        Number            = [int]$issue['number']
+        Title             = [string]$issue['title']
+        Body              = [string]$issue['body']
+        State             = [string]$issue['state']
+        StateReason       = $(if ($null -eq $issue['state_reason']) { $null } else { [string]$issue['state_reason'] })
+        Author            = [string]$user['login']
+        AuthorType        = [string]$user['type']
+        AuthorAssociation = [string]$issue['author_association']
+        Labels            = $labels
+        Url               = [string]$issue['html_url']
+        IsPullRequest     = $issue.Contains('pull_request') -and $null -ne $issue['pull_request']
+    }
+}
+
+function Get-GitHubUserPermission {
+    <#
+    .SYNOPSIS
+    The permission of -User on -Repository: { Permission (admin, write, read, none), RoleName }.
+    .DESCRIPTION
+    GET /repos/{r}/collaborators/{user}/permission: the highest grant across the repository, its teams, the
+    organization and the enterprise (maintain reads as write, triage as read; RoleName is the exact role). A 404 (the
+    user is no collaborator or does not exist, or the token cannot read the collaborators) is Permission none and
+    RoleName $null, so a gate on it fails closed; any other answer than 200 throws with the status in
+    Data['StatusCode'].
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][string]$User,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $response = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'collaborators', $User, 'permission') -Token $Token -ApiUrl $ApiUrl
+    if ($response.StatusCode -eq 404) { return [pscustomobject]@{ Permission = 'none'; RoleName = $null } }
+    if ($response.StatusCode -ne 200 -or $response.Body -isnot [System.Collections.IDictionary]) { throw (New-ApiException -Message "Could not read the permission of $User on $Repository" -Response $response) }
+    $permission = [string]$response.Body['permission']
+    if ([string]::IsNullOrEmpty($permission)) { $permission = 'none' }
+    $role = if ($null -eq $response.Body['role_name']) { $null } else { [string]$response.Body['role_name'] }
+    return [pscustomobject]@{ Permission = $permission; RoleName = $role }
+}
+
+function Add-GitHubIssueComment {
+    <#
+    .SYNOPSIS
+    Comments -Body on issue -Number of -Repository: { Id, Url }.
+    .DESCRIPTION
+    POST /repos/{r}/issues/{n}/comments with { body }. An answer other than 201 throws with the status in
+    Data['StatusCode'].
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][int]$Number,
+        [Parameter(Mandatory)][string]$Body,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $response = Invoke-GitHubApi -Method POST -Path (Join-ApiPath -Part 'repos', $Repository, 'issues', ([string]$Number), 'comments') -Token $Token -ApiUrl $ApiUrl -Body ([ordered]@{ body = $Body })
+    if ($response.StatusCode -ne 201) { throw (New-ApiException -Message "Could not comment on issue #$Number of $Repository" -Response $response) }
+    $answer = if ($response.Body -is [System.Collections.IDictionary]) { $response.Body } else { @{} }
+    return [pscustomobject]@{ Id = $answer['id']; Url = [string]$answer['html_url'] }
+}
+
+function Close-GitHubIssue {
+    <#
+    .SYNOPSIS
+    Closes issue -Number of -Repository with -StateReason completed or not_planned: { Number, Url }.
+    .DESCRIPTION
+    PATCH /repos/{r}/issues/{n} with { state closed, state_reason }. An answer other than 200 throws with the status
+    in Data['StatusCode'].
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][int]$Number,
+        [Parameter(Mandatory)][ValidateSet('completed', 'not_planned')][string]$StateReason,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $response = Invoke-GitHubApi -Method PATCH -Path (Join-ApiPath -Part 'repos', $Repository, 'issues', ([string]$Number)) -Token $Token -ApiUrl $ApiUrl -Body ([ordered]@{ state = 'closed'; state_reason = $StateReason })
+    if ($response.StatusCode -ne 200) { throw (New-ApiException -Message "Could not close issue #$Number of $Repository" -Response $response) }
+    $url = if ($response.Body -is [System.Collections.IDictionary]) { [string]$response.Body['html_url'] } else { '' }
+    return [pscustomobject]@{ Number = $Number; Url = $url }
+}
+
+function Confirm-GitHubLabel {
+    <#
+    .SYNOPSIS
+    Makes sure label -Name exists in -Repository, and with -IssueNumber adds it to that issue: { Created, Added }.
+    .DESCRIPTION
+    GET /repos/{r}/labels/{name}; a 404 creates it with POST /repos/{r}/labels { name, color, description } (Created
+    $true; a 422 already_exists, a run that created it in between, is accepted). With -IssueNumber the label is added
+    with POST /repos/{r}/issues/{n}/labels (Added $true). Any other answer throws with the status in
+    Data['StatusCode']. The rulebook-change label of the issue path: an issue opened from the form carries it only once
+    it exists.
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][string]$Repository,
+        [Parameter(Mandatory)][string]$Name,
+        [ValidatePattern('^[0-9A-Fa-f]{6}$')][string]$Color = '1D76DB',
+        [AllowEmptyString()][string]$Description = 'A change set submitted from the Rulebook dashboard',
+        [ValidateRange(1, [int]::MaxValue)][int]$IssueNumber,
+        [AllowNull()][AllowEmptyString()][string]$Token,
+        [AllowNull()][AllowEmptyString()][string]$ApiUrl
+    )
+    $result = [pscustomobject]@{ Created = $false; Added = $false }
+    $existing = Invoke-GitHubApi -Method GET -Path (Join-ApiPath -Part 'repos', $Repository, 'labels', $Name) -Token $Token -ApiUrl $ApiUrl
+    if ($existing.StatusCode -eq 404) {
+        $created = Invoke-GitHubApi -Method POST -Path (Join-ApiPath -Part 'repos', $Repository, 'labels') -Token $Token -ApiUrl $ApiUrl -Body ([ordered]@{ name = $Name; color = $Color; description = $Description })
+        if ($created.StatusCode -eq 201) {
+            $result.Created = $true
+        } elseif (-not ($created.StatusCode -eq 422 -and (Test-LabelExistsAnswer -Response $created))) {
+            throw (New-ApiException -Message "Could not create the label $Name in $Repository" -Response $created)
+        }
+    } elseif ($existing.StatusCode -ne 200) {
+        throw (New-ApiException -Message "Could not read the label $Name of $Repository" -Response $existing)
+    }
+    if ($PSBoundParameters.ContainsKey('IssueNumber')) {
+        $added = Invoke-GitHubApi -Method POST -Path (Join-ApiPath -Part 'repos', $Repository, 'issues', ([string]$IssueNumber), 'labels') -Token $Token -ApiUrl $ApiUrl -Body ([ordered]@{ labels = @($Name) })
+        if ($added.StatusCode -ne 200) { throw (New-ApiException -Message "Could not add the label $Name to issue #$IssueNumber of $Repository" -Response $added) }
+        $result.Added = $true
+    }
+    return $result
+}
+
 #endregion
 
 #region Git
@@ -799,13 +1016,19 @@ function Get-GitHubPushEnvironment {
 #endregion
 
 Export-ModuleMember -Function @(
+    'Add-GitHubIssueComment'
+    'Close-GitHubIssue'
+    'Confirm-GitHubLabel'
     'Find-GitHubPullRequest'
     'Find-GitHubPullRequestByHead'
+    'Find-GitHubPullRequestByHeadPrefix'
     'Get-GitHubAccessToken'
     'Get-GitHubBranchSha'
     'Get-GitHubCommitList'
+    'Get-GitHubIssue'
     'Get-GitHubPushEnvironment'
     'Get-GitHubRefSha'
+    'Get-GitHubUserPermission'
     'Get-GitRootTree'
     'Invoke-GitHubApi'
     'New-GitHubAppJwt'

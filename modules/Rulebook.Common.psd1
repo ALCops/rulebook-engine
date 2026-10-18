@@ -9,6 +9,7 @@
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
     FunctionsToExport    = @(
+        'ConvertFrom-JsonElement'
         'Get-OrdinalMap'
         'Get-OrdinalSet'
         'Get-RulebookDocsUrl'

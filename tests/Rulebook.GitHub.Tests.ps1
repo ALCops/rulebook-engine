@@ -741,3 +741,223 @@ Describe 'git: New-GitHubClone and Publish-GitHubChange' -Skip:$gitMissing {
         (Get-GitText -Root $bare -Arguments @('rev-parse', 'refs/heads/main')).Trim() | Should-Be $mainSha
     }
 }
+
+Describe 'The issue helpers of the issue path' {
+    BeforeEach {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 500 -Json @{ message = 'unexpected call' } }
+    }
+
+    It 'reads an issue and maps its fields' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/issues/12' } {
+            Get-MockResponse -Json @{
+                number = 12; title = 'Rulebook change'; body = "### Changes`n`nx`n"; state = 'open'; state_reason = $null
+                user = @{ login = 'octocat'; type = 'User' }; author_association = 'MEMBER'; html_url = 'https://github.com/Contoso/rulebook/issues/12'
+                labels = @(@{ name = 'rulebook-change'; color = '1D76DB' }, @{ name = 'triage' })
+            }
+        }
+        $issue = Get-GitHubIssue -Repository 'Contoso/rulebook' -Number 12 -Token 'tok'
+        $issue.Number | Should-Be 12
+        $issue.Title | Should-Be 'Rulebook change'
+        $issue.Body | Should-Be "### Changes`n`nx`n"
+        $issue.State | Should-Be 'open'
+        $issue.StateReason | Should-BeNull
+        $issue.Author | Should-Be 'octocat'
+        $issue.AuthorType | Should-Be 'User'
+        $issue.AuthorAssociation | Should-Be 'MEMBER'
+        $issue.Labels | Should-BeCollection @('rulebook-change', 'triage')
+        $issue.Url | Should-Be 'https://github.com/Contoso/rulebook/issues/12'
+        $issue.IsPullRequest | Should-BeFalse
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'GET' -and $Headers.Authorization -eq 'Bearer tok' }
+    }
+
+    It 'reads a null body as empty, and a pull request as IsPullRequest' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/issues/7' } {
+            Get-MockResponse -Json '{"number":7,"title":"T","body":null,"state":"closed","state_reason":"completed","user":{"login":"app[bot]","type":"Bot"},"labels":[],"pull_request":{"url":"u"},"html_url":"h"}'
+        }
+        $issue = Get-GitHubIssue -Repository 'Contoso/rulebook' -Number 7
+        $issue.Body | Should-Be ''
+        $issue.IsPullRequest | Should-BeTrue
+        $issue.StateReason | Should-Be 'completed'
+        $issue.AuthorType | Should-Be 'Bot'
+        @($issue.Labels) | Should-BeCollection @()
+    }
+
+    It 'throws with the status when the issue cannot be read' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+        $caught = $null
+        try { $null = Get-GitHubIssue -Repository 'Contoso/rulebook' -Number 99 } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not read issue #99 of Contoso/rulebook (HTTP 404: Not Found)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 404
+    }
+
+    It 'reads the permission of a user, the path escaped' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rulebook/collaborators/app%5Bbot%5D/permission' } {
+            Get-MockResponse -Json @{ permission = 'write'; role_name = 'maintain'; user = @{ login = 'app[bot]' } }
+        }
+        $permission = Get-GitHubUserPermission -Repository 'Contoso/rulebook' -User 'app[bot]' -Token 'tok'
+        $permission.Permission | Should-Be 'write'
+        $permission.RoleName | Should-Be 'maintain'
+    }
+
+    It 'gives none for a 404' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+        $permission = Get-GitHubUserPermission -Repository 'Contoso/rulebook' -User 'stranger'
+        $permission.Permission | Should-Be 'none'
+        $permission.RoleName | Should-BeNull
+    }
+
+    It 'throws with the status on a 403 permission answer' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 403 -Json @{ message = 'Resource not accessible by integration' } }
+        $caught = $null
+        try { $null = Get-GitHubUserPermission -Repository 'Contoso/rulebook' -User 'octocat' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not read the permission of octocat on Contoso/rulebook (HTTP 403: Resource not accessible by integration)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 403
+    }
+
+    It 'comments with POST and the JSON body' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/issues/12/comments' } {
+            Get-MockResponse -Status 201 -Json @{ id = 4242; html_url = 'https://github.com/Contoso/rulebook/issues/12#issuecomment-4242' }
+        }
+        $comment = Add-GitHubIssueComment -Repository 'Contoso/rulebook' -Number 12 -Body "Nothing to change.`n`n- line" -Token 'tok'
+        $comment.Id | Should-Be 4242
+        $comment.Url | Should-Be 'https://github.com/Contoso/rulebook/issues/12#issuecomment-4242'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'POST' -and ($Body | ConvertFrom-Json).body -eq "Nothing to change.`n`n- line" }
+    }
+
+    It 'throws with the status when the comment is refused' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 403 -Json @{ message = 'Forbidden' } }
+        $caught = $null
+        try { $null = Add-GitHubIssueComment -Repository 'Contoso/rulebook' -Number 12 -Body 'x' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not comment on issue #12 of Contoso/rulebook (HTTP 403: Forbidden)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 403
+    }
+
+    It 'closes an issue as <Reason> with PATCH' -ForEach @(
+        @{ Reason = 'completed' }
+        @{ Reason = 'not_planned' }
+    ) {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'PATCH' } { Get-MockResponse -Json @{ number = 12; html_url = 'https://github.com/Contoso/rulebook/issues/12' } }
+        $closed = Close-GitHubIssue -Repository 'Contoso/rulebook' -Number 12 -StateReason $Reason -Token 'tok'
+        $closed.Url | Should-Be 'https://github.com/Contoso/rulebook/issues/12'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/issues/12' -and $Body -eq ('{"state":"closed","state_reason":"' + $Reason + '"}') }
+    }
+
+    It 'refuses another state reason and throws on a refused close' {
+        { Close-GitHubIssue -Repository 'Contoso/rulebook' -Number 12 -StateReason 'reopened' } | Should-Throw
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 410 -Json @{ message = 'Issues are disabled for this repo' } }
+        { Close-GitHubIssue -Repository 'Contoso/rulebook' -Number 12 -StateReason 'completed' } | Should-Throw -ExceptionMessage 'Could not close issue #12 of Contoso/rulebook (HTTP 410: Issues are disabled for this repo)'
+    }
+
+    It 'leaves an existing label and adds it to the issue' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' -and $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/labels/rulebook-change' } { Get-MockResponse -Json @{ name = 'rulebook-change' } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/issues/12/labels' } { Get-MockResponse -Json '[{"name":"rulebook-change"}]' }
+        $result = Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rulebook-change' -IssueNumber 12 -Token 'tok'
+        $result.Created | Should-BeFalse
+        $result.Added | Should-BeTrue
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -like '*/issues/12/labels' -and $Body -eq '{"labels":["rulebook-change"]}' }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Uri -like '*/repos/Contoso/rulebook/labels' }
+    }
+
+    It 'creates a missing label with the color and the description, and adds nothing without -IssueNumber' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' -and $Uri -like '*/labels/rulebook-change' } { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/labels' } { Get-MockResponse -Status 201 -Json @{ name = 'rulebook-change' } }
+        $result = Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rulebook-change'
+        $result.Created | Should-BeTrue
+        $result.Added | Should-BeFalse
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Method -eq 'POST' -and $Body -eq '{"name":"rulebook-change","color":"1D76DB","description":"A change set submitted from the Rulebook dashboard"}' }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly
+    }
+
+    It 'accepts a label another run created in between (422 already_exists)' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' } { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Uri -like '*/repos/Contoso/rulebook/labels' } {
+            Get-MockResponse -Status 422 -Json @{ message = 'Validation Failed'; errors = @(@{ resource = 'Label'; code = 'already_exists'; field = 'name' }) }
+        }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Uri -like '*/issues/12/labels' } { Get-MockResponse -Json '[]' }
+        $result = Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rulebook-change' -IssueNumber 12
+        $result.Created | Should-BeFalse
+        $result.Added | Should-BeTrue
+    }
+
+    It 'throws on another 422, on a refused read and on a refused add' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' } { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Uri -like '*/repos/Contoso/rulebook/labels' } {
+            Get-MockResponse -Status 422 -Json @{ message = 'Validation Failed'; errors = @(@{ resource = 'Label'; code = 'invalid'; field = 'color' }) }
+        }
+        { Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rulebook-change' } | Should-Throw -ExceptionMessage 'Could not create the label rulebook-change in Contoso/rulebook (HTTP 422: Validation Failed)'
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' } { Get-MockResponse -Status 403 -Json @{ message = 'Forbidden' } }
+        $caught = $null
+        try { $null = Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rulebook-change' } catch { $caught = $_ }
+        $caught.Exception.Data['StatusCode'] | Should-Be 403
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' } { Get-MockResponse -Json @{ name = 'rulebook-change' } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' -and $Uri -like '*/issues/12/labels' } { Get-MockResponse -Status 403 -Json @{ message = 'Resource not accessible by integration' } }
+        { Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rulebook-change' -IssueNumber 12 } | Should-Throw -ExceptionMessage 'Could not add the label rulebook-change to issue #12 of Contoso/rulebook (HTTP 403: Resource not accessible by integration)'
+    }
+
+    It 'escapes a label name with a space and a question mark in the path' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' } { Get-MockResponse -Json @{ name = 'x' } }
+        $null = Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rule change?'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rulebook/labels/rule%20change%3F' }
+    }
+
+    It 'finds the open pull request by head prefix across pages, not issue 123 for issue 12' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/pulls?base=main&state=open&per_page=100' } {
+            Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 5 -InputObject @(
+                    @{ number = 30; title = 'Other'; html_url = 'u30'; head = @{ ref = 'rulebook-change/123/261018090000'; repo = @{ full_name = 'Contoso/rulebook' } } }
+                    @{ number = 31; title = 'Upper'; html_url = 'u31'; head = @{ ref = 'Rulebook-Change/12/261018090000'; repo = @{ full_name = 'Contoso/rulebook' } } }
+                )) -Headers @{ Link = '<https://api.github.com/repositories/9/pulls?page=2>; rel="next"' }
+        }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq 'https://api.github.com/repositories/9/pulls?page=2' } {
+            Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 5 -InputObject @(
+                    @{ number = 32; title = 'Rulebook change: 2 changes (#12)'; html_url = 'https://github.com/Contoso/rulebook/pull/32'; head = @{ ref = 'rulebook-change/12/261018091530'; repo = @{ full_name = 'Contoso/rulebook' } } }
+                ))
+        }
+        $pull = Find-GitHubPullRequestByHeadPrefix -Repository 'Contoso/rulebook' -Base 'main' -HeadPrefix 'rulebook-change/12/' -Token 'tok'
+        $pull.Number | Should-Be 32
+        $pull.Url | Should-Be 'https://github.com/Contoso/rulebook/pull/32'
+        $pull.Title | Should-Be 'Rulebook change: 2 changes (#12)'
+        $pull.Head | Should-Be 'rulebook-change/12/261018091530'
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly
+    }
+
+    It 'skips a fork branch and a deleted fork with the same head prefix' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub {
+            Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 6 -InputObject @(
+                    @{ number = 40; title = 'Fork'; html_url = 'u40'; head = @{ ref = 'rulebook-change/12/x'; repo = @{ full_name = 'Mallory/rulebook' } } }
+                    @{ number = 41; title = 'Gone'; html_url = 'u41'; head = @{ ref = 'rulebook-change/12/y'; repo = $null } }
+                    @{ number = 42; title = 'Ours'; html_url = 'u42'; head = @{ ref = 'rulebook-change/12/261018091530'; repo = @{ full_name = 'contoso/Rulebook' } } }
+                ))
+        }
+        (Find-GitHubPullRequestByHeadPrefix -Repository 'Contoso/rulebook' -Base 'main' -HeadPrefix 'rulebook-change/12/').Number | Should-Be 42
+    }
+
+    It 'returns $null without a match and throws with the status on a refused list' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 5 -InputObject @(@{ number = 30; html_url = 'u'; title = 't'; head = @{ ref = 'rulebook-change/123/261018090000'; repo = @{ full_name = 'Contoso/rulebook' } } })) }
+        Find-GitHubPullRequestByHeadPrefix -Repository 'Contoso/rulebook' -Base 'main' -HeadPrefix 'rulebook-change/12/' | Should-BeNull
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 403 -Json @{ message = 'Forbidden' } }
+        $caught = $null
+        try { $null = Find-GitHubPullRequestByHeadPrefix -Repository 'Contoso/rulebook' -Base 'release/x#1' -HeadPrefix 'rulebook-change/12/' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-Be 'Could not list the pull requests of Contoso/rulebook (HTTP 403: Forbidden)'
+        $caught.Exception.Data['StatusCode'] | Should-Be 403
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rulebook/pulls?base=release%2Fx%231&state=open&per_page=100' }
+    }
+
+    It 'reads answers without the optional fields' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/permission' } { Get-MockResponse -Json '{"permission":""}' }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/comments' } { Get-MockResponse -Status 201 -Json '' }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'PATCH' } { Get-MockResponse -Json '' }
+        $permission = Get-GitHubUserPermission -Repository 'Contoso/rulebook' -User 'octocat'
+        $permission.Permission | Should-Be 'none'
+        $permission.RoleName | Should-BeNull
+        $comment = Add-GitHubIssueComment -Repository 'Contoso/rulebook' -Number 12 -Body 'x'
+        $comment.Id | Should-BeNull
+        $comment.Url | Should-Be ''
+        (Close-GitHubIssue -Repository 'Contoso/rulebook' -Number 12 -StateReason 'completed').Url | Should-Be ''
+    }
+
+    It 'throws on a 422 label answer that is not JSON' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' } { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' } { Get-MockResponse -Status 422 -Json 'Unprocessable' }
+        { Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rulebook-change' } | Should-Throw -ExceptionMessage 'Could not create the label rulebook-change in Contoso/rulebook (HTTP 422: Unprocessable)'
+    }
+}

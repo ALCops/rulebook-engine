@@ -99,6 +99,25 @@ Describe 'Get-OrdinalMap' {
     }
 }
 
+Describe 'ConvertFrom-JsonElement' {
+    It 'reads every JSON kind, keys ordinal and in order, strings kept as strings' {
+        $document = [System.Text.Json.JsonDocument]::Parse('{"b":"2026-10-18T10:00:00Z","a":[1.5,true,false,null],"B":{}}')
+        try {
+            $value = ConvertFrom-JsonElement $document.RootElement
+        } finally {
+            $document.Dispose()
+        }
+        $value | Should-HaveType ([System.Collections.Specialized.OrderedDictionary])
+        @($value.Keys) | Should-BeCollection @('b', 'a', 'B')
+        $value['b'] | Should-BeString '2026-10-18T10:00:00Z'
+        $value['a'][0] | Should-Be 1.5
+        $value['a'][1] | Should-BeTrue
+        $value['a'][2] | Should-BeFalse
+        $value['a'][3] | Should-BeNull
+        $value['B'].Count | Should-Be 0
+    }
+}
+
 Describe 'Get-OrdinalSet' {
     It 'returns an empty set, not $null, <Case>' -ForEach @(
         @{ Case = 'without -Items'; Splat = @{} }

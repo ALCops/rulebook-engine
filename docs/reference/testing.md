@@ -45,8 +45,9 @@ Everything under `tests/fixtures/`:
 | `ci/` | Trimmed captures of the NUnit and JaCoCo files Pester writes. | `Write-TestSummary.Tests.ps1`. |
 | `deploy/` | `template-main`, a mini template with every engine and template reference form the deploy rewrites, the forms it leaves alone and a binary PNG; `keep.txt`, a keep list with a nested entry. | `Rulebook.Deploy.Tests.ps1` (with bare template and engine repositories built in `TestDrive`). |
 | `site-data/` | `rulebook.json`, the site data export of `repos/valid-minimal` (`Export-RulebookSiteData` with `-GeneratedAt 2026-10-17T00:00:00Z`), and its [README](../../tests/fixtures/site-data/README.md) with the regeneration command. | `Rulebook.Site.Tests.ps1` (the drift test and the site builds), `tests/site/cart-core.test.mjs`. |
+| `issues/` | Bodies of `rulebook-change` issues as GitHub renders the issue form: `rulebook-change-opened.md` (a placeholder until the body of the WP15 live run is captured), a `_No response_` note, prose and two fences, no fence, no Changes section; each described in its [README](../../tests/fixtures/issues/README.md). | `Rulebook.Edit.Tests.ps1` (`ConvertFrom-RulebookIssueBody`, `Read-RulebookChangeSetText`). |
 
-`tests/Fixtures.Tests.ps1` is the one place that says what each repository fixture is and proves: its kind, the exact unique findings of `Test-Rulebook`, and the list `Get-RulebookEndpointChange` would regenerate (or the error the generator throws). It also checks that the template fixtures validate and stay in step with the engine, that every folder under `repos/` has a row in that table and every row a folder, and that every fixture folder is used by a suite, a helper or `ci.yml`.
+`tests/Fixtures.Tests.ps1` is the one place that says what each repository fixture is and proves: its kind, the exact unique findings of `Test-Rulebook`, and the list `Get-RulebookEndpointChange` would regenerate (or the error the generator throws). It also checks that the template fixtures validate and stay in step with the engine, that every folder under `repos/` has a row in that table and every row a folder, and that every fixture folder is used by a suite, a helper or `ci.yml` (a file of `site-data/` or `issues/` is also named in the README of its group).
 
 ## 3. Helpers
 
@@ -111,7 +112,6 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `actions/Validate/Validate.ps1` | 193 | 1 | Listing note in the action's own copy of the effective-diff renderer; `Get-EffectiveDiffBlock` has the tested copy (spin-off: share it). |
 | `modules/Rulebook.Catalog.psm1` | 128 | 1 | Invalid JSON in a file the schema or Validate check reports first; the reader's own message is defensive. |
 | `modules/Rulebook.Catalog.psm1` | 226 | 1 | Writer branch for an empty array; no shipped or fixture file has one. |
-| `modules/Rulebook.Edit.psm1` | 119-122 | 4 | JSON value kinds in a change set the dashboard form will send (WP15); the ChangeRule inputs are strings. |
 | `modules/Rulebook.Edit.psm1` | 160, 166 | 2 | Describe texts for an unchanged entry and a replaced entry with another action; the rendered cases cover the other branches. |
 | `modules/Rulebook.Edit.psm1` | 241 | 1 | overrides.json that is not JSON at change time; Validate reports it first (C10) and the change plan stops on validation. |
 | `modules/Rulebook.Edit.psm1` | 583-585, 600-602, 650-652, 702-704 | 12 | The rulebook cannot be read at plan time after Validate passed; defensive. |
@@ -121,6 +121,9 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `modules/Rulebook.Edit.psm1` | 951 | 1 | A planned deletion whose file is already gone in the clone (someone deleted it in between). |
 | `modules/Rulebook.Edit.psm1` | 969-970 | 2 | Nothing to commit after the plan saw changes (the base moved to the same content in between). |
 | `modules/Rulebook.Edit.psm1` | 975 | 1 | The effective diff fails in the clone after the push; the result carries a note instead. |
+| `modules/Rulebook.Edit.psm1` | 729-731 | 3 | (WP15 numbering, a Linux run of the Edit, ChangeRule and GitHub suites.) A quarantine file that cannot be read when a release is planned; `Read-RulebookInputs` reads every quarantine file first and stops the plan with "The rulebook cannot be read". |
+| `modules/Rulebook.Edit.psm1` | 1190-1191 | 2 | (WP15 numbering.) A JSON parse failure that is not a `JsonException`; `System.Text.Json` throws one for every syntax error. |
+| `modules/Rulebook.Edit.psm1` | 1214 | 1 | (WP15 numbering.) `Test-Json` rejects a change set without naming an error: *observed* with pwsh 7.6.7 on Windows for a change that matches none of the set, remove and release shapes; pwsh 7.6.3 on Linux names the errors, so a Linux run never reaches the fallback line. |
 | `modules/Rulebook.Extract.psm1` | 65-67 | 3 | pwsh not in `$PSHOME` (a .NET global tool install); the suites run the pwsh of `$PSHOME`. |
 | `modules/Rulebook.Extract.psm1` | 122, 129 | 2 | Defensive fallbacks for an assembly or package id outside the two known packages. |
 | `modules/Rulebook.Extract.psm1` | 205-208, 210 | 5 | The body of the `AssemblyResolve` handler of the in-process extraction: on `ubuntu-latest` the runtime finds the stub dependencies next to the loading assembly on its own and never asks the handler; on Windows it asks, and the in-process case covers these lines there. |

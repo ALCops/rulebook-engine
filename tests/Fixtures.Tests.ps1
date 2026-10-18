@@ -2,7 +2,8 @@
 # the one place that says it for the repository fixtures: its kind (complete on disk, or an overlay New-FixtureRepo
 # lays over valid-minimal), the exact unique findings of Test-Rulebook ("<Rule> <severity>" in rule order) and what
 # Get-RulebookEndpointChange would regenerate. The template fixtures validate and stay in step with the engine, and
-# every fixture folder is used somewhere. Schema fixtures are checked by tests/Schemas.Tests.ps1.
+# every fixture folder is used somewhere (a fixture file of a file group is also described in its README). Schema
+# fixtures are checked by tests/Schemas.Tests.ps1.
 
 BeforeDiscovery {
     # Endpoint change lists, '<file> <change>' in the order of the Update-RulebookEndpoints -WhatIf list.
@@ -39,13 +40,15 @@ BeforeDiscovery {
     }
 
     $fixturesRoot = Join-Path $PSScriptRoot 'fixtures'
-    # A group holds fixture folders; site-data holds fixture files (its README.md describes them).
+    # A group holds fixture folders; site-data and issues hold fixture files (their README.md describes them).
+    $script:fileGroups = @('site-data', 'issues')
     $script:folderCases = @(foreach ($group in 'repos', 'templates', 'matrix', 'deploy') {
             foreach ($folder in Get-ChildItem -LiteralPath (Join-Path $fixturesRoot $group) -Directory) { @{ Group = $group; Name = $folder.Name } }
-        }) + @(foreach ($group in @('site-data')) {
+        }) + @(foreach ($group in $fileGroups) {
             foreach ($file in Get-ChildItem -LiteralPath (Join-Path $fixturesRoot $group) -File | Where-Object Name -NE 'README.md') { @{ Group = $group; Name = $file.Name } }
         })
     $script:repoFolderCases = @($folderCases | Where-Object { $_.Group -eq 'repos' })
+    $script:fileCases = @($folderCases | Where-Object { $_.Group -in $fileGroups })
 }
 
 BeforeAll {
@@ -176,6 +179,11 @@ Describe 'Fixture folders' {
         foreach ($name in $tableNames) {
             Test-Path -LiteralPath (Join-Path $fixturesRoot 'repos' $name) -PathType Container | Should-BeTrue -Because "the table lists $name"
         }
+    }
+
+    It '<Group>/<Name> is described in the README of its group' -ForEach $fileCases {
+        $readme = [System.IO.File]::ReadAllText((Join-Path $fixturesRoot $Group 'README.md'))
+        $readme | Should-MatchString ('`' + [regex]::Escape($Name) + '`')
     }
 
     It '<Group>/<Name> is used by a suite, a helper or ci.yml' -ForEach $folderCases {

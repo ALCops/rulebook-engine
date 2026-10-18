@@ -220,6 +220,20 @@ Describe 'ConvertFrom-QuarantineFileText' {
         $file.Exists | Should-BeTrue
     }
 
+    It 'accepts comments and trailing commas and keeps a date-like justification as text' {
+        $text = '{ // c' + "`n" + '"rules":[{"id":"A","justification":"2026-10-18",}, /* x */ {"id":"B"},],}'
+        $file = ConvertFrom-QuarantineFileText -Text $text -Path 'quarantine.ci.json'
+        @($file.Rules.Keys) | Should-BeCollection @('A', 'B')
+        $file.Rules['A'] | Should-BeString '2026-10-18'
+    }
+
+    It 'throws on empty text without the position suffix' {
+        $caught = $null
+        try { $null = ConvertFrom-QuarantineFileText -Text '' -Path 'quarantine.ci.json' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-BeLikeString 'Invalid JSON in quarantine.ci.json: *does not contain any JSON tokens*'
+        $caught.Exception.Message | Should-NotMatchString 'LineNumber'
+    }
+
     It 'throws on <Case>' -ForEach @(
         @{ Case = 'text that is not JSON'; Text = '{ "rules": '; Message = 'Invalid JSON in quarantine.ci.json*' }
         @{ Case = 'no rules array'; Text = '{ "rules": {} }'; Message = 'quarantine.ci.json has no rules array' }
@@ -242,6 +256,16 @@ Describe 'Write-QuarantineFile' {
         $bytes = [System.IO.File]::ReadAllBytes($path)
         Write-QuarantineFile -Path $path -File $sample | Should-BeNull
         [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($path)) | Should-Be ([System.Convert]::ToBase64String($bytes))
+    }
+
+    It 'keeps a justification that looks like a date byte for byte' {
+        $path = Join-Path $TestDrive "dated-$([guid]::NewGuid().ToString('n')).json"
+        $text = "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-quarantine.schema.json`",`n  `"rules`": [`n    { `"id`": `"LC0100`", `"justification`": `"2026-10-18T10:00:00Z`" },`n    { `"id`": `"LC0101`", `"justification`": `"2026-10-18`" }`n  ]`n}`n"
+        [System.IO.File]::WriteAllText($path, $text)
+        $file = Read-QuarantineFile -Path $path
+        $file.Rules['LC0100'] | Should-BeString '2026-10-18T10:00:00Z'
+        Write-QuarantineFile -Path $path -File $file | Should-BeNull
+        [System.IO.File]::ReadAllText($path) | Should-Be $text
     }
 
     It 'round-trips what it wrote' {

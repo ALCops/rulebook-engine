@@ -1,6 +1,7 @@
 #requires -Version 7.4
 # Rulebook.Common: the leaf helpers several engine modules share (#78): the git runner with UTF-8 output decoding and
-# a per-process environment, the ordinal collections (an insertion-ordered map and a set, both case-sensitive), and
+# a per-process environment, the ordinal collections (an insertion-ordered map and a set, both case-sensitive), the
+# JSON element reader that keeps strings as strings, and
 # the engine ref with the URL builders for the schema, script and user docs URLs the engine prints or writes (D52,
 # #63): the ref is GITHUB_ACTION_REF, else the ref folder of GITHUB_ACTION_PATH, else main, so an action at @v1
 # names v1 URLs and engine CI and a local run name main. The user docs live in the template repository, whose
@@ -111,6 +112,37 @@ function Invoke-Git {
     return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $output; Error = $errorTask.Result }
 }
 
+function ConvertFrom-JsonElement {
+    <#
+    .SYNOPSIS
+    A System.Text.Json element as PowerShell values: ordered dictionaries with ordinal keys, object arrays, strings,
+    doubles, booleans and $null.
+    .DESCRIPTION
+    Strings stay strings: ConvertFrom-Json would turn an ISO date in a justification into a [DateTime] (pwsh 7.4 has
+    no -DateKind), and writing it back would change its text. Used by the readers of overrides.json, the quarantine
+    files and the change set of an issue.
+    #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][System.Text.Json.JsonElement]$Element)
+    switch ($Element.ValueKind) {
+        'Object' {
+            $map = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
+            foreach ($property in $Element.EnumerateObject()) { $map[$property.Name] = ConvertFrom-JsonElement $property.Value }
+            return , $map
+        }
+        'Array' {
+            $list = [System.Collections.Generic.List[object]]::new()
+            foreach ($item in $Element.EnumerateArray()) { $list.Add((ConvertFrom-JsonElement $item)) }
+            return , $list.ToArray()
+        }
+        'String' { return $Element.GetString() }
+        'Number' { return $Element.GetDouble() }
+        'True' { return $true }
+        'False' { return $false }
+        default { return $null }
+    }
+}
+
 function Get-OrdinalMap {
     <#
     .SYNOPSIS
@@ -218,6 +250,6 @@ function Get-RulebookDocsUrl {
 #endregion
 
 Export-ModuleMember -Function @(
-    'Get-OrdinalMap', 'Get-OrdinalSet', 'Get-RulebookDocsUrl', 'Get-RulebookEngineRef', 'Get-RulebookSchemaUrl',
+    'ConvertFrom-JsonElement', 'Get-OrdinalMap', 'Get-OrdinalSet', 'Get-RulebookDocsUrl', 'Get-RulebookEngineRef', 'Get-RulebookSchemaUrl',
     'Get-RulebookScriptUrl', 'Invoke-Git'
 )
