@@ -2,7 +2,7 @@
 
 `overrides.json` holds your organization's own rule decisions on top of the shipped levels and stages: "AL0432 off in CI for every level", "LC0015 an error for Strict". Each entry names a diagnostic, an action and the levels and stages it applies to. The endpoints are generated from it together with the level and stage files, your `twins` setting and the quarantine files.
 
-> **Status:** written 2026-10-09 with the change-rule work package of the engine ([WP09, #11](https://github.com/ALCops/rulebook-engine/issues/11)). The precedence below is the engine's contract in [composition.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/rulebook/composition.md), the selector rules are the schema [rulebook-overrides.schema.json](https://github.com/ALCops/rulebook-engine/blob/main/schemas/rulebook-overrides.schema.json) and validation check C10. The usual way to write the file is the Change Rule workflow: [changing-a-rule.md](changing-a-rule.md).
+> **Status:** written 2026-10-09 with the change-rule work package of the engine ([WP09, #11](https://github.com/ALCops/rulebook-engine/issues/11)). The precedence below is the engine's contract in [composition.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/rulebook/composition.md), the selector rules are the schema [rulebook-overrides.schema.json](https://github.com/ALCops/rulebook-engine/blob/main/schemas/rulebook-overrides.schema.json) and validation check C10. The usual way to write the file is the Change Rule workflow: [changing-a-rule.md](changing-a-rule.md); changes picked on the dashboard of your site arrive as an issue that a maintainer applies with it ([changing-a-rule.md](changing-a-rule.md) section 3).
 
 ## Contents
 
@@ -86,7 +86,7 @@ An override therefore beats everything: it can switch on a rule a level turns of
 
 An endpoint lists only the diagnostics whose action differs from the analyzer default. An override whose action is the default is valid, and its effect is that the diagnostic disappears from the endpoint: the compiler then applies the default by itself, and a project can switch it off with `suppressWarnings` in `app.json` ([al-project.md](al-project.md) section 6). The Change Rule pull request says so per endpoint: "now unlisted in recommended.ci: Warning equals the analyzer default".
 
-A new entry that would change no endpoint, because the levels or a more specific entry already give that action everywhere it applies, is not written by the workflow, and neither is an entry it would leave as it is. Everything else is written even when no endpoint changes: a remove, a new action for an existing entry that a more specific entry hides, a new justification, removed duplicates ([changing-a-rule.md](changing-a-rule.md) section 4).
+A new entry that would change no endpoint, because the levels or a more specific entry already give that action everywhere it applies, is not written by the workflow, and neither is an entry it would leave as it is. Everything else is written even when no endpoint changes: a remove, a new action for an existing entry that a more specific entry hides, a new justification, removed duplicates ([changing-a-rule.md](changing-a-rule.md) section 5).
 
 ## 6. Editing by hand
 
@@ -109,5 +109,5 @@ The Change Rule workflow does all three for one entry, so a hand edit is only ne
 | C10 "overrides.json is not valid JSON" | A syntax error after a hand edit. | Fix the JSON; the Change Rule workflow writes valid files. |
 | C7 "`<id>` is not in catalog/diagnostics.json (...)" | The id is unknown to your catalog: a typo, or a diagnostic of a package version the scan has not read yet. A warning until the first scan, an error after it. | Fix the id, or wait for the scan to record it ([quarantine.md](quarantine.md)). |
 | C12 "rulesets/`<file>` would be modified; run Update-RulebookEndpoints and commit the result" | The file was edited by hand and the endpoints were not regenerated. | Regenerate in the same pull request (section 6). |
-| The Change Rule run reports a no-op and writes nothing | The entry would change no endpoint: the levels or a more specific entry already give that action (a dead entry). | Nothing to do, or pick another selection ([changing-a-rule.md](changing-a-rule.md) section 4). |
+| The Change Rule run reports a no-op and writes nothing | The entry would change no endpoint: the levels or a more specific entry already give that action (a dead entry). | Nothing to do, or pick another selection ([changing-a-rule.md](changing-a-rule.md) section 5). |
 | An override seems to have no effect in a project | The project's own `.rulebook` file has an exception for the id, or the consumer has not read the new endpoint yet. | Look at the project's `rules` ([al-project.md](al-project.md) section 5); reload VS Code after the publish ([vscode.md](vscode.md) section 4). |

@@ -1,6 +1,6 @@
 # Changing a rule
 
-Your organization decides that a rule should be off for Strict in CI, or that a rule the levels leave off should be an error everywhere. The **Change Rule** workflow does that from a form: it writes one entry to `overrides.json`, regenerates the endpoints, validates the result and opens a pull request whose table shows, for every endpoint the change applies to, the action before and after. Nobody edits a JSON file by hand, and the reviewer sees what changes for the AL projects.
+Your organization decides that a rule should be off for Strict in CI, or that a rule the levels leave off should be an error everywhere. The **Change Rule** workflow does that from a form: it writes one entry to `overrides.json`, regenerates the endpoints, validates the result and opens a pull request whose table shows, for every endpoint the change applies to, the action before and after. Nobody edits a JSON file by hand, and the reviewer sees what changes for the AL projects. Your published site offers a second way in: changes collected on the dashboard arrive as an issue that a maintainer applies with this workflow ([section 3](#3-the-dashboard-route)).
 
 > **Status:** written 2026-10-09 with the change-rule work package of the engine ([WP09, #11](https://github.com/ALCops/rulebook-engine/issues/11)). Everything below was observed in a live run on a scratch repository or is stated by the engine's contributor reference, [change-mechanics.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/reference/change-mechanics.md), which also holds the run table. The file the workflow writes is described in [overrides.md](overrides.md). The workflow writes with the same secret as the update: [ghtokenworkflow.md](ghtokenworkflow.md).
 
@@ -8,12 +8,13 @@ Your organization decides that a rule should be off for Strict in CI, or that a 
 
 1. [What the workflow does](#1-what-the-workflow-does)
 2. [Running it](#2-running-it)
-3. [Reading the pull request](#3-reading-the-pull-request)
-4. [When nothing happens](#4-when-nothing-happens)
-5. [Where the change lands](#5-where-the-change-lands)
-6. [The secret](#6-the-secret)
-7. [Your own levels and stages](#7-your-own-levels-and-stages)
-8. [Troubleshooting](#8-troubleshooting)
+3. [The dashboard route](#3-the-dashboard-route)
+4. [Reading the pull request](#4-reading-the-pull-request)
+5. [When nothing happens](#5-when-nothing-happens)
+6. [Where the change lands](#6-where-the-change-lands)
+7. [The secret](#7-the-secret)
+8. [Your own levels and stages](#8-your-own-levels-and-stages)
+9. [Troubleshooting](#9-troubleshooting)
 
 ## 1. What the workflow does
 
@@ -22,9 +23,9 @@ One run changes one rule for a selection of levels and stages:
 1. It checks the input before any file is touched: the id must look like a diagnostic id and be in your catalog, the level and stage must be in your settings.
 2. It sets the entry in `overrides.json` for that id and selection, or removes it. An entry with the same id and the same levels and stages is replaced, so the file never collects two entries for one selection.
 3. It regenerates `rulesets/` and runs the full validation on the result.
-4. It lands the change as a pull request on a new branch (or, when your settings say so, as a commit on the branch, [section 5](#5-where-the-change-lands)).
+4. It lands the change as a pull request on a new branch (or, when your settings say so, as a commit on the branch, [section 6](#6-where-the-change-lands)).
 
-When the change would alter no endpoint and no entry, nothing is written and the run says why: the entry would stay as it is, or a new entry would not change any endpoint ([section 4](#4-when-nothing-happens)). A change that alters only the file is written: a new justification, a new action that a more specific entry hides everywhere, or duplicate entries a hand edit left. The workflow never edits the level or stage files: an override sits on top of them and wins for the selection it names, on exactly the levels it names: an override for `strict` does not reach `complete`, even though Complete is based on Strict ([overrides.md](overrides.md) section 2).
+When the change would alter no endpoint and no entry, nothing is written and the run says why: the entry would stay as it is, or a new entry would not change any endpoint ([section 5](#5-when-nothing-happens)). A change that alters only the file is written: a new justification, a new action that a more specific entry hides everywhere, or duplicate entries a hand edit left. The workflow never edits the level or stage files: an override sits on top of them and wins for the selection it names, on exactly the levels it names: an override for `strict` does not reach `complete`, even though Complete is based on Strict ([overrides.md](overrides.md) section 2).
 
 ## 2. Running it
 
@@ -42,9 +43,21 @@ Actions > **Change Rule** > Run workflow, on the branch whose rules you change (
 
 One run selects one level (or all) and one stage (or all). For a selection of two levels, run the form twice, or write one entry with both slugs by hand ([overrides.md](overrides.md)). A justification you type for a change that writes nothing is not stored; the job summary then says "Justification given but not stored (no entry was written): `<text>`".
 
-The justification is optional, and worth writing: it travels with the entry, appears in the pull request table, and is what the next person reads when they wonder why a rule is off. To correct it later, run the form again with the same action, selection and the new text ([section 3](#3-reading-the-pull-request)). Clearing a justification is a hand edit.
+The justification is optional, and worth writing: it travels with the entry, appears in the pull request table, and is what the next person reads when they wonder why a rule is off. To correct it later, run the form again with the same action, selection and the new text ([section 4](#4-reading-the-pull-request)). Clearing a justification is a hand edit.
 
-## 3. Reading the pull request
+## 3. The dashboard route
+
+With the dashboard on ([dashboard.md](dashboard.md)), anyone who reads your site can propose changes without opening the Actions tab:
+
+1. **Click a cell** of the grid at `<baseUrl>/` or on a stage or rule page, and pick an action, **Reset** (on a cell an override decides, badge `O`) or **Release** (on a quarantined cell, badge `Q`).
+2. **Collect the changes in the cart.** It shows, for every change, the action before and after on each endpoint it touches, takes an optional justification per action and an optional note, and keeps everything in the browser until you submit.
+3. **Submit on GitHub.** The cart opens the issue form **Rulebook change** of your repository in a new tab with the change set filled in; you read it and click **Submit new issue**. A cart that is too large for one link is submitted in parts or copied into the empty form ([dashboard.md](dashboard.md) section 3).
+
+**Who may submit.** Anyone signed in to GitHub who may open an issue in your rulebook repository; on a public repository with issues on, that is every GitHub user. Submitting changes nothing: the issue only carries the change set, and only people who may run workflows can apply it.
+
+**What happens next.** Nothing runs on the issue by itself yet; the form says so. A maintainer reads the **Changes** field and applies each change, with this workflow or by hand; which op goes which way is the table in [dashboard.md](dashboard.md) section 3. Each run opens its own pull request as in [section 4](#4-reading-the-pull-request); link them from the issue and close it when they are merged. For GitHub to label the issue `rulebook-change`, the label must exist in the repository: create it once.
+
+## 4. Reading the pull request
 
 ![The pull request of a change: title, the justification line, the sentence and the table with Before and After](images/change-rule-pr.png)
 
@@ -78,7 +91,7 @@ The files are `overrides.json` and the endpoint files that change. The endpoints
 
 The job summary of the run has the same table and, after the push, the effective diff of the commit per endpoint: the view Validate shows on the pull request.
 
-## 4. When nothing happens
+## 5. When nothing happens
 
 **Nothing would change.** When no endpoint would change and the entry would stay as it is (same action, and the justification empty or the same), or a new entry would only repeat what the selected endpoints already give, the run succeeds without writing anything and says so ([D48](https://github.com/ALCops/rulebook-engine/blob/main/docs/adr/0048-no-op-changes-are-reported-and-never-written.md)):
 
@@ -88,7 +101,7 @@ That covers running the same change twice and adding an entry that only repeats 
 
 > No change: LC0015 keeps its effective action on every matching endpoint (2 at Warning; 1 decided by a more specific entry or input: strict.ci None (override)); overrides.json was not written
 
-No pull request is opened and no token is used. A change of only the justification is not "nothing": it is written ([section 3](#3-reading-the-pull-request)).
+No pull request is opened and no token is used. A change of only the justification is not "nothing": it is written ([section 4](#4-reading-the-pull-request)).
 
 **Remove finds no entry.** `Remove` deletes the entry with exactly the selection you chose. When there is none, the run fails and lists the entries the id has, so you can run it again with the right selection:
 
@@ -96,7 +109,7 @@ No pull request is opened and no token is used. A change of only the justificati
 
 To lift `AA0001` for Strict in CI while the `*` entry stays, set a new action for `strict` and `ci` instead: the more specific entry wins there ([overrides.md](overrides.md)).
 
-## 5. Where the change lands
+## 6. Where the change lands
 
 `commitOptions.createPullRequest` in `.github/Rulebook-Settings.json` decides, on every run:
 
@@ -107,26 +120,26 @@ To lift `AA0001` for Strict in CI while the `*` entry stays, set a new action fo
 
 There is no form field for this; the setting is your organization's choice for every change ([D47](https://github.com/ALCops/rulebook-engine/blob/main/docs/adr/0047-changerule-follows-commitoptions-and-has-no-directcommit-input.md)). When branch protection or a ruleset refuses the direct push, the run opens the pull request instead, and its notice ends with "(the direct commit was refused)" (observed with a ruleset that requires pull requests). Several runs are queued, not run at the same time; when a third is started while one runs and one waits, GitHub cancels the waiting one, so start that change again.
 
-## 6. The secret
+## 7. The secret
 
 The workflow pushes and opens the pull request with the token from the `GHTOKENWORKFLOW` secret, the same secret the update and the scan use ([ghtokenworkflow.md](ghtokenworkflow.md)), so the pull request runs Validate. A run that only answers "no change" or fails on its input does not need the secret. A real change without it fails with:
 
 > The GHTOKENWORKFLOW secret is needed to change a rule. Read https://github.com/ALCops/rulebook/blob/main/docs/ghtokenworkflow.md
 
-## 7. Your own levels and stages
+## 8. Your own levels and stages
 
 The level and stage dropdowns list `*` and the slugs of your settings in settings order. The list is written into `ChangeRule.yaml` by the update ([updating.md](updating.md) section 1): after you add a level or stage to the settings, run **Update Rulebook System Files** once, and its pull request adds the slug to the form. In the live run, a level `House` added after `Recommended` appeared as `- house` between `recommended` and `strict`, and that line was the only change to the workflow file.
 
 Until that update is merged, the dropdown shows the old list. The workflow checks the selection against the current settings in any case, so a slug that is no longer in the settings is refused before anything is written.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Message | Cause | Fix |
 |---|---|---|
 | "'`<id>`' is not a diagnostic id: two or three capital letters, four digits and an optional i, for example LC0015" | A typo in the id. | Run again with the exact id. |
 | "`<id>` is not in catalog/diagnostics.json" | The id is not in your catalog: a typo, or a diagnostic of a package version the scan has not read yet. | Check the id; run Scan Diagnostics ([quarantine.md](quarantine.md)) for a new diagnostic. |
-| "change 0 names unknown level '`<slug>`'; use a slug from the settings or [\"*\"]" | The dropdown is older than your settings ([section 7](#7-your-own-levels-and-stages)). | Pick a current slug, or run the update to refresh the form. |
-| "overrides.json has no entry for `<id>` ..." | `Remove` with a selection that has no entry ([section 4](#4-when-nothing-happens)). | Use a selection the message lists. |
+| "change 0 names unknown level '`<slug>`'; use a slug from the settings or [\"*\"]" | The dropdown is older than your settings ([section 8](#8-your-own-levels-and-stages)). | Pick a current slug, or run the update to refresh the form. |
+| "overrides.json has no entry for `<id>` ..." | `Remove` with a selection that has no entry ([section 5](#5-when-nothing-happens)). | Use a selection the message lists. |
 | "The changed rulebook would not validate: ..." | The repository after the change has an error, often one it already had. | Fix the reported file, then run again. |
 | "The GHTOKENWORKFLOW secret is needed to change a rule. ..." | No secret, or this repository cannot see it. | Create it ([ghtokenworkflow.md](ghtokenworkflow.md)); with another name, set `ghTokenWorkflowSecretName`. |
 | The step "Read the settings" fails on reading `.github/Rulebook-Settings.json` | The settings file is missing (or not JSON) on the branch the workflow runs on. | Run the workflow from a branch of your rulebook repository that has the settings; restore the file. |
@@ -136,3 +149,5 @@ Until that update is merged, the dropdown shows the old list. The workflow check
 | "Failed to create the pull request for the rule change. ... Branch `<name>` was pushed. ..." | The branch is pushed, only opening the pull request was refused. | Open it by hand from the link in the message; check the token's Pull requests permission. |
 | "The base branch moved since the change was planned (...); nothing was pushed. Run the workflow again." | Someone pushed to the branch while the run was working. | Run the form again. |
 | warning "base-move guard inactive: the checkout HEAD could not be read" | The checkout has no git history the run can read. | Nothing to do for the normal workflow; the change still lands. |
+| GitHub shows an error page (500, 502 or 414) when the dashboard opens the form | The issue link is too long for GitHub, usually because you are not signed in; see [dashboard.md](dashboard.md) section 7. | Sign in to GitHub first and submit again ([dashboard.md](dashboard.md) section 7). |
+| An issue from the dashboard has no label `rulebook-change` | The label does not exist in the repository; GitHub applies only existing labels. | Create the label once and add it to the issue ([section 3](#3-the-dashboard-route)). |

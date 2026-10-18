@@ -30,7 +30,7 @@ The template ships four levels in one ladder:
 | Strict | The quality gate. | Recommended with default-on Info rules raised to Warning and Hidden ones to Info. | 128 Error, 443 Warning, 29 Info, 5 Hidden, 23 None; lists 68 | [strict.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/strict.md) |
 | Complete | Everything the analyzers can tell you. | Strict plus every opt-in rule; off only LC0054 and LC0089i. | 128 Error, 445 Warning, 51 Info, 2 Hidden, 2 None; lists 92 | [complete.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/complete.md) |
 
-Each engine page lists the entries of the level file grouped by analyzer, with the action of the level below ("From"), the new action ("To"), a `lowered` mark where the action goes down, the justification and the docs link, and the counts for every stage. The "lists" figure is the number of diagnostics the endpoint writes: an endpoint names only the rules whose action differs from the analyzer default. The engine pages describe the shipped levels; your own levels get their pages with the dashboard site (WP14). The links resolve once the engine change that adds the pages is merged.
+Each engine page lists the entries of the level file grouped by analyzer, with the action of the level below ("From"), the new action ("To"), a `lowered` mark where the action goes down, the justification and the docs link, and the counts for every stage. The "lists" figure is the number of diagnostics the endpoint writes: an endpoint names only the rules whose action differs from the analyzer default. The engine pages describe the shipped levels. Every level of your settings, your own levels included, also gets a page on the dashboard of your site at `<baseUrl>/levels/<slug>/`, with the same facts for your rulebook ([dashboard.md](dashboard.md)).
 
 Stages modify the level result per rule: `default` is the level as it is, `CI` relaxes a few postponable diagnostics to Info, `vNext` raises compiler future errors to Error and obsolete-pending diagnostics to Warning. Each stage other than `default` is one file `stages/<slug>.json`, applied on top of every level, and never turns on a rule the level left off.
 
@@ -72,7 +72,7 @@ Update-RulebookEndpoints -RepositoryRoot .
 New-RulebookSkeleton -SettingsPath .github/Rulebook-Settings.json -OutputPath skeletons
 ```
 
-The Change Rule form lists then follow with the next update ([changing-a-rule.md](changing-a-rule.md) section 7).
+The Change Rule form lists then follow with the next update ([changing-a-rule.md](changing-a-rule.md) section 8).
 
 The update's own pull request or commit may say "No effective change." under its effective diff even though it creates or deletes endpoint files (*observed*): the effective diff compares the inputs of the two commits, and your branch already declares the change. The files are in its change list.
 
@@ -200,9 +200,9 @@ Then take the branch route. Removing Complete (*observed*): Validate on the pull
 After the update (or a local regeneration and the next update for the form):
 
 - **Endpoints**: `rulesets/<level>.ruleset.json` for `default` and `rulesets/<level>.<stage>.ruleset.json` for the other stages, published by the Publish workflow at `<baseUrl>/rulesets/...`.
-- **Skeletons**: `skeletons/<level>.<stage>.ruleset.json`, one per stage, offered on the index page at `baseUrl`.
-- **Index page and `rulebook.json`**: one row per level in settings order. In the live run `rulebook.json` listed off, baseline, recommended, house, strict and complete (*observed*).
-- **Change Rule form**: the level and stage choices follow the settings after one update ([changing-a-rule.md](changing-a-rule.md) section 7). `off` is written quoted (`'off'`) because a bare `off` is a boolean in YAML (*observed*).
+- **Skeletons**: `skeletons/<level>.<stage>.ruleset.json`, one per stage, offered on the setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off).
+- **Setup page, dashboard and `rulebook.json`**: one row per level on the setup page, one column on the dashboard, in settings order, and a page `<baseUrl>/levels/<slug>/` for every level ([dashboard.md](dashboard.md)). In the live run `rulebook.json` listed off, baseline, recommended, house, strict and complete (*observed*).
+- **Change Rule form**: the level and stage choices follow the settings after one update ([changing-a-rule.md](changing-a-rule.md) section 8). `off` is written quoted (`'off'`) because a bare `off` is a boolean in YAML (*observed*).
 - **Init script**: `Get-RulebookSkeletons.ps1 -Level <slug or name>` downloads the skeletons of a published level ([al-project.md](al-project.md)). For a level that is not published it stops with "Level 'essential' is not published at https://arthurvdv.github.io/rulebook-e2e-levels. Published levels: off, baseline, recommended, house, strict, complete (use the slug or the name)." (*observed*).
 
 ## 10. Troubleshooting
@@ -231,4 +231,4 @@ After the update (or a local regeneration and the next update for the form):
 | "'`<Name>`' is already a published level; -Force would replace base/`<slug>`.ruleset.json with an everything-off file" (warning) | `-Name` names one of your levels, for example `-Name Strict`. | Use another name; `-Force` would replace that level's rules. |
 | "Level '`<Name>`' cannot have a page: its slug collides with the index README.md" | A level named README. | Choose another name. |
 | "Level '`<slug>`' is not published at `<baseUrl>`. Published levels: ... (use the slug or the name)." | The init script was given a level the settings do not publish, for example after an alias (*observed*). | Use one of the listed levels. |
-| The Change Rule form does not offer your new level or stage | The update that rewrites the form lists has not run since the settings change. | Run the update (section 3); [changing-a-rule.md](changing-a-rule.md) section 7. |
+| The Change Rule form does not offer your new level or stage | The update that rewrites the form lists has not run since the settings change. | Run the update (section 3); [changing-a-rule.md](changing-a-rule.md) section 8. |

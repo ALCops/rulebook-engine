@@ -79,9 +79,9 @@ What it does and refuses:
 - It checks every skeleton (one include, the endpoint of its level and stage) and writes nothing until all downloads and checks have passed. The files are written exactly as the site serves them, so they are the same files a manual download gives.
 - It prints the settings for VS Code and AL-Go and never changes a settings file.
 
-The script lives in the engine and is served from the engine ref the URL names: `v1`, the engine's floating release branch; `main` on the canary, whose docs links point at `preview`. The index page of your site at `<baseUrl>/` shows the same two commands.
+The script lives in the engine and is served from the engine ref the URL names: `v1`, the engine's floating release branch; `main` on the canary, whose docs links point at `preview`. The setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off) shows the same two commands.
 
-**By hand.** Download `<baseUrl>/skeletons/<level>.<stage>.ruleset.json` for each stage, linked from the index page, and save it as `.rulebook/<stage>.ruleset.json`. Take the files from the published site, never from the `skeletons/` folder of your rulebook repository: the repository copies keep the placeholder `{BASEURL}`, which the compiler cannot fetch.
+**By hand.** Download `<baseUrl>/skeletons/<level>.<stage>.ruleset.json` for each stage, linked from the setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off), and save it as `.rulebook/<stage>.ruleset.json`. Take the files from the published site, never from the `skeletons/` folder of your rulebook repository: the repository copies keep the placeholder `{BASEURL}`, which the compiler cannot fetch.
 
 **No local files.** Point the setting straight at the endpoint URL, for example `"al.ruleSetPath": "https://contoso.github.io/rulebook/rulesets/strict.ruleset.json"`. Nothing to maintain in the project, but project exceptions are then impossible: there is no file of your own to put them in.
 

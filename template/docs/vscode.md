@@ -17,7 +17,7 @@ How the AL Language extension in VS Code uses your rulebook: the workspace setti
 
 ## 1. What you need
 
-- Your published rulebook: `<baseUrl>/` opens the index page ([getting-started.md](getting-started.md)).
+- Your published rulebook: the setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off) lists the endpoints and skeletons ([getting-started.md](getting-started.md)).
 - The skeletons next to `app.json`, downloaded with the init script: `.rulebook/default.ruleset.json` is the one VS Code uses ([al-project.md](al-project.md) section 3).
 
 ## 2. Workspace settings

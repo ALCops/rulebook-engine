@@ -17,7 +17,7 @@ How a pipeline outside AL-Go for GitHub compiles against your rulebook: the ALOp
 
 ## 1. What you need
 
-- Your published rulebook: `<baseUrl>/` opens the index page ([getting-started.md](getting-started.md)).
+- Your published rulebook: the setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off) lists the endpoints and skeletons ([getting-started.md](getting-started.md)).
 - The skeletons in each app: `.rulebook/default.ruleset.json`, `.rulebook/ci.ruleset.json` and `.rulebook/vnext.ruleset.json` next to `app.json`, downloaded with the init script and committed ([al-project.md](al-project.md) section 3).
 
 The [ALCops extension for Azure DevOps](https://marketplace.visualstudio.com/items?itemName=Arthurvdv.alcops-ado) (`ALCopsDownloadAnalyzers@1`) downloads the ALCops analyzers; it has no ruleset input, so the ruleset goes into the compile step below.
