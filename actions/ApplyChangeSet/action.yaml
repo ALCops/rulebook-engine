@@ -30,12 +30,8 @@ inputs:
     description: The label of a change set issue; created in the repository and added to the issue when missing.
     required: false
     default: 'rulebook-change'
-  editor:
-    description: The account that triggered the run (the workflow passes github.event.sender.login). When it is not the issue author, it must be able to push too (D55); empty checks the author only.
-    required: false
-    default: ''
   issuePath:
-    description: A JSON file with the issue (shaped like GET /repos/{owner}/{repo}/issues/{number}, plus an optional permission of its author and editorPermission of the editor, each default none) instead of the API; nothing is posted to the issue. For the engine's CI; do not set in a workflow.
+    description: A JSON file with the issue (shaped like GET /repos/{owner}/{repo}/issues/{number}, plus optional keys permission of its author, editor, the login of a body edit, and editorPermission, each permission default none) instead of the API and the event file; nothing is posted to the issue. For the engine's CI; do not set in a workflow.
     required: false
     default: ''
 
@@ -72,7 +68,8 @@ runs:
       id: apply
       shell: pwsh
       # Inputs reach the script through the environment, never interpolated into the script (script injection).
-      # GITHUB_TOKEN reads the issue and the permission of its author and writes the comments, the label and the state.
+      # GITHUB_TOKEN reads the issue and the permission of its author and editor and writes the comments, the label and
+      # the state. The script reads the event file of the run (GITHUB_EVENT_PATH) for the sender of an edit.
       env:
         INPUT_ISSUENUMBER: ${{ inputs.issueNumber }}
         INPUT_TOKEN: ${{ inputs.token }}
@@ -81,7 +78,6 @@ runs:
         INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
         INPUT_ACTOR: ${{ inputs.actor }}
         INPUT_LABEL: ${{ inputs.label }}
-        INPUT_EDITOR: ${{ inputs.editor }}
         INPUT_ISSUEPATH: ${{ inputs.issuePath }}
         GITHUB_TOKEN: ${{ github.token }}
       run: |
@@ -93,7 +89,6 @@ runs:
           BaseBranch     = $env:INPUT_BASEBRANCH
           Actor          = $env:INPUT_ACTOR
           Label          = $env:INPUT_LABEL
-          Editor         = $env:INPUT_EDITOR
           IssuePath      = $env:INPUT_ISSUEPATH
           GitHubToken    = $env:GITHUB_TOKEN
         }

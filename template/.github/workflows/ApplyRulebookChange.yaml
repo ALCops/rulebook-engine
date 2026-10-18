@@ -53,4 +53,3 @@ jobs:
           issueNumber: ${{ github.event.issue.number }}
           token: ${{ secrets[steps.settings.outputs.secretName] }}
           directCommit: ${{ steps.settings.outputs.directCommit }}
-          editor: ${{ github.event.sender.login }}

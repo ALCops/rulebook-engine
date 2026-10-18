@@ -7,9 +7,13 @@ request (or a direct commit), reporting the outcome on the issue.
 0. Reads the settings: the secret name (ghTokenWorkflowSecretName) and the labels (commitOptions.pullRequestLabels).
 1. Reads the issue (Get-GitHubIssue with GITHUB_TOKEN, or -IssuePath). A pull request or an issue that is not open is
    skipped: one notice, result skipped, no comment (an edit of a closed issue never applies it again).
-2. The gate (D55): the issue author must be able to push (Get-GitHubUserPermission answers admin or write), and so
-   must -Editor, the account that edited the body, when it is another account. Anyone else gets the refusal comment
-   and the issue is closed as not planned, result refused, before the body is read.
+   In API mode the event file of the run (-EventPath, GITHUB_EVENT_PATH) gives the action, the sender and the body
+   the run was triggered with; a body that changed since is skipped with one notice (the newer edit has its own run).
+2. The gate (D55): the issue author must be able to push (Get-GitHubUserPermission answers admin or write); anyone
+   else gets the refusal comment and the issue is closed as not planned, result refused. On an edit by another
+   account (the sender of an edited event; an edited event without a sender is gated as none) that account must be
+   able to push too; otherwise one comment names it and the issue stays open, result refused. Both run before the
+   body is read.
 3. The duplicate guard (D33): an open pull request from a branch rulebook-change/<issue>/ gets a comment with its
    link, result pull-request-exists. A listing that fails is one warning.
 4. The body: ConvertFrom-RulebookIssueBody and Read-RulebookChangeSetText (schemas/rulebook-changeset.schema.json of
@@ -35,14 +39,15 @@ Every issue read and write goes through GITHUB_TOKEN (-GitHubToken); the push an
 GHTOKENWORKFLOW token. A failed issue read, gate or write before the change landed fails the run (failure issue,
 unless an earlier failure kind was recorded); after the pull request or the direct commit exists it is a warning. An
 unexpected failure (failure error) after the issue was read gets one generic comment with the run link, best effort.
+Neither the exchanged token nor the secret ever reaches a comment: both are replaced with *** first.
 Every comment stays below 60000 characters: a long list is cut with one line that points at the job log.
-With -IssuePath (a JSON file shaped like GET /repos/{r}/issues/{n}, plus an optional top-level permission of the
-author, default none, and editorPermission of -Editor, default none) no GitHub call is made for the issue: the gate
-reads the permissions from the file, the duplicate guard is skipped and every issue write is recorded in
-IssueActions with Posted $false.
+With -IssuePath (a JSON file shaped like GET /repos/{r}/issues/{n}, plus optional top-level keys permission of the
+author, default none, editor, the login of an edit, default none, and editorPermission, default none) no GitHub call
+is made for the issue and no event file is read: the gate reads the permissions from the file, the duplicate guard is
+skipped and every issue write is recorded in IssueActions with Posted $false.
 Returns { ExitCode, Result, NoOp, Failure, Issue, IssueActions, Plan, Publish, Annotations, Summary, Outputs } and
 never calls exit, so tests run it in-process; action.yaml exits with ExitCode. -RemoteUrl, -ApiUrl, -WorkPath,
--SummaryLimit, -Now, -PublishCommand, -IssuePath and -GitHubToken are test seams; a -WorkPath the caller passes is
+-SummaryLimit, -Now, -PublishCommand, -IssuePath, -EventPath and -GitHubToken are test seams; a -WorkPath the caller passes is
 left in place, the temporary work folder the script names itself is removed at the end.
 #>
 [CmdletBinding(PositionalBinding = $false)]
@@ -54,8 +59,8 @@ param(
     [AllowEmptyString()][string]$BaseBranch = $env:GITHUB_REF_NAME,
     [AllowEmptyString()][string]$Actor = $env:GITHUB_ACTOR,
     [AllowEmptyString()][string]$Label = 'rulebook-change',
-    # The account that triggered the run (the sender of the event): on an edit by another account it is gated too.
-    [AllowEmptyString()][string]$Editor,
+    # The event file of the run: its action, sender and issue body (API mode only).
+    [AllowEmptyString()][string]$EventPath = $env:GITHUB_EVENT_PATH,
     [AllowEmptyString()][string]$Repository = $env:GITHUB_REPOSITORY,
     # Test seam: the issue as a JSON file instead of the API (the engine's CI); never set in a workflow.
     [AllowEmptyString()][string]$IssuePath,
@@ -90,6 +95,7 @@ $titleLimit = 200
 # A comment is limited to 65536 characters; every comment stays below this.
 $commentLimit = 60000
 $refusal = 'Only repository collaborators with write access can submit or edit Rulebook changes.'
+$access = $null
 $rerun = 'Edit the issue body to run it again.'
 
 $ownWork = [string]::IsNullOrEmpty($WorkPath)
@@ -133,6 +139,16 @@ function Format-CodeSpan {
     if ($line.Length -gt 1000) { $line = $line.Substring(0, 997) + '...' }
     if ($line -eq '') { $line = '-' }
     return '`' + $line + '`'
+}
+
+function Hide-Secret {
+    # The text with the exchanged token and the secret replaced by ***: ::add-mask:: masks the log, not a comment.
+    param([AllowNull()][AllowEmptyString()][string]$Text)
+    if ([string]::IsNullOrEmpty($Text)) { return '' }
+    foreach ($secret in @($(if ($null -ne $access) { [string]$access.Token }), $Token)) {
+        if (-not [string]::IsNullOrEmpty($secret) -and $secret.Length -ge 4) { $Text = $Text.Replace($secret, '***') }
+    }
+    return $Text
 }
 
 function Format-ListComment {
@@ -212,8 +228,8 @@ function Invoke-IssueWrite {
 }
 
 function ConvertTo-IssueObject {
-    # The issue JSON of -IssuePath as Get-GitHubIssue returns it, plus Permission (default none) and EditorPermission
-    # ($null when the file has none).
+    # The issue JSON of -IssuePath as Get-GitHubIssue returns it, plus Permission (default none), Editor ('' when the
+    # file has none) and EditorPermission ($null when the file has none).
     param([Parameter(Mandatory)][System.Collections.IDictionary]$Data)
     $user = if ($Data['user'] -is [System.Collections.IDictionary]) { $Data['user'] } else { @{} }
     $names = [string[]]@(@($Data['labels']) | ForEach-Object {
@@ -232,6 +248,7 @@ function ConvertTo-IssueObject {
         Url               = [string]$Data['html_url']
         IsPullRequest     = $Data.Contains('pull_request') -and $null -ne $Data['pull_request']
         Permission        = $(if ($null -ne $Data['permission']) { [string]$Data['permission'] } else { 'none' })
+        Editor            = $(if ($null -ne $Data['editor']) { [string]$Data['editor'] } else { '' })
         EditorPermission  = $(if ($null -ne $Data['editorPermission']) { [string]$Data['editorPermission'] } else { $null })
     }
 }
@@ -272,12 +289,37 @@ try {
     if (-not [string]::IsNullOrEmpty($name) -and $nameValid) { $secretName = $name }
     $labels = [string[]]@(& $setting 'commitOptions', 'pullRequestLabels' | Where-Object { $_ -is [string] -and $_ -ne '' })
 
-    # 1. The issue, read again: the API has the current body and state, not those of the event.
+    # 1. The event that triggered the run (API mode): who edited, and the body that edit wrote.
+    $editorChecked = $false
+    $editor = ''
+    $eventBody = $null
+    if ($fileMode) {
+        $editor = $null
+    } else {
+        try {
+            if ([string]::IsNullOrEmpty($EventPath)) { throw 'GITHUB_EVENT_PATH is not set' }
+            $eventData = Get-Content -LiteralPath $EventPath -Raw -ErrorAction Stop | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+            if ($eventData -isnot [System.Collections.IDictionary]) { throw 'the file is not a JSON object' }
+        } catch {
+            throw "Could not read the event file of the run: $($_.Exception.Message)"
+        }
+        $eventIssue = if ($eventData['issue'] -is [System.Collections.IDictionary]) { $eventData['issue'] } else { @{} }
+        $eventBody = ([string]$eventIssue['body']).Replace("`r`n", "`n")
+        if ([string]$eventData['action'] -ceq 'edited') {
+            # An edit is gated on its sender too; an edit without one is gated as none.
+            $editorChecked = $true
+            $editor = if ($eventData['sender'] -is [System.Collections.IDictionary]) { [string]$eventData['sender']['login'] } else { '' }
+        }
+    }
+
+    # The issue, read again: the API has the current body and state, not those of the event.
     try {
         if ($fileMode) {
             $data = Get-Content -LiteralPath $IssuePath -Raw -ErrorAction Stop | ConvertFrom-Json -AsHashtable -ErrorAction Stop
             if ($data -isnot [System.Collections.IDictionary]) { throw 'the file is not a JSON object' }
             $issue = ConvertTo-IssueObject -Data $data
+            $editor = $issue.Editor
+            $editorChecked = -not [string]::IsNullOrEmpty($editor)
         } else {
             $issue = Get-GitHubIssue -Repository $Repository -Number $number -Token $GitHubToken -ApiUrl $ApiUrl
         }
@@ -292,23 +334,36 @@ try {
         $summaryMessage = if ($issue.IsPullRequest) { "#$number is a pull request, not an issue; nothing was done." } else { "Issue #$number is $($issue.State); nothing was done." }
         Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
         $result = 'skipped'
+    } elseif (-not $fileMode -and $issue.Body.Replace("`r`n", "`n") -cne $eventBody) {
+        # The body was edited again after this run was triggered: the gate below would judge this run's sender while
+        # the body is another edit's. The newest edit's run sees equal bodies.
+        $summaryMessage = 'The issue body changed after this run was triggered; the newer edit has its own run.'
+        Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
+        $result = 'skipped'
     } else {
-        # 2. The gate (D55): the author, and an editor who is another account, can push to the repository. It runs
-        # before the body is read.
+        # 2. The gate (D55): the author, and the sender of an edit who is another account, can push to the repository.
+        # It runs before the body is read.
         $author = [string]$issue.Author
         $denied = $null
+        $editorDenied = $null
         $permission = Get-Permission -User $author -FromFile $(if ($fileMode) { [string]$issue.Permission } else { $null })
         if ($permission -cnotin 'admin', 'write') {
             $denied = "the author $author has the permission '$permission' on the repository"
-        } elseif (-not [string]::IsNullOrEmpty($Editor) -and -not [string]::Equals($Editor, $author, [System.StringComparison]::OrdinalIgnoreCase)) {
+        } elseif ($editorChecked -and ([string]::IsNullOrEmpty($editor) -or -not [string]::Equals($editor, $author, [System.StringComparison]::OrdinalIgnoreCase))) {
             # GitHub logins compare without case. In the issue file an editor without editorPermission is 'none'.
-            $editorPermission = Get-Permission -User $Editor -FromFile $(if ($fileMode) { [string]$issue.EditorPermission } else { $null })
-            if ($editorPermission -cnotin 'admin', 'write') { $denied = "the editor $Editor of the issue has the permission '$editorPermission' on the repository" }
+            $editorPermission = Get-Permission -User $editor -FromFile $(if ($fileMode) { [string]$issue.EditorPermission } else { $null })
+            if ($editorPermission -cnotin 'admin', 'write') { $editorDenied = "the editor $(if ($editor) { $editor } else { '(none)' }) of the issue has the permission '$editorPermission' on the repository" }
         }
         if ($null -ne $denied) {
             Invoke-IssueWrite -Kind comment -Body "$refusal`n"
             Invoke-IssueWrite -Kind close -StateReason not_planned
             $summaryMessage = "Refused: $denied; only admin and write may submit or edit Rulebook changes (D55). The issue was closed as not planned."
+            Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
+            $result = 'refused'
+        } elseif ($null -ne $editorDenied) {
+            # The author may push: the issue stays open for the author's own edit.
+            Invoke-IssueWrite -Kind comment -Body "The edit by $(Format-CodeSpan $editor) was not applied: only repository collaborators with write access can submit or edit Rulebook changes. The issue stays open; its author can edit the body to run the workflow again.`n"
+            $summaryMessage = "Refused: $editorDenied; only admin and write may submit or edit Rulebook changes (D55). The issue stays open."
             Add-Annotation -Context $ctx -Command notice -Message $summaryMessage
             $result = 'refused'
         } else {
@@ -391,7 +446,8 @@ try {
                             try {
                                 $access = Get-GitHubAccessToken -Token $Token -Repository $Repository -ApiUrl $ApiUrl
                             } catch {
-                                $tokenReason = ConvertTo-SingleLine $_.Exception.Message
+                                $tokenReason = (ConvertTo-SingleLine (Hide-Secret $_.Exception.Message)).Trim()
+                                if ($tokenReason.Length -gt 1000) { $tokenReason = $tokenReason.Substring(0, 997) + '...' }
                                 $tokenMessage = "The $secretName secret could not be used: $($_.Exception.Message)"
                             }
                         }
@@ -435,13 +491,13 @@ try {
                                 # The base branch moved between plan and publish: nothing is wrong with the token; run it again.
                                 if ([string]$exception.Data['Reason'] -ceq 'base-moved') {
                                     $message = $exception.Message
-                                    $commentBody = "$(ConvertTo-SingleLine $message)`n`n$rerun`n"
+                                    $commentBody = "$(ConvertTo-SingleLine (Hide-Secret $message))`n`n$rerun`n"
                                 } else {
                                     $what = if ($stage -eq 'pull-request') { 'Failed to create the pull request for the change set' } else { 'Failed to push the change set' }
                                     $hint = "$what. Make sure that the token in the secret $secretName is not expired and may write contents and pull requests of $Repository. Read $docsUrl"
                                     $message = "$hint (Error was: $($exception.Message))"
                                     # The raw error inside a code span, as every other error line of a comment.
-                                    $commentBody = "$hint.`n`nError: $(Format-CodeSpan $exception.Message)`n`n$rerun`n"
+                                    $commentBody = "$hint.`n`nError: $(Format-CodeSpan (Hide-Secret $exception.Message))`n`n$rerun`n"
                                 }
                                 Add-Annotation -Context $ctx -Message $message
                                 Add-Failure -Context $ctx -Kind $stage
@@ -499,7 +555,7 @@ try {
     # An unexpected failure after the issue was read gets one comment, best effort, unless the change landed.
     if ($ctx.Failure -ceq 'error' -and $null -ne $issue -and -not $state.Landed) {
         $runUrl = if ($env:GITHUB_RUN_ID -and $Repository) { " ($server/$Repository/actions/runs/$env:GITHUB_RUN_ID)" } else { '' }
-        Invoke-IssueWrite -Kind comment -Body "The Apply Rulebook Change run failed before anything was written; see the job log$runUrl.`n" -BestEffort
+        Invoke-IssueWrite -Kind comment -Body "The Apply Rulebook Change run failed before the change was written; see the job log$runUrl.`n" -BestEffort
     }
 } finally {
     if ($ownWork -and (Test-Path -LiteralPath $WorkPath)) { Remove-Item -LiteralPath $WorkPath -Recurse -Force -ErrorAction SilentlyContinue }
