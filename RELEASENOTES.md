@@ -6,6 +6,7 @@
 - Quarantine files are read with System.Text.Json: a justification that looks like a date stays text, and keys match case-sensitively, so `"Rules"` or `"Id"` is no longer accepted (the schema is case-sensitive) ([#116](https://github.com/ALCops/rulebook-engine/pull/116))
 - Apply Rulebook Change: the new workflow applies the change set of a rulebook-change issue from the dashboard as one pull request or direct commit, when the issue author, and the editor of a body edit, can push to the repository (D55), and answers on the issue ([#117](https://github.com/ALCops/rulebook-engine/pull/117))
 - ApplyChangeSet action: the push-permission gate, the label created when missing, the duplicate guard, a red run with one comment line per error, `Nothing to change.` for a no-op, and the title `<change> (#<issue>)` with `Closes #<issue>` ([#117](https://github.com/ALCops/rulebook-engine/pull/117))
+- User documentation: the dashboard and changing-a-rule pages describe the Apply Rulebook Change workflow and every answer it gives on the issue, the label is no longer created by hand, and the issue form and the site legend say the workflow applies a change set when its author may push ([#118](https://github.com/ALCops/rulebook-engine/pull/118))
 
 ## v1.0.0-beta.4
 
