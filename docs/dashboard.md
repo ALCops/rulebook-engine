@@ -46,7 +46,7 @@ Decisions taken by the owner on 2026-10-03:
 | Write side | A cart in the dashboard that opens a prefilled GitHub issue form. A workflow applies the change set. The only credential is the submitter's GitHub session. | D32 |
 | Batching | Many changes, one issue, one pull request or commit. | D33 |
 | Landing | Follows `commitOptions.createPullRequest` in the settings, like ChangeRule. | D33 |
-| Permissions | Collaborators only: `OWNER`, `MEMBER`, `COLLABORATOR`. Anyone else gets a comment and the issue is closed. | D34 |
+| Permissions | Collaborators only: `OWNER`, `MEMBER`, `COLLABORATOR`. Anyone else gets a comment and the issue is closed. As implemented (WP15), the gate is the issue author's push permission: `admin` or `write`. | D34, D55 |
 | Edit scope v1 | Rule actions as overrides, and releasing an id from quarantine. Not in v1: levels and stages configuration, org-owned level and stage files. | D32 |
 | Update | Site files are a new file class: overwritten only when the organization has not changed them; a local change is kept and reported. | D35 |
 | Exposure | The site is public outside Enterprise Cloud. By default it omits the organization's free-text justifications. | D36 |
