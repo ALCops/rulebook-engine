@@ -64,14 +64,26 @@ function ConvertFrom-QuarantineFileText {
     <#
     .SYNOPSIS
     A quarantine file as { Schema, Rules (ordinal ordered map id -> justification or $null), Path, Exists }.
+    .DESCRIPTION
+    Read with System.Text.Json (comments and trailing commas accepted, as ConvertFrom-Json accepts them), so a
+    justification that looks like a date stays the text it was and a release writes it back unchanged.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Text, [Parameter(Mandatory)][string]$Path)
     try {
-        $json = ConvertFrom-Json -InputObject $Text -AsHashtable -Depth 10 -ErrorAction Stop
+        $options = [System.Text.Json.JsonDocumentOptions]::new()
+        $options.CommentHandling = [System.Text.Json.JsonCommentHandling]::Skip
+        $options.AllowTrailingCommas = $true
+        $document = [System.Text.Json.JsonDocument]::Parse($Text, $options)
     } catch {
-        throw "Invalid JSON in $Path`: $($_.Exception.Message)"
+        # The JsonException behind the method-call wrapper.
+        throw "Invalid JSON in $Path`: $($_.Exception.InnerException.Message)"
+    }
+    try {
+        $json = ConvertFrom-JsonElement $document.RootElement
+    } finally {
+        $document.Dispose()
     }
     if ($json -isnot [System.Collections.IDictionary] -or $json['rules'] -isnot [System.Collections.IList]) { throw "$Path has no rules array" }
     $rules = Get-OrdinalMap

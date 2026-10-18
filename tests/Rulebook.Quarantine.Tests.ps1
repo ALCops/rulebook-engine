@@ -244,6 +244,16 @@ Describe 'Write-QuarantineFile' {
         [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($path)) | Should-Be ([System.Convert]::ToBase64String($bytes))
     }
 
+    It 'keeps a justification that looks like a date byte for byte' {
+        $path = Join-Path $TestDrive "dated-$([guid]::NewGuid().ToString('n')).json"
+        $text = "{`n  `"`$schema`": `"https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-quarantine.schema.json`",`n  `"rules`": [`n    { `"id`": `"LC0100`", `"justification`": `"2026-10-18T10:00:00Z`" },`n    { `"id`": `"LC0101`", `"justification`": `"2026-10-18`" }`n  ]`n}`n"
+        [System.IO.File]::WriteAllText($path, $text)
+        $file = Read-QuarantineFile -Path $path
+        $file.Rules['LC0100'] | Should-BeString '2026-10-18T10:00:00Z'
+        Write-QuarantineFile -Path $path -File $file | Should-BeNull
+        [System.IO.File]::ReadAllText($path) | Should-Be $text
+    }
+
     It 'round-trips what it wrote' {
         $path = Join-Path $TestDrive "round-$([guid]::NewGuid().ToString('n')).json"
         $null = Write-QuarantineFile -Path $path -File $sample
