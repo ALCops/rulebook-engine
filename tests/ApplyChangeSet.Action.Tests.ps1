@@ -402,6 +402,12 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $run.Output | Should-Be "result=skipped`nnoop=false`nchangedEndpoints=`npullRequestUrl=`nbranch=`nissue=12`nissueState=closed-completed`nfailure=`n"
         }
 
+        It 'reports a closed issue without a state reason as closed' {
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile -Issue @{ State = 'closed' }) }
+            $run.Result.Result | Should-Be 'skipped'
+            $run.Result.Outputs.issueState | Should-Be 'closed'
+        }
+
         It 'skips a pull request' {
             $run = Invoke-Entry @{ IssuePath = (New-IssueFile -Issue @{ PullRequest = $true }) }
             $run.Result.Result | Should-Be 'skipped'
@@ -462,6 +468,22 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $line = @((Get-Comment $run).Split("`n") | Where-Object { $_.StartsWith('- ') })
             $line.Count | Should-Be 1
             $line[0] | Should-MatchString '\A- `[^`]+`\z'
+        }
+    }
+
+    Context 'a candidate that does not validate' {
+        It 'comments the findings of the regenerated candidate' {
+            # An invalid secret name fails the settings schema (C5) in the candidate, before the token guard.
+            $root = Copy-Minimal
+            Edit-FixtureJson -Path (Join-Path $root '.github' 'Rulebook-Settings.json') -Script { $_.ghTokenWorkflowSecretName = 'github_token' }
+            $run = Invoke-Entry @{ RepositoryRoot = $root; WorkspaceRoot = $root; IssuePath = (New-IssueFile); Token = 'ghp_x' }
+            $run.Result.ExitCode | Should-Be 1
+            $run.Result.Failure | Should-Be 'validation'
+            @($run.Result.Annotations | Where-Object { $_ -like '::error file=.github/Rulebook-Settings.json,title=C5::The changed rulebook would not validate:*' }).Count | Should-BeGreaterThan 0
+            $comment = Get-Comment $run
+            $comment | Should-MatchString '\AThe changed rulebook would not validate; nothing was pushed\.\n\n- `'
+            $comment | Should-MatchString '(?m)^Edit the issue body to run it again\.\n\z'
+            Get-IssueAction $run | Should-BeCollection @('comment')
         }
     }
 
@@ -669,6 +691,55 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $run.Output | Should-MatchString "(?m)^issueState=open\nfailure=$Stage\n\z"
         }
 
+        It 'maps a seam failure without a stage to push' {
+            $publish = {
+                param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+                $null = $Ignored
+                throw 'clone failed'
+            }
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile); Token = 'ghp_x'; PublishCommand = $publish }
+            $run.Result.Failure | Should-Be 'push'
+        }
+
+        It 'reports a refused direct push whose fallback branch failed too' {
+            $publish = {
+                param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+                $null = $Ignored
+                $exception = [System.InvalidOperationException]::new('Push failed: every branch is protected')
+                $exception.Data['Stage'] = 'push'
+                $exception.Data['FallbackReason'] = "remote: main is protected`nrejected"
+                throw $exception
+            }
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile); Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+            $run.Result.Failure | Should-Be 'push'
+            @($run.Result.Annotations | Where-Object { $_ -like '::warning title=ApplyChangeSet::The direct push to main was refused; the fallback branch could not be pushed. (remote: main is protected rejected)' }).Count | Should-Be 1
+        }
+
+        It 'comments a pull request opened after a refused direct push' {
+            $publish = {
+                param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
+                $null = $Ignored
+                [pscustomobject]@{ Result = 'pull-request'; PullRequestUrl = 'https://github.com/Contoso/rulebook/pull/8'; Number = 8; Branch = 'rulebook-change/12/261008091530'; Sha = 'a' * 40; Fallback = $true; FallbackReason = 'remote: main is protected'; Diff = @(); DiffNote = $null; Body = 'body'; Title = 't' }
+            }
+            $run = Invoke-Entry @{ IssuePath = (New-IssueFile); Token = 'ghp_x'; DirectCommit = $true; PublishCommand = $publish }
+            $run.Result.ExitCode | Should-Be 0
+            @($run.Result.Annotations | Where-Object { $_ -ceq '::warning title=ApplyChangeSet::The direct push to main was refused; a pull request was created instead. (remote: main is protected)' }).Count | Should-Be 1
+            $run.Result.Annotations[-1] | Should-Be '::notice title=ApplyChangeSet::Pull request: https://github.com/Contoso/rulebook/pull/8 (the direct commit was refused)'
+            Get-Comment $run | Should-MatchString '\APull request: https://github\.com/Contoso/rulebook/pull/8 \(the direct commit was refused\)\n\n'
+            Get-IssueAction $run | Should-BeCollection @('comment')
+        }
+
+        It 'needs <Name> before the publish' -ForEach @(
+            @{ Name = 'the repository'; Parameters = @{ Repository = '' }; Message = 'The change needs the repository (GITHUB_REPOSITORY) as owner/name.' }
+            @{ Name = 'the base branch'; Parameters = @{ BaseBranch = '' }; Message = 'The change needs baseBranch.' }
+        ) {
+            $parameters = @{ IssuePath = (New-IssueFile); Token = 'ghp_x'; PublishCommand = { throw 'never' } } + $Parameters
+            $run = Invoke-Entry $parameters
+            $run.Result.ExitCode | Should-Be 1
+            $run.Result.Failure | Should-Be 'error'
+            $run.Result.Annotations[-1] | Should-Be "::error title=ApplyChangeSet::$Message"
+        }
+
         It 'reports a base branch that moved without the token hint' {
             $publish = {
                 param([Parameter(ValueFromRemainingArguments)][object[]]$Ignored)
@@ -745,6 +816,14 @@ Describe 'ApplyChangeSet.ps1 with an issue file' {
             $run.Result.Failure | Should-Be 'error'
             @($run.Result.IssueActions) | Should-BeCollection @()
             $run.Summary | Should-MatchString '\A## Rulebook change\n\n'
+        }
+
+        It 'fails with failure issue when the issue file is not a JSON object' {
+            $path = "$(Get-TestFolder).issue.json"
+            Write-FixtureText -Path $path -Text '[]'
+            $run = Invoke-Entry @{ IssuePath = $path }
+            $run.Result.Failure | Should-Be 'issue'
+            $run.Result.Annotations[0] | Should-Be '::error title=ApplyChangeSet::Could not read issue #12: the file is not a JSON object'
         }
 
         It 'fails with failure issue when the issue file cannot be read' {
