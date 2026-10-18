@@ -597,11 +597,11 @@ function Test-RulebookChangeSet {
         # The keys an op does not take, as the schema closes each shape: a release frees the id in whole stages (the
         # quarantine files have no levels, no action and no justification); a remove deletes an entry as it is.
         $forbidden = switch ($op) {
-            'release' { @{ Keys = @('levels', 'action', 'justification'); Why = 'it releases the id from the quarantine of the listed stages' } }
-            'remove' { @{ Keys = @('action', 'justification'); Why = 'it deletes the override entry with these levels and stages' } }
-            default { @{ Keys = @(); Why = '' } }
+            'release' { @{ Names = @('levels', 'action', 'justification'); Why = 'it releases the id from the quarantine of the listed stages' } }
+            'remove' { @{ Names = @('action', 'justification'); Why = 'it deletes the override entry with these levels and stages' } }
+            default { @{ Names = @(); Why = '' } }
         }
-        foreach ($key in $forbidden.Keys) {
+        foreach ($key in $forbidden.Names) {
             if (& $has $key) { $findings.Add((New-ChangeFinding -Id $id -Message "$label`: op '$op' takes no $key; $($forbidden.Why)")) }
         }
         if ($op -ceq 'release') { $kinds = @($kinds[1]) }

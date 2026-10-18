@@ -77,8 +77,10 @@ function ConvertFrom-QuarantineFileText {
         $options.AllowTrailingCommas = $true
         $document = [System.Text.Json.JsonDocument]::Parse($Text, $options)
     } catch {
-        # The JsonException behind the method-call wrapper.
-        throw "Invalid JSON in $Path`: $($_.Exception.InnerException.Message)"
+        # The JsonException behind the method-call wrapper, without its position suffix (the shape of the old
+        # ConvertFrom-Json message).
+        $reason = ($_.Exception.InnerException.Message -replace '\s*LineNumber: \d+ \| BytePositionInLine: \d+\.\s*\z', '').Trim()
+        throw "Invalid JSON in $Path`: $reason"
     }
     try {
         $json = ConvertFrom-JsonElement $document.RootElement

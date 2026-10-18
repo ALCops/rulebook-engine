@@ -3,6 +3,7 @@
 ## v1.0.0-beta.5
 
 - Change sets: release from quarantine, change set version 1, the rulebook-change issue body reader with the schema check, and the GitHub issue helpers of the issue path ([#116](https://github.com/ALCops/rulebook-engine/pull/116))
+- Quarantine files are read with System.Text.Json: a justification that looks like a date stays text, and keys match case-sensitively, so `"Rules"` or `"Id"` is no longer accepted (the schema is case-sensitive) ([#116](https://github.com/ALCops/rulebook-engine/pull/116))
 
 ## v1.0.0-beta.4
 

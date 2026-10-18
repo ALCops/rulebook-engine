@@ -220,6 +220,20 @@ Describe 'ConvertFrom-QuarantineFileText' {
         $file.Exists | Should-BeTrue
     }
 
+    It 'accepts comments and trailing commas and keeps a date-like justification as text' {
+        $text = '{ // c' + "`n" + '"rules":[{"id":"A","justification":"2026-10-18",}, /* x */ {"id":"B"},],}'
+        $file = ConvertFrom-QuarantineFileText -Text $text -Path 'quarantine.ci.json'
+        @($file.Rules.Keys) | Should-BeCollection @('A', 'B')
+        $file.Rules['A'] | Should-BeString '2026-10-18'
+    }
+
+    It 'throws on empty text without the position suffix' {
+        $caught = $null
+        try { $null = ConvertFrom-QuarantineFileText -Text '' -Path 'quarantine.ci.json' } catch { $caught = $_ }
+        $caught.Exception.Message | Should-BeLikeString 'Invalid JSON in quarantine.ci.json: *does not contain any JSON tokens*'
+        $caught.Exception.Message | Should-NotMatchString 'LineNumber'
+    }
+
     It 'throws on <Case>' -ForEach @(
         @{ Case = 'text that is not JSON'; Text = '{ "rules": '; Message = 'Invalid JSON in quarantine.ci.json*' }
         @{ Case = 'no rules array'; Text = '{ "rules": {} }'; Message = 'quarantine.ci.json has no rules array' }
