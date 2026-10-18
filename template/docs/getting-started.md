@@ -59,7 +59,7 @@ Merge the pull request. The merge changes the settings on `main`, so Publish run
 
 ## 5. Add the write token
 
-The Update Rulebook System Files, Scan Diagnostics, Change Rule and Apply Rulebook Change workflows push branches and open pull requests, which the workflow token cannot do for workflow files. They read the token from the secret `GHTOKENWORKFLOW`: a GitHub App (recommended) or a personal access token. Set it up as described in [ghtokenworkflow.md](ghtokenworkflow.md) sections 2 to 4. Validate and Publish do not need it.
+The Update Rulebook System Files, Scan Diagnostics, Change Rule and Apply Rulebook Change workflows push branches and open pull requests. The workflow token cannot push workflow files, and a pull request it opens does not run Validate. They read the token from the secret `GHTOKENWORKFLOW`: a GitHub App (recommended) or a personal access token. Set it up as described in [ghtokenworkflow.md](ghtokenworkflow.md) sections 2 to 4. Validate and Publish do not need it.
 
 ## 6. Publish
 
