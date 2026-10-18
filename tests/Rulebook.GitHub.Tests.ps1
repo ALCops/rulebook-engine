@@ -903,13 +903,13 @@ Describe 'The issue helpers of the issue path' {
     It 'finds the open pull request by head prefix across pages, not issue 123 for issue 12' {
         Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq 'https://api.github.com/repos/Contoso/rulebook/pulls?base=main&state=open&per_page=100' } {
             Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 5 -InputObject @(
-                    @{ number = 30; title = 'Other'; html_url = 'u30'; head = @{ ref = 'rulebook-change/123/261018090000' } }
-                    @{ number = 31; title = 'Upper'; html_url = 'u31'; head = @{ ref = 'Rulebook-Change/12/261018090000' } }
+                    @{ number = 30; title = 'Other'; html_url = 'u30'; head = @{ ref = 'rulebook-change/123/261018090000'; repo = @{ full_name = 'Contoso/rulebook' } } }
+                    @{ number = 31; title = 'Upper'; html_url = 'u31'; head = @{ ref = 'Rulebook-Change/12/261018090000'; repo = @{ full_name = 'Contoso/rulebook' } } }
                 )) -Headers @{ Link = '<https://api.github.com/repositories/9/pulls?page=2>; rel="next"' }
         }
         Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -eq 'https://api.github.com/repositories/9/pulls?page=2' } {
             Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 5 -InputObject @(
-                    @{ number = 32; title = 'Rulebook change: 2 changes (#12)'; html_url = 'https://github.com/Contoso/rulebook/pull/32'; head = @{ ref = 'rulebook-change/12/261018091530' } }
+                    @{ number = 32; title = 'Rulebook change: 2 changes (#12)'; html_url = 'https://github.com/Contoso/rulebook/pull/32'; head = @{ ref = 'rulebook-change/12/261018091530'; repo = @{ full_name = 'Contoso/rulebook' } } }
                 ))
         }
         $pull = Find-GitHubPullRequestByHeadPrefix -Repository 'Contoso/rulebook' -Base 'main' -HeadPrefix 'rulebook-change/12/' -Token 'tok'
@@ -920,8 +920,19 @@ Describe 'The issue helpers of the issue path' {
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly
     }
 
+    It 'skips a fork branch and a deleted fork with the same head prefix' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub {
+            Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 6 -InputObject @(
+                    @{ number = 40; title = 'Fork'; html_url = 'u40'; head = @{ ref = 'rulebook-change/12/x'; repo = @{ full_name = 'Mallory/rulebook' } } }
+                    @{ number = 41; title = 'Gone'; html_url = 'u41'; head = @{ ref = 'rulebook-change/12/y'; repo = $null } }
+                    @{ number = 42; title = 'Ours'; html_url = 'u42'; head = @{ ref = 'rulebook-change/12/261018091530'; repo = @{ full_name = 'contoso/Rulebook' } } }
+                ))
+        }
+        (Find-GitHubPullRequestByHeadPrefix -Repository 'Contoso/rulebook' -Base 'main' -HeadPrefix 'rulebook-change/12/').Number | Should-Be 42
+    }
+
     It 'returns $null without a match and throws with the status on a refused list' {
-        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 5 -InputObject @(@{ number = 30; html_url = 'u'; title = 't'; head = @{ ref = 'rulebook-change/123/261018090000' } })) }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Json (ConvertTo-Json -Compress -Depth 5 -InputObject @(@{ number = 30; html_url = 'u'; title = 't'; head = @{ ref = 'rulebook-change/123/261018090000'; repo = @{ full_name = 'Contoso/rulebook' } } })) }
         Find-GitHubPullRequestByHeadPrefix -Repository 'Contoso/rulebook' -Base 'main' -HeadPrefix 'rulebook-change/12/' | Should-BeNull
         Mock Invoke-WebRequest -ModuleName Rulebook.GitHub { Get-MockResponse -Status 403 -Json @{ message = 'Forbidden' } }
         $caught = $null

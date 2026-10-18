@@ -108,29 +108,6 @@ function Assert-Selector {
     if ($list.Count -gt 1 -and $list -contains '*') { throw (New-ValidationException "$Name mixes '*' with other values; use [`"*`"] alone or a list of slugs") }
 }
 
-function ConvertFrom-JsonElement {
-    # A System.Text.Json element as PowerShell values; strings stay strings (ConvertFrom-Json would turn an ISO date
-    # in a justification into a [DateTime]).
-    param([Parameter(Mandatory)][System.Text.Json.JsonElement]$Element)
-    switch ($Element.ValueKind) {
-        'Object' {
-            $map = [System.Collections.Specialized.OrderedDictionary]::new([System.StringComparer]::Ordinal)
-            foreach ($property in $Element.EnumerateObject()) { $map[$property.Name] = ConvertFrom-JsonElement $property.Value }
-            return , $map
-        }
-        'Array' {
-            $list = [System.Collections.Generic.List[object]]::new()
-            foreach ($item in $Element.EnumerateArray()) { $list.Add((ConvertFrom-JsonElement $item)) }
-            return , $list.ToArray()
-        }
-        'String' { return $Element.GetString() }
-        'Number' { return $Element.GetDouble() }
-        'True' { return $true }
-        'False' { return $false }
-        default { return $null }
-    }
-}
-
 function Get-RowNote {
     param([Parameter(Mandatory)]$Row, [string]$EntryChange, [bool]$JustificationOnly)
     if (-not $Row.Changed) {
@@ -220,7 +197,8 @@ function Get-JustificationParagraph {
     $items = @($Plan.Items)
     $paragraphs = [System.Collections.Generic.List[string]]::new()
     $note = if ($null -ne $Plan.ChangeSet -and $Plan.ChangeSet.Contains('note')) { [string]$Plan.ChangeSet['note'] } else { '' }
-    # One line each: a justification or note never adds headings or sections to the body.
+    # One line each (ConvertTo-SingleLine drops the line breaks); what the line says, a leading '#' or a closing
+    # keyword included, is the submitter's, who may push to the repository anyway.
     if (-not [string]::IsNullOrWhiteSpace($note)) { $paragraphs.Add((ConvertTo-SingleLine $note)) }
     if ($items.Count -eq 1 -and -not [string]::IsNullOrEmpty($items[0].Justification)) {
         if ($items[0].NoOp -and $items[0].Entry.Change -ceq 'added') {
@@ -236,12 +214,12 @@ function Get-JustificationParagraph {
 
 function Test-ChangeSetVersion {
     # The version of a change set is the number 1: an integer or a whole double from JSON, never a string or a bool.
+    # The numeric type codes run from SByte to Decimal; Boolean, Char and DateTime lie outside.
     param($Value)
-    if ($null -eq $Value -or $Value -is [bool]) { return $false }
-    if ($Value -is [int] -or $Value -is [long] -or $Value -is [double] -or $Value -is [decimal] -or $Value -is [short] -or $Value -is [byte] -or $Value -is [single]) {
-        return [double]$Value -eq [double]$script:ChangeSetVersion
-    }
-    return $false
+    if ($null -eq $Value) { return $false }
+    $code = [System.Type]::GetTypeCode($Value.GetType())
+    if ($code -lt [System.TypeCode]::SByte -or $code -gt [System.TypeCode]::Decimal) { return $false }
+    return [double]$Value -eq [double]$script:ChangeSetVersion
 }
 
 function Get-FencedBlock {
@@ -573,8 +551,9 @@ function Test-RulebookChangeSet {
     without one is accepted, the issue path checks the schema first); another version stops the check with that one
     finding. changes is not empty; op is set, remove or release; the id matches ^[A-Z]{2,3}\d{4}i?$ and is in the
     catalog; a set has one of the five actions; levels and stages are ["*"] or slugs of the settings (the wording of
-    C10); a release has stages only (levels or an action on it is a finding); no two changes have the same op, id,
-    level set and stage set. An empty list means valid.
+    C10); a release has stages only (levels, an action or a justification on it is a finding) and a remove has no
+    action or justification; no two changes have the same op, id, level set and stage set, and no two releases of
+    one id name the same stage. An empty list means valid.
     #>
     [CmdletBinding()]
     [OutputType([object[]])]
@@ -592,6 +571,8 @@ function Test-RulebookChangeSet {
     $levelSlugs = [string[]]@($Inputs.Levels | ForEach-Object { $_.Slug })
     $stageSlugs = [string[]]@($Inputs.Stages | ForEach-Object { $_.Slug })
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    # '<id>|<stage>' of every stage an earlier release of the id names.
+    $released = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     for ($index = 0; $index -lt $changes.Count; $index++) {
         $change = $changes[$index]
         $value = { param([string]$Key) if ($change -is [System.Collections.IDictionary] -and $change.Contains($Key)) { $change[$Key] } else { $null } }
@@ -613,13 +594,18 @@ function Test-RulebookChangeSet {
             if ($action -cnotin $script:Actions) { $findings.Add((New-ChangeFinding -Id $id -Message "action '$action': use Error, Warning, Info, Hidden or None")) }
         }
         $kinds = @(@{ Name = 'levels'; Single = 'level'; Slugs = $levelSlugs }, @{ Name = 'stages'; Single = 'stage'; Slugs = $stageSlugs })
-        if ($op -ceq 'release') {
-            # A release frees the id in whole stages: the quarantine files have no levels and no action.
-            foreach ($key in 'levels', 'action') {
-                if (& $has $key) { $findings.Add((New-ChangeFinding -Id $id -Message "$label`: op 'release' takes no $key; it releases the id from the quarantine of the listed stages")) }
-            }
-            $kinds = @($kinds[1])
+        # The keys an op does not take, as the schema closes each shape: a release frees the id in whole stages (the
+        # quarantine files have no levels, no action and no justification); a remove deletes an entry as it is.
+        $forbidden = switch ($op) {
+            'release' { @{ Keys = @('levels', 'action', 'justification'); Why = 'it releases the id from the quarantine of the listed stages' } }
+            'remove' { @{ Keys = @('action', 'justification'); Why = 'it deletes the override entry with these levels and stages' } }
+            default { @{ Keys = @(); Why = '' } }
         }
+        foreach ($key in $forbidden.Keys) {
+            if (& $has $key) { $findings.Add((New-ChangeFinding -Id $id -Message "$label`: op '$op' takes no $key; $($forbidden.Why)")) }
+        }
+        if ($op -ceq 'release') { $kinds = @($kinds[1]) }
+        $selectorErrors = $findings.Count
         foreach ($kind in $kinds) {
             $values = @(& $value $kind.Name | Where-Object { $null -ne $_ } | ForEach-Object { [string]$_ })
             if ($values.Count -eq 0) {
@@ -635,7 +621,20 @@ function Test-RulebookChangeSet {
         # A release has no level set: its key keeps an empty one.
         $levelKey = if ($op -ceq 'release') { '' } else { Get-SelectorKey ([string[]]@(& $value 'levels')) }
         $key = '{0}|{1}|{2}|{3}' -f $op, $id, $levelKey, (Get-SelectorKey ([string[]]@(& $value 'stages')))
-        if (-not $seen.Add($key)) { $findings.Add((New-ChangeFinding -Id $id -Message "$label repeats an earlier change (same op, id, levels and stages)")) }
+        if (-not $seen.Add($key)) {
+            $findings.Add((New-ChangeFinding -Id $id -Message "$label repeats an earlier change (same op, id, levels and stages)"))
+        } elseif ($op -ceq 'release' -and $findings.Count -eq $selectorErrors) {
+            # Two releases of one id may name different stages (one per stage cell of the cart), never the same stage:
+            # the later one would find the id gone and report it as not quarantined.
+            $twice = foreach ($stage in (Get-ExpandedSelector ([string[]]@(& $value 'stages')) $stageSlugs)) {
+                if (-not $released.Add("$id|$stage")) { $stage }
+            }
+            $twice = @($twice)
+            if ($twice.Count -gt 0) {
+                $noun = if ($twice.Count -eq 1) { 'stage' } else { 'stages' }
+                $findings.Add((New-ChangeFinding -Id $id -Message "$label`: release $id appears twice for $noun $($twice -join ', ')"))
+            }
+        }
     }
     return $findings.ToArray()
 }
@@ -972,8 +971,9 @@ function ConvertTo-ChangePullRequestBody {
     releases only, else 'No justification given.'. Above -Limit (default 60000 characters, GitHub allows 65536) the
     item tables are left out from the end with one italic line; only when that is not enough is the body cut at a line
     boundary. -BodyPrefix opens the body and -BodySuffix (the 'Closes #<n>' line of the issue path) ends it, each
-    separated by a blank line; both count against -Limit, but only the generated part between them is ever shortened,
-    so the suffix is never cut.
+    separated by a blank line. Their length is taken from -Limit first, but they are never shortened: -Limit bounds
+    the generated part between them, so the suffix is never cut, and a caller keeps both short (a prefix longer than
+    -Limit makes the body longer than -Limit).
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -1120,9 +1120,10 @@ function ConvertFrom-RulebookIssueBody {
     $sections = [System.Collections.Generic.List[object]]::new()
     $current = $null
     foreach ($line in $text.Split("`n")) {
-        $heading = [regex]::Match($line, '^### (.+?)\s*$')
-        if ($heading.Success) {
-            $current = [pscustomobject]@{ Heading = $heading.Groups[1].Value; Lines = [System.Collections.Generic.List[string]]::new() }
+        # A prefix test and a trim, not a regex: a lazy group before trailing blanks is quadratic on a long line.
+        $heading = if ($line.StartsWith('### ', [System.StringComparison]::Ordinal)) { $line.Substring(4).TrimEnd() } else { '' }
+        if ($heading -ne '') {
+            $current = [pscustomobject]@{ Heading = $heading; Lines = [System.Collections.Generic.List[string]]::new() }
             $sections.Add($current)
         } elseif ($null -ne $current) {
             $current.Lines.Add($line)
@@ -1156,7 +1157,7 @@ function Read-RulebookChangeSetText {
     Parses and checks change set JSON against the change set schema: { ChangeSet, Errors }.
     .DESCRIPTION
     Strict JSON (System.Text.Json: no comments, no trailing commas); a syntax error is one error 'The change set is not
-    valid JSON (line <l>, position <p>): <reason>' (both 1-based). Then Test-Json against -SchemaPath (default
+    valid JSON (line <l>, byte position <p>): <reason>' (both 1-based; the position counts UTF-8 bytes). Then Test-Json against -SchemaPath (default
     schemas/rulebook-changeset.schema.json of the engine): every schema error is one line 'The change set does not
     match the schema: <error>' (a line Test-Json repeats is kept once); when Test-Json rejects the text without naming an error (a change that matches none of
     the set, remove and release shapes), one line says what each shape needs. Only a text without errors gets a
@@ -1184,7 +1185,7 @@ function Read-RulebookChangeSetText {
         while ($null -ne $exception -and $exception -isnot [System.Text.Json.JsonException]) { $exception = $exception.InnerException }
         if ($null -ne $exception -and $null -ne $exception.LineNumber) {
             $reason = ($exception.Message -replace '\s*LineNumber: \d+ \| BytePositionInLine: \d+\.\s*\z', '').Trim()
-            $result.Errors = [string[]]@("The change set is not valid JSON (line $($exception.LineNumber + 1), position $($exception.BytePositionInLine + 1)): $(ConvertTo-SingleLine $reason)")
+            $result.Errors = [string[]]@("The change set is not valid JSON (line $($exception.LineNumber + 1), byte position $($exception.BytePositionInLine + 1)): $(ConvertTo-SingleLine $reason)")
         } else {
             $message = if ($null -ne $exception) { $exception.Message } else { $_.Exception.Message }
             $result.Errors = [string[]]@("The change set is not valid JSON: $(ConvertTo-SingleLine $message)")
@@ -1205,7 +1206,7 @@ function Read-RulebookChangeSetText {
             foreach ($schemaError in @($schemaErrors | Where-Object { $null -ne $_ })) {
                 # The wording of Test-Json varies across PowerShell versions; only its own prefix is dropped, the
                 # escaped quotes it prints are read back, and a line it repeats is kept once.
-                $message = ([string]$schemaError.Exception.Message -replace '\A\s*The JSON is not valid with the schema:\s*', '').Replace('"', '"').Trim()
+                $message = ([string]$schemaError.Exception.Message -replace '\A\s*The JSON is not valid with the schema:\s*', '').Replace('\u0022', '"').Trim()
                 $line = $prefix + (ConvertTo-SingleLine $message)
                 if ($message -and -not $lines.Contains($line)) { $lines.Add($line) }
             }

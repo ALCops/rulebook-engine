@@ -686,9 +686,20 @@ Describe 'Test-RulebookChangeSet: version and release' {
         $findings[0].Message | Should-Be "version '$Text' is not supported; this engine applies change sets of version 1"
     }
 
-    It 'accepts a release with stages only' {
-        $set = Get-ChangeSetValue -Changes @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('*') })
+    It 'accepts a release with stages only, and releases of one id for different stages' {
+        $set = Get-ChangeSetValue -Changes @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('default', 'vnext') }, [ordered]@{ op = 'release'; id = 'AA0001'; stages = @('*') })
         @(Test-RulebookChangeSet -ChangeSet $set -Inputs $inputs) | Should-BeCollection @()
+    }
+
+    It 'reports a remove with <Key>' -ForEach @(
+        @{ Key = 'action'; Value = 'None' }
+        @{ Key = 'justification'; Value = 'Why' }
+    ) {
+        $change = [ordered]@{ op = 'remove'; id = 'LC0029'; levels = @('recommended'); stages = @('ci') }
+        $change[$Key] = $Value
+        $findings = @(Test-RulebookChangeSet -ChangeSet (Get-ChangeSetValue -Changes @($change)) -Inputs $inputs)
+        $findings.Count | Should-Be 1
+        $findings[0].Message | Should-Be "change 0: op 'remove' takes no $Key; it deletes the override entry with these levels and stages"
     }
 
     It 'reports a release <Name>' -ForEach @(
@@ -697,6 +708,9 @@ Describe 'Test-RulebookChangeSet: version and release' {
         @{ Name = 'without stages'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099' }); Message = 'change 0 has no stages; use a slug from the settings or ["*"]' }
         @{ Name = 'with an unknown stage'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('house') }); Message = "change 0 names unknown stage 'house'; use a slug from the settings or [`"*`"]" }
         @{ Name = 'with an id outside the catalog'; Changes = @([ordered]@{ op = 'release'; id = 'LC9999'; stages = @('ci') }); Message = 'LC9999 is not in catalog/diagnostics.json' }
+        @{ Name = 'with a justification'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci'); justification = 'x' }); Message = "change 0: op 'release' takes no justification; it releases the id from the quarantine of the listed stages" }
+        @{ Name = 'twice for one stage (ci and *)'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('*') }); Message = 'change 1: release LC0099 appears twice for stage ci' }
+        @{ Name = 'twice for two stages'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('*') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci', 'vnext') }); Message = 'change 1: release LC0099 appears twice for stages ci, vnext' }
         @{ Name = 'twice (same stage set, any order)'; Changes = @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci', 'default') }, [ordered]@{ op = 'release'; id = 'LC0099'; stages = @('default', 'ci') }); Message = 'change 1 repeats an earlier change (same op, id, levels and stages)' }
     ) {
         $findings = @(Test-RulebookChangeSet -ChangeSet (Get-ChangeSetValue -Changes $Changes) -Inputs $inputs)
@@ -871,6 +885,17 @@ Describe 'Invoke-RulebookChangeSet: release' {
         @($plan.Changes | ForEach-Object File) | Should-BeCollection @('quarantine.ci.json')
     }
 
+    It 'keeps a date-like justification of another entry as it is written' {
+        $root = Copy-Minimal
+        $schema = '  "$schema": "https://raw.githubusercontent.com/ALCops/rulebook-engine/main/schemas/rulebook-quarantine.schema.json",'
+        $dated = '    { "id": "AA0001", "justification": "2026-10-18T10:00:00Z" }'
+        Write-FixtureText -Path (Join-Path $root 'quarantine.ci.json') -Text ((@('{', $schema, '  "rules": [', '    { "id": "LC0099" },', $dated, '  ]', '}') -join "`n") + "`n")
+        $null = Update-RulebookEndpoints -RepositoryRoot $root
+        $plan = Invoke-Release -Root $root -Changes @([ordered]@{ op = 'release'; id = 'LC0099'; stages = @('ci') })
+        $plan.Valid | Should-BeTrue
+        [System.IO.File]::ReadAllText((Join-Path $plan.CandidatePath 'quarantine.ci.json')) | Should-Be ((@('{', $schema, '  "rules": [', $dated, '  ]', '}') -join "`n") + "`n")
+    }
+
     It 'normalises a hand-edited quarantine file to the template layout' {
         $root = Copy-Minimal
         $lines = @(
@@ -1042,6 +1067,23 @@ Describe 'ConvertFrom-RulebookIssueBody' {
         @($parsed.Errors) | Should-BeCollection @()
     }
 
+    It 'takes the first ### Changes section, also when an earlier Note holds one' {
+        $body = "### Note`n`nSee below.`n`n### Changes`n`n``````json`n{`"first`":1}`n```````n`n### Changes`n`n``````json`n{`"second`":2}`n```````n"
+        $parsed = ConvertFrom-RulebookIssueBody -Body $body
+        $parsed.ChangesText | Should-Be '{"first":1}'
+        $parsed.Note | Should-Be 'See below.'
+    }
+
+    It 'reads a heading line with a long run of blanks in linear time' {
+        $body = '### ' + (' ' * 8000) + "x`n`n### Changes`n`n{}`n" + ('### Note' + (' ' * 8000) + "`n`nkept`n")
+        $watch = [System.Diagnostics.Stopwatch]::StartNew()
+        $parsed = ConvertFrom-RulebookIssueBody -Body $body
+        $watch.Stop()
+        $watch.Elapsed.TotalSeconds | Should-BeLessThan 1
+        $parsed.ChangesText | Should-Be '{}'
+        $parsed.Note | Should-Be 'kept'
+    }
+
     It 'reads an unclosed fence to the end of its section' {
         $parsed = ConvertFrom-RulebookIssueBody -Body "### Changes`n`n``````json`n{`"version`":1}`n`n### Note`n`nKept"
         $parsed.ChangesText | Should-Be '{"version":1}'
@@ -1089,8 +1131,14 @@ Describe 'Read-RulebookChangeSetText' {
         $read = Read-RulebookChangeSetText -Text "{`n  `"version`": 1,`n  `"changes`": [1,]`n}"
         $read.ChangeSet | Should-BeNull
         $read.Errors.Count | Should-Be 1
-        $read.Errors[0] | Should-BeLikeString 'The change set is not valid JSON (line 3, position *): *'
+        $read.Errors[0] | Should-BeLikeString 'The change set is not valid JSON (line 3, byte position *): *'
         $read.Errors[0] | Should-NotMatchString 'LineNumber'
+    }
+
+    It 'prints the quotes of a schema error as quotes, not JSON escapes' {
+        $read = Read-RulebookChangeSetText -Text '{"version":1,"changes":[{"op":"rename","id":"LC0015","levels":["*"],"stages":["ci"]}]}'
+        $read.Errors.Count | Should-BeGreaterThan 0
+        foreach ($line in $read.Errors) { $line.Contains('\u0022') | Should-BeFalse -Because $line }
     }
 
     It 'reports a schema that cannot be read' {
@@ -1101,7 +1149,7 @@ Describe 'Read-RulebookChangeSetText' {
     }
 
     It 'refuses comments and an empty text' {
-        (Read-RulebookChangeSetText -Text '{"version":1, /* c */ "changes":[]}').Errors[0] | Should-BeLikeString 'The change set is not valid JSON (line 1, position *'
+        (Read-RulebookChangeSetText -Text '{"version":1, /* c */ "changes":[]}').Errors[0] | Should-BeLikeString 'The change set is not valid JSON (line 1, byte position *'
         (Read-RulebookChangeSetText -Text ' ').Errors | Should-BeCollection @('The change set is empty.')
     }
 

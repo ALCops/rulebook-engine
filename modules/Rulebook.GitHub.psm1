@@ -639,9 +639,10 @@ function Find-GitHubPullRequestByHeadPrefix {
     { Number, Url, Title, Head }.
     .DESCRIPTION
     GET /repos/{r}/pulls?base=<base>&state=open&per_page=100, every page (Link rel="next"); the prefix is matched on
-    head.ref on this side, because the API filters the head by its exact name only. The duplicate guard of the issue
-    path (rulebook-change/<issue>/): end the prefix with '/' so issue 12 does not match rulebook-change/123/. An answer
-    other than 200 throws with the status in Data['StatusCode'].
+    head.ref on this side, because the API filters the head by its exact name only, and only for a head branch of
+    -Repository itself (head.repo.full_name, ignoring case as GitHub does; a fork's branch or a deleted fork never
+    matches). The duplicate guard of the issue path (rulebook-change/<issue>/): end the prefix with '/' so issue 12
+    does not match rulebook-change/123/. An answer other than 200 throws with the status in Data['StatusCode'].
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -657,6 +658,10 @@ function Find-GitHubPullRequestByHeadPrefix {
     if ($response.StatusCode -ne 200) { throw (New-ApiException -Message "Could not list the pull requests of $Repository" -Response $response) }
     foreach ($pull in @($response.Body)) {
         if ($pull -isnot [System.Collections.IDictionary] -or $pull['head'] -isnot [System.Collections.IDictionary]) { continue }
+        # Only a branch of this repository: a fork may name a branch rulebook-change/12/x too, and a pull request
+        # whose fork was deleted has no head repository.
+        $headRepository = $pull['head']['repo']
+        if ($headRepository -isnot [System.Collections.IDictionary] -or -not [string]::Equals([string]$headRepository['full_name'], $Repository, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
         $head = [string]$pull['head']['ref']
         if ($head.StartsWith($HeadPrefix, [System.StringComparison]::Ordinal)) {
             return [pscustomobject]@{ Number = [int]$pull['number']; Url = [string]$pull['html_url']; Title = [string]$pull['title']; Head = $head }
@@ -717,8 +722,9 @@ function Get-GitHubUserPermission {
     .DESCRIPTION
     GET /repos/{r}/collaborators/{user}/permission: the highest grant across the repository, its teams, the
     organization and the enterprise (maintain reads as write, triage as read; RoleName is the exact role). A 404 (the
-    user is no collaborator, or does not exist) is Permission none and RoleName $null; any other answer than 200 throws
-    with the status in Data['StatusCode'].
+    user is no collaborator or does not exist, or the token cannot read the collaborators) is Permission none and
+    RoleName $null, so a gate on it fails closed; any other answer than 200 throws with the status in
+    Data['StatusCode'].
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
