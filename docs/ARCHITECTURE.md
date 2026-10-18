@@ -105,7 +105,7 @@ Everything an org repo contains after "Use this template". The **class** column 
 | `.github/workflows/UpdateRulebookSystemFiles.yaml` | Manual, or scheduled when `update.schedule` is set (the update writes the `schedule:` trigger): pull the new template version into a PR (or a direct commit) with the regenerated endpoints and skeletons, after validating the result (section 7.3). | system |
 | `.github/workflows/ScanDiagnostics.yaml` | Daily (the `schedule:` comes from `scan.schedule`, shipped `17 4 * * *`) and manual: scan the newest stable and prerelease versions of the two analyzer packages on NuGet, record new ids and changed defaults in the catalog, quarantine new ids by the policy, release the ids a level file adopted, regenerate the endpoints and keep one living pull request on `scan-diagnostics/<branch>`, or push a direct commit (section 7.4). | system |
 | `.github/workflows/ChangeRule.yaml` | Manual form: set or remove one override entry, regenerate, open a PR or push a direct commit per `commitOptions.createPullRequest` (section 7.5). | system |
-| `.github/workflows/ApplyRulebookChange.yaml` | On an issue with the `rulebook-change` label: gate on collaborator association, apply the change set, regenerate, open a PR or commit (section 7.6). | system |
+| `.github/workflows/ApplyRulebookChange.yaml` | On an opened or edited issue with the `rulebook-change` label or the form marker: gate on the author's push permission (D55), apply the change set, regenerate, open a PR or commit, answer on the issue (section 7.6). | system |
 | `.github/ISSUE_TEMPLATE/rulebook-change.yml` | The issue form the dashboard prefills; no `config.yml` ships, so blank issues stay enabled and an organization's own `config.yml` is never touched. | system |
 | `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, the ordered `levels` (name, `basedOn`, description) and `stages` (name, description). Carries the settings schema URL in `$schema`. | settings (kept, `$schema` refreshed) |
 | `.github/RELEASENOTES.copy.md` | Release notes of the installed template version; source of the update PR body. | system |
@@ -500,22 +500,27 @@ The workflow builds a one-item change set and calls the `ChangeRule` action (`Ru
 
 ### 7.6 Apply change set (R12)
 
-Trigger: `issues` with types `opened` and `edited`, job condition on the `rulebook-change` label. The dashboard's cart opens the issue form `rulebook-change.yml` prefilled with a change set through query parameters; the maintainer submits it with their own GitHub session, which is the only credential in the path (D32).
+Trigger: `issues` with types `opened` and `edited` (implemented with WP15). The job runs when the issue carries the `rulebook-change` label or the form marker `### Changes` in its body (an issue opened before the label exists has none), and on an edit only when the body changed. The dashboard's cart opens the issue form `rulebook-change.yml` prefilled with a change set through query parameters; the maintainer submits it with their own GitHub session, which is the only credential in the path (D32).
 
 ```mermaid
 flowchart LR
     cart[dashboard cart] -->|issues/new?template=...&changes=json| form[GitHub issue form]
-    form -->|opened, label rulebook-change| wf[ApplyRulebookChange]
-    wf --> gate{author_association<br/>OWNER, MEMBER, COLLABORATOR?}
-    gate -->|no| close[comment, close]
-    gate -->|yes| parse[parse Changes block<br/>validate schema, catalog, slugs]
-    parse -->|errors| cmt[comment per error, nothing written]
+    form -->|opened or body edited| wf[ApplyRulebookChange]
+    wf --> read[read the issue again<br/>skip a closed issue or a PR]
+    read --> gate{author can push?<br/>admin or write, D55}
+    gate -->|no| close[comment, close as not planned]
+    gate -->|yes| label[label created and added when missing]
+    label --> dup{open PR from<br/>rulebook-change/n/?}
+    dup -->|yes| exists[comment the PR link]
+    dup -->|no| parse[parse Changes and Note<br/>schema, catalog, slugs]
+    parse -->|errors| cmt[one comment, a line per error<br/>red run, issue open]
     parse -->|ok| apply[Invoke-RulebookChangeSet<br/>set, remove, release<br/>regenerate rulesets/, validate]
-    apply -->|createPullRequest| pr[PR with before/after table, Closes #n]
-    apply -->|direct commit| commit[commit, comment table, close]
+    apply -->|only no-ops| noop[comment Nothing to change<br/>close as completed]
+    apply -->|createPullRequest| pr[PR title #n, tables, Closes #n<br/>comment the link and the tables]
+    apply -->|direct commit| commit[commit, comment the link and the tables<br/>close as completed]
 ```
 
-A change set is `{ version, note?, changes[] }` with `set` (write an override entry), `remove` (delete one) and `release` (remove an id from the quarantine of the listed stages). It is applied all or nothing, regenerated once, and lands per `commitOptions.createPullRequest` as one PR or one commit (D33). The gate is collaborator association (D34); justification is optional (D37). ChangeRule (section 7.5) builds a one-item change set and calls the same module function: `Invoke-RulebookChangeSet` with `set` and `remove` landed with WP09 ([reference/change-mechanics.md](reference/change-mechanics.md)); `release`, the change set schema and the issue parsing arrive with WP15. Details, schema and the comment protocol are in [dashboard.md](dashboard.md) sections 6 to 8.
+A change set is `{ version, note?, changes[] }` with `set` (write an override entry), `remove` (delete one) and `release` (remove an id from the quarantine of the listed stages). It is applied all or nothing, regenerated once, and lands per `commitOptions.createPullRequest` as one PR or one commit (D33), titled with the engine title and the issue number (`Rulebook change: 3 changes (#12)`). The gate is the issue author's push permission, read with the workflow token from the collaborator permission endpoint before the body is parsed (D55, which amends the mechanism of D34); justification is optional (D37). The workflow token reads and writes the issue (comment, label, close) and lists the pull requests; the push and the pull request use the `GHTOKENWORKFLOW` token, so the pull request runs Validate. Every outcome is one comment on the issue: the refusal (closed as not planned), `Pull request already exists`, one line per error (a red run, the issue stays open for an edit), `Nothing to change.` (closed as completed), the missing secret, the pull request link with the tables (the merge closes the issue through `Closes #<n>`), or the commit link with the tables (closed as completed). ChangeRule (section 7.5) builds a one-item change set and calls the same module function. Action, comment protocol, parser and tests: [reference/change-mechanics.md](reference/change-mechanics.md) sections 12 to 16; the workflow and its rules: [dashboard.md](dashboard.md) sections 6 to 8.
 
 ## 8. Settings
 
@@ -600,7 +605,7 @@ Every target ends with the same reachability check: `GET` each endpoint, skeleto
 | An id the catalog does not know after the first scan | The scan, an update and Validate fail (C7 is an error once `catalog/scan-state.json` exists). | Fix the typo or wait for the package that ships the id; C7 names the file and the id. |
 | VS Code does not re-fetch a changed remote file | Developers see stale rules until reload. | Documented in WP11: Developer: Reload Window (or saving a change to `app.json`) re-reads the ruleset once the CDN cache has expired (raw 5 minutes, measured; on Pages the WP05 live run saw a changed endpoint and a removed one within about 10 s of the deploy, measured from outside the runner, although Pages sends `max-age=600`, see [reference/publish-targets.md](reference/publish-targets.md)); see [spike e](reference/spikes/e-vscode-refetch.md) for every trigger. |
 | Token missing or expired | Update, scan and change-rule PRs fail. | Same message pattern as AL-Go; GitHub App recommended. |
-| A stranger opens a `rulebook-change` issue on a public repository | None at compile time; a workflow run. | Collaborator gate before parsing (D34); the issue is closed with a comment. |
+| A stranger opens a `rulebook-change` issue on a public repository | None at compile time; a workflow run. | Push-permission gate before parsing (D34, D55); the issue is closed as not planned with a comment. |
 | A cart exceeds the URL length GitHub accepts | The issue form opens empty or the request fails. | The cart shows its size against the measured limit and offers split and copy (spike WP01 (g)). |
 | An organization adapted `site/` or `docs/` and the template changed the same file | Dashboard fix or documentation update not applied. | Customizable class skips and lists the file in the update PR (D35, D50); `site.updateMode: "overwrite"` or `docs.updateMode: "overwrite"` forces it. |
 
@@ -645,14 +650,15 @@ No decision is open; new ones are tracked in the open decisions table of [adr/RE
 | Slug | lowercased `name`, `^[a-z0-9-]+$` | `vNext` becomes `vnext` |
 | Schema file | `schemas/<name>.schema.json` in the engine, served as `https://raw.githubusercontent.com/ALCops/rulebook-engine/<branch>/schemas/<name>.schema.json` (engine `v1` for organizations on the template's `main`, engine `main` in the engine's `template/` and on the template's `preview`; D53) | `schemas/rulebook-settings.schema.json` |
 | Ruleset schema profile | by folder: `base/`, `stages/` delta; `rulesets/` endpoint; `skeletons/` skeleton | `schemas/ruleset.delta.schema.json` |
-| Change set schema | `schemas/rulebook-changeset.schema.json`: shipped with WP14, consumed by WP15 (the apply workflow); the change set of the `rulebook-change` issue form | |
+| Change set schema | `schemas/rulebook-changeset.schema.json`: shipped with WP14, consumed by the ApplyChangeSet action (WP15); the change set of the `rulebook-change` issue form | |
 | Update branch | `update-rulebook-system-files/<branch>/<yyMMddHHmmss>` | |
 | Update PR title | `[<branch>@<sha7>] Update Rulebook System Files from ALCops/rulebook - <templateSha7>` | |
 | Scan branch | `scan-diagnostics/<branch>`, rebuilt by every run (D45) | `scan-diagnostics/main` |
 | Scan PR title | `Scan diagnostics: <counts> (<label> <version>, ...)` | `Scan diagnostics: 3 new ids quarantined, 1 default changed (alcops 1.4.0)` |
 | Change rule branch | `change-rule/<ruleId>/<yyMMddHHmmss>` (UTC) | `change-rule/LC0015/261008091530` |
 | Change rule PR title | `Change <ruleId> to <action> (levels: <levels>, stages: <stages>)`, or `Remove override for <ruleId> (...)` | `Change LC0015 to None (levels: strict, stages: ci)` |
-| Change branch | `rulebook-change/<issue>/<yyMMddHHmmss>` (WP15) | |
+| Change branch | `rulebook-change/<issue>/<yyMMddHHmmss>` (UTC, WP15) | `rulebook-change/12/261008091530` |
+| Change set PR title | the change rule title or `Rulebook change: <n> changes`, capped at 200 characters, plus ` (#<issue>)` | `Rulebook change: 3 changes (#12)` |
 | Release | the top heading of `RELEASENOTES.md`, `## vX.Y.Z[-pre]`: the engine branch `v<major>`, the template's `main`, the tag `vX.Y.Z[-pre]` on both repositories, a GitHub Release on the engine (D53) | `## v1.0.0-beta.1`: engine `v1`, template `main`, `v1.0.0-beta.1` |
 | Deploy workflows | `.github/workflows/Deploy.yaml` (release, manual, `dryRun`), `.github/workflows/RefreshTemplate.yaml` (`ALCops/rulebook@preview` on every push to `main` touching `template/`); entry `tools/deploy/Invoke-Deploy.ps1`, module `Rulebook.Deploy` | `gh workflow run Deploy.yaml -f dryRun=true` |
 | Template commit of a release | `Release <version> from ALCops/rulebook-engine@<sha7>`; a refresh: `Refresh from ALCops/rulebook-engine@<sha7>` | `Release v1.0.0-beta.1 from ALCops/rulebook-engine@1a2b3c4` |
@@ -681,4 +687,4 @@ Pester 6 suites in `tests/`, one per module, action and script, on copies of the
 | `CheckForUpdates` | UpdateRulebookSystemFiles.yaml (the Validate action runs the same check in check mode) | Section 7.3; implemented (WP07), [reference/update-mechanics.md](reference/update-mechanics.md). |
 | `ScanDiagnostics` | ScanDiagnostics.yaml | Section 7.4; implemented (WP08), [reference/scan-mechanics.md](reference/scan-mechanics.md). |
 | `ChangeRule` | ChangeRule.yaml | Section 7.5; one-item client of the change-set module; implemented (WP09), [reference/change-mechanics.md](reference/change-mechanics.md). |
-| `ApplyChangeSet` | ApplyRulebookChange.yaml | Section 7.6. |
+| `ApplyChangeSet` | ApplyRulebookChange.yaml | Section 7.6; the change set of a `rulebook-change` issue, through the same change-set module; implemented (WP15), [reference/change-mechanics.md](reference/change-mechanics.md) sections 13 to 15. |
