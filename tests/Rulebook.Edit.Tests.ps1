@@ -1021,15 +1021,19 @@ Describe 'ConvertFrom-RulebookIssueBody' {
         }
     }
 
-    It 'reads the change set and the note of the submitted form (issues/rulebook-change-opened.md)' {
-        $parsed = ConvertFrom-RulebookIssueBody -Body (Get-IssueText 'rulebook-change-opened.md')
+    It 'reads the change set and the empty note of the body GitHub wrote for the form (issues/rulebook-change-opened.md)' {
+        # Captured on the live run of 2026-10-18: no final line end, the empty Note as _No response_.
+        $text = Get-IssueText 'rulebook-change-opened.md'
+        $text | Should-MatchString '\A### Changes\n\n```json\n'
+        $text | Should-MatchString '\n### Note\n\n_No response_\z'
+        $parsed = ConvertFrom-RulebookIssueBody -Body $text
         @($parsed.Errors) | Should-BeCollection @()
         $parsed.ChangesText | Should-MatchString '\A\{.*\}\z'
-        $parsed.Note | Should-NotBe ''
+        $parsed.Note | Should-Be ''
         $read = Read-RulebookChangeSetText -Text $parsed.ChangesText
         @($read.Errors) | Should-BeCollection @()
         $read.ChangeSet['version'] | Should-Be 1
-        @($read.ChangeSet['changes']).Count | Should-BeGreaterThan 0
+        @($read.ChangeSet['changes'] | ForEach-Object { '{0} {1}' -f $_['op'], $_['id'] }) | Should-BeCollection @('set LC0031', 'set AA0072', 'release AW0008')
     }
 
     It 'reads a CRLF body as the LF body' {
