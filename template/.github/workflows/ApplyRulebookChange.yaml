@@ -12,23 +12,25 @@ permissions:
   issues: write
   pull-requests: read
 
-concurrency:
-  group: apply-rulebook-change-${{ github.event.issue.number }}
-  cancel-in-progress: false
-
 jobs:
   apply:
-    # An issue from the Rulebook change form: its label, or the form marker in the body before the label exists;
+    # An issue from the Rulebook change form: its label, or both form headings in the body before the label exists;
     # an edit runs again only when the body changed.
     if: >-
-      (contains(github.event.issue.labels.*.name, 'rulebook-change') || contains(github.event.issue.body, '### Changes'))
+      (contains(github.event.issue.labels.*.name, 'rulebook-change') || (contains(github.event.issue.body, '### Changes') && contains(github.event.issue.body, '### Note')))
       && (github.event.action == 'opened' || contains(toJSON(github.event.changes), '"body"'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # In the job, so a run whose job is skipped (a title edit) never holds or cancels a place in the group.
+    concurrency:
+      group: apply-rulebook-change-${{ github.event.issue.number }}
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          # The default branch as it is now, not the commit of the event: a queued run plans on the current tree.
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       - name: Read the settings
         id: settings
@@ -51,3 +53,4 @@ jobs:
           issueNumber: ${{ github.event.issue.number }}
           token: ${{ secrets[steps.settings.outputs.secretName] }}
           directCommit: ${{ steps.settings.outputs.directCommit }}
+          editor: ${{ github.event.sender.login }}

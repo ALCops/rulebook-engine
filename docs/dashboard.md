@@ -336,23 +336,25 @@ permissions:
   issues: write
   pull-requests: read
 
-concurrency:
-  group: apply-rulebook-change-${{ github.event.issue.number }}
-  cancel-in-progress: false
-
 jobs:
   apply:
-    # An issue from the Rulebook change form: its label, or the form marker in the body before the label exists;
+    # An issue from the Rulebook change form: its label, or both form headings in the body before the label exists;
     # an edit runs again only when the body changed.
     if: >-
-      (contains(github.event.issue.labels.*.name, 'rulebook-change') || contains(github.event.issue.body, '### Changes'))
+      (contains(github.event.issue.labels.*.name, 'rulebook-change') || (contains(github.event.issue.body, '### Changes') && contains(github.event.issue.body, '### Note')))
       && (github.event.action == 'opened' || contains(toJSON(github.event.changes), '"body"'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # In the job, so a run whose job is skipped (a title edit) never holds or cancels a place in the group.
+    concurrency:
+      group: apply-rulebook-change-${{ github.event.issue.number }}
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          # The default branch as it is now, not the commit of the event: a queued run plans on the current tree.
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       - name: Read the settings
         id: settings
@@ -375,6 +377,7 @@ jobs:
           issueNumber: ${{ github.event.issue.number }}
           token: ${{ secrets[steps.settings.outputs.secretName] }}
           directCommit: ${{ steps.settings.outputs.directCommit }}
+          editor: ${{ github.event.sender.login }}
 ```
 
 ```mermaid
@@ -386,20 +389,20 @@ sequenceDiagram
     participant A as ApplyChangeSet action
     U->>S: click cells, fill cart
     S->>GH: open issues/new?template=rulebook-change.yml&changes=...
-    U->>GH: Submit new issue (own session)
-    GH->>WF: issues.opened (label, or "### Changes" in the body)
-    WF->>A: issue number, GHTOKENWORKFLOW secret, directCommit from the settings
+    U->>GH: Create (own session)
+    GH->>WF: issues.opened (label, or both form headings in the body)
+    WF->>A: issue number, editor, GHTOKENWORKFLOW secret, directCommit from the settings
     A->>GH: GET issue with GITHUB_TOKEN (current body, state, author)
-    A->>GH: GET collaborators/author/permission
+    A->>GH: GET collaborators/author/permission (and the editor's on an edit by another account)
     alt not admin or write (D55)
         A->>GH: comment the refusal, close as not planned
-    else the author can push
-        A->>GH: create and add the label rulebook-change when missing
+    else author and editor can push
         A->>GH: list open pull requests from rulebook-change/n/
         alt one is open
-            A->>GH: comment "Pull request already exists"
+            A->>GH: comment "The pull request already exists"
         else none
             A->>A: parse the Changes and Note fields, check the schema
+            A->>GH: create and add the label rulebook-change when missing
             A->>A: Invoke-RulebookChangeSet on a candidate copy, regenerate, validate
             alt errors
                 A->>GH: comment one line per error (red run, issue open)
@@ -416,18 +419,20 @@ sequenceDiagram
     end
 ```
 
-Rules, as implemented:
+Rules, as implemented. What the GitHub documentation says and the code relies on, but no run has observed yet, is marked *GitHub-documented*; the live run of [reference/change-mechanics.md](reference/change-mechanics.md) section 16 checks it.
 
-- **The gate (D55)** is "the issue author can push": `GET /repos/{r}/collaborators/{author}/permission` answers `admin` or `write` (maintain counts as write, triage as read). The endpoint gives the highest grant across the repository, its teams, the organization and the enterprise, and the workflow token may read it. The gate runs before the body is read, so a stranger's body is never interpreted. Anyone else gets `Only repository collaborators with write access can submit Rulebook changes.` and the issue is closed as not planned. A bot or App author is refused like any account without write, and an edit of a stranger's issue by a maintainer is still refused: the gate checks the author of the issue, not the editor. An author the endpoint does not know (a 404) has `none`; any other failure of the call stops the run without applying anything.
-- **The trigger**: `opened` and `edited` with the label `rulebook-change` or the form marker `### Changes` in the body (an issue opened before the label exists carries no label); an edit runs again only when the body changed, never on a title edit. A closed issue or a pull request is skipped without a comment.
-- **The label** is created by the action (`GITHUB_TOKEN`, `issues: write`) and added to the issue when missing; there is no manual step. A label that cannot be added is a warning.
-- **The duplicate guard**: an open pull request from a branch `rulebook-change/<issue>/` gets the comment `Pull request already exists: <url>`, and nothing else happens. When the pull requests cannot be listed, the run warns that the guard is inactive and goes on.
+- **The gate (D55)** is "the issue author can push": `GET /repos/{r}/collaborators/{author}/permission` answers `admin` or `write`. *GitHub-documented:* maintain is reported as write and triage as read, the answer is the highest grant across the repository, its teams, the organization and the enterprise, and the endpoint needs only metadata read, which the workflow token has. The gate runs before the body is read, so a stranger's body is never interpreted. Anyone else gets `Only repository collaborators with write access can submit or edit Rulebook changes.` and the issue is closed as not planned. A bot or App author is refused like any account without write. An author the endpoint does not know (a 404) has `none`; *GitHub-documented*, a token that cannot read the collaborators gets a 404 too, which would refuse everyone (card 6 of the live run checks it). Any other failure of the call stops the run without applying anything.
+- **The editor is gated too**: the workflow passes the account that triggered the run (`github.event.sender.login`) as `editor`. On an edit by an account other than the author, that account must pass the same check, or the same refusal follows. A triage-role user may edit another user's issue body, and without this check the edited change set would be applied under the author's authority (in direct-commit mode without a review). An edit of a stranger's issue by a maintainer is still refused: the author fails the gate.
+- **The trigger**: `opened` and `edited` with the label `rulebook-change`, or with both form headings `### Changes` and `### Note` in the body (an issue opened before the label exists carries no label; *GitHub-documented*, the form renders every field as a heading, an empty one with `_No response_`, so a submitted form always has both). An edit runs the job only when the body changed; a title edit starts a workflow run whose job is skipped. The concurrency group is on the job, so a skipped run never holds or cancels a place in it, and the checkout takes the default branch as it is when the job starts, so a run queued behind another run of the same issue plans on the current tree. A closed issue or a pull request is skipped without a comment.
+- **The duplicate guard**: an open pull request from a branch `rulebook-change/<issue>/` gets the comment `The pull request already exists: <url>. Edits of this issue are not applied to it; close the pull request first to apply the edited change set.`, and nothing else happens. When the pull requests cannot be listed, the run warns that the guard is inactive and goes on.
 - **Parsing**: issue forms render each field as `### <label>` followed by the value; the change set is the first fenced block under `### Changes` (or the section text without a fence) and the note the text under `### Note`; anything else in the body is ignored. The change set is checked against `schemas/rulebook-changeset.schema.json` first. A non-empty Note field replaces the change set's `note` (the field is what a submitter edits on the issue page; the cart writes both alike).
+- **The label** is created by the action (`GITHUB_TOKEN`, `issues: write`) and added to the issue when missing, once the body has parsed, so a body that cannot be read is not labelled; there is no manual step. A label that cannot be added is a warning.
 - **A red run on a bad submission**: every error (the body, the JSON with its position, the schema, the catalog, a slug, a repeated change, a candidate that does not validate) is one line of one comment, its text inside an inline code span; nothing is written, the issue stays open, and the run fails with `failure=validation`, as Change Rule does. An edit of the body runs it again.
 - **No-ops** (D48): a change set whose every change changes nothing gets `Nothing to change.` with one line per change, and the issue is closed as completed; no token is needed.
 - **The title** is the engine title plus the issue number, `Change LC0015 to None (levels: strict, stages: ci) (#12)` or `Rulebook change: 3 changes (#12)` (the engine part capped at 200 characters); the issue title is not used. It is the commit subject and the pull request title. The pull request body is the note, the justification of a one-item set, the before/after table per change in the WP09 format, and `Closes #<issue>`; the comment on the issue carries the same body without the closing keyword. A direct commit carries no closing keyword either; the action closes the issue itself.
 - **Branch** `rulebook-change/<issue>/<yyMMddHHmmss>`. A direct commit falls back to a pull request when branch protection rejects the push (as WP07).
 - **Tokens**: `GITHUB_TOKEN` reads the repository, reads and writes the issue (comment, label, close) and lists the pull requests; the push and the pull request use `GHTOKENWORKFLOW`, exchanged as in WP07, so the pull request runs Validate. A missing or unusable secret is a red run with a comment that points at the token page; the issue stays open.
+- **Comments**: a run that reads the issue answers on it: the refusal, the existing pull request, the errors, `Nothing to change.`, the missing secret, a failed push, the pull request or the commit. A skipped run (a closed issue, a pull request) and a run that fails before it has read the issue post nothing. An unexpected failure after that gets one generic comment with the link to the run, best effort. A failure of the settings step happens before the action and leaves no comment; Validate fails on the same settings file. Every comment stays below GitHub's limit: a long list is cut with one line that points at the job log.
 - The `issuePath` input is a seam for the engine's CI (the issue from a file, nothing posted); a workflow never sets it.
 - `ChangeRule` (WP09) stays as the second entry point for a single rule without a browser session on the site. It builds a one-item change set and calls the same `Invoke-RulebookChangeSet`; its `justification` input is optional (D37).
 
