@@ -105,7 +105,7 @@ Everything an org repo contains after "Use this template". The **class** column 
 | `.github/workflows/UpdateRulebookSystemFiles.yaml` | Manual, or scheduled when `update.schedule` is set (the update writes the `schedule:` trigger): pull the new template version into a PR (or a direct commit) with the regenerated endpoints and skeletons, after validating the result (section 7.3). | system |
 | `.github/workflows/ScanDiagnostics.yaml` | Daily (the `schedule:` comes from `scan.schedule`, shipped `17 4 * * *`) and manual: scan the newest stable and prerelease versions of the two analyzer packages on NuGet, record new ids and changed defaults in the catalog, quarantine new ids by the policy, release the ids a level file adopted, regenerate the endpoints and keep one living pull request on `scan-diagnostics/<branch>`, or push a direct commit (section 7.4). | system |
 | `.github/workflows/ChangeRule.yaml` | Manual form: set or remove one override entry, regenerate, open a PR or push a direct commit per `commitOptions.createPullRequest` (section 7.5). | system |
-| `.github/workflows/ApplyRulebookChange.yaml` | On an opened or edited issue with the `rulebook-change` label or the form marker: gate on the author's push permission (D55), apply the change set, regenerate, open a PR or commit, answer on the issue (section 7.6). | system |
+| `.github/workflows/ApplyRulebookChange.yaml` | On an opened or edited issue with the `rulebook-change` label or both form headings: gate on the push permission of the author and of an editor (D55), apply the change set, regenerate, open a PR or commit, answer on the issue (section 7.6). | system |
 | `.github/ISSUE_TEMPLATE/rulebook-change.yml` | The issue form the dashboard prefills; no `config.yml` ships, so blank issues stay enabled and an organization's own `config.yml` is never touched. | system |
 | `.github/Rulebook-Settings.json` | Template URL and sha, base URL, publish target, quarantine policy, twins setting, the ordered `levels` (name, `basedOn`, description) and `stages` (name, description). Carries the settings schema URL in `$schema`. | settings (kept, `$schema` refreshed) |
 | `.github/RELEASENOTES.copy.md` | Release notes of the installed template version; source of the update PR body. | system |
@@ -500,27 +500,27 @@ The workflow builds a one-item change set and calls the `ChangeRule` action (`Ru
 
 ### 7.6 Apply change set (R12)
 
-Trigger: `issues` with types `opened` and `edited` (implemented with WP15). The job runs when the issue carries the `rulebook-change` label or the form marker `### Changes` in its body (an issue opened before the label exists has none), and on an edit only when the body changed. The dashboard's cart opens the issue form `rulebook-change.yml` prefilled with a change set through query parameters; the maintainer submits it with their own GitHub session, which is the only credential in the path (D32).
+Trigger: `issues` with types `opened` and `edited` (implemented with WP15). The job runs when the issue carries the `rulebook-change` label or both form headings `### Changes` and `### Note` in its body (an issue opened before the label exists has none), and on an edit only when the body changed; it checks out the default branch as it is when the job starts, and its concurrency group is per issue. The dashboard's cart opens the issue form `rulebook-change.yml` prefilled with a change set through query parameters; the maintainer submits it with their own GitHub session, which is the only credential in the path (D32).
 
 ```mermaid
 flowchart LR
     cart[dashboard cart] -->|issues/new?template=...&changes=json| form[GitHub issue form]
     form -->|opened or body edited| wf[ApplyRulebookChange]
     wf --> read[read the issue again<br/>skip a closed issue or a PR]
-    read --> gate{author can push?<br/>admin or write, D55}
+    read --> gate{author and editor can push?<br/>admin or write, D55}
     gate -->|no| close[comment, close as not planned]
-    gate -->|yes| label[label created and added when missing]
-    label --> dup{open PR from<br/>rulebook-change/n/?}
+    gate -->|yes| dup{open PR from<br/>rulebook-change/n/?}
     dup -->|yes| exists[comment the PR link]
     dup -->|no| parse[parse Changes and Note<br/>schema, catalog, slugs]
     parse -->|errors| cmt[one comment, a line per error<br/>red run, issue open]
-    parse -->|ok| apply[Invoke-RulebookChangeSet<br/>set, remove, release<br/>regenerate rulesets/, validate]
+    parse -->|ok| label[label created and added when missing]
+    label --> apply[Invoke-RulebookChangeSet<br/>set, remove, release<br/>regenerate rulesets/, validate]
     apply -->|only no-ops| noop[comment Nothing to change<br/>close as completed]
     apply -->|createPullRequest| pr[PR title #n, tables, Closes #n<br/>comment the link and the tables]
     apply -->|direct commit| commit[commit, comment the link and the tables<br/>close as completed]
 ```
 
-A change set is `{ version, note?, changes[] }` with `set` (write an override entry), `remove` (delete one) and `release` (remove an id from the quarantine of the listed stages). It is applied all or nothing, regenerated once, and lands per `commitOptions.createPullRequest` as one PR or one commit (D33), titled with the engine title and the issue number (`Rulebook change: 3 changes (#12)`). The gate is the issue author's push permission, read with the workflow token from the collaborator permission endpoint before the body is parsed (D55, which amends the mechanism of D34); justification is optional (D37). The workflow token reads and writes the issue (comment, label, close) and lists the pull requests; the push and the pull request use the `GHTOKENWORKFLOW` token, so the pull request runs Validate. Every outcome is one comment on the issue: the refusal (closed as not planned), `Pull request already exists`, one line per error (a red run, the issue stays open for an edit), `Nothing to change.` (closed as completed), the missing secret, the pull request link with the tables (the merge closes the issue through `Closes #<n>`), or the commit link with the tables (closed as completed). ChangeRule (section 7.5) builds a one-item change set and calls the same module function. Action, comment protocol, parser and tests: [reference/change-mechanics.md](reference/change-mechanics.md) sections 12 to 16; the workflow and its rules: [dashboard.md](dashboard.md) sections 6 to 8.
+A change set is `{ version, note?, changes[] }` with `set` (write an override entry), `remove` (delete one) and `release` (remove an id from the quarantine of the listed stages). It is applied all or nothing, regenerated once, and lands per `commitOptions.createPullRequest` as one PR or one commit (D33), titled with the engine title and the issue number (`Rulebook change: 3 changes (#12)`). The gate is the push permission of the issue author, and of an editor who is another account, read with the workflow token from the collaborator permission endpoint before the body is parsed (D55, which amends the mechanism of D34); justification is optional (D37). The workflow token reads and writes the issue (comment, label, close) and lists the pull requests; the push and the pull request use the `GHTOKENWORKFLOW` token, so the pull request runs Validate. A run that reads the issue answers on it with one comment: the refusal (closed as not planned), the existing pull request, one line per error (a red run, the issue stays open for an edit), `Nothing to change.` (closed as completed), the missing secret, the pull request link with the tables (the merge closes the issue through `Closes #<n>`), or the commit link with the tables (closed as completed); an unexpected failure gets one generic comment with the run link. A skipped run and a run that fails before it has read the issue post nothing. ChangeRule (section 7.5) builds a one-item change set and calls the same module function. Action, comment protocol, parser and tests: [reference/change-mechanics.md](reference/change-mechanics.md) sections 12 to 16; the workflow and its rules: [dashboard.md](dashboard.md) sections 6 to 8.
 
 ## 8. Settings
 
