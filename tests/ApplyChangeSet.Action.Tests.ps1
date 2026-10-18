@@ -1120,9 +1120,9 @@ Describe 'ApplyChangeSet.ps1 against the GitHub API' {
         @($api.Requests.ToArray() | Where-Object Key -EQ 'POST /repos/Contoso/rulebook/issues/12/comments') | Should-BeCollection @()
     }
 
-    It 'posts a comment whose text was last written by <Name>' -ForEach @(
-        @{ Name = 'a user'; Last = 'same-user' }
-        @{ Name = 'a bot before another comment'; Last = 'other' }
+    It 'posts the comment when <Name>' -ForEach @(
+        @{ Name = 'a user wrote the same text last'; Last = 'same-user' }
+        @{ Name = 'a human comment follows the same bot comment (it re-enables posting)'; Last = 'other' }
     ) {
         $pulls = '[{"number":5,"html_url":"https://github.com/Contoso/rulebook/pull/5","title":"t","head":{"ref":"rulebook-change/12/261001000000","repo":{"full_name":"Contoso/rulebook"}}}]'
         $text = "The pull request already exists: https://github.com/Contoso/rulebook/pull/5. Edits of this issue are not applied to it; close the pull request first to apply the edited change set.`n"
@@ -1135,6 +1135,20 @@ Describe 'ApplyChangeSet.ps1 against the GitHub API' {
         $run.Result.Result | Should-Be 'pull-request-exists'
         @($run.Result.IssueActions)[0].Posted | Should-BeTrue
         @($run.Result.IssueActions)[0].Skipped | Should-BeNull
+        @($api.Requests.ToArray() | Where-Object Key -EQ 'POST /repos/Contoso/rulebook/issues/12/comments').Count | Should-Be 1
+    }
+
+    It 'posts the comment when the last bot comment says something else (a changed error list)' {
+        $earlier = "The change set is not valid; nothing was written.`n`n- ``LC9999 is not in catalog/diagnostics.json```n`nEdit the issue body to run it again.`n"
+        $comments = ConvertTo-Json -Compress -InputObject @([ordered]@{ id = 1; body = $earlier; user = [ordered]@{ login = 'github-actions[bot]'; type = 'Bot' } })
+        $changes = '{"version":1,"changes":[{"op":"set","id":"LC0015","action":"None","levels":["paranoid"],"stages":["ci"]}]}'
+        $script:api = Start-FakeApi -Routes (Get-ApiRoute -Issue @{ Changes = $changes } -Comments $comments)
+        $run = Invoke-Entry @{ ApiUrl = $api.Url; EventIssue = @{ Changes = $changes } }
+        $run.Result.Failure | Should-Be 'validation'
+        $comment = @($run.Result.IssueActions | Where-Object Kind -EQ 'comment')[0]
+        $comment.Posted | Should-BeTrue
+        $comment.Skipped | Should-BeNull
+        $comment.Body | Should-MatchString "change 1 names unknown level 'paranoid'"
         @($api.Requests.ToArray() | Where-Object Key -EQ 'POST /repos/Contoso/rulebook/issues/12/comments').Count | Should-Be 1
     }
 

@@ -853,6 +853,28 @@ Describe 'The issue helpers of the issue path' {
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly -ParameterFilter { $Method -eq 'GET' -and $Headers.Authorization -eq 'Bearer tok' }
     }
 
+    It 'reads only the last page with -LastPage' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rulebook/issues/12/comments?per_page=100' } {
+            Get-MockResponse -Json '[{"id":1,"body":"first","user":{"login":"octocat","type":"User"}}]' -Headers @{ Link = '<https://api.github.com/repositories/9/issues/12/comments?per_page=100&page=2>; rel="next", <https://api.github.com/repositories/9/issues/12/comments?per_page=100&page=3>; rel="last"' }
+        }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -ceq 'https://api.github.com/repositories/9/issues/12/comments?per_page=100&page=3' } {
+            Get-MockResponse -Json '[{"id":201,"body":"latest","user":{"login":"github-actions[bot]","type":"Bot"}}]'
+        }
+        $comments = @(Get-GitHubIssueComments -Repository 'Contoso/rulebook' -Number 12 -LastPage -Token 'tok')
+        @($comments | ForEach-Object Id) | Should-BeCollection @(201)
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 2 -Exactly -ParameterFilter { $Headers.Authorization -eq 'Bearer tok' }
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 0 -Exactly -ParameterFilter { $Uri -like '*page=2' }
+    }
+
+    It 'reads the one page of a short list with -LastPage, and throws when the last page fails' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/issues/12/comments?per_page=100' } { Get-MockResponse -Json '[{"id":1,"body":"only","user":{"login":"octocat","type":"User"}}]' }
+        @(Get-GitHubIssueComments -Repository 'Contoso/rulebook' -Number 12 -LastPage | ForEach-Object Body) | Should-BeCollection @('only')
+        Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/issues/12/comments?per_page=100' } { Get-MockResponse -Json '[]' -Headers @{ Link = '<https://api.github.com/x?page=3>; rel="last"' } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -ceq 'https://api.github.com/x?page=3' } { Get-MockResponse -Status 502 -Json @{ message = 'Bad Gateway' } }
+        { Get-GitHubIssueComments -Repository 'Contoso/rulebook' -Number 12 -LastPage } | Should-Throw -ExceptionMessage 'Could not read the comments of issue #12 of Contoso/rulebook (HTTP 502: Bad Gateway)'
+    }
+
     It 'gives nothing for an issue without comments' {
         Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/issues/12/comments*' } { Get-MockResponse -Json '[]' }
         @(Get-GitHubIssueComments -Repository 'Contoso/rulebook' -Number 12) | Should-BeCollection @()

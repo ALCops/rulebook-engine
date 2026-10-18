@@ -16,3 +16,7 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# The body GitHub wrote for an issue from the form, byte for byte: it has no final line end.
+[tests/fixtures/issues/rulebook-change-opened.md]
+insert_final_newline = false

@@ -500,7 +500,7 @@ The workflow builds a one-item change set and calls the `ChangeRule` action (`Ru
 
 ### 7.6 Apply change set (R12)
 
-Trigger: `issues` with types `opened` and `edited` (implemented with WP15). The job runs when the issue carries the `rulebook-change` label or both form headings `### Changes` and `### Note` in its body (an issue opened before the label exists has none), and on an edit only when the body changed; it checks out the default branch as it is when the job starts, and its concurrency group is per issue. The dashboard's cart opens the issue form `rulebook-change.yml` prefilled with a change set through query parameters; the maintainer submits it with their own GitHub session, which is the only credential in the path (D32).
+Trigger: `issues` with types `opened` and `edited` (implemented with WP15). The job runs when the issue carries the `rulebook-change` label or both form headings `### Changes` and `### Note` in its body (an issue opened before the label exists has none), and on an edit only when its `changes` name the body (a title-only edit through the API does too, observed on 2026-10-18; the action's repeat check keeps it from answering twice); it checks out the default branch as it is when the job starts, and its concurrency group is per issue. The dashboard's cart opens the issue form `rulebook-change.yml` prefilled with a change set through query parameters; the maintainer submits it with their own GitHub session, which is the only credential in the path (D32).
 
 ```mermaid
 flowchart LR

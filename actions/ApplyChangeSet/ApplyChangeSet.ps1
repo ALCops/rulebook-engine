@@ -42,10 +42,11 @@ unless an earlier failure kind was recorded); after the pull request or the dire
 unexpected failure (failure error) after the issue was read gets one generic comment with the run link, best effort.
 Neither the exchanged token nor the secret ever reaches a comment: both are replaced with *** first.
 Every comment stays below 60000 characters: a long list is cut with one line that points at the job log.
-The repeat check: before a comment is posted, the comments of the issue are read (Get-GitHubIssueComments); when the
-most recent one is by a bot (user.type Bot) and has the same body (line ends aside), the comment is not posted again:
-one notice, and the action is recorded with Posted $false and Skipped 'duplicate'. A title-only edit through the REST
-API sends changes.body.from '' and runs the job again. A failed read is one warning and the comment is posted.
+The repeat check: before a comment is posted, the last page of the issue's comments is read
+(Get-GitHubIssueComments -LastPage); when the most recent one is by a bot (user.type Bot) and has the same body (line
+ends aside), the comment is not posted again: one notice, and the action is recorded with Posted $false and Skipped
+'duplicate'. A title-only edit through the REST API sends changes.body.from '' and runs the job again. A failed read
+is one warning and the comment is posted.
 With -IssuePath (a JSON file shaped like GET /repos/{r}/issues/{n}, plus optional top-level keys permission of the
 author, default none, editor, the login of an edit, default none, and editorPermission, default none) no GitHub call
 is made for the issue and no event file is read: the gate reads the permissions from the file, the duplicate guard is
@@ -256,7 +257,7 @@ function Find-RepeatedComment {
     # comment list that cannot be read is one warning, and $null: the comment is posted.
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Body)
     try {
-        $comments = @(Get-GitHubIssueComments -Repository $Repository -Number $number -Token $GitHubToken -ApiUrl $ApiUrl)
+        $comments = @(Get-GitHubIssueComments -Repository $Repository -Number $number -LastPage -Token $GitHubToken -ApiUrl $ApiUrl)
     } catch {
         Add-Annotation -Context $ctx -Command warning -Message "Could not read the comments of issue #$number, so the comment is posted without the repeat check: $($_.Exception.Message)"
         return $null

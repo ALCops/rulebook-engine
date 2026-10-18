@@ -15,13 +15,14 @@ permissions:
 jobs:
   apply:
     # An issue from the Rulebook change form: its label, or both form headings in the body before the label exists;
-    # an edit runs again only when the body changed.
+    # an edit runs again when its changes name the body (a title-only edit through the API does too; the action's
+    # repeat check keeps it from answering twice).
     if: >-
       (contains(github.event.issue.labels.*.name, 'rulebook-change') || (contains(github.event.issue.body, '### Changes') && contains(github.event.issue.body, '### Note')))
       && (github.event.action == 'opened' || contains(toJSON(github.event.changes), '"body"'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # In the job, so a run whose job is skipped (a title edit) never holds or cancels a place in the group.
+    # In the job, so a skipped job (an edit that names no body change) never holds or cancels a place in the group.
     concurrency:
       group: apply-rulebook-change-${{ github.event.issue.number }}
       cancel-in-progress: false
