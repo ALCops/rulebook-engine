@@ -201,7 +201,7 @@ Describe 'ChangeRule.ps1' {
         $root = Copy-Minimal
         $run = Invoke-Entry @{ RepositoryRoot = $root; WorkspaceRoot = $root; RuleId = 'LC0015'; Action = 'None'; Levels = ' , '; Stages = 'ci' }
         $run.Result.Failure | Should-Be 'validation'
-        $run.Result.Annotations[0] | Should-Be '::error file=overrides.json,title=ChangeRule::change 0 has no levels; use a slug from the settings or ["*"]'
+        $run.Result.Annotations[0] | Should-Be '::error file=overrides.json,title=ChangeRule::change 1 has no levels; use a slug from the settings or ["*"]'
     }
 
     It 'lists the existing entries when Remove finds no matching entry' {

@@ -193,7 +193,8 @@ function Get-JustificationParagraph {
     param([Parameter(Mandatory)]$Plan)
     # The note of the change set comes first; the justification of a one-item set follows it: the entry's text
     # after the change (given or kept). A change set of removes and releases only has no paragraph unless it carries
-    # a note; any other set without either says 'No justification given.'.
+    # a note; any other one-item set without either says 'No justification given.' (a set of several items says
+    # nothing: the justification of each item is in its own section).
     $items = @($Plan.Items)
     $paragraphs = [System.Collections.Generic.List[string]]::new()
     $note = if ($null -ne $Plan.ChangeSet -and $Plan.ChangeSet.Contains('note')) { [string]$Plan.ChangeSet['note'] } else { '' }
@@ -209,6 +210,8 @@ function Get-JustificationParagraph {
     }
     if ($paragraphs.Count -gt 0) { return ($paragraphs -join "`n`n") }
     if ($items.Count -gt 0 -and @($items | Where-Object { $_.Op -cnotin 'remove', 'release' }).Count -eq 0) { return '' }
+    # A set of several items shows each entry's justification in its own section: no summary sentence.
+    if ($items.Count -gt 1) { return '' }
     return 'No justification given.'
 }
 
@@ -579,7 +582,8 @@ function Test-RulebookChangeSet {
         $has = { param([string]$Key) $change -is [System.Collections.IDictionary] -and $change.Contains($Key) }
         $op = [string](& $value 'op')
         $id = [string](& $value 'id')
-        $label = "change $index"
+        # 1-based, as a reader counts the changes of the set.
+        $label = "change $($index + 1)"
         if ($op -cnotin 'set', 'remove', 'release') {
             $findings.Add((New-ChangeFinding -Id $id -Message "$label`: op '$op' is not supported; use set, remove or release"))
             continue
@@ -968,7 +972,7 @@ function ConvertTo-ChangePullRequestBody {
     .DESCRIPTION
     The opening paragraphs are the note of the change set (on one line), then 'Justification: <text>' for a one-item
     set whose entry has a justification (given or kept); without either, nothing for a change set of removes and
-    releases only, else 'No justification given.'. Above -Limit (default 60000 characters, GitHub allows 65536) the
+    releases only or of several items, else 'No justification given.'. Above -Limit (default 60000 characters, GitHub allows 65536) the
     item tables are left out from the end with one italic line; only when that is not enough is the body cut at a line
     boundary. -BodyPrefix opens the body and -BodySuffix (the 'Closes #<n>' line of the issue path) ends it, each
     separated by a blank line. Their length is taken from -Limit first, but they are never shortened: -Limit bounds
