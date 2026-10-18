@@ -59,7 +59,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D31](0031-the-dashboard-is-a-hugo-site-shipped-in-the-template-and.md) | The dashboard is a Hugo site shipped in the template and published next to the endpoints | Accepted | 2026-10-03 |
 | [D32](0032-dashboard-writes-go-through-a-prefilled-github-issue-form.md) | Dashboard writes go through a prefilled GitHub issue form applied by a workflow | Accepted | 2026-10-03 |
 | [D33](0033-one-submission-is-a-change-set-many-changes-one-issue-one.md) | One submission is a change set: many changes, one issue, one pull request or commit | Accepted | 2026-10-03 |
-| [D34](0034-the-apply-workflow-trusts-collaborator-association-and.md) | The apply workflow trusts collaborator association and nothing else | Accepted | 2026-10-03 |
+| [D34](0034-the-apply-workflow-trusts-collaborator-association-and.md) | The apply workflow trusts collaborator association and nothing else | Mechanism amended by D55 (2026-10-18) | 2026-10-03 |
 | [D35](0035-site-is-a-customizable-file-class-overwritten-only-when.md) | `site/**` is a customizable file class: overwritten only when unchanged locally | Partly superseded by D50 (2026-10-09) | 2026-10-03 |
 | [D36](0036-the-public-site-omits-the-organization-s-free-text.md) | The public site omits the organization's free-text justifications by default | Accepted | 2026-10-03 |
 | [D37](0037-justification-is-optional-in-every-change-path.md) | Justification is optional in every change path | Accepted | 2026-10-03 |
@@ -80,6 +80,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D52](0052-releases-are-a-floating-major-branch-cut-from-hand-written-release-notes.md) | Releases are a floating major branch cut from hand-written release notes | Superseded by D53 (2026-10-11) | 2026-10-10 |
 | [D53](0053-template-main-is-the-release-preview-the-bleeding-edge-and-deprecations-replace-majors.md) | Template main is the release, preview the bleeding edge, tags the pin, and deprecations replace majors | Accepted | 2026-10-11 |
 | [D54](0054-the-site-renders-one-page-per-stage-and-the-engine-exports-the-fallback-action.md) | The site renders one page per stage, and the engine exports the fallback action | Accepted | 2026-10-17 |
+| [D55](0055-the-apply-workflow-gates-on-push-permission.md) | The apply workflow gates on push permission: the issue author, and the editor of a body edit | Accepted | 2026-10-18 |
 
 ## Open decisions
 
@@ -105,6 +106,7 @@ Closed: O1 and O2 by D19 (and D17), O3 by D52 ([#27](https://github.com/ALCops/r
 - O3 interview and WP13 planning interview of 2026-10-10 ([#15](https://github.com/ALCops/rulebook-engine/issues/15), [#27](https://github.com/ALCops/rulebook-engine/issues/27)): D52.
 - #104 planning interview of 2026-10-11 ([#104](https://github.com/ALCops/rulebook-engine/issues/104)): D53.
 - WP14 planning interview of 2026-10-12 and 2026-10-17 ([#16](https://github.com/ALCops/rulebook-engine/issues/16), [#84](https://github.com/ALCops/rulebook-engine/issues/84)): D54.
+- WP15 planning interview of 2026-10-18 ([#17](https://github.com/ALCops/rulebook-engine/issues/17)): D55.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
 - [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism and the deploy behind D2, D3, D44, D52 and D53.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).

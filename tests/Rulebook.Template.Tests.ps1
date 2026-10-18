@@ -538,6 +538,14 @@ Describe 'Shipped template content' {
         @(Get-ChildItem -LiteralPath (Join-Path $templateDir '.github' 'ISSUE_TEMPLATE') -File | ForEach-Object Name) | Should-BeCollection @('rulebook-change.yml')
     }
 
+    It 'ships the Apply Rulebook Change workflow byte for byte as docs/dashboard.md section 8' {
+        $dashboard = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'docs' 'dashboard.md')).Replace("`r`n", "`n")
+        $section = [regex]::Match($dashboard, '(?ms)^## 8\. Apply workflow\n(.*?)^## 9\.').Groups[1].Value
+        $block = [regex]::Match($section, '(?ms)^```yaml\n(.*?)^```').Groups[1].Value
+        $block | Should-MatchString '^name: Apply Rulebook Change\n'
+        [System.IO.File]::ReadAllText((Join-Path $templateDir '.github' 'workflows' 'ApplyRulebookChange.yaml')) | Should-Be $block
+    }
+
     It 'composes every cell of matrix/resolved.json from the files on disk (V13)' {
         $resolved = Get-Content -LiteralPath (Join-Path $rulebookDir 'matrix' 'resolved.json') -Raw | ConvertFrom-Json -AsHashtable
         $mismatches = [System.Collections.Generic.List[string]]::new()
@@ -564,6 +572,7 @@ Describe 'Build-Template.ps1' {
         $script:handWritten = @(
             '.github/ISSUE_TEMPLATE/rulebook-change.yml'
             '.github/Rulebook-Settings.json'
+            '.github/workflows/ApplyRulebookChange.yaml'
             '.github/workflows/ChangeRule.yaml'
             '.github/workflows/Publish.yaml'
             '.github/workflows/ScanDiagnostics.yaml'

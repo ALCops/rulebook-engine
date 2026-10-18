@@ -1,6 +1,6 @@
 # D34. The apply workflow trusts collaborator association and nothing else
 
-- **Status:** Accepted
+- **Status:** Accepted; mechanism amended by D55 (2026-10-18)
 - **Date:** 2026-10-03
 
 - **Decision:** the apply workflow acts only when the issue author's `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR`. Anyone else gets one comment and the issue is closed as not planned, before the body is parsed. The pull request review is the second gate; there is no approval label.

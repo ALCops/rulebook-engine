@@ -1,0 +1,55 @@
+name: Apply Rulebook Change
+
+on:
+  issues:
+    types: [opened, edited]
+
+# The workflow token reads the repository, writes the issue (comment, label, close) and lists pull requests; the
+# change itself is pushed with the token from the GHTOKENWORKFLOW secret, so the pull request it opens runs the
+# Validate workflow (a pull request opened with GITHUB_TOKEN would not).
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  apply:
+    # An issue from the Rulebook change form: its label, or both form headings in the body before the label exists;
+    # an edit runs again only when the body changed.
+    if: >-
+      (contains(github.event.issue.labels.*.name, 'rulebook-change') || (contains(github.event.issue.body, '### Changes') && contains(github.event.issue.body, '### Note')))
+      && (github.event.action == 'opened' || contains(toJSON(github.event.changes), '"body"'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # In the job, so a run whose job is skipped (a title edit) never holds or cancels a place in the group.
+    concurrency:
+      group: apply-rulebook-change-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The default branch as it is now, not the commit of the event: a queued run plans on the current tree.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Read the settings
+        id: settings
+        shell: pwsh
+        run: |
+          $settings = Get-Content -LiteralPath .github/Rulebook-Settings.json -Raw | ConvertFrom-Json -AsHashtable
+          $name = 'GHTOKENWORKFLOW'
+          if ($settings.Contains('ghTokenWorkflowSecretName') -and $settings['ghTokenWorkflowSecretName']) { $name = [string]$settings['ghTokenWorkflowSecretName'] }
+          if ($name -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$' -or $name -imatch '^GITHUB_') { Write-Host "::error::ghTokenWorkflowSecretName '$name' is not a valid secret name"; exit 1 }
+          $createPullRequest = $true
+          $options = $settings['commitOptions']
+          if ($options -is [System.Collections.IDictionary] -and $options.Contains('createPullRequest')) { $createPullRequest = [bool]$options['createPullRequest'] }
+          $directCommit = -not $createPullRequest
+          $lines = "secretName=$name", "directCommit=$($directCommit.ToString().ToLowerInvariant())"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value $lines
+          Write-Host "Secret: $name, direct commit: $directCommit"
+      - name: Apply the change set
+        uses: ALCops/rulebook-engine/actions/ApplyChangeSet@main
+        with:
+          issueNumber: ${{ github.event.issue.number }}
+          token: ${{ secrets[steps.settings.outputs.secretName] }}
+          directCommit: ${{ steps.settings.outputs.directCommit }}

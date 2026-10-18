@@ -204,6 +204,11 @@ Describe 'Get-RulebookFileClass' {
         (Get-RulebookFileClass -Path '.github/ISSUE_TEMPLATE/bug.yml' -TemplatePaths $paths -Settings $settings).Class | Should-Be 'org-owned'
     }
 
+    It 'overwrites the shipped Apply Rulebook Change workflow (WP15) as a workflow' {
+        $paths = @('.github/workflows/ApplyRulebookChange.yaml')
+        Get-RulebookFileClass -Path '.github/workflows/ApplyRulebookChange.yaml' -TemplatePaths $paths -Settings $settings | Should-BeEquivalent ([pscustomobject]@{ Class = 'overwrite'; Kind = 'workflow' })
+    }
+
     It 'gives docs/** the kind docs and README.md stays org-owned (D50)' {
         Get-RulebookFileClass -Path 'docs/images/logo.png' -TemplatePaths $v2Paths -Settings $settings | Should-BeEquivalent ([pscustomobject]@{ Class = 'customizable'; Kind = 'docs' })
         Get-RulebookFileClass -Path 'README.md' -TemplatePaths $v2Paths -Settings $settings | Should-BeEquivalent ([pscustomobject]@{ Class = 'org-owned'; Kind = 'org' })

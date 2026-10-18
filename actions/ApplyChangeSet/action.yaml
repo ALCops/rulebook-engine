@@ -1,0 +1,100 @@
+name: Rulebook ApplyChangeSet
+description: Applies the change set of a rulebook-change issue (the Rulebook dashboard's issue form) to an organization rulebook repository, regenerates and validates the endpoints, lands the change as a pull request (or a direct commit) and reports the outcome on the issue.
+author: ALCops
+
+inputs:
+  issueNumber:
+    description: The number of the rulebook-change issue.
+    required: true
+  token:
+    description: The GHTOKENWORKFLOW value (a personal access token or GitHub App JSON). Not needed for a change set that is refused, fails validation or changes nothing.
+    required: false
+    default: ''
+  directCommit:
+    description: "'true' pushes to baseBranch instead of opening a pull request (falls back to a pull request when the push is refused)."
+    required: false
+    default: 'false'
+  baseBranch:
+    description: The branch to change.
+    required: false
+    default: ${{ github.ref_name }}
+  repositoryRoot:
+    description: Path of the rulebook repository, relative to the workspace.
+    required: false
+    default: '.'
+  actor:
+    description: The git author name of the change commit.
+    required: false
+    default: ${{ github.actor }}
+  label:
+    description: The label of a change set issue; created in the repository and added to the issue when missing.
+    required: false
+    default: 'rulebook-change'
+  issuePath:
+    description: A JSON file with the issue (shaped like GET /repos/{owner}/{repo}/issues/{number}, plus optional keys permission of its author, editor, the login of a body edit, and editorPermission, each permission default none) instead of the API and the event file; nothing is posted to the issue. For the engine's CI; do not set in a workflow.
+    required: false
+    default: ''
+
+outputs:
+  result:
+    description: "pull-request, direct-commit, no-op (nothing written), refused (the author cannot push), pull-request-exists or skipped (a closed issue or a pull request); empty on failure."
+    value: ${{ steps.apply.outputs.result }}
+  noop:
+    description: "'true' when nothing would change; nothing was written."
+    value: ${{ steps.apply.outputs.noop }}
+  changedEndpoints:
+    description: The endpoints whose effective action the change set changes, comma separated (for example strict.ci); also set when the landing failed.
+    value: ${{ steps.apply.outputs.changedEndpoints }}
+  pullRequestUrl:
+    description: The URL of the pull request.
+    value: ${{ steps.apply.outputs.pullRequestUrl }}
+  branch:
+    description: The pushed branch (rulebook-change/<issue>/<yyMMddHHmmss>) or the base branch of a direct commit.
+    value: ${{ steps.apply.outputs.branch }}
+  issue:
+    description: The issue number.
+    value: ${{ steps.apply.outputs.issue }}
+  issueState:
+    description: "The state of the issue after the run: open, closed-completed or closed-not-planned (for a skipped issue the state it had)."
+    value: ${{ steps.apply.outputs.issueState }}
+  failure:
+    description: "Why the step failed, empty on success: validation, token, push, pull-request, issue or error."
+    value: ${{ steps.apply.outputs.failure }}
+
+runs:
+  using: composite
+  steps:
+    - name: Apply the change set
+      id: apply
+      shell: pwsh
+      # Inputs reach the script through the environment, never interpolated into the script (script injection).
+      # GITHUB_TOKEN reads the issue and the permission of its author and editor and writes the comments, the label and
+      # the state. The script reads the event file of the run (GITHUB_EVENT_PATH) for the sender of an edit.
+      env:
+        INPUT_ISSUENUMBER: ${{ inputs.issueNumber }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_DIRECTCOMMIT: ${{ inputs.directCommit }}
+        INPUT_BASEBRANCH: ${{ inputs.baseBranch }}
+        INPUT_REPOSITORYROOT: ${{ inputs.repositoryRoot }}
+        INPUT_ACTOR: ${{ inputs.actor }}
+        INPUT_LABEL: ${{ inputs.label }}
+        INPUT_ISSUEPATH: ${{ inputs.issuePath }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        $parameters = @{
+          RepositoryRoot = $env:INPUT_REPOSITORYROOT
+          IssueNumber    = $env:INPUT_ISSUENUMBER
+          Token          = $env:INPUT_TOKEN
+          DirectCommit   = $env:INPUT_DIRECTCOMMIT -eq 'true'
+          BaseBranch     = $env:INPUT_BASEBRANCH
+          Actor          = $env:INPUT_ACTOR
+          Label          = $env:INPUT_LABEL
+          IssuePath      = $env:INPUT_ISSUEPATH
+          GitHubToken    = $env:GITHUB_TOKEN
+        }
+        # The tokens are parameters from here on; the child processes (git) do not inherit them.
+        Remove-Item -LiteralPath Env:GITHUB_TOKEN, Env:INPUT_TOKEN -ErrorAction SilentlyContinue
+        # The result object is the last pipeline output; anything a module emits before it is ignored.
+        $result = @(& (Join-Path $env:GITHUB_ACTION_PATH 'ApplyChangeSet.ps1') @parameters)[-1]
+        if ($null -eq $result -or $null -eq $result.PSObject.Properties['ExitCode']) { Write-Host '::error::ApplyChangeSet.ps1 returned no result'; exit 1 }
+        exit $result.ExitCode

@@ -4,6 +4,8 @@
 
 - Change sets: release from quarantine, change set version 1, the rulebook-change issue body reader with the schema check, and the GitHub issue helpers of the issue path ([#116](https://github.com/ALCops/rulebook-engine/pull/116))
 - Quarantine files are read with System.Text.Json: a justification that looks like a date stays text, and keys match case-sensitively, so `"Rules"` or `"Id"` is no longer accepted (the schema is case-sensitive) ([#116](https://github.com/ALCops/rulebook-engine/pull/116))
+- Apply Rulebook Change: the new workflow applies the change set of a rulebook-change issue from the dashboard as one pull request or direct commit, when the issue author, and the editor of a body edit, can push to the repository (D55), and answers on the issue ([#117](https://github.com/ALCops/rulebook-engine/pull/117))
+- ApplyChangeSet action: the push-permission gate, the label created when missing, the duplicate guard, a red run with one comment line per error, `Nothing to change.` for a no-op, and the title `<change> (#<issue>)` with `Closes #<issue>` ([#117](https://github.com/ALCops/rulebook-engine/pull/117))
 
 ## v1.0.0-beta.4
 
