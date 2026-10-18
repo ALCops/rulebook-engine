@@ -96,9 +96,9 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `actions/ChangeRule/ChangeRule.ps1` | 41 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/ChangeRule/ChangeRule.ps1` | 127-128 | 2 | Defensive: the settings schema check of the plan rejects the name first (the ChangeRule suite proves that order). |
 | `actions/ChangeRule/ChangeRule.ps1` | 202 | 1 | The job summary file cannot be written (a runner fault); not reproducible in-process. |
-| `actions/ApplyChangeSet/ApplyChangeSet.ps1` | 65 | 1 | (WP15 numbering, a Linux run of the ApplyChangeSet suite.) A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
-| `actions/ApplyChangeSet/ApplyChangeSet.ps1` | 384-385 | 2 | (WP15 numbering.) Defensive: an invalid `ghTokenWorkflowSecretName` fails the settings schema (C5) in the candidate first, as for Change Rule (the ApplyChangeSet suite proves that order). |
-| `actions/ApplyChangeSet/ApplyChangeSet.ps1` | 515 | 1 | (WP15 numbering.) The job summary cannot be rendered; not reproducible in-process. |
+| `actions/ApplyChangeSet/ApplyChangeSet.ps1` | 70 | 1 | (WP15 numbering, a Linux run of the ApplyChangeSet suite.) A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
+| `actions/ApplyChangeSet/ApplyChangeSet.ps1` | 439-440 | 2 | (WP15 numbering.) Defensive: an invalid `ghTokenWorkflowSecretName` fails the settings schema (C5) in the candidate first, as for Change Rule (the ApplyChangeSet suite proves that order). |
+| `actions/ApplyChangeSet/ApplyChangeSet.ps1` | 571 | 1 | (WP15 numbering.) The job summary cannot be rendered; not reproducible in-process. |
 | `actions/CheckForUpdates/CheckForUpdates.ps1` | 40 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |
 | `actions/CheckForUpdates/CheckForUpdates.ps1` | 246 | 1 | The job summary file cannot be written (a runner fault); not reproducible in-process. |
 | `actions/Publish/Publish.ps1` | 40 | 1 | A param-block default (`GITHUB_API_URL`); the profiler tracer does not record default expressions. |

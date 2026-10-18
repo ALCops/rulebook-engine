@@ -80,7 +80,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D52](0052-releases-are-a-floating-major-branch-cut-from-hand-written-release-notes.md) | Releases are a floating major branch cut from hand-written release notes | Superseded by D53 (2026-10-11) | 2026-10-10 |
 | [D53](0053-template-main-is-the-release-preview-the-bleeding-edge-and-deprecations-replace-majors.md) | Template main is the release, preview the bleeding edge, tags the pin, and deprecations replace majors | Accepted | 2026-10-11 |
 | [D54](0054-the-site-renders-one-page-per-stage-and-the-engine-exports-the-fallback-action.md) | The site renders one page per stage, and the engine exports the fallback action | Accepted | 2026-10-17 |
-| [D55](0055-the-apply-workflow-gates-on-push-permission.md) | The apply workflow gates on the issue author's push permission | Accepted | 2026-10-18 |
+| [D55](0055-the-apply-workflow-gates-on-push-permission.md) | The apply workflow gates on push permission: the issue author, and the editor of a body edit | Accepted | 2026-10-18 |
 
 ## Open decisions
 
