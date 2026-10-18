@@ -930,4 +930,23 @@ Describe 'The issue helpers of the issue path' {
         $caught.Exception.Data['StatusCode'] | Should-Be 403
         Should-Invoke Invoke-WebRequest -ModuleName Rulebook.GitHub -Times 1 -Exactly -ParameterFilter { $Uri -ceq 'https://api.github.com/repos/Contoso/rulebook/pulls?base=release%2Fx%231&state=open&per_page=100' }
     }
+
+    It 'reads answers without the optional fields' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/permission' } { Get-MockResponse -Json '{"permission":""}' }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Uri -like '*/comments' } { Get-MockResponse -Status 201 -Json '' }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'PATCH' } { Get-MockResponse -Json '' }
+        $permission = Get-GitHubUserPermission -Repository 'Contoso/rulebook' -User 'octocat'
+        $permission.Permission | Should-Be 'none'
+        $permission.RoleName | Should-BeNull
+        $comment = Add-GitHubIssueComment -Repository 'Contoso/rulebook' -Number 12 -Body 'x'
+        $comment.Id | Should-BeNull
+        $comment.Url | Should-Be ''
+        (Close-GitHubIssue -Repository 'Contoso/rulebook' -Number 12 -StateReason 'completed').Url | Should-Be ''
+    }
+
+    It 'throws on a 422 label answer that is not JSON' {
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'GET' } { Get-MockResponse -Status 404 -Json @{ message = 'Not Found' } }
+        Mock Invoke-WebRequest -ModuleName Rulebook.GitHub -ParameterFilter { $Method -eq 'POST' } { Get-MockResponse -Status 422 -Json 'Unprocessable' }
+        { Confirm-GitHubLabel -Repository 'Contoso/rulebook' -Name 'rulebook-change' } | Should-Throw -ExceptionMessage 'Could not create the label rulebook-change in Contoso/rulebook (HTTP 422: Unprocessable)'
+    }
 }

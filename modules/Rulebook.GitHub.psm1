@@ -85,21 +85,17 @@ function Get-ApiMessage {
 function New-ApiException {
     # '<Message> (HTTP <status>: <GitHub message>)' with the status in Data['StatusCode'], as Get-GitHubBranchSha throws.
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Builds an exception; changes no state')]
-    param([Parameter(Mandatory)][string]$Message, $Response)
-    $status = if ($null -ne $Response) { $Response.StatusCode } else { $null }
-    $exception = [System.InvalidOperationException]::new("$Message (HTTP $($status): $(Get-ApiMessage $Response))")
-    $exception.Data['StatusCode'] = $status
+    param([Parameter(Mandatory)][string]$Message, [Parameter(Mandatory)]$Response)
+    $exception = [System.InvalidOperationException]::new("$Message (HTTP $($Response.StatusCode): $(Get-ApiMessage $Response))")
+    $exception.Data['StatusCode'] = $Response.StatusCode
     return $exception
 }
 
-function Test-AlreadyExists {
+function Test-LabelExistsAnswer {
     # A 422 answer whose errors name the code already_exists (a label created in between).
-    param($Response)
-    if ($null -eq $Response -or $Response.Body -isnot [System.Collections.IDictionary]) { return $false }
-    foreach ($item in @($Response.Body['errors'])) {
-        if ($item -is [System.Collections.IDictionary] -and [string]$item['code'] -ceq 'already_exists') { return $true }
-    }
-    return $false
+    param([Parameter(Mandatory)]$Response)
+    $errors = if ($Response.Body -is [System.Collections.IDictionary]) { @($Response.Body['errors']) } else { @() }
+    return @($errors | Where-Object { $_ -is [System.Collections.IDictionary] -and [string]$_['code'] -ceq 'already_exists' }).Count -gt 0
 }
 
 function Get-DictionaryValue {
@@ -815,7 +811,7 @@ function Confirm-GitHubLabel {
         $created = Invoke-GitHubApi -Method POST -Path (Join-ApiPath -Part 'repos', $Repository, 'labels') -Token $Token -ApiUrl $ApiUrl -Body ([ordered]@{ name = $Name; color = $Color; description = $Description })
         if ($created.StatusCode -eq 201) {
             $result.Created = $true
-        } elseif (-not ($created.StatusCode -eq 422 -and (Test-AlreadyExists -Response $created))) {
+        } elseif (-not ($created.StatusCode -eq 422 -and (Test-LabelExistsAnswer -Response $created))) {
             throw (New-ApiException -Message "Could not create the label $Name in $Repository" -Response $created)
         }
     } elseif ($existing.StatusCode -ne 200) {

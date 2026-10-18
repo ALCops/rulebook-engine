@@ -1,11 +1,12 @@
 #requires -Version 7.4
-# Rulebook.Edit: changes to overrides.json as change sets (WP09, R10, D32, D47, D48). Reads and writes overrides.json
-# in the template layout, sets and removes entries in memory, applies a change set { note?, changes[] } all or nothing
-# on a candidate copy of the repository (never the repository itself), regenerates and validates the candidate, works
-# out the effective change per endpoint and whether the change is a no-op, renders the table, the pull request body
-# and the job summary, and lands the change as a pull request or a direct commit through Rulebook.GitHub. ChangeRule
-# is a one-item client; the dashboard write path (WP15) adds the release operation and the changeset file.
-# Contract: docs/reference/change-mechanics.md.
+# Rulebook.Edit: changes to overrides.json and the quarantine files as change sets (WP09, WP15, R10, D32, D33, D47,
+# D48). Reads and writes overrides.json in the template layout, sets and removes entries and releases quarantined ids
+# in memory, applies a change set { version, note?, changes[] } all or nothing on a candidate copy of the repository
+# (never the repository itself), regenerates and validates the candidate, works out the effective change per endpoint
+# and whether the change is a no-op, renders the table, the pull request body and the job summary, and lands the
+# change as a pull request or a direct commit through Rulebook.GitHub. ChangeRule is a one-item client; the issue path
+# of the dashboard (WP15) reads the change set from the body of a rulebook-change issue and checks it against
+# schemas/rulebook-changeset.schema.json first. Contract: docs/reference/change-mechanics.md.
 
 Set-StrictMode -Version 3.0
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
@@ -14,7 +15,12 @@ Import-Module (Join-Path $PSScriptRoot 'Rulebook.Validate.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Update.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.GitHub.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Action.psd1')
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Quarantine.psd1')
 
+# The change set version this engine applies (the schema's version const).
+$script:ChangeSetVersion = 1
+$script:ChangeSetSchemaPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..' 'schemas' 'rulebook-changeset.schema.json'))
+$script:NoResponse = '_No response_'
 # The schema file name; the URL is built at call time from the engine ref (Get-RulebookSchemaUrl, D52).
 $script:OverridesSchemaName = 'rulebook-overrides.schema.json'
 $script:OverridesFile = 'overrides.json'
@@ -142,6 +148,12 @@ function Get-RowNote {
 
 function Get-ItemSentence {
     param([Parameter(Mandatory)]$Item)
+    if ($Item.Op -ceq 'release') {
+        $released = @($Item.Released)
+        if ($released.Count -eq 0) { return "Leaves $($Item.Id) as it is for stages $(Format-Selector $Item.Stages) (no quarantine file of these stages lists it; nothing is written)." }
+        $files = @($released | ForEach-Object { "quarantine.$_.json" }) -join ', '
+        return "Releases $($Item.Id) from the quarantine of stages $(Format-Selector $released) (removes the entry from $files)."
+    }
     $where = 'levels {0}, stages {1}' -f (Format-Selector $Item.Levels), (Format-Selector $Item.Stages)
     $previous = $Item.Entry.Previous
     if ($Item.Op -ceq 'set' -and $Item.NoOp) {
@@ -174,6 +186,11 @@ function Get-ItemNote {
     # The notes under an item's table: the ids that become unlisted, and how many matching endpoints stay the same.
     param([Parameter(Mandatory)]$Item)
     $notes = [System.Collections.Generic.List[string]]::new()
+    # A release that frees the id in some stages: the selected stages whose file does not list it (a release that
+    # frees nothing says so in its sentence).
+    if ($Item.Op -ceq 'release' -and @($Item.Released).Count -gt 0) {
+        foreach ($stage in @($Item.Unlisted)) { $notes.Add("$($Item.Id) is not quarantined in $stage; nothing to release there.") }
+    }
     foreach ($row in @($Item.Rows | Where-Object { $_.Note -like 'now unlisted in *' })) { $notes.Add("$($row.Id) $($row.Note).") }
     $unchanged = @($Item.Rows | Where-Object { -not $_.Changed }).Count
     $total = @($Item.Rows).Count
@@ -197,18 +214,56 @@ function Get-ItemBlock {
 
 function Get-JustificationParagraph {
     param([Parameter(Mandatory)]$Plan)
-    # The justification of a one-item set is the entry's text after the change (given or kept); a change set of
-    # removes only has no paragraph unless it carries a note.
+    # The note of the change set comes first; the justification of a one-item set follows it: the entry's text
+    # after the change (given or kept). A change set of removes and releases only has no paragraph unless it carries
+    # a note; any other set without either says 'No justification given.'.
     $items = @($Plan.Items)
-    # One line: a justification or note never adds headings or sections to the body.
-    if ($items.Count -eq 1 -and -not [string]::IsNullOrEmpty($items[0].Justification)) {
-        if ($items[0].NoOp -and $items[0].Entry.Change -ceq 'added') { return "Justification given but not stored (no entry was written): $(ConvertTo-SingleLine $items[0].Justification)" }
-        return "Justification: $(ConvertTo-SingleLine $items[0].Justification)"
-    }
+    $paragraphs = [System.Collections.Generic.List[string]]::new()
     $note = if ($null -ne $Plan.ChangeSet -and $Plan.ChangeSet.Contains('note')) { [string]$Plan.ChangeSet['note'] } else { '' }
-    if (-not [string]::IsNullOrEmpty($note)) { return ConvertTo-SingleLine $note }
-    if ($items.Count -gt 0 -and @($items | Where-Object { $_.Op -cne 'remove' }).Count -eq 0) { return '' }
+    # One line each: a justification or note never adds headings or sections to the body.
+    if (-not [string]::IsNullOrWhiteSpace($note)) { $paragraphs.Add((ConvertTo-SingleLine $note)) }
+    if ($items.Count -eq 1 -and -not [string]::IsNullOrEmpty($items[0].Justification)) {
+        if ($items[0].NoOp -and $items[0].Entry.Change -ceq 'added') {
+            $paragraphs.Add("Justification given but not stored (no entry was written): $(ConvertTo-SingleLine $items[0].Justification)")
+        } else {
+            $paragraphs.Add("Justification: $(ConvertTo-SingleLine $items[0].Justification)")
+        }
+    }
+    if ($paragraphs.Count -gt 0) { return ($paragraphs -join "`n`n") }
+    if ($items.Count -gt 0 -and @($items | Where-Object { $_.Op -cnotin 'remove', 'release' }).Count -eq 0) { return '' }
     return 'No justification given.'
+}
+
+function Test-ChangeSetVersion {
+    # The version of a change set is the number 1: an integer or a whole double from JSON, never a string or a bool.
+    param($Value)
+    if ($null -eq $Value -or $Value -is [bool]) { return $false }
+    if ($Value -is [int] -or $Value -is [long] -or $Value -is [double] -or $Value -is [decimal] -or $Value -is [short] -or $Value -is [byte] -or $Value -is [single]) {
+        return [double]$Value -eq [double]$script:ChangeSetVersion
+    }
+    return $false
+}
+
+function Get-FencedBlock {
+    # The content of the first fenced code block in -Lines (the CommonMark fence rule of Limit-SummaryText: up to
+    # three spaces, three or more backticks or tildes, an info string after it, closed by a line of the same character
+    # at least as long and nothing else). An unclosed fence runs to the end; $null when there is no fence.
+    param([AllowEmptyCollection()][string[]]$Lines)
+    $fence = $null
+    $content = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in @($Lines)) {
+        $marker = [regex]::Match($line, '^[ ]{0,3}(`{3,}|~{3,})')
+        if ($null -eq $fence) {
+            if ($marker.Success -and -not ($marker.Groups[1].Value[0] -ceq '`' -and $line.Substring($marker.Length).Contains('`'))) { $fence = $marker.Groups[1].Value }
+            continue
+        }
+        if ($marker.Success -and $marker.Groups[1].Value[0] -ceq $fence[0] -and $marker.Groups[1].Value.Length -ge $fence.Length -and $line.Trim() -ceq $marker.Groups[1].Value) {
+            return ($content -join "`n")
+        }
+        $content.Add($line)
+    }
+    if ($null -eq $fence) { return $null }
+    return ($content -join "`n")
 }
 
 #endregion
@@ -421,6 +476,45 @@ function Remove-RulebookOverride {
     throw (New-ValidationException $message)
 }
 
+function Remove-RulebookQuarantine {
+    <#
+    .SYNOPSIS
+    Releases -Id from the quarantine files of the -Stages selection: { Removed = @({ Stage, Id, Justification }),
+    Unlisted = stage slugs }.
+    .DESCRIPTION
+    -Files maps every stage slug of the settings, in settings order, to its quarantine file object (Read-QuarantineFile);
+    '*' is every key of -Files in that order. A selected stage whose file lists the id loses the entry (Removed, with
+    the justification it had); a selected stage whose file does not list it goes to Unlisted, never an error. Throws
+    (Data['Stage'] = 'validation') on an empty selector, one that mixes '*' with slugs, and a slug that is not a key
+    of -Files, before anything changes. Changes the objects passed in; writes no file (Write-QuarantineFile does).
+    #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Changes the objects passed in; writes no file')]
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Files,
+        [Parameter(Mandatory)][string]$Id,
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Stages
+    )
+    Assert-Selector -Name 'stages' -Values $Stages
+    $targets = Get-ExpandedSelector $Stages ([string[]]@($Files.Keys))
+    foreach ($stage in $targets) {
+        if (-not $Files.Contains($stage)) { throw (New-ValidationException "stages names unknown stage '$stage'; use a slug from the settings or [`"*`"]") }
+    }
+    $removed = [System.Collections.Generic.List[object]]::new()
+    $unlisted = [System.Collections.Generic.List[string]]::new()
+    foreach ($stage in $targets) {
+        $rules = $Files[$stage].Rules
+        if ($rules.Contains($Id)) {
+            $removed.Add([pscustomobject]@{ Stage = $stage; Id = $Id; Justification = $rules[$Id] })
+            $rules.Remove($Id)
+        } else {
+            $unlisted.Add($stage)
+        }
+    }
+    return [pscustomobject]@{ Removed = $removed.ToArray(); Unlisted = [string[]]$unlisted.ToArray() }
+}
+
 #endregion
 
 #region Change set
@@ -428,7 +522,8 @@ function Remove-RulebookOverride {
 function ConvertTo-RulebookChangeSet {
     <#
     .SYNOPSIS
-    A one-item change set from the ChangeRule form: { Note, Changes = @({ op, id, action?, levels, stages, justification? }) }.
+    A one-item change set from the ChangeRule form: { version = 1, note?, changes = @({ op, id, action?, levels, stages,
+    justification? }) }.
     .DESCRIPTION
     -Action Remove (any case) becomes op remove without an action; a known action is written in its canonical case.
     -Levels and -Stages are '*' or slugs. Validation is Test-RulebookChangeSet.
@@ -463,6 +558,7 @@ function ConvertTo-RulebookChangeSet {
     $change['stages'] = & $selector $Stages
     if ($change['op'] -ceq 'set' -and -not [string]::IsNullOrWhiteSpace($Justification)) { $change['justification'] = $Justification.Trim() }
     $set = [ordered]@{}
+    $set['version'] = $script:ChangeSetVersion
     if (-not [string]::IsNullOrWhiteSpace($Note)) { $set['note'] = $Note.Trim() }
     $set['changes'] = @(, $change)
     return $set
@@ -473,14 +569,21 @@ function Test-RulebookChangeSet {
     .SYNOPSIS
     Checks a change set against the settings and the catalog: findings { Rule 'change', Severity 'error', File, Id, Message }.
     .DESCRIPTION
-    changes is not empty; op is set or remove (release is reserved for WP15); the id matches ^[A-Z]{2,3}\d{4}i?$ and
-    is in the catalog; a set has one of the five actions; levels and stages are ["*"] or slugs of the settings (the
-    wording of C10); no two changes have the same op, id, level set and stage set. An empty list means valid.
+    A version, when present, is the number 1 (a string "1" is refused, as by the schema's const; an in-memory set
+    without one is accepted, the issue path checks the schema first); another version stops the check with that one
+    finding. changes is not empty; op is set, remove or release; the id matches ^[A-Z]{2,3}\d{4}i?$ and is in the
+    catalog; a set has one of the five actions; levels and stages are ["*"] or slugs of the settings (the wording of
+    C10); a release has stages only (levels or an action on it is a finding); no two changes have the same op, id,
+    level set and stage set. An empty list means valid.
     #>
     [CmdletBinding()]
     [OutputType([object[]])]
     param([Parameter(Mandatory)][System.Collections.IDictionary]$ChangeSet, [Parameter(Mandatory)]$Inputs)
     $findings = [System.Collections.Generic.List[object]]::new()
+    if ($ChangeSet.Contains('version') -and -not (Test-ChangeSetVersion $ChangeSet['version'])) {
+        $findings.Add((New-ChangeFinding -Message "version '$(ConvertTo-SingleLine ([string]$ChangeSet['version']))' is not supported; this engine applies change sets of version $($script:ChangeSetVersion)"))
+        return $findings.ToArray()
+    }
     [object[]]$changes = @(if ($ChangeSet.Contains('changes')) { $ChangeSet['changes'] | Where-Object { $null -ne $_ } })
     if ($changes.Count -eq 0) {
         $findings.Add((New-ChangeFinding -Message 'The change set has no changes.'))
@@ -492,15 +595,12 @@ function Test-RulebookChangeSet {
     for ($index = 0; $index -lt $changes.Count; $index++) {
         $change = $changes[$index]
         $value = { param([string]$Key) if ($change -is [System.Collections.IDictionary] -and $change.Contains($Key)) { $change[$Key] } else { $null } }
+        $has = { param([string]$Key) $change -is [System.Collections.IDictionary] -and $change.Contains($Key) }
         $op = [string](& $value 'op')
         $id = [string](& $value 'id')
         $label = "change $index"
-        if ($op -ceq 'release') {
-            $findings.Add((New-ChangeFinding -Id $id -Message "$label`: op 'release' is reserved; it arrives with WP15"))
-            continue
-        }
-        if ($op -cnotin 'set', 'remove') {
-            $findings.Add((New-ChangeFinding -Id $id -Message "$label`: op '$op' is not supported; use set or remove"))
+        if ($op -cnotin 'set', 'remove', 'release') {
+            $findings.Add((New-ChangeFinding -Id $id -Message "$label`: op '$op' is not supported; use set, remove or release"))
             continue
         }
         if ($id -cnotmatch $script:IdPattern) {
@@ -512,7 +612,15 @@ function Test-RulebookChangeSet {
             $action = [string](& $value 'action')
             if ($action -cnotin $script:Actions) { $findings.Add((New-ChangeFinding -Id $id -Message "action '$action': use Error, Warning, Info, Hidden or None")) }
         }
-        foreach ($kind in @(@{ Name = 'levels'; Single = 'level'; Slugs = $levelSlugs }, @{ Name = 'stages'; Single = 'stage'; Slugs = $stageSlugs })) {
+        $kinds = @(@{ Name = 'levels'; Single = 'level'; Slugs = $levelSlugs }, @{ Name = 'stages'; Single = 'stage'; Slugs = $stageSlugs })
+        if ($op -ceq 'release') {
+            # A release frees the id in whole stages: the quarantine files have no levels and no action.
+            foreach ($key in 'levels', 'action') {
+                if (& $has $key) { $findings.Add((New-ChangeFinding -Id $id -Message "$label`: op 'release' takes no $key; it releases the id from the quarantine of the listed stages")) }
+            }
+            $kinds = @($kinds[1])
+        }
+        foreach ($kind in $kinds) {
             $values = @(& $value $kind.Name | Where-Object { $null -ne $_ } | ForEach-Object { [string]$_ })
             if ($values.Count -eq 0) {
                 $findings.Add((New-ChangeFinding -Id $id -Message "$label has no $($kind.Name); use a slug from the settings or [`"*`"]"))
@@ -524,7 +632,9 @@ function Test-RulebookChangeSet {
                 }
             }
         }
-        $key = '{0}|{1}|{2}|{3}' -f $op, $id, (Get-SelectorKey ([string[]]@(& $value 'levels'))), (Get-SelectorKey ([string[]]@(& $value 'stages')))
+        # A release has no level set: its key keeps an empty one.
+        $levelKey = if ($op -ceq 'release') { '' } else { Get-SelectorKey ([string[]]@(& $value 'levels')) }
+        $key = '{0}|{1}|{2}|{3}' -f $op, $id, $levelKey, (Get-SelectorKey ([string[]]@(& $value 'stages')))
         if (-not $seen.Add($key)) { $findings.Add((New-ChangeFinding -Id $id -Message "$label repeats an earlier change (same op, id, levels and stages)")) }
     }
     return $findings.ToArray()
@@ -536,14 +646,20 @@ function Invoke-RulebookChangeSet {
     Applies a change set to a candidate copy of the repository and plans the change: a Rulebook.ChangePlan.
     .DESCRIPTION
     Never writes into -RepositoryRoot. Reads the inputs, checks the change set (Test-RulebookChangeSet) and applies
-    every operation to overrides.json in memory; a finding or a remove without a matching entry stops there with
-    Valid $false and Failure validation, before anything is copied. Otherwise the repository is copied to
-    <WorkPath>/candidate, overrides.json is written there (unless every entry is unchanged), and every matching
-    endpoint of every item gets a row: the effective action before and after with provenance, Changed and a Note
-    (unchanged, justification updated, or now unlisted). NoOp is true when no endpoint changes and overrides.json does
-    not change (D48); a no-op stops before the regeneration with Changes empty. Otherwise the candidate is regenerated
-    and validated (Findings, Valid) and Changes lists every file that differs from the repository { File, Change,
-    Bytes }. HeadSha is the checked-out commit (Publish-RulebookChange refuses a base branch that moved since).
+    every operation in memory: set and remove to overrides.json, release to the quarantine.<stage>.json files of every
+    stage of the settings (read only when the set has a release; Remove-RulebookQuarantine). A finding, a remove
+    without a matching entry or an unreadable quarantine file stops there with Valid $false and Failure validation,
+    before anything is copied. Otherwise the repository is copied to <WorkPath>/candidate, overrides.json is written
+    there (unless every override entry is unchanged), the quarantine file of every stage a release freed the id in is
+    written in the template layout (QuarantineChanges), and every matching endpoint of every item gets a row: the
+    effective action before and after with provenance, Changed and a Note (unchanged, justification updated, now
+    unlisted, or not quarantined in <stage> for a released stage whose file did not list the id). A release item has
+    Levels '*', no Action, Released and Unlisted (stage slugs) and Entry.Change released or unchanged. NoOp is true
+    when every item is a no-op (D48): a set that changes no endpoint and whose entry is unchanged or would be new, a
+    release that frees the id nowhere; a no-op stops before the regeneration with Changes empty. Otherwise the
+    candidate is regenerated and validated (Findings, Valid) and Changes lists every file that differs from the
+    repository { File, Change, Bytes }. HeadSha is the checked-out commit (Publish-RulebookChange refuses a base
+    branch that moved since).
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -557,20 +673,21 @@ function Invoke-RulebookChangeSet {
     if ([string]::IsNullOrEmpty($WorkPath)) { $WorkPath = Get-DefaultWorkPath -Prefix 'rulebook-change' }
     $WorkPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($WorkPath)
     $plan = [pscustomobject]@{
-        PSTypeName      = 'Rulebook.ChangePlan'
-        Root            = $root
-        CandidatePath   = $null
-        HeadSha         = $null
-        Now             = $Now
-        ChangeSet       = $ChangeSet
-        Items           = @()
-        OverridesChange = $null
-        Changes         = @()
-        Findings        = @()
-        Valid           = $false
-        Failure         = $null
-        NoOp            = $false
-        Title           = $null
+        PSTypeName        = 'Rulebook.ChangePlan'
+        Root              = $root
+        CandidatePath     = $null
+        HeadSha           = $null
+        Now               = $Now
+        ChangeSet         = $ChangeSet
+        Items             = @()
+        OverridesChange   = $null
+        QuarantineChanges = @()
+        Changes           = @()
+        Findings          = @()
+        Valid             = $false
+        Failure           = $null
+        NoOp              = $false
+        Title             = $null
     }
     if (Get-Command git -ErrorAction SilentlyContinue) {
         $head = & git -C $root rev-parse HEAD 2>$null
@@ -603,23 +720,46 @@ function Invoke-RulebookChangeSet {
         $plan.Failure = 'validation'
         return $plan
     }
+    # A release reads the quarantine file of every stage of the settings, in settings order.
+    $quarantine = Get-OrdinalMap
+    if (@(@($ChangeSet['changes']) | Where-Object { $_ -is [System.Collections.IDictionary] -and [string]$_['op'] -ceq 'release' }).Count -gt 0) {
+        foreach ($slug in $stageSlugs) {
+            try {
+                $quarantine[$slug] = Read-QuarantineFile -Path (Join-Path $root "quarantine.$slug.json")
+            } catch {
+                $plan.Findings = @(New-ChangeFinding -File "quarantine.$slug.json" -Message $_.Exception.Message)
+                $plan.Failure = 'validation'
+                return $plan
+            }
+        }
+    }
     $items = [System.Collections.Generic.List[object]]::new()
     foreach ($change in @($ChangeSet['changes'])) {
+        $op = [string]$change['op']
         $item = [pscustomobject]@{
-            Op               = [string]$change['op']
+            Op               = $op
             Id               = [string]$change['id']
-            Action           = $(if ($change.Contains('action')) { [string]$change['action'] } else { $null })
-            Levels           = [string[]]@($change['levels'])
+            Action           = $(if ($op -cne 'release' -and $change.Contains('action')) { [string]$change['action'] } else { $null })
+            # A release frees the id in whole stages: its rows cover every level of the selected stages.
+            Levels           = $(if ($op -ceq 'release') { [string[]]@('*') } else { [string[]]@($change['levels']) })
             Stages           = [string[]]@($change['stages'])
-            Justification    = $(if ($change.Contains('justification')) { [string]$change['justification'] } else { $null })
+            Justification    = $(if ($op -cne 'release' -and $change.Contains('justification')) { [string]$change['justification'] } else { $null })
             Entry            = $null
+            Released         = [string[]]@()
+            Unlisted         = [string[]]@()
             Rows             = @()
             ChangedEndpoints = @()
             NoOp             = $false
             Notes            = @()
         }
         try {
-            if ($item.Op -ceq 'remove') {
+            if ($item.Op -ceq 'release') {
+                $result = Remove-RulebookQuarantine -Files $quarantine -Id $item.Id -Stages $item.Stages
+                $item.Released = [string[]]@($result.Removed | ForEach-Object { $_.Stage })
+                $item.Unlisted = [string[]]@($result.Unlisted)
+                $released = if ($item.Released.Count -gt 0) { 'released' } else { 'unchanged' }
+                $item.Entry = [pscustomobject]@{ Change = $released; Previous = $null; Entry = $null; Removed = @($result.Removed) }
+            } elseif ($item.Op -ceq 'remove') {
                 $result = Remove-RulebookOverride -File $file -Id $item.Id -Levels $item.Levels -Stages $item.Stages
                 $item.Entry = [pscustomobject]@{ Change = 'removed'; Previous = $result.Entry; Entry = $null }
             } else {
@@ -643,9 +783,19 @@ function Invoke-RulebookChangeSet {
     if (Test-Path -LiteralPath $candidate) { Remove-Item -LiteralPath $candidate -Recurse -Force }
     Copy-UpdateTree -Source $root -Destination $candidate
     $plan.CandidatePath = $candidate
-    if (@($items | Where-Object { $_.Entry.Change -cne 'unchanged' }).Count -gt 0) {
+    # overrides.json only for an override item that changes its entry: a release alone never rewrites it.
+    if (@($items | Where-Object { $_.Op -cne 'release' -and $_.Entry.Change -cne 'unchanged' }).Count -gt 0) {
         $plan.OverridesChange = Write-OverridesFile -Path (Join-Path $candidate $script:OverridesFile) -File $file -WhatIf:$false -Confirm:$false
     }
+    # The quarantine file of every stage a release freed the id in, in the template layout (written only when the
+    # bytes differ; a file that lists the id exists, so nothing is created).
+    $releasedSlugs = [System.Collections.Generic.List[string]]::new()
+    foreach ($item in $items) { foreach ($slug in $item.Released) { if (-not $releasedSlugs.Contains($slug)) { $releasedSlugs.Add($slug) } } }
+    $quarantineChanges = foreach ($slug in $stageSlugs) {
+        if (-not $releasedSlugs.Contains($slug)) { continue }
+        Write-QuarantineFile -Path (Join-Path $candidate "quarantine.$slug.json") -File $quarantine[$slug] -Name "quarantine.$slug.json" -WhatIf:$false -Confirm:$false
+    }
+    $plan.QuarantineChanges = @($quarantineChanges | Where-Object { $null -ne $_ })
     try {
         $after = Read-RulebookInputs -RepositoryRoot $candidate
     } catch {
@@ -679,15 +829,18 @@ function Invoke-RulebookChangeSet {
                     Changed      = ($b.Action -cne $a.Action) -or ([bool]$b.Listed -ne [bool]$a.Listed)
                     Note         = $null
                 }
-                $row.Note = Get-RowNote -Row $row -EntryChange $Item.Entry.Change -JustificationOnly $justificationOnly
+                $row.Note = if ($Item.Op -ceq 'release' -and $stage -cin $Item.Unlisted) { "not quarantined in $stage" } else { Get-RowNote -Row $row -EntryChange $Item.Entry.Change -JustificationOnly $justificationOnly }
                 $rows.Add($row)
             }
         }
         $Item.Rows = $rows.ToArray()
         $Item.ChangedEndpoints = [string[]]@($rows | Where-Object Changed | ForEach-Object Endpoint)
         # D48: a set that changes no endpoint is a no-op when the entry is unchanged or would be new (a dead entry
-        # that only repeats what the base gives is not written); a replaced or deduplicated entry is written.
-        $Item.NoOp = $Item.Op -ceq 'set' -and $Item.ChangedEndpoints.Count -eq 0 -and $Item.Entry.Change -cin 'unchanged', 'added'
+        # that only repeats what the base gives is not written); a replaced or deduplicated entry is written. A
+        # release is a no-op when no selected quarantine file lists the id; one that frees it is written, also when
+        # an override or a level decides every endpoint and none changes.
+        $Item.NoOp = ($Item.Op -ceq 'set' -and $Item.ChangedEndpoints.Count -eq 0 -and $Item.Entry.Change -cin 'unchanged', 'added') -or
+        ($Item.Op -ceq 'release' -and @($Item.Released).Count -eq 0)
         $Item.Notes = Get-ItemNote -Item $Item
     }
     foreach ($item in $items) { & $computeRows $item $after }
@@ -697,7 +850,21 @@ function Invoke-RulebookChangeSet {
     $dead = @($items | Where-Object { $_.NoOp -and $_.Entry.Change -ceq 'added' })
     if ($dead.Count -gt 0) {
         foreach ($item in $dead) { [void]$file.Rules.Remove($item.Entry.Entry) }
-        $plan.OverridesChange = Write-OverridesFile -Path (Join-Path $candidate $script:OverridesFile) -File $file -WhatIf:$false -Confirm:$false
+        $overridesPath = Join-Path $candidate $script:OverridesFile
+        $live = @($items | Where-Object { $_.Op -cne 'release' -and $_.Entry.Change -cne 'unchanged' -and $dead -notcontains $_ })
+        if ($live.Count -gt 0) {
+            $plan.OverridesChange = Write-OverridesFile -Path $overridesPath -File $file -WhatIf:$false -Confirm:$false
+        } else {
+            # Only dead entries touched overrides.json (next to a release): the file of the repository stays as it
+            # was, not rewritten in the template layout.
+            $original = Join-Path $root $script:OverridesFile
+            if (Test-Path -LiteralPath $original -PathType Leaf) {
+                Copy-Item -LiteralPath $original -Destination $overridesPath -Force
+            } elseif (Test-Path -LiteralPath $overridesPath -PathType Leaf) {
+                Remove-Item -LiteralPath $overridesPath -Force
+            }
+            $plan.OverridesChange = $null
+        }
         try {
             $after = Read-RulebookInputs -RepositoryRoot $candidate
         } catch {
@@ -758,8 +925,8 @@ function Get-RulebookChangeTitle {
     .SYNOPSIS
     The commit and pull request title of a change plan.
     .DESCRIPTION
-    One item: 'Change LC0015 to None (levels: strict, stages: ci)' or 'Remove override for LC0015 (levels: strict,
-    stages: ci)'. Several items (WP15): 'Rulebook change: <n> changes'.
+    One item: 'Change LC0015 to None (levels: strict, stages: ci)', 'Remove override for LC0015 (levels: strict,
+    stages: ci)' or 'Release LC0099 from quarantine (stages: ci)'. Several items: 'Rulebook change: <n> changes'.
     #>
     [CmdletBinding()]
     [OutputType([string])]
@@ -767,6 +934,7 @@ function Get-RulebookChangeTitle {
     $items = @($Plan.Items)
     if ($items.Count -ne 1) { return "Rulebook change: $($items.Count) changes" }
     $item = $items[0]
+    if ($item.Op -ceq 'release') { return "Release $($item.Id) from quarantine (stages: $(Format-Selector $item.Stages))" }
     $where = '(levels: {0}, stages: {1})' -f (Format-Selector $item.Levels), (Format-Selector $item.Stages)
     if ($item.Op -ceq 'remove') { return "Remove override for $($item.Id) $where" }
     return "Change $($item.Id) to $($item.Action) $where"
@@ -796,15 +964,34 @@ function ConvertTo-ChangeTable {
 function ConvertTo-ChangePullRequestBody {
     <#
     .SYNOPSIS
-    The pull request body of a change: the justification, then per item one sentence, its table and its notes.
+    The pull request body of a change: the note and the justification, then per item one sentence, its table and its
+    notes.
     .DESCRIPTION
-    The paragraph is 'Justification: <text>' (one set item whose entry has a justification, given or kept), the note
-    of the change set, nothing for a change set of removes only, or 'No justification given.'. Above -Limit (default 60000 characters, GitHub allows 65536) the item tables are left
-    out from the end with one italic line; only when that is not enough is the body cut at a line boundary.
+    The opening paragraphs are the note of the change set (on one line), then 'Justification: <text>' for a one-item
+    set whose entry has a justification (given or kept); without either, nothing for a change set of removes and
+    releases only, else 'No justification given.'. Above -Limit (default 60000 characters, GitHub allows 65536) the
+    item tables are left out from the end with one italic line; only when that is not enough is the body cut at a line
+    boundary. -BodyPrefix opens the body and -BodySuffix (the 'Closes #<n>' line of the issue path) ends it, each
+    separated by a blank line; both count against -Limit, but only the generated part between them is ever shortened,
+    so the suffix is never cut.
     #>
     [CmdletBinding()]
     [OutputType([string])]
-    param([Parameter(Mandatory)]$Plan, [int]$Limit = $script:BodyLimit)
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [int]$Limit = $script:BodyLimit,
+        [AllowNull()][AllowEmptyString()][string]$BodyPrefix,
+        [AllowNull()][AllowEmptyString()][string]$BodySuffix
+    )
+    $head = if ([string]::IsNullOrWhiteSpace($BodyPrefix)) { '' } else { $BodyPrefix.Replace("`r`n", "`n").Trim("`n") + "`n`n" }
+    $foot = if ([string]::IsNullOrWhiteSpace($BodySuffix)) { '' } else { "`n" + $BodySuffix.Replace("`r`n", "`n").Trim("`n") + "`n" }
+    $generated = ConvertTo-GeneratedChangeBody -Plan $Plan -Limit ([math]::Max(0, $Limit - $head.Length - $foot.Length))
+    return $head + $generated + $foot
+}
+
+function ConvertTo-GeneratedChangeBody {
+    # The generated part of the pull request body (ConvertTo-ChangePullRequestBody), kept below -Limit.
+    param([Parameter(Mandatory)]$Plan, [Parameter(Mandatory)][int]$Limit)
     $paragraph = Get-JustificationParagraph -Plan $Plan
     $intro = if ($paragraph) { $paragraph + "`n`n" } else { '' }
     $items = @($Plan.Items)
@@ -834,18 +1021,23 @@ function ConvertTo-ChangePullRequestBody {
 function ConvertTo-ChangeSummary {
     <#
     .SYNOPSIS
-    The job summary of a change: '## Rule change', the message, the result, the item tables, validation errors and
-    the effective diff.
+    The job summary of a change: '## <Heading>' (default 'Rule change'), the message, the result, the item tables,
+    validation errors and the effective diff.
     .DESCRIPTION
     The effective diff ('## Effective diff', one table per endpoint) is the git-based diff of the pushed commit
     against the cloned head (-Result.Diff, or -Result.DiffNote when it could not be computed); it appears only here,
-    never in the pull request body (decision 14).
+    never in the pull request body (decision 14). The issue path passes -Heading 'Rulebook change (#<n>)'.
     #>
     [CmdletBinding()]
     [OutputType([string])]
-    param([Parameter(Mandatory)]$Plan, $Result, [AllowNull()][AllowEmptyString()][string]$Message)
+    param(
+        [Parameter(Mandatory)]$Plan,
+        $Result,
+        [AllowNull()][AllowEmptyString()][string]$Message,
+        [ValidateNotNullOrEmpty()][string]$Heading = 'Rule change'
+    )
     $text = [System.Text.StringBuilder]::new()
-    [void]$text.AppendLine('## Rule change').AppendLine()
+    [void]$text.AppendLine("## $(ConvertTo-SingleLine $Heading)").AppendLine()
     if ($Message) { [void]$text.AppendLine((ConvertTo-SingleLine $Message)).AppendLine() }
     if ($null -ne $Result) {
         $line = switch ([string]$Result.Result) {
@@ -886,6 +1078,150 @@ function ConvertTo-ChangeSummary {
     return $text.ToString().Replace("`r`n", "`n")
 }
 
+function ConvertTo-ChangeItemList {
+    <#
+    .SYNOPSIS
+    One Markdown list line '- <sentence>' per item of a change plan, for the no-op comment of the issue path.
+    .DESCRIPTION
+    The sentence of each item as in the pull request body ('Leaves LC0015 at None for levels strict, stages ci (...).'),
+    LF line ends and one trailing LF; '' for a plan without items.
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)]$Plan)
+    $lines = @(@($Plan.Items) | ForEach-Object { '- ' + (ConvertTo-SingleLine (Get-ItemSentence -Item $_)) })
+    if ($lines.Count -eq 0) { return '' }
+    return ($lines -join "`n") + "`n"
+}
+
+#endregion
+
+#region Issue body
+
+function ConvertFrom-RulebookIssueBody {
+    <#
+    .SYNOPSIS
+    The change set text and the note of a rulebook-change issue body: { ChangesText, Note, Errors }.
+    .DESCRIPTION
+    The body as GitHub renders the issue form: one '### <label>' section per field. CRLF becomes LF; a $null body is
+    ''. Sections split at a line '### <label>' (trailing blanks ignored; other heading levels do not split); text above
+    the first one is ignored. ChangesText is the content of the first fenced code block (``` or ~~~, info string
+    optional, an unclosed fence runs to the end of the section) in the first section headed exactly 'Changes', or the
+    section text itself when it has no fence, trimmed. Note is the first section headed 'Note', trimmed; GitHub's
+    '_No response_' for an empty field and an absent section are ''. Errors lists a missing Changes section and an empty
+    Changes field; every other section and every later code block is ignored. Returns data, never throws.
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param([AllowNull()][AllowEmptyString()][string]$Body)
+    $errors = [System.Collections.Generic.List[string]]::new()
+    # A [string] parameter is never $null: an absent body arrives as ''.
+    $text = $Body.Replace("`r`n", "`n").Replace("`r", "`n")
+    $sections = [System.Collections.Generic.List[object]]::new()
+    $current = $null
+    foreach ($line in $text.Split("`n")) {
+        $heading = [regex]::Match($line, '^### (.+?)\s*$')
+        if ($heading.Success) {
+            $current = [pscustomobject]@{ Heading = $heading.Groups[1].Value; Lines = [System.Collections.Generic.List[string]]::new() }
+            $sections.Add($current)
+        } elseif ($null -ne $current) {
+            $current.Lines.Add($line)
+        }
+    }
+    $changes = @($sections | Where-Object { $_.Heading -ceq 'Changes' } | Select-Object -First 1)
+    $changesText = ''
+    if ($changes.Count -eq 0) {
+        $errors.Add('The issue body has no "### Changes" section; submit the Rulebook change form from the dashboard, or add the section with the change set in a json code block.')
+    } else {
+        $lines = [string[]]$changes[0].Lines.ToArray()
+        $block = Get-FencedBlock -Lines $lines
+        $changesText = if ($null -ne $block) { $block.Trim() } else { ($lines -join "`n").Trim() }
+        if ($changesText -eq '' -or $changesText -ceq $script:NoResponse) {
+            $changesText = ''
+            $errors.Add('The Changes field is empty.')
+        }
+    }
+    $note = ''
+    $noteSection = @($sections | Where-Object { $_.Heading -ceq 'Note' } | Select-Object -First 1)
+    if ($noteSection.Count -gt 0) {
+        $note = ($noteSection[0].Lines -join "`n").Trim()
+        if ($note -ceq $script:NoResponse) { $note = '' }
+    }
+    return [pscustomobject]@{ PSTypeName = 'Rulebook.IssueBody'; ChangesText = $changesText; Note = $note; Errors = [string[]]$errors.ToArray() }
+}
+
+function Read-RulebookChangeSetText {
+    <#
+    .SYNOPSIS
+    Parses and checks change set JSON against the change set schema: { ChangeSet, Errors }.
+    .DESCRIPTION
+    Strict JSON (System.Text.Json: no comments, no trailing commas); a syntax error is one error 'The change set is not
+    valid JSON (line <l>, position <p>): <reason>' (both 1-based). Then Test-Json against -SchemaPath (default
+    schemas/rulebook-changeset.schema.json of the engine): every schema error is one line 'The change set does not
+    match the schema: <error>' (a line Test-Json repeats is kept once); when Test-Json rejects the text without naming an error (a change that matches none of
+    the set, remove and release shapes), one line says what each shape needs. Only a text without errors gets a
+    ChangeSet: ordered dictionaries with ordinal keys, arrays, and strings kept as strings (a justification that looks
+    like a date stays text). The catalog, the slugs and repeated changes are checked by Test-RulebookChangeSet.
+    Returns data, never throws.
+    #>
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [AllowNull()][AllowEmptyString()][string]$Text,
+        [string]$SchemaPath = $script:ChangeSetSchemaPath
+    )
+    $result = [pscustomobject]@{ PSTypeName = 'Rulebook.ChangeSetText'; ChangeSet = $null; Errors = [string[]]@() }
+    $prefix = 'The change set does not match the schema: '
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        $result.Errors = [string[]]@('The change set is empty.')
+        return $result
+    }
+    $document = $null
+    try {
+        $document = [System.Text.Json.JsonDocument]::Parse($Text)
+    } catch {
+        $exception = $_.Exception
+        while ($null -ne $exception -and $exception -isnot [System.Text.Json.JsonException]) { $exception = $exception.InnerException }
+        if ($null -ne $exception -and $null -ne $exception.LineNumber) {
+            $reason = ($exception.Message -replace '\s*LineNumber: \d+ \| BytePositionInLine: \d+\.\s*\z', '').Trim()
+            $result.Errors = [string[]]@("The change set is not valid JSON (line $($exception.LineNumber + 1), position $($exception.BytePositionInLine + 1)): $(ConvertTo-SingleLine $reason)")
+        } else {
+            $message = if ($null -ne $exception) { $exception.Message } else { $_.Exception.Message }
+            $result.Errors = [string[]]@("The change set is not valid JSON: $(ConvertTo-SingleLine $message)")
+        }
+        return $result
+    }
+    try {
+        $schemaErrors = $null
+        $valid = $false
+        try {
+            $valid = Test-Json -Json $Text -SchemaFile $SchemaPath -ErrorAction SilentlyContinue -ErrorVariable schemaErrors
+        } catch {
+            $result.Errors = [string[]]@("The change set cannot be checked against the schema: $(ConvertTo-SingleLine $_.Exception.Message)")
+            return $result
+        }
+        if (-not $valid) {
+            $lines = [System.Collections.Generic.List[string]]::new()
+            foreach ($schemaError in @($schemaErrors | Where-Object { $null -ne $_ })) {
+                # The wording of Test-Json varies across PowerShell versions; only its own prefix is dropped, the
+                # escaped quotes it prints are read back, and a line it repeats is kept once.
+                $message = ([string]$schemaError.Exception.Message -replace '\A\s*The JSON is not valid with the schema:\s*', '').Replace('"', '"').Trim()
+                $line = $prefix + (ConvertTo-SingleLine $message)
+                if ($message -and -not $lines.Contains($line)) { $lines.Add($line) }
+            }
+            if ($lines.Count -eq 0) {
+                $lines.Add($prefix + 'every change is a set { op, id, action, levels, stages, justification? }, a remove { op, id, levels, stages } or a release { op, id, stages }, with an id such as LC0015, an action Error, Warning, Info, Hidden or None, and levels and stages ["*"] or a list of distinct lowercase slugs; no other keys.')
+            }
+            $result.Errors = [string[]]$lines.ToArray()
+            return $result
+        }
+        $result.ChangeSet = ConvertFrom-JsonElement $document.RootElement
+    } finally {
+        $document.Dispose()
+    }
+    return $result
+}
+
 #endregion
 
 #region Publishing
@@ -897,12 +1233,15 @@ function Publish-RulebookChange {
     .DESCRIPTION
     Refuses an invalid plan and a no-op plan. Clones -RemoteUrl (default <GITHUB_SERVER_URL>/<Repository>) at
     -BaseBranch; a plan that recorded the head of its checkout (HeadSha) refuses a base branch that moved since (stage
-    push, Data['Reason'] = 'base-moved'). Writes the plan's changes, commits with the title (Get-RulebookChangeTitle)
-    and pushes <BranchPrefix>/<yyMMddHHmmss UTC> (-Now), or -BaseBranch with -DirectCommit, falling back to the new
+    push, Data['Reason'] = 'base-moved'). Writes the plan's changes, commits with the title (-Title, default
+    Get-RulebookChangeTitle; the commit message is the title alone, never a closing keyword) and pushes <BranchPrefix>/<yyMMddHHmmss UTC> (-Now), or -BaseBranch with -DirectCommit, falling back to the new
     branch when the push is refused (D47). Diff is the effective diff of the commit against the cloned head. Opens
-    the pull request with -Labels and the body of ConvertTo-ChangePullRequestBody. Returns { Result (pull-request,
+    the pull request with the same title, -Labels and the body of ConvertTo-ChangePullRequestBody with -BodyPrefix and
+    -BodySuffix (the suffix is added after the body limit is applied to the generated part, so it is never cut).
+    Returns { Result (pull-request,
     direct-commit, no-changes), PullRequestUrl, Number, Branch, Sha, Fallback, FallbackReason (the git output of a
-    refused direct push, else $null), Diff, DiffNote, Body, Title }. A failure throws with Data['Stage']: push for the
+    refused direct push, else $null), Diff, DiffNote, Body (the pull request body sent, $null without a pull
+    request), Title }. A failure throws with Data['Stage']: push for the
     clone, commit and push; pull-request for the opening, naming the pushed branch and its tree link (Data['Branch'],
     and after a refused direct push Data['FallbackReason'], also on the push stage when the fallback branch failed).
     #>
@@ -921,6 +1260,9 @@ function Publish-RulebookChange {
         [AllowNull()][AllowEmptyCollection()][string[]]$Labels,
         [string]$WorkPath,
         [AllowNull()][AllowEmptyString()][string]$ApiUrl,
+        [AllowNull()][AllowEmptyString()][string]$Title,
+        [AllowNull()][AllowEmptyString()][string]$BodyPrefix,
+        [AllowNull()][AllowEmptyString()][string]$BodySuffix,
         [System.DateTimeOffset]$Now = [System.DateTimeOffset]::UtcNow
     )
     if (-not $Plan.Valid -or $Plan.Failure) { throw 'The change plan does not validate; nothing is pushed.' }
@@ -928,7 +1270,8 @@ function Publish-RulebookChange {
     if ([string]::IsNullOrEmpty($WorkPath)) { $WorkPath = Get-DefaultWorkPath -Prefix 'rulebook-change' }
     $server = if ($env:GITHUB_SERVER_URL) { $env:GITHUB_SERVER_URL.TrimEnd('/') } else { 'https://github.com' }
     if ([string]::IsNullOrEmpty($RemoteUrl)) { $RemoteUrl = "$server/$Repository" }
-    $title = Get-RulebookChangeTitle -Plan $Plan
+    # A name of its own: PowerShell variables are case-insensitive, and -Title is a parameter.
+    $commitTitle = if ([string]::IsNullOrWhiteSpace($Title)) { Get-RulebookChangeTitle -Plan $Plan } else { ConvertTo-SingleLine $Title.Trim() }
     $branch = '{0}/{1}' -f $BranchPrefix.TrimEnd('/'), $Now.UtcDateTime.ToString('yyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture)
 
     # The rulebook may sit in a folder of a bigger repository; the plan's paths are relative to that folder.
@@ -957,7 +1300,7 @@ function Publish-RulebookChange {
                 [System.IO.File]::WriteAllBytes($target, [byte[]]$change.Bytes)
             }
         }
-        $pushed = Publish-GitHubChange -Clone $clone -Message $title -NewBranch $branch -DirectCommit:$DirectCommit
+        $pushed = Publish-GitHubChange -Clone $clone -Message $commitTitle -NewBranch $branch -DirectCommit:$DirectCommit
     } catch {
         $exception = [System.InvalidOperationException]::new($_.Exception.Message, $_.Exception)
         $exception.Data['Stage'] = 'push'
@@ -966,7 +1309,7 @@ function Publish-RulebookChange {
         if ($_.Exception.Data.Contains('FallbackReason')) { $exception.Data['FallbackReason'] = $_.Exception.Data['FallbackReason'] }
         throw $exception
     }
-    $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; FallbackReason = $pushed.FallbackReason; Diff = @(); DiffNote = $null; Body = $null; Title = $title }
+    $result = [pscustomobject]@{ Result = $null; PullRequestUrl = $null; Number = $null; Branch = $pushed.Branch; Sha = $pushed.Sha; Fallback = [bool]$pushed.Fallback; FallbackReason = $pushed.FallbackReason; Diff = @(); DiffNote = $null; Body = $null; Title = $commitTitle }
     if (-not $pushed.Pushed) {
         $result.Result = 'no-changes'
         return $result
@@ -982,9 +1325,9 @@ function Publish-RulebookChange {
     }
     # The branch is pushed from here on: a failure names it, so the pull request can be opened by hand.
     try {
-        $body = ConvertTo-ChangePullRequestBody -Plan $Plan
+        $body = ConvertTo-ChangePullRequestBody -Plan $Plan -BodyPrefix $BodyPrefix -BodySuffix $BodySuffix
         $result.Body = $body
-        $pull = New-GitHubPullRequest -Repository $Repository -Token $Token -Title $title -Body $body -Head $pushed.Branch -Base $BaseBranch -Labels $Labels -ApiUrl $ApiUrl -ServerUrl $server
+        $pull = New-GitHubPullRequest -Repository $Repository -Token $Token -Title $commitTitle -Body $body -Head $pushed.Branch -Base $BaseBranch -Labels $Labels -ApiUrl $ApiUrl -ServerUrl $server
     } catch {
         $segments = @(foreach ($part in @($Repository.Split('/')) + @('tree') + @($pushed.Branch.Split('/'))) { [System.Uri]::EscapeDataString($part) })
         $link = "$server/$($segments -join '/')"
@@ -1006,6 +1349,8 @@ function Publish-RulebookChange {
 #endregion
 
 Export-ModuleMember -Function @(
+    'ConvertFrom-RulebookIssueBody'
+    'ConvertTo-ChangeItemList'
     'ConvertTo-ChangePullRequestBody'
     'ConvertTo-ChangeSummary'
     'ConvertTo-ChangeTable'
@@ -1015,7 +1360,9 @@ Export-ModuleMember -Function @(
     'Invoke-RulebookChangeSet'
     'Publish-RulebookChange'
     'Read-OverridesFile'
+    'Read-RulebookChangeSetText'
     'Remove-RulebookOverride'
+    'Remove-RulebookQuarantine'
     'Set-RulebookOverride'
     'Test-RulebookChangeSet'
     'Write-OverridesFile'
