@@ -276,7 +276,7 @@ A released id falls back to the level chain or the analyzer default on the next 
 
 `template/.github/ISSUE_TEMPLATE/rulebook-change.yml`:
 
-> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Until the apply workflow of section 8 ships (WP15), a submitted form is only an issue: a maintainer applies each change by hand or with the Change Rule workflow (a `set` fits the form; a `remove` of a multi-selector entry or a `release` is an edit of `overrides.json` or the quarantine file), and the form says so. GitHub applies the label `rulebook-change` only when it exists in the repository.
+> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Since WP15 the apply workflow of section 8 applies a submitted form when its author can push to the repository (D55), and the form's markdown line says so; an author (or a body editor) who cannot push is refused and the issue closed, and a maintainer applies the change set by opening their own issue with it. GitHub ignores a form label that does not exist in the repository (GitHub-documented, not observed), so the workflow creates `rulebook-change` and adds it on the first submission it can read from an author who may push. The user-level description is [template/docs/dashboard.md](../template/docs/dashboard.md#3-changing-a-rule-from-the-site) section 3.
 
 ```yaml
 name: Rulebook change
@@ -287,7 +287,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change by hand or with the Change Rule workflow.
+        The dashboard filled this form. Submit it as is. The Apply Rulebook Change workflow applies it when you may push to this repository; otherwise the issue is closed and a maintainer has to submit the change set.
   - type: textarea
     id: changes
     attributes:
@@ -309,7 +309,7 @@ The dashboard opens
 https://github.com/<owner>/<repo>/issues/new?template=rulebook-change.yml&changes=<urlencoded change set>&note=<urlencoded note>
 ```
 
-GitHub prefills issue form fields from query parameters named after the field `id`. The user sees the filled form, can read the JSON, and clicks "Submit new issue" with their own GitHub session. `repository` (the repository the Publish action runs in) and `issueTemplate` (the constant `rulebook-change.yml`, no settings key) come from the data file (section 5).
+GitHub prefills issue form fields from query parameters named after the field `id`. The user sees the filled form, can read the JSON, and clicks "Create" (the button name on the new-issue page, [spike (g)](reference/spikes/g-prefilled-issue-url-limit.md)) with their own GitHub session. `repository` (the repository the Publish action runs in) and `issueTemplate` (the constant `rulebook-change.yml`, no settings key) come from the data file (section 5).
 
 **URL limit.** GitHub answers `414 URI Too Long` once the full prefilled URL reaches 8192 bytes; 8191 bytes still opens the form with every field filled byte-identical, `render: json` included ([spike (g)](reference/spikes/g-prefilled-issue-url-limit.md), Edge 154; Chrome assumed equivalent, Firefox not tested). The cart serializes the change set minified, measures the full URL it opens and shows it against 7372 bytes (90 % of the threshold), which holds about 28 changes with a justification or 46 without. Logged-out users were not tested in a browser: GitHub re-encodes the whole URL into the login redirect's `return_to`, and anonymous requests already failed there from about 7 KB, so a user who is not signed in may hit a limit earlier. When a cart exceeds it the dashboard offers two routes: split the cart into several submissions, or copy the change set to the clipboard and paste it into the empty form. No compact encoding (`LC0015=None@strict/ci`): it would fit about 228 changes but drops justifications and needs a second parser.
 

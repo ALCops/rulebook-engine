@@ -59,7 +59,7 @@ Merge the pull request. The merge changes the settings on `main`, so Publish run
 
 ## 5. Add the write token
 
-The Update Rulebook System Files, Scan Diagnostics and Change Rule workflows push branches and open pull requests, which the workflow token cannot do for workflow files. They read the token from the secret `GHTOKENWORKFLOW`: a GitHub App (recommended) or a personal access token. Set it up as described in [ghtokenworkflow.md](ghtokenworkflow.md) sections 2 to 4. Validate and Publish do not need it.
+The Update Rulebook System Files, Scan Diagnostics, Change Rule and Apply Rulebook Change workflows push branches and open pull requests. The workflow token cannot push workflow files, and a pull request it opens does not run Validate. They read the token from the secret `GHTOKENWORKFLOW`: a GitHub App (recommended) or a personal access token. Set it up as described in [ghtokenworkflow.md](ghtokenworkflow.md) sections 2 to 4. Validate and Publish do not need it.
 
 ## 6. Publish
 
@@ -80,7 +80,7 @@ When all three open, your rulebook is live. Optionally, run Actions > **Update R
 | Path | What it is | On update from the template |
 |---|---|---|
 | `.github/Rulebook-Settings.json` | Your settings. | Kept; only `templateUrl`, `templateSha` and `$schema` change. |
-| `.github/workflows/` | Validate, Publish, Update Rulebook System Files, Scan Diagnostics and Change Rule. | The workflows the template ships are replaced by the template version; workflows of your own are never touched. |
+| `.github/workflows/` | Validate, Publish, Update Rulebook System Files, Scan Diagnostics, Change Rule and Apply Rulebook Change. | The workflows the template ships are replaced by the template version; workflows of your own are never touched. |
 | `base/`, `stages/`, `base/twins.json` | The shipped levels and stages. | Replaced; change rules in `overrides.json` instead. |
 | `overrides.json`, `quarantine.*.json`, `catalog/` | Your own rule decisions, the held-back diagnostics, the known diagnostics. | Never touched. |
 | `rulesets/`, `skeletons/` | The generated endpoints and skeletons. | Regenerated from the files above. |

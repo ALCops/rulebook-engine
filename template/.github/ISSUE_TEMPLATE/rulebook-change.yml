@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        The dashboard filled this form. Submit it as is. Until the workflow that applies change sets ships, a maintainer applies each change by hand or with the Change Rule workflow.
+        The dashboard filled this form. Submit it as is. The Apply Rulebook Change workflow applies it when you may push to this repository; otherwise the issue is closed and a maintainer has to submit the change set.
   - type: textarea
     id: changes
     attributes:
