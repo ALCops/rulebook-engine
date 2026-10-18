@@ -276,7 +276,7 @@ A released id falls back to the level chain or the analyzer default on the next 
 
 `template/.github/ISSUE_TEMPLATE/rulebook-change.yml`:
 
-> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Since WP15 the apply workflow of section 8 applies a submitted form when its author can push to the repository (D55), and the form's markdown line says so; an author who cannot push is refused, and a maintainer applies the change set by opening their own issue with it. GitHub ignores a form label that does not exist in the repository (GitHub-documented, not observed), so the workflow creates `rulebook-change` and adds it on the first submission. The user-level description is [template/docs/dashboard.md](../template/docs/dashboard.md#3-changing-a-rule-from-the-site) section 3.
+> **Status:** the form ships with WP14, byte for byte as below (`tests/Rulebook.Template.Tests.ps1` pins the two together); the update overwrites it (`.github/ISSUE_TEMPLATE/*` shipped by the template, ARCHITECTURE section 7.3). Since WP15 the apply workflow of section 8 applies a submitted form when its author can push to the repository (D55), and the form's markdown line says so; an author (or a body editor) who cannot push is refused and the issue closed, and a maintainer applies the change set by opening their own issue with it. GitHub ignores a form label that does not exist in the repository (GitHub-documented, not observed), so the workflow creates `rulebook-change` and adds it on the first submission it can read from an author who may push. The user-level description is [template/docs/dashboard.md](../template/docs/dashboard.md#3-changing-a-rule-from-the-site) section 3.
 
 ```yaml
 name: Rulebook change
@@ -287,7 +287,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        The dashboard filled this form. Submit it as is. The Apply Rulebook Change workflow applies it when you may push to this repository; otherwise a maintainer applies it.
+        The dashboard filled this form. Submit it as is. The Apply Rulebook Change workflow applies it when you may push to this repository; otherwise the issue is closed and a maintainer has to submit the change set.
   - type: textarea
     id: changes
     attributes:
