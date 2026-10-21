@@ -1,5 +1,11 @@
 # Release notes
 
+## v1.0.0-beta.6
+
+- Validate passes again on pwsh 7.6.7 (`ubuntu-latest` since 2026-10-19): the schema checks run through JsonSchema.Net inside pwsh instead of `Test-Json`, which from 7.6.7 refuses the schemas' sibling `$ref` and names no nested error; a schema finding (C1, C5, C10, C14) now names the first error with its JSON pointer, and a property name repeated in one object is a finding instead of a crash (D56) ([#126](https://github.com/ALCops/rulebook-engine/pull/126))
+- Apply Rulebook Change: an invalid change set is answered with one line per schema error and its JSON pointer; the shape hint line is gone ([#126](https://github.com/ALCops/rulebook-engine/pull/126))
+- This release changes only the engine: the update pull request of an organization carries only the release notes copy ([#127](https://github.com/ALCops/rulebook-engine/pull/127))
+
 ## v1.0.0-beta.5
 
 - Change sets: release from quarantine, change set version 1, the rulebook-change issue body reader with the schema check, and the GitHub issue helpers of the issue path ([#116](https://github.com/ALCops/rulebook-engine/pull/116))
