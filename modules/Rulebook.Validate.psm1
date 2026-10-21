@@ -6,6 +6,7 @@
 # prerequisites have no error findings.
 
 Set-StrictMode -Version 3.0
+Import-Module (Join-Path $PSScriptRoot 'Rulebook.Common.psd1')
 Import-Module (Join-Path $PSScriptRoot 'Rulebook.Generate.psd1')
 
 $script:SchemaDir = Join-Path $PSScriptRoot '..' 'schemas'
@@ -57,7 +58,7 @@ function Test-RepoFile {
 
 function Read-JsonOrNull {
     # The parsed file as a hashtable, or $null when it is not a JSON object (no finding; the caller decides).
-    # The text is kept in the context, so Test-SchemaFile validates it without reading the file again.
+    # The text is kept in the context: Test-SchemaFile validates that text and never reads the file itself.
     param([Parameter(Mandatory)]$Context, [Parameter(Mandatory)][string]$Path)
     $text = Get-Content -LiteralPath (Get-FullPath $Context $Path) -Raw
     $Context.Texts[$Path] = $text
@@ -71,8 +72,10 @@ function Read-JsonOrNull {
 }
 
 function Test-SchemaFile {
-    # Validates a file against a profile file under schemas/ (never the hub). Adds one finding with the first
-    # schema error and returns $false when the file does not match.
+    # Validates the text Read-JsonOrNull kept for a file against a file under schemas/ (Test-RulebookSchema of
+    # Rulebook.Common, D56). Adds one finding with the first schema error, '<text> at <JSON pointer>', and returns
+    # $false when the file does not match. A schema file that cannot be read or resolved throws: an engine defect,
+    # not a rulebook input error.
     param(
         [Parameter(Mandatory)]$Context,
         [Parameter(Mandatory)][string]$Path,
@@ -80,16 +83,9 @@ function Test-SchemaFile {
         [Parameter(Mandatory)][string]$Rule,
         [switch]$Blocking
     )
-    $schemaErrors = $null
-    $schemaFile = Join-Path $script:SchemaDir $Schema
-    $valid = if ($Context.Texts.ContainsKey($Path)) {
-        Test-Json -Json $Context.Texts[$Path] -SchemaFile $schemaFile -ErrorAction SilentlyContinue -ErrorVariable schemaErrors
-    } else {
-        Test-Json -Path (Get-FullPath $Context $Path) -SchemaFile $schemaFile -ErrorAction SilentlyContinue -ErrorVariable schemaErrors
-    }
-    if ($valid) { return $true }
-    $first = if ($schemaErrors -and $schemaErrors.Count -gt 0) { $schemaErrors[0].Exception.Message } else { 'unknown schema error' }
-    Add-Finding -Context $Context -Rule $Rule -Severity error -File $Path -Message "$Path does not match $Schema`: $first" -Blocking:$Blocking
+    $result = Test-RulebookSchema -Json $Context.Texts[$Path] -SchemaPath (Join-Path $script:SchemaDir $Schema)
+    if ($result.IsValid) { return $true }
+    Add-Finding -Context $Context -Rule $Rule -Severity error -File $Path -Message "$Path does not match $Schema`: $($result.Errors[0])" -Blocking:$Blocking
     return $false
 }
 
