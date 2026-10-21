@@ -19,7 +19,7 @@ From "Use this template" to published endpoints your AL projects can use: create
 
 ## 1. What you need
 
-- **A GitHub plan that serves Pages for the repository.** On GitHub Free the rulebook repository must be public; a private repository needs GitHub Pro, Team or Enterprise Cloud. The endpoints are public either way, because the AL compiler fetches them without signing in ([hosting.md](hosting.md) section 2).
+- **A GitHub plan that serves Pages for the repository.** On GitHub Free the rulebook repository must be public; a private repository needs GitHub Pro, Team or Enterprise Cloud. The site must be public either way, because the AL compiler fetches the endpoints without signing in ([hosting.md](hosting.md) section 2). An Enterprise Cloud organization with Enterprise Managed Users can only publish a private site, which the compiler cannot use: its endpoints need another host ([rulebook-engine#56](https://github.com/ALCops/rulebook-engine/issues/56)).
 - **Pages creation allowed** in your organization: an owner turns on *Pages creation > Public* under Organization settings > Member privileges.
 - **Admin rights on the new repository**, to turn on Pages and to add secrets.
 - **A GitHub App or a personal access token** for the workflows that write to the repository ([ghtokenworkflow.md](ghtokenworkflow.md)). An organization that runs AL-Go for GitHub can reuse its `GHTOKENWORKFLOW` secret and App.
@@ -29,7 +29,7 @@ From "Use this template" to published endpoints your AL projects can use: create
 
 On https://github.com/ALCops/rulebook press **Use this template > Create a new repository**, pick the owner (your organization), a name such as `rulebook`, and the visibility from section 1. One repository per organization holds the rules of every AL project.
 
-If Publish runs on the first commit of the new repository, it fails with "baseUrl is empty" because you have not set it yet. That is expected; step 6 runs it again.
+If Publish runs on the first commit of the new repository, it fails with "GitHub Pages is not enabled for this repository" because you have not done step 3 yet. That is expected; step 6 runs it again.
 
 ## 3. Turn on GitHub Pages
 
@@ -39,11 +39,7 @@ In the repository, open Settings > Pages and set Build and deployment > Source t
 
 Everything you set lives in `.github/Rulebook-Settings.json`. Change it in a pull request, so Validate checks it before the merge.
 
-1. **`baseUrl`**: the address the site will have, `https://`, all lowercase, no trailing slash: `https://<owner>.github.io/<repository>`, for example `https://contoso.github.io/rulebook`, or your custom domain ([hosting.md](hosting.md) section 2).
-
-   ```json
-   "baseUrl": "https://contoso.github.io/rulebook"
-   ```
+1. **`baseUrl`**, optional: leave it empty, and Publish takes the address of the Pages site from GitHub; set it (`https://`, all lowercase, no trailing slash) only to override that address, for example before a custom domain is live ([hosting.md](hosting.md) section 2, step 2).
 
 2. **`publish.target`** stays `pages`. The other targets are planned ([hosting.md](hosting.md) section 4).
 3. **`quarantine`**: which stages hold back diagnostics that a new compiler or ALCops version adds. There is no default: the daily scan stops until both keys are set. The typical choice holds them back in the editor and in pull request builds and lets builds against the next platform show them ([quarantine.md](quarantine.md) section 2):
@@ -63,11 +59,11 @@ The Update Rulebook System Files, Scan Diagnostics, Change Rule and Apply Rulebo
 
 ## 6. Publish
 
-Run Actions > **Publish** > Run workflow on `main` (it also runs by itself on every push to `main` that changes `rulesets/`, `skeletons/`, `site/`, `catalog/diagnostics.json`, the settings or the workflow). It validates the rulebook, publishes the endpoints, the skeletons with your `baseUrl` filled in, `rulebook.json`, `catalog/diagnostics.json` and the dashboard site ([dashboard.md](dashboard.md)), and waits until every URL serves the committed file ([hosting.md](hosting.md) section 1).
+Run Actions > **Publish** > Run workflow on `main` (it also runs by itself on every push to `main` that changes `rulesets/`, `skeletons/`, `site/`, `catalog/diagnostics.json`, the settings or the workflow). It validates the rulebook, publishes the endpoints, the skeletons with the address of your site filled in (the `baseUrl` you set, or the address Publish took from GitHub and names in the run summary), `rulebook.json`, `catalog/diagnostics.json` and the dashboard site ([dashboard.md](dashboard.md)), and waits until every URL serves the committed file ([hosting.md](hosting.md) section 1).
 
 ## 7. Check the result
 
-Open these three addresses in a browser, with your `baseUrl`:
+Open these three addresses in a browser, with `<baseUrl>` the address of your site. On a public site they open without a redirect; on a private site (Publish warned "The Pages site is published privately") GitHub's sign-in page comes first, which is expected, and the AL compiler cannot use the endpoints ([hosting.md](hosting.md) section 2):
 
 1. `<baseUrl>/`: the dashboard, the grid of the first stage with one row per rule and one column per level ([dashboard.md](dashboard.md)). Its link **Set up an AL project** opens `<baseUrl>/setup/`: one table per stage, one row per level, with the endpoint URL and a skeleton download link. With `site.enabled` set to `false`, `<baseUrl>/` is that plain index page instead.
 2. `<baseUrl>/rulebook.json`: the levels and stages of your rulebook.
@@ -98,10 +94,10 @@ When all three open, your rulebook is live. Optionally, run Actions > **Update R
 
 | Message | Cause | Fix |
 |---|---|---|
-| Publish: "baseUrl is empty" | `baseUrl` is not set; expected on the first commit of a new repository. | Step 4; the message proposes the value for your repository. |
+| Publish ends green with the warning "The Pages site is published privately at ..." | The site is private (an Enterprise Cloud organization), so the AL compiler cannot fetch the endpoints; Publish checks no URL. | Make the site public under Settings > Pages; with Enterprise Managed Users that is not possible ([hosting.md](hosting.md) section 2, "Private sites"). |
 | Publish: "GitHub Pages is not enabled for this repository" | Step 3 was skipped, or the plan or the organization does not allow Pages for this repository. | Step 3, then run Publish again; on GitHub Free check that the repository is public and that Pages creation is allowed ([hosting.md](hosting.md) section 3). |
 | Publish: "The plan of this account does not support GitHub Pages for a private repository" | A private repository on GitHub Free. | Make the repository public or upgrade the plan. |
-| The index page or an endpoint answers 404 or redirects | Publish did not end green, `baseUrl` is not the site's final address, or a cache still serves the old state. | Check the Publish run and its messages ([hosting.md](hosting.md) section 3); check `baseUrl`; wait up to 10 minutes and reload. |
+| The index page or an endpoint answers 404 or redirects | Publish did not end green, a `baseUrl` you set is not the site's final address, or a cache still serves the old state. | Check the Publish run and its messages ([hosting.md](hosting.md) section 3); check `baseUrl`, or empty it; wait up to 10 minutes and reload. |
 | Every AL project fails with AL1033 a few minutes after the repository was made private | GitHub Free removes the Pages site of a private repository. | Make it public again, turn Pages on again (step 3) and run Publish ([hosting.md](hosting.md) section 2). |
 | Scan Diagnostics: "Set quarantine.stages and quarantine.prereleaseStages in .github/Rulebook-Settings.json. ..." | The quarantine policy of step 4 is not set. | Set both keys ([quarantine.md](quarantine.md) section 2). |
 | Update, Scan or Change Rule: "The GHTOKENWORKFLOW secret is needed ..." | The secret of step 5 is missing. | Create it ([ghtokenworkflow.md](ghtokenworkflow.md) section 4). |

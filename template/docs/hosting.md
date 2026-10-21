@@ -30,25 +30,26 @@ Publish never changes your repository. It publishes what is committed, and it st
 
 ### Before you start
 
-- **Public repository on GitHub Free.** On the Free plan GitHub Pages works for public repositories only. A private repository can serve a public site on GitHub Pro, Team or Enterprise Cloud. Your endpoints are public either way: the AL compiler fetches them without signing in.
+- **Public repository on GitHub Free.** On the Free plan GitHub Pages works for public repositories only. A private repository can serve a public site on GitHub Pro, Team or Enterprise Cloud. The site itself must be public either way: the AL compiler fetches the endpoints without signing in (see "Private sites" below).
 - **Pages creation allowed.** In an organization, an owner must allow *Pages creation > Public* under Organization settings > Member privileges. While it is off, nobody can create a site, owners included.
+- **Private sites (Enterprise Cloud).** A private or internal repository of an Enterprise Cloud organization can publish its site privately: it is then served from a random `https://<name>.pages.github.io` address, only to people who are signed in and can read the repository. The AL compiler fetches the endpoints without signing in, so it cannot use a private site; the dashboard still works for your colleagues. The **GitHub Pages visibility** dropdown under Settings > Pages shows which one you have; switch it to **Public**. With Enterprise Managed Users the dropdown is absent and the site is private (observed on 2026-10-21), and the endpoints need another host ([rulebook-engine#56](https://github.com/ALCops/rulebook-engine/issues/56), section 4). On a private site Publish ends green with a warning and skips the check after the deploy.
 
 ### One-time setup
 
 1. **Turn on Pages.** In your rulebook repository, open Settings > Pages and set Build and deployment > Source to **GitHub Actions**. Someone with admin rights on the repository does this once. The Publish workflow never creates the site itself.
-2. **Set `baseUrl`** in `.github/Rulebook-Settings.json` to the address of the site, all lowercase, without a trailing slash:
+2. **`baseUrl` (optional).** Publish takes the address of the Pages site: with `baseUrl` in `.github/Rulebook-Settings.json` empty, as the template ships it, it asks GitHub for the address of the site before it deploys and names it in the run summary ("Base URL from the Pages site"). Set `baseUrl` only to override it, for example before a custom domain is live, all lowercase and without a trailing slash:
    - `https://<owner>.github.io/<repository>`, for example `https://contoso.github.io/rulebook`;
    - `https://<owner>.github.io` if the repository is named `<owner>.github.io`;
-   - your custom domain, if you set one (below).
-3. **Merge the change into `main`.** The Publish workflow runs on every push to `main` that changes `rulesets/`, `skeletons/`, `site/`, `catalog/diagnostics.json`, the settings or the workflow itself, and you can run it by hand under Actions > Publish. After the first run, `baseUrl` opens the dashboard (or the index page when `site.enabled` is `false`). To confirm the site works, open `<baseUrl>/`, `<baseUrl>/rulebook.json` and one endpoint such as `<baseUrl>/rulesets/strict.ruleset.json`: all three must open without a redirect.
+   - your custom domain (below).
+3. **Run Publish.** The Publish workflow runs on every push to `main` that changes `rulesets/`, `skeletons/`, `site/`, `catalog/diagnostics.json`, the settings or the workflow itself, and you can run it by hand under Actions > Publish. On these pages `<baseUrl>` stands for the address of the site, the one in `baseUrl` or the one Publish took from GitHub. After the first run, `<baseUrl>/` opens the dashboard (or the index page when `site.enabled` is `false`). To confirm the site works, open `<baseUrl>/`, `<baseUrl>/rulebook.json` and one endpoint such as `<baseUrl>/rulesets/strict.ruleset.json`: on a public site all three must open without a redirect (a private site shows the GitHub sign-in page first, see "Private sites" above).
 
 Then set up your AL projects: the setup page of your site (`<baseUrl>/setup/`, or `<baseUrl>/` when the dashboard is off) shows the two commands of the init script, which downloads the skeletons of a level into `.rulebook/`, one file per stage. See [al-project.md](al-project.md).
 
 ### Custom domain
 
-Set the domain under Settings > Pages > Custom domain and add the DNS records GitHub shows there. Then change `baseUrl` to `https://<your domain>` in a pull request. Until you do, Publish warns that the site is served at another address than `baseUrl`, and the check after the deploy fails right away with a message that the URL answers with a redirect: the old `github.io` address now redirects to your domain, and the AL compiler does not follow redirects. Compile one project against the new address before you roll it out; custom domains have not been tested with the compiler's network checks yet.
+Set the domain under Settings > Pages > Custom domain and add the DNS records GitHub shows there. With `baseUrl` empty, GitHub reports the custom domain as the address of the site, so the next Publish run uses it by itself. With `baseUrl` set, change it to `https://<your domain>` (or empty it) in a pull request. Until you do, Publish warns that the site is served at another address than `baseUrl`, and the check after the deploy fails right away with a message that the URL answers with a redirect: the old `github.io` address now redirects to your domain, and the AL compiler does not follow redirects. Compile one project against the new address before you roll it out; custom domains have not been tested with the compiler's network checks yet.
 
-Renaming the repository or the owner changes the `github.io` address the same way: update `baseUrl` and publish again.
+Renaming the repository or the owner changes the `github.io` address the same way: publish again, after updating `baseUrl` if you set it.
 
 ### How fast changes arrive
 
@@ -64,7 +65,11 @@ Publish checks before it deploys and after it deploys. Its message says what to 
 
 | Message | Cause | Fix |
 |---|---|---|
-| `baseUrl is empty` | `baseUrl` is not set; expected on the first commit of a new repository. | Set `baseUrl` as in step 2; the message proposes the value for your repository. |
+| `baseUrl is empty` | `baseUrl` is not set in a run with `deploy: false`, which does not ask GitHub for the address of the site. | Set `baseUrl` as in step 2 (the message proposes the value for your repository), or run with `deploy: true`. |
+| `The address of the Pages site, ..., cannot be the base URL` | The site has a custom domain without HTTPS, so GitHub reports an `http://` address, and `baseUrl` is empty. | Turn on Enforce HTTPS under Settings > Pages, or set `baseUrl` as in step 2. |
+| `The Pages site answered without an address` | GitHub returned the Pages site without its address, and `baseUrl` is empty. | Set `baseUrl` as in step 2; the message proposes the value for your repository. |
+| Warning: `The Pages site is published privately at ...` | The site is private: only signed-in people who can read the repository see it, so the AL compiler cannot fetch the endpoints. Publish ends green and checks no URL. | Switch GitHub Pages visibility to **Public** under Settings > Pages; with Enterprise Managed Users that is not possible, see "Private sites" in section 2. |
+| Warning: `The Pages site is served at ..., but baseUrl is ...` | `baseUrl` is set to another address than the one GitHub serves the site at, for example after a custom domain was added. | Set `baseUrl` to that address, or empty it so Publish takes it from GitHub. |
 | `GitHub Pages is not enabled for this repository` | Step 1 was not done, or the plan or the organization does not allow Pages here, or the workflow lost `pages: write`. | Step 1. On GitHub Free, also check that the repository is public and that Pages creation is allowed. If Pages is already on, check that the Publish workflow still grants `pages: write`. |
 | `The GitHub Pages site of this repository builds from a branch` | The Pages source is a branch, not GitHub Actions. | Settings > Pages > Source: **GitHub Actions**. |
 | `The plan of this account does not support GitHub Pages for a private repository` | A private repository on GitHub Free. | Make the repository public or upgrade the plan. |
@@ -72,7 +77,7 @@ Publish checks before it deploys and after it deploys. Its message says what to 
 | `The committed endpoints do not match their inputs` | `rulesets/` is out of date. | Open a pull request that regenerates it; the Validate workflow names the files. |
 | `Publish target '...' is not implemented yet` | `publish.target` names a planned target. | Set `publish.target` to `pages` (section 4). |
 | Failure `site`, or a warning about `site/hugo.yaml` or the matrix marker | The dashboard site could not be built, or is built from changed files. | [dashboard.md](dashboard.md) section 7. |
-| `... is missing`, `... serves a different body`, `... answers with a redirect` | After the deploy, a URL did not serve the committed file. | Check `baseUrl` (a redirect means it is not the final address), then run Publish again. |
+| `... is missing`, `... serves a different body`, `... answers with a redirect` | After the deploy, a URL did not serve the committed file. | Check `baseUrl` (a redirect means it is not the final address; or leave it empty so Publish takes the address of the Pages site), then run Publish again. |
 
 ## 4. Other hosts
 

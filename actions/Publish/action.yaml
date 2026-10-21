@@ -8,7 +8,7 @@ inputs:
     required: false
     default: '.'
   baseUrl:
-    description: Overrides baseUrl of .github/Rulebook-Settings.json (https, no trailing slash). Empty uses the setting.
+    description: Overrides baseUrl of .github/Rulebook-Settings.json (https, no trailing slash). Empty uses the setting; when the setting is empty too, the address of the Pages site is used when deploy is 'true'.
     required: false
     default: ''
   target:
@@ -46,6 +46,9 @@ outputs:
   pageUrl:
     description: The URL of the published site.
     value: ${{ steps.deploy.outputs.page_url || steps.stage.outputs.pageUrl }}
+  private:
+    description: "'true' when the Pages site is published privately (only signed-in people with read access see it; the AL compiler cannot fetch the endpoints), so the reachability check is skipped; 'false' otherwise."
+    value: ${{ steps.stage.outputs.private }}
 
 runs:
   using: composite
@@ -106,7 +109,7 @@ runs:
       uses: actions/deploy-pages@v5
 
     - name: Check every published URL
-      if: inputs.deploy == 'true' && inputs.skipCheck != 'true'
+      if: inputs.deploy == 'true' && inputs.skipCheck != 'true' && steps.stage.outputs.private != 'true'
       shell: pwsh
       env:
         INPUT_MANIFESTPATH: ${{ steps.stage.outputs.manifestPath }}

@@ -124,4 +124,4 @@ The catalog is org-owned: an update from the template never overwrites it, so th
 
 ## 6. The base URL and {BASEURL}
 
-The template ships `"baseUrl": ""`. The settings schema accepts the empty string (an organization fills it in), C5 still rejects a trailing slash, and the Publish action (WP05) stops with a proposal until it is set. The skeletons in `skeletons/` keep the placeholder `{BASEURL}` in the repository; Publish renders the organization's URL into the published copy, so an update from the template never fights with the organization's URL.
+The template ships `"baseUrl": ""`. The settings schema accepts the empty string (an organization fills it in), C5 still rejects a trailing slash, and the Publish action takes the address of the Pages site while it is empty (D57; a dry run without deploy stops with a proposal instead). The skeletons in `skeletons/` keep the placeholder `{BASEURL}` in the repository; Publish renders the organization's URL into the published copy, so an update from the template never fights with the organization's URL.

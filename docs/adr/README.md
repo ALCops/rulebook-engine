@@ -82,6 +82,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D54](0054-the-site-renders-one-page-per-stage-and-the-engine-exports-the-fallback-action.md) | The site renders one page per stage, and the engine exports the fallback action | Accepted | 2026-10-17 |
 | [D55](0055-the-apply-workflow-gates-on-push-permission.md) | The apply workflow gates on push permission: the issue author, and the editor of a body edit | Accepted | 2026-10-18 |
 | [D56](0056-schema-validation-uses-jsonschema-net-directly.md) | Schema validation uses JsonSchema.Net directly, not Test-Json | Accepted | 2026-10-21 |
+| [D57](0057-baseurl-is-derived-from-the-pages-site-and-the-setting-overrides.md) | baseUrl is derived from the Pages site, and the setting overrides it | Accepted | 2026-10-21 |
 
 ## Open decisions
 

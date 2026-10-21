@@ -1,5 +1,9 @@
 # Release notes
 
+## v1.0.0-beta.7
+
+- Publish: an empty `baseUrl` takes the address of the Pages site when the action deploys (a set `baseUrl` overrides it; a dry run still fails with the proposal), and a private Pages site (Enterprise Managed Users) ends the run green with a warning, the output `private` and no reachability check (D57) ([#135](https://github.com/ALCops/rulebook-engine/pull/135))
+
 ## v1.0.0-beta.6
 
 - Validate passes again on pwsh 7.6.7 (`ubuntu-latest` since 2026-10-19): the schema checks run through JsonSchema.Net inside pwsh instead of `Test-Json`, which from 7.6.7 refuses the schemas' sibling `$ref` and names no nested error; a schema finding (C1, C5, C10, C14) now names the first error with its JSON pointer, and a property name repeated in one object is a finding instead of a crash (D56) ([#126](https://github.com/ALCops/rulebook-engine/pull/126))

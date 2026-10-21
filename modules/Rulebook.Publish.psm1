@@ -137,19 +137,22 @@ function Resolve-RulebookBaseUrl {
     An empty value throws with a proposal for GitHub Pages derived from -Repository (owner/name):
     https://<owner>.github.io/<repo>, lowercased, or https://<owner>.github.io for a repository named
     <owner>.github.io. A value that is not https or ends with a slash throws too (C5 checks the settings; this
-    guards the override input).
+    guards the override input). With -AllowEmpty an empty value returns '' instead of throwing: Publish with deploy
+    then takes the address of the Pages site from the preflight (D57).
     #>
     [CmdletBinding()]
     [OutputType([string])]
     param(
         [Parameter(Mandatory)][AllowNull()]$Settings,
         [AllowNull()][AllowEmptyString()][string]$Repository,
-        [AllowNull()][AllowEmptyString()][string]$Override
+        [AllowNull()][AllowEmptyString()][string]$Override,
+        [switch]$AllowEmpty
     )
     $fromOverride = -not [string]::IsNullOrWhiteSpace($Override)
     $value = if ($fromOverride) { $Override.Trim() } else { [string](Get-SettingValue $Settings 'baseUrl') }
     $where = if ($fromOverride) { 'The baseUrl input' } else { "baseUrl in $($script:SettingsPath)" }
     if ([string]::IsNullOrEmpty($value)) {
+        if ($AllowEmpty) { return '' }
         $proposal = Get-BaseUrlProposal -Repository $Repository
         throw "baseUrl is empty. Set `"baseUrl`": `"$proposal`" in $($script:SettingsPath) (the GitHub Pages address of this repository; use your custom domain instead if the Pages site has one), commit it in a pull request and run Publish again."
     }
@@ -421,12 +424,15 @@ function New-RulebookPublishStage {
 function Get-PagesPreflightResult {
     <#
     .SYNOPSIS
-    Maps the answer of GET /repos/{owner}/{repo}/pages to Ok, Message and Warning; never creates a site.
+    Maps the answer of GET /repos/{owner}/{repo}/pages to Ok, Message, Warning, HtmlUrl and Private; never creates a site.
     .DESCRIPTION
-    200 with build_type workflow is Ok; Warning is set when html_url (without its trailing slash) differs from
-    -BaseUrl, which is the custom-domain case. Every other answer is not Ok, with a Message that says what to do: a
-    legacy (branch) source, no site yet (404), the plan or organization policy gates of spike (d), and a token
-    without pages permission.
+    200 with build_type workflow is Ok. HtmlUrl is html_url without its trailing slash ($null when absent or when the
+    answer is not Ok); Publish takes it as the base URL when baseUrl is empty (D57). Private is true when the answer
+    has public false (a private site, the only kind an organization with Enterprise Managed Users can publish); the
+    result stays Ok, with a warning that the AL compiler cannot fetch the endpoints from it. Warning is $null or an
+    array of one or two texts: the private site, and html_url differing from -BaseUrl (the custom-domain case).
+    Every other answer is not Ok, with a Message that says what to do: a legacy (branch) source, no site yet (404),
+    the plan or organization policy gates of spike (d), and a token without pages permission.
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -443,7 +449,10 @@ function Get-PagesPreflightResult {
     }
     $apiMessage = [string](Get-SettingValue $json 'message')
     $settingsPage = if ([string]::IsNullOrEmpty($Repository)) { 'Settings > Pages' } else { "https://github.com/$Repository/settings/pages" }
-    $result = { param($Ok, $Message, $Warning) [pscustomobject]@{ Ok = $Ok; Message = $Message; Warning = $Warning } }
+    $result = {
+        param($Ok, $Message, $Warning, $HtmlUrl = $null, $Private = $false)
+        [pscustomobject]@{ Ok = $Ok; Message = $Message; Warning = $Warning; HtmlUrl = $HtmlUrl; Private = $Private }
+    }
 
     if ($StatusCode -eq 200) {
         $buildType = [string](Get-SettingValue $json 'build_type')
@@ -451,11 +460,19 @@ function Get-PagesPreflightResult {
             return & $result $false "The GitHub Pages site of this repository builds from a branch (build_type '$buildType'). Set Source to 'GitHub Actions' once in $settingsPage; Publish deploys with actions/deploy-pages." $null
         }
         $htmlUrl = ([string](Get-SettingValue $json 'html_url')).TrimEnd('/')
-        $warning = $null
-        if (-not [string]::IsNullOrEmpty($BaseUrl) -and -not [string]::IsNullOrEmpty($htmlUrl) -and -not [string]::Equals($htmlUrl, $BaseUrl, [System.StringComparison]::OrdinalIgnoreCase)) {
-            $warning = "The Pages site is served at $htmlUrl, but baseUrl is $BaseUrl. The skeletons and the reachability check use baseUrl; if the site has a custom domain, set baseUrl to it in $($script:SettingsPath)."
+        if ([string]::IsNullOrEmpty($htmlUrl)) { $htmlUrl = $null }
+        $public = Get-SettingValue $json 'public'
+        $private = $public -is [bool] -and -not $public
+        $warnings = [System.Collections.Generic.List[string]]::new()
+        if ($private) {
+            $where = if ($htmlUrl) { " at $htmlUrl" } else { '' }
+            $warnings.Add("The Pages site is published privately$($where): only signed-in people with read access see it, and the AL compiler cannot fetch the endpoints from it. Make the site public under $settingsPage (GitHub Pages visibility), or publish the endpoints from a public host; with Enterprise Managed Users the site cannot be public (https://github.com/ALCops/rulebook-engine/issues/56).")
         }
-        return & $result $true 'GitHub Pages is enabled with Source GitHub Actions.' $warning
+        if (-not [string]::IsNullOrEmpty($BaseUrl) -and $htmlUrl -and -not [string]::Equals($htmlUrl, $BaseUrl, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $warnings.Add("The Pages site is served at $htmlUrl, but baseUrl is $BaseUrl. The skeletons and the reachability check use baseUrl; if the site has a custom domain, set baseUrl to it in $($script:SettingsPath), or leave baseUrl empty to use the address of the Pages site.")
+        }
+        $warning = if ($warnings.Count -gt 0) { , [string[]]$warnings.ToArray() } else { $null }
+        return & $result $true 'GitHub Pages is enabled with Source GitHub Actions.' $warning $htmlUrl $private
     }
     if ($apiMessage -like '*current plan does not support GitHub Pages*') {
         return & $result $false 'The plan of this account does not support GitHub Pages for a private repository. Make the repository public, upgrade to GitHub Pro, Team or Enterprise Cloud, or wait for the dist-repo target (https://github.com/ALCops/rulebook-engine/issues/55).' $null

@@ -9,14 +9,16 @@ in the settings and -HugoPath is the default 'hugo'; otherwise it prints why it 
 'site'.
 
 -Phase Stage reads the settings, resolves the target (only 'pages' is implemented) and the base URL, runs the GitHub
-Pages preflight when -Deploy is set, stages the endpoints, the rendered skeletons, rulebook.json (with -Repository),
-catalog/diagnostics.json and the plain index.html into -StagingPath (New-RulebookPublishStage, which refuses stale
-endpoints: Publish is a gate and never commits, D42). When site.enabled is true it then copies the staged
-rulebook.json to site/data/rulebook.json and builds site/ with Hugo into the staging folder (Build-RulebookSite), so
-the dashboard replaces the plain index.html; a target that cannot serve HTML or a missing site/hugo.yaml is a warning
-and keeps the plain page, a missing Hugo or a failed build is failure 'site'. It writes the manifest to -ManifestPath
-(with one page entry per stage and level page, the setup page and the first rule page), the URL list to the job summary and the
-outputs stagingPath, manifestPath and pageUrl to GITHUB_OUTPUT.
+Pages preflight when -Deploy is set (an empty base URL is then taken from html_url of the Pages site, D57; a private
+site is a warning, the output private=true and no check), stages the endpoints, the rendered skeletons,
+rulebook.json (with -Repository), catalog/diagnostics.json and the plain index.html into -StagingPath
+(New-RulebookPublishStage, which refuses stale endpoints: Publish is a gate and never commits, D42). When
+site.enabled is true it then copies the staged rulebook.json to site/data/rulebook.json and builds site/ with Hugo
+into the staging folder (Build-RulebookSite), so the dashboard replaces the plain index.html; a target that cannot
+serve HTML or a missing site/hugo.yaml is a warning and keeps the plain page, a missing Hugo or a failed build is
+failure 'site'. It writes the manifest to -ManifestPath (with one page entry per stage and level page, the setup
+page and the first rule page), the URL list to the job summary and the outputs stagingPath, manifestPath, pageUrl
+and private to GITHUB_OUTPUT.
 
 -Phase Check reads -ManifestPath and runs Test-RulebookEndpoints: one error annotation per URL that is missing or
 differs after -WindowSeconds, and the result table in the job summary.
@@ -115,8 +117,11 @@ if ($Phase -eq 'Stage') {
     $resolvedBaseUrl = $null
     $preflight = $null
     $siteBuilt = $null
+    $private = $false
     $failed = $false
     [void]$summary.AppendLine('## Rulebook publish').AppendLine()
+    # Lines about the base URL and the Pages site, written above the URL table of a successful run.
+    $notes = [System.Collections.Generic.List[string]]::new()
     try {
         $root = (Resolve-Path -LiteralPath $RepositoryRoot -ErrorAction Stop).ProviderPath
         $workspace = if ([string]::IsNullOrEmpty($WorkspaceRoot)) { $root } else { (Resolve-Path -LiteralPath $WorkspaceRoot -ErrorAction Stop).ProviderPath }
@@ -134,23 +139,64 @@ if ($Phase -eq 'Stage') {
             Add-Failure -Context $ctx -Kind 'target'
             $failed = $true
         }
+        # An empty base URL is allowed only with -Deploy, where the preflight answer carries the address of the
+        # Pages site (D57); the dry run makes no API call, so it keeps the failure with the proposal.
+        $configuredBaseUrl = $null
         try {
-            $resolvedBaseUrl = Resolve-RulebookBaseUrl -Settings $settings -Repository $Repository -Override $BaseUrl
+            $configuredBaseUrl = Resolve-RulebookBaseUrl -Settings $settings -Repository $Repository -Override $BaseUrl -AllowEmpty:$Deploy
         } catch {
-            Add-Annotation -Context $ctx -File $(if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $settingsFile }) -Message $_.Exception.Message
             $empty = [string]::IsNullOrWhiteSpace($BaseUrl) -and [string]::IsNullOrEmpty([string]$settings['baseUrl'])
+            $message = $_.Exception.Message
+            # The dry run offers the other way out first: a deploy takes the address of the Pages site.
+            if ($empty) { $message = $message.Replace('baseUrl is empty. Set ', 'baseUrl is empty. Leave it empty and run Publish with deploy true to take the address of the Pages site, or set ') }
+            Add-Annotation -Context $ctx -File $(if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $settingsFile }) -Message $message
             Add-Failure -Context $ctx -Kind $(if ($empty) { 'baseUrl-empty' } else { 'baseUrl-invalid' })
             $failed = $true
         }
         if (-not $failed) {
-            Write-Host "Publish target: $resolvedTarget, base URL: $resolvedBaseUrl"
+            $resolvedBaseUrl = if ($configuredBaseUrl) { $configuredBaseUrl } else { $null }
             if ($Deploy) {
                 if ([string]::IsNullOrEmpty($Repository)) { throw 'The Pages preflight needs the repository (GITHUB_REPOSITORY) as owner/name.' }
-                $preflight = Invoke-PagesPreflight -Repository $Repository -ApiUrl $ApiUrl -Token $Token -BaseUrl $resolvedBaseUrl
+                # The configured base URL is passed only for the custom-domain warning.
+                $preflightParameters = @{ Repository = $Repository; ApiUrl = $ApiUrl; Token = $Token }
+                if ($configuredBaseUrl) { $preflightParameters.BaseUrl = $configuredBaseUrl }
+                $preflight = Invoke-PagesPreflight @preflightParameters
                 Write-Host "Pages preflight: HTTP $($preflight.StatusCode). $($preflight.Message)"
-                if ($preflight.Warning) { Add-Annotation -Context $ctx -Command warning -Message $preflight.Warning }
-                if (-not $preflight.Ok) { Add-Annotation -Context $ctx -Message $preflight.Message; Add-Failure -Context $ctx -Kind 'preflight'; $failed = $true }
+                foreach ($warning in @($preflight.Warning | Where-Object { $_ })) { Add-Annotation -Context $ctx -Command warning -Message $warning }
+                if (-not $preflight.Ok) {
+                    Add-Annotation -Context $ctx -Message $preflight.Message; Add-Failure -Context $ctx -Kind 'preflight'; $failed = $true
+                } else {
+                    if (-not $configuredBaseUrl) {
+                        if ([string]::IsNullOrEmpty($preflight.HtmlUrl)) {
+                            $message = 'The Pages site answered without an address (html_url), so Publish cannot take the base URL from it.'
+                            try { $null = Resolve-RulebookBaseUrl -Settings $settings -Repository $Repository -Override $BaseUrl } catch { $message += ' ' + $_.Exception.Message }
+                            Add-Annotation -Context $ctx -File $(if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $settingsFile }) -Message $message
+                            Add-Failure -Context $ctx -Kind 'baseUrl-empty'
+                            $failed = $true
+                        } else {
+                            # The address passes the same check as a set baseUrl: a custom domain without
+                            # Enforce HTTPS answers with an http html_url, which the compiler must not be given.
+                            try {
+                                $resolvedBaseUrl = Resolve-RulebookBaseUrl -Settings $null -Override $preflight.HtmlUrl
+                                Write-Host "Base URL from the Pages site: $resolvedBaseUrl"
+                                $notes.Add("Base URL from the Pages site: ``$resolvedBaseUrl`` (baseUrl is empty).")
+                            } catch {
+                                # The message names the settings file as the module's messages do; the annotation
+                                # carries no file attribute because the value came from the Pages API, not the file.
+                                $fix = if ($preflight.HtmlUrl.StartsWith('http://', [System.StringComparison]::OrdinalIgnoreCase)) { 'Turn on Enforce HTTPS under Settings > Pages, or set baseUrl in .github/Rulebook-Settings.json.' } else { 'Set baseUrl in .github/Rulebook-Settings.json.' }
+                                Add-Annotation -Context $ctx -Message "The address of the Pages site, ``$($preflight.HtmlUrl)``, cannot be the base URL: $($_.Exception.Message.Replace('The baseUrl input ', 'it ')) $fix"
+                                Add-Failure -Context $ctx -Kind 'baseUrl-invalid'
+                                $failed = $true
+                            }
+                        }
+                    }
+                    if ($preflight.Private) {
+                        $private = $true
+                        $notes.Add('The Pages site is private: no endpoint was checked, the AL compiler cannot fetch them from this site.')
+                    }
+                }
             }
+            if (-not $failed) { Write-Host "Publish target: $resolvedTarget, base URL: $resolvedBaseUrl" }
         }
         if (-not $failed) {
             try {
@@ -219,11 +265,12 @@ if ($Phase -eq 'Stage') {
     } else {
         $mode = if ($Deploy) { 'Deploying to GitHub Pages' } else { 'Staged only (deploy is off)' }
         [void]$summary.AppendLine(('{0}: {1} files for `{2}`.' -f $mode, $manifest.Count, $resolvedBaseUrl)).AppendLine()
+        foreach ($note in $notes) { [void]$summary.AppendLine($note).AppendLine() }
         if ($siteBuilt) { [void]$summary.AppendLine(('The dashboard site: {0} pages built with Hugo in {1} s; the table lists the pages the check requests.' -f $siteBuilt.PageCount, $siteBuilt.Seconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))).AppendLine() }
         [void]$summary.AppendLine('| Kind | URL |').AppendLine('|---|---|')
         foreach ($entry in $manifest) { [void]$summary.AppendLine(('| {0} | {1} |' -f $entry.Kind, $entry.Url)) }
         [void]$summary.AppendLine()
-        Write-ActionOutput -Outputs ([ordered]@{ stagingPath = $StagingPath; manifestPath = $ManifestPath; pageUrl = "$resolvedBaseUrl/" })
+        Write-ActionOutput -Outputs ([ordered]@{ stagingPath = $StagingPath; manifestPath = $ManifestPath; pageUrl = "$resolvedBaseUrl/"; private = $(if ($private) { 'true' } else { 'false' }) })
     }
     $summaryText = $summary.ToString().Replace("`r`n", "`n")
     Write-Text -Path $SummaryPath -Text $summaryText
@@ -236,6 +283,7 @@ if ($Phase -eq 'Stage') {
         ManifestPath = $ManifestPath
         Manifest     = $manifest
         Preflight    = $preflight
+        Private      = $private
         Site         = $siteBuilt
         Annotations  = $ctx.Annotations.ToArray()
         Summary      = $summaryText
@@ -257,7 +305,7 @@ try {
             'missing' { 'is missing (HTTP 404)' }
             'different' { 'serves a different body than the committed file' }
             'timeout' { "timed out after $TimeoutSeconds s" }
-            'redirect' { "answers with a redirect (HTTP $($result.Status)), which the compiler does not follow; set baseUrl to the final address" }
+            'redirect' { "answers with a redirect (HTTP $($result.Status)), which the compiler does not follow; set baseUrl to the final address, or leave it empty so Publish takes the address of the Pages site" }
             default { if ($result.Status -gt 0) { "failed (HTTP $($result.Status))" } else { 'failed' } }
         }
         if ($result.Detail) { $reason += " ($($result.Detail))" }
