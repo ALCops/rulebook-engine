@@ -366,6 +366,14 @@ Describe 'Resolve-RulebookBaseUrl' {
         $Value = $Value.Replace('{BEL}', [string][char]0x7)
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $Value } -Repository 'Contoso/Rulebook' } | Should-Throw -ExceptionMessage $Message
         { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -Override $Value } | Should-Throw -ExceptionMessage $Message
+        { Resolve-RulebookBaseUrl -Settings @{ baseUrl = $Value } -AllowEmpty } | Should-Throw -ExceptionMessage $Message
+    }
+
+    It 'returns an empty string for an empty value with -AllowEmpty (D57)' {
+        Resolve-RulebookBaseUrl -Settings @{ baseUrl = '' } -Repository 'Contoso/Rulebook' -AllowEmpty | Should-Be ''
+        Resolve-RulebookBaseUrl -Settings @{} -AllowEmpty | Should-Be ''
+        Resolve-RulebookBaseUrl -Settings @{ baseUrl = $baseUrl } -AllowEmpty | Should-Be $baseUrl
+        Resolve-RulebookBaseUrl -Settings @{ baseUrl = '' } -Override 'https://rules.contoso.com' -AllowEmpty | Should-Be 'https://rules.contoso.com'
     }
 }
 
@@ -757,6 +765,52 @@ Describe 'Get-PagesPreflightResult' {
         $result = Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow","html_url":"https://rules.contoso.com/"}' -BaseUrl $baseUrl
         $result.Ok | Should-BeTrue
         $result.Warning | Should-BeLikeString '*served at https://rules.contoso.com, but baseUrl is https://contoso.github.io/rulebook*custom domain*'
+        $result.HtmlUrl | Should-Be 'https://rules.contoso.com'
+    }
+
+    It 'returns html_url without its trailing slash, and no warning without a base URL' {
+        $result = Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow","html_url":"https://contoso.github.io/rulebook/","public":true}'
+        $result.Ok | Should-BeTrue
+        $result.HtmlUrl | Should-Be 'https://contoso.github.io/rulebook'
+        $result.Private | Should-BeFalse
+        $result.Warning | Should-BeNull
+    }
+
+    It 'gives Private false for public <Public>' -ForEach @(
+        @{ Public = 'true'; Body = '{"build_type":"workflow","html_url":"https://contoso.github.io/rulebook/","public":true}' }
+        @{ Public = 'missing'; Body = '{"build_type":"workflow","html_url":"https://contoso.github.io/rulebook/"}' }
+        @{ Public = '"false" (a string)'; Body = '{"build_type":"workflow","html_url":"https://contoso.github.io/rulebook/","public":"false"}' }
+    ) {
+        $result = Get-PagesPreflightResult -StatusCode 200 -Body $Body -BaseUrl $baseUrl
+        $result.Ok | Should-BeTrue
+        $result.Private | Should-BeFalse
+        $result.Warning | Should-BeNull
+    }
+
+    It 'accepts a private site (public false) with a warning that names the private host' {
+        $result = Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow","html_url":"https://upgraded-fiesta-x1.pages.github.io/","public":false}' -Repository 'Contoso/Rulebook'
+        $result.Ok | Should-BeTrue
+        $result.Private | Should-BeTrue
+        $result.HtmlUrl | Should-Be 'https://upgraded-fiesta-x1.pages.github.io'
+        @($result.Warning).Count | Should-Be 1
+        $result.Warning | Should-BeLikeString 'The Pages site is published privately at https://upgraded-fiesta-x1.pages.github.io: only signed-in people with read access*AL compiler cannot fetch the endpoints*https://github.com/Contoso/Rulebook/settings/pages (GitHub Pages visibility)*public host*Enterprise Managed Users*https://github.com/ALCops/rulebook-engine/issues/56*'
+    }
+
+    It 'warns twice for a private site served away from the base URL' {
+        $result = Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow","html_url":"https://upgraded-fiesta-x1.pages.github.io/","public":false}' -BaseUrl $baseUrl
+        $result.Ok | Should-BeTrue
+        $result.Private | Should-BeTrue
+        $warnings = @($result.Warning)
+        $warnings.Count | Should-Be 2
+        $warnings[0] | Should-BeLikeString '*published privately*Settings > Pages (GitHub Pages visibility)*'
+        $warnings[1] | Should-BeLikeString '*served at https://upgraded-fiesta-x1.pages.github.io, but baseUrl is https://contoso.github.io/rulebook*'
+    }
+
+    It 'gives HtmlUrl null for an answer without html_url and for a failed answer' {
+        (Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow"}' -BaseUrl $baseUrl).HtmlUrl | Should-BeNull
+        $failed = Get-PagesPreflightResult -StatusCode 404 -Body '{"message":"Not Found"}'
+        $failed.HtmlUrl | Should-BeNull
+        $failed.Private | Should-BeFalse
     }
 
     It 'maps <Name>' -ForEach @(

@@ -112,7 +112,12 @@ Describe 'actions/Publish/action.yaml' {
     It 'uploads and deploys with the pinned Pages actions only when deploy is true' {
         $yaml | Should-MatchString '(?ms)if: inputs\.deploy == ''true''\n      uses: actions/upload-pages-artifact@v5\n      with:\n        path: \$\{\{ steps\.stage\.outputs\.stagingPath \}\}'
         $yaml | Should-MatchString '(?ms)id: deploy\n      if: inputs\.deploy == ''true''\n      uses: actions/deploy-pages@v5'
-        $yaml | Should-MatchString "if: inputs\.deploy == 'true' && inputs\.skipCheck != 'true'"
+        $yaml | Should-MatchString "(?m)^      if: inputs\.deploy == 'true' && inputs\.skipCheck != 'true' && steps\.stage\.outputs\.private != 'true'$"
+    }
+
+    It 'declares the output private from the stage step and skips the check on a private site' {
+        $yaml | Should-MatchString '(?m)^  private:\n.*\n    value: \$\{\{ steps\.stage\.outputs\.private \}\}$'
+        $yaml | Should-MatchString "(?ms)- name: Check every published URL\n      if: [^\n]*steps\.stage\.outputs\.private != 'true'"
     }
 }
 
@@ -294,7 +299,9 @@ Describe 'Publish.ps1 -Phase Stage' {
         $leaf = Split-Path -Leaf $root
         $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
         $errors.Count | Should-Be 1
-        $errors[0] | Should-BeLikeString "::error file=$leaf/.github/Rulebook-Settings.json,title=Publish::baseUrl is empty*`"https://contoso.github.io/rulebook`"*"
+        $errors[0] | Should-BeLikeString "::error file=$leaf/.github/Rulebook-Settings.json,title=Publish::baseUrl is empty*`"https://contoso.github.io/rulebook`"*run Publish with deploy true*address of the Pages site*"
+        # The dry run makes no API call.
+        $run.Result.Preflight | Should-BeNull
         $run.Lines | Should-ContainCollection @($errors[0])
         $run.Summary | Should-MatchString 'Publish stopped before deploying'
         Test-Path -LiteralPath $run.Result.StagingPath | Should-BeFalse
@@ -343,6 +350,100 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run.Result.ExitCode | Should-Be 1
         $run.Result.Failure | Should-Be 'stage'
         @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::*rulesets/essential.ruleset.json is stale*' }).Count | Should-Be 1
+    }
+
+    It 'with deploy and an empty baseUrl stages against html_url of the Pages site (D57)' {
+        Mock Invoke-PagesPreflight {
+            Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow","html_url":"https://contoso.github.io/rulebook/","public":true}' -BaseUrl $BaseUrl -Repository $Repository |
+                Add-Member -NotePropertyName StatusCode -NotePropertyValue 200 -PassThru
+        }
+        $outputFile = Join-Path $TestDrive 'derived-output.txt'
+        $env:GITHUB_OUTPUT = $outputFile
+        try {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Deploy = $true }
+        } finally {
+            $env:GITHUB_OUTPUT = $null
+        }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.BaseUrl | Should-Be 'https://contoso.github.io/rulebook'
+        $run.Result.Private | Should-BeFalse
+        # The configured base URL is passed only for the custom-domain warning; an empty one is not passed.
+        Should-Invoke Invoke-PagesPreflight -Times 1 -Exactly -ParameterFilter { [string]::IsNullOrEmpty($BaseUrl) -and $Repository -eq 'Contoso/Rulebook' }
+        $run.Lines | Should-ContainCollection @('Base URL from the Pages site: https://contoso.github.io/rulebook')
+        $run.Summary | Should-MatchString 'Base URL from the Pages site: `https://contoso\.github\.io/rulebook` \(baseUrl is empty\)\.'
+        $run.Summary | Should-MatchString 'Deploying to GitHub Pages: 36 files for `https://contoso\.github\.io/rulebook`\.'
+        Get-Content -LiteralPath (Join-Path $run.Result.StagingPath 'skeletons' 'strict.ci.ruleset.json') -Raw | Should-MatchString ([regex]::Escape('https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json'))
+        (Get-Content -LiteralPath (Join-Path $run.Result.StagingPath 'rulebook.json') -Raw | ConvertFrom-Json).baseUrl | Should-Be 'https://contoso.github.io/rulebook'
+        @(Get-Content -LiteralPath $run.Result.ManifestPath -Raw | ConvertFrom-Json | Where-Object { -not $_.Url.StartsWith('https://contoso.github.io/rulebook/') }) | Should-BeCollection @()
+        $outputs = Get-Content -LiteralPath $outputFile -Raw
+        $outputs | Should-MatchString '(?m)^pageUrl=https://contoso\.github\.io/rulebook/$'
+        $outputs | Should-MatchString '(?m)^private=false$'
+        @($run.Result.Annotations) | Should-BeCollection @()
+    }
+
+    It 'ends green on a private Pages site with the warning, the output private and the summary line' {
+        Mock Invoke-PagesPreflight {
+            Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow","html_url":"https://upgraded-fiesta-x1.pages.github.io/","public":false}' -BaseUrl $BaseUrl -Repository $Repository |
+                Add-Member -NotePropertyName StatusCode -NotePropertyValue 200 -PassThru
+        }
+        $outputFile = Join-Path $TestDrive 'private-output.txt'
+        $env:GITHUB_OUTPUT = $outputFile
+        try {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Deploy = $true }
+        } finally {
+            $env:GITHUB_OUTPUT = $null
+        }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.Failure | Should-BeNull
+        $run.Result.Private | Should-BeTrue
+        $run.Result.BaseUrl | Should-Be 'https://upgraded-fiesta-x1.pages.github.io'
+        $outputs = Get-Content -LiteralPath $outputFile -Raw
+        $outputs | Should-MatchString '(?m)^private=true$'
+        $outputs | Should-MatchString '(?m)^pageUrl=https://upgraded-fiesta-x1\.pages\.github\.io/$'
+        $warnings = @($run.Result.Annotations | Where-Object { $_.StartsWith('::warning') })
+        $warnings.Count | Should-Be 1
+        $warnings[0] | Should-BeLikeString '::warning title=Publish::The Pages site is published privately at https://upgraded-fiesta-x1.pages.github.io:*AL compiler cannot fetch*https://github.com/Contoso/Rulebook/settings/pages*Enterprise Managed Users*issues/56*'
+        @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') }) | Should-BeCollection @()
+        $run.Summary | Should-MatchString 'The Pages site is private: no endpoint was checked, the AL compiler cannot fetch them from this site\.'
+    }
+
+    It 'warns twice on a private site served away from a configured baseUrl' {
+        Mock Invoke-PagesPreflight {
+            Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow","html_url":"https://upgraded-fiesta-x1.pages.github.io/","public":false}' -BaseUrl $BaseUrl -Repository $Repository |
+                Add-Member -NotePropertyName StatusCode -NotePropertyValue 200 -PassThru
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template); Deploy = $true }
+        $run.Result.ExitCode | Should-Be 0
+        $run.Result.BaseUrl | Should-Be 'https://contoso.github.io/rulebook'
+        $run.Result.Private | Should-BeTrue
+        Should-Invoke Invoke-PagesPreflight -Times 1 -Exactly -ParameterFilter { $BaseUrl -eq 'https://contoso.github.io/rulebook' }
+        $warnings = @($run.Result.Annotations | Where-Object { $_.StartsWith('::warning') })
+        $warnings.Count | Should-Be 2
+        $warnings[0] | Should-BeLikeString '*published privately at https://upgraded-fiesta-x1.pages.github.io:*'
+        $warnings[1] | Should-BeLikeString '*served at https://upgraded-fiesta-x1.pages.github.io, but baseUrl is https://contoso.github.io/rulebook*'
+        $run.Summary | Should-NotMatchString 'Base URL from the Pages site'
+    }
+
+    It 'fails baseUrl-empty with the proposal when the Pages site answers without html_url' {
+        Mock Invoke-PagesPreflight { [pscustomobject]@{ Ok = $true; Message = 'GitHub Pages is enabled with Source GitHub Actions.'; Warning = $null; HtmlUrl = $null; Private = $false; StatusCode = 200 } }
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Deploy = $true }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'baseUrl-empty'
+        $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
+        $errors.Count | Should-Be 1
+        $errors[0] | Should-BeLikeString '*The Pages site answered without an address (html_url)*baseUrl is empty*"https://contoso.github.io/rulebook"*'
+        Test-Path -LiteralPath $run.Result.StagingPath | Should-BeFalse
+    }
+
+    It 'stops a wrong target with deploy and an empty baseUrl before the preflight' {
+        Mock Invoke-PagesPreflight { throw 'must not run' }
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Target = 'gist'; Deploy = $true }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'target'
+        $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
+        $errors.Count | Should-Be 1
+        $errors[0] | Should-BeLikeString "*Publish target 'gist' is not implemented yet*"
+        Should-Invoke Invoke-PagesPreflight -Times 0 -Exactly
     }
 
     It 'fails the preflight when the Pages API cannot be reached' {
