@@ -118,8 +118,8 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `modules/Rulebook.Catalog.psm1` | 226 | 1 | Writer branch for an empty array; no shipped or fixture file has one. |
 | `modules/Rulebook.Common.psm1` | 104 | 0 | (#114 numbering; the line runs, its branch does not.) The `Add-Type` of `JsonSchema.Net.dll`: every pwsh the suites run on has the type loaded already. |
 | `modules/Rulebook.Common.psm1` | 110 | 0 | (#114 numbering; the line runs, its branch does not.) The `$null` of the `Fetch` delegate for a URI that is not a file: no Rulebook schema references one. |
-| `modules/Rulebook.Common.psm1` | 127, 246, 262 | 0 | (#114 numbering; the lines run, their branch does not.) An exception without an inner exception; .NET method calls from PowerShell always wrap one. |
-| `modules/Rulebook.Common.psm1` | 285 | 0 | (#114 numbering; the line runs, its branch does not.) An invalid result without an error line; JsonSchema.Net in List output always names one. Kept so callers can index `Errors[0]` under strict mode. |
+| `modules/Rulebook.Common.psm1` | 127, 249, 265 | 0 | (#114 numbering; the lines run, their branch does not.) An exception without an inner exception; .NET method calls from PowerShell always wrap one. |
+| `modules/Rulebook.Common.psm1` | 288 | 0 | (#114 numbering; the line runs, its branch does not.) An invalid result without an error line; JsonSchema.Net in List output always names one. Kept so callers can index `Errors[0]` under strict mode. |
 | `modules/Rulebook.Edit.psm1` | 160, 166 | 2 | Describe texts for an unchanged entry and a replaced entry with another action; the rendered cases cover the other branches. |
 | `modules/Rulebook.Edit.psm1` | 241 | 1 | overrides.json that is not JSON at change time; Validate reports it first (C10) and the change plan stops on validation. |
 | `modules/Rulebook.Edit.psm1` | 583-585, 600-602, 650-652, 702-704 | 12 | The rulebook cannot be read at plan time after Validate passed; defensive. |

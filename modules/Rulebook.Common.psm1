@@ -137,23 +137,26 @@ function Find-RepeatedJsonProperty {
     # System.Text.Json reads such a text without complaint, but a JsonNode built from it throws inside the schema
     # evaluation; the text is refused as not valid JSON instead (strict JSON, as for comments and trailing commas).
     param([Parameter(Mandatory)][System.Text.Json.JsonElement]$Element, [AllowEmptyString()][string]$Pointer = '')
-    switch ($Element.ValueKind) {
-        'Object' {
-            $names = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-            foreach ($property in $Element.EnumerateObject()) {
+    # Only an object or an array holds names; a scalar value is never visited.
+    if ($Element.ValueKind -eq 'Object') {
+        $names = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($property in $Element.EnumerateObject()) {
+            if (-not $names.Add($property.Name)) {
                 $where = if ($Pointer -eq '') { 'the root' } else { $Pointer }
-                if (-not $names.Add($property.Name)) { return "the property name '$($property.Name)' is repeated at $where" }
-                $child = Find-RepeatedJsonProperty -Element $property.Value -Pointer "$Pointer/$($property.Name.Replace('~', '~0').Replace('/', '~1'))"
-                if ($null -ne $child) { return $child }
+                return "the property name '$($property.Name)' is repeated at $where"
             }
+            if ($property.Value.ValueKind -notin 'Object', 'Array') { continue }
+            $name = $property.Name.Replace('~', '~0').Replace('/', '~1')
+            $child = Find-RepeatedJsonProperty -Element $property.Value -Pointer "$Pointer/$name"
+            if ($null -ne $child) { return $child }
         }
-        'Array' {
-            $index = 0
-            foreach ($item in $Element.EnumerateArray()) {
-                $child = Find-RepeatedJsonProperty -Element $item -Pointer "$Pointer/$index"
-                if ($null -ne $child) { return $child }
-                $index++
-            }
+    } elseif ($Element.ValueKind -eq 'Array') {
+        $index = -1
+        foreach ($item in $Element.EnumerateArray()) {
+            $index++
+            if ($item.ValueKind -notin 'Object', 'Array') { continue }
+            $child = Find-RepeatedJsonProperty -Element $item -Pointer "$Pointer/$index"
+            if ($null -ne $child) { return $child }
         }
     }
     return $null
