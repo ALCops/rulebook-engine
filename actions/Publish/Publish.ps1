@@ -181,7 +181,8 @@ if ($Phase -eq 'Stage') {
                                 Write-Host "Base URL from the Pages site: $resolvedBaseUrl"
                                 $notes.Add("Base URL from the Pages site: ``$resolvedBaseUrl`` (baseUrl is empty).")
                             } catch {
-                                Add-Annotation -Context $ctx -Message "The address of the Pages site, ``$($preflight.HtmlUrl)``, cannot be the base URL: $($_.Exception.Message.Replace('The baseUrl input ', 'it ')) Turn on Enforce HTTPS under Settings > Pages, or set baseUrl in $settingsFile."
+                                $fix = if ($preflight.HtmlUrl.StartsWith('http://', [System.StringComparison]::OrdinalIgnoreCase)) { "Turn on Enforce HTTPS under Settings > Pages, or set baseUrl in $settingsFile." } else { "Set baseUrl in $settingsFile." }
+                                Add-Annotation -Context $ctx -Message "The address of the Pages site, ``$($preflight.HtmlUrl)``, cannot be the base URL: $($_.Exception.Message.Replace('The baseUrl input ', 'it ')) $fix"
                                 Add-Failure -Context $ctx -Kind 'baseUrl-invalid'
                                 $failed = $true
                             }

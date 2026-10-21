@@ -467,6 +467,17 @@ Describe 'Publish.ps1 -Phase Stage' {
         Test-Path -LiteralPath $run.Result.StagingPath | Should-BeFalse
     }
 
+    It 'fails baseUrl-invalid without the Enforce HTTPS hint for an https address that fails the check' {
+        Mock Invoke-PagesPreflight { [pscustomobject]@{ Ok = $true; Message = 'GitHub Pages is enabled with Source GitHub Actions.'; Warning = $null; HtmlUrl = 'https://rules.contoso.com/rule book'; Private = $false; StatusCode = 200 } }
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Deploy = $true }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'baseUrl-invalid'
+        $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
+        $errors.Count | Should-Be 1
+        $errors[0] | Should-MatchString 'cannot be the base URL: it must be an https URL.* Set baseUrl in \.github/Rulebook-Settings\.json\.$'
+        $errors[0] | Should-NotMatchString 'Enforce HTTPS'
+    }
+
     It 'stops a wrong target with deploy and an empty baseUrl before the preflight' {
         Mock Invoke-PagesPreflight { throw 'must not run' }
         $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Target = 'gist'; Deploy = $true }
