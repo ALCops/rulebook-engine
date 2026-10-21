@@ -601,14 +601,15 @@ jobs:
           NEW_IDS: ${{ steps.template.outputs.newIds }}
           FAILURE: ${{ steps.template.outputs.failure }}
         run: |
-          Import-Module ./modules/Rulebook.Catalog.psd1, ./modules/Rulebook.Validate.psd1
+          Import-Module ./modules/Rulebook.Common.psd1, ./modules/Rulebook.Catalog.psd1, ./modules/Rulebook.Validate.psd1
           $failures = [System.Collections.Generic.List[string]]::new()
           if ($env:FAILURE) { $failures.Add("failure '$($env:FAILURE)'") }
           foreach ($package in 'microsoft.dynamics.businesscentral.development.tools@', 'alcops.analyzers@') {
             if (-not ($env:SCANNED.Split(',') | Where-Object { $_.StartsWith($package) -and $_.EndsWith(':stable') })) { $failures.Add("scannedVersions '$($env:SCANNED)' has no stable $package") }
           }
           $state = Join-Path $env:CANDIDATE 'catalog' 'scan-state.json'
-          if (-not (Test-Json -Path $state -SchemaFile schemas/rulebook-scan-state.schema.json -ErrorAction SilentlyContinue)) { $failures.Add('catalog/scan-state.json does not match its schema') }
+          $stateCheck = Test-RulebookSchema -Json (Get-Content -LiteralPath $state -Raw) -SchemaPath schemas/rulebook-scan-state.schema.json
+          if (-not $stateCheck.IsValid) { $failures.Add("catalog/scan-state.json does not match its schema: $($stateCheck.Errors[0])") }
           $catalog = Read-CatalogFile -Path (Join-Path $env:CANDIDATE 'catalog' 'diagnostics.json')
           $withPackage = @($catalog.Entries.Values | Where-Object Package)
           if ($withPackage.Count -lt 600) { $failures.Add("only $($withPackage.Count) catalog entries have a package") }
