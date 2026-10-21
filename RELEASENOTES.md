@@ -2,7 +2,7 @@
 
 ## v1.0.0-beta.7
 
-- Publish: an empty `baseUrl` takes the address of the Pages site when the action deploys (a set `baseUrl` overrides it; a dry run still fails with the proposal), and a private Pages site (Enterprise Managed Users) ends the run green with a warning, the output `private` and no reachability check (D57) ([#134](https://github.com/ALCops/rulebook-engine/issues/134))
+- Publish: an empty `baseUrl` takes the address of the Pages site when the action deploys (a set `baseUrl` overrides it; a dry run still fails with the proposal), and a private Pages site (Enterprise Managed Users) ends the run green with a warning, the output `private` and no reachability check (D57) ([#135](https://github.com/ALCops/rulebook-engine/pull/135))
 
 ## v1.0.0-beta.6
 
