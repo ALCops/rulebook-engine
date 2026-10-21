@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "$comment": "No $id on purpose: every Rulebook schema is addressed by its file location (docs/reference/naming.md section 6).",
   "title": "Rulebook change set",
   "description": "A change set the dashboard cart submits through the rulebook-change issue form: overrides to set or remove and quarantined ids to release. Whether an id exists in the catalog, a slug in the settings, and whether two changes repeat the same op, id and selectors is checked by the workflow that applies it (WP15). See docs/dashboard.md section 6.",
   "$defs": {

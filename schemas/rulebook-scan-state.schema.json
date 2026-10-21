@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule. Closed on purpose.",
+  "$comment": "No $id on purpose: every Rulebook schema is addressed by its file location (docs/reference/naming.md section 6). Closed on purpose.",
   "title": "Rulebook scan state",
   "description": "catalog/scan-state.json of an organization rulebook repository: the package version the diagnostic scan recorded last per package and channel. Created by the first scan, never shipped by the template. See docs/reference/scan-mechanics.md.",
   "$defs": {

@@ -95,7 +95,7 @@ function New-GitStartInfo {
 function Initialize-SchemaEvaluator {
     # Creates the schema cache and the one set of evaluation options on first use; a no-op afterwards. Every
     # [Json.Schema.*] literal stays inside a function body, and the Add-Type covers a host that has not loaded the
-    # Utility module (whose Test-Json loads JsonSchema.Net). The options carry their own registry, never
+    # Utility module (whose JSON cmdlets load JsonSchema.Net). The options carry their own registry, never
     # SchemaRegistry.Global; its Fetch resolves a file URI (the sibling $ref of a profile schema) through the cache, so
     # the hub is parsed once per session too. The Fetch script block runs on the calling thread in this module's
     # session state: never use the options from a background job or another runspace.
@@ -195,8 +195,8 @@ function Test-RulebookSchema {
     Errors is one line per distinct schema error, '<text> at <JSON pointer>' ('at the root' for the empty pointer), in
     evaluation order (outermost failing keyword first); a text that is not strict JSON (a comment, a trailing comma)
     gives the one line 'the text is not valid JSON: <reason>'. The evaluator is JsonSchema.Net as shipped inside pwsh
-    (D56), not Test-Json: each schema file is parsed once per session and its relative $ref resolves to the sibling file
-    through its own file location. Throws when the schema itself cannot be read, parsed or resolved (an engine defect,
+    (D56), called directly rather than through the cmdlet of the Utility module: each schema file is parsed once per
+    session and its relative $ref resolves to the sibling file through its own file location. Throws when the schema itself cannot be read, parsed or resolved (an engine defect,
     never a rulebook input error).
     #>
     [CmdletBinding()]

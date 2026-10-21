@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "$comment": "No $id on purpose: every Rulebook schema is addressed by its file location (docs/reference/naming.md section 6).",
   "title": "Rulebook diagnostic catalog",
   "description": "catalog/diagnostics.json of an organization rulebook repository: every known diagnostic id with its analyzer default (D24). Minimal on purpose: the three fields the generator needs are required, the other known fields are typed, the scan fields (WP08, D46) are typed too, and a later scan may add more per entry. See docs/reference/naming.md.",
   "$defs": {

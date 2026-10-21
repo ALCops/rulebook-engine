@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "$comment": "No $id on purpose: every Rulebook schema is addressed by its file location (docs/reference/naming.md section 6).",
   "title": "Rulebook twin pairs",
   "description": "base/twins.json of an organization rulebook repository (generated from docs/rulebook/matrix/twins.json in the engine): the PerTenantExtensionCop and AppSourceCop twin pairs the twins setting acts on (D23). That count equals the number of pairs is validation check C14. See docs/reference/naming.md.",
   "$defs": {

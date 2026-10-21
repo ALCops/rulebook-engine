@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "No $id on purpose: a relative $ref to a sibling file resolves only without an absolute $id.",
+  "$comment": "No $id on purpose: every Rulebook schema is addressed by its file location (docs/reference/naming.md section 6).",
   "title": "Rulebook ruleset file, skeleton profile",
   "description": "Skeletons in skeletons/ and their copies in an AL project's .rulebook/. See docs/reference/naming.md.",
   "$ref": "ruleset.schema.json#/$defs/skeleton"
