@@ -66,6 +66,7 @@ Publish checks before it deploys and after it deploys. Its message says what to 
 | Message | Cause | Fix |
 |---|---|---|
 | `baseUrl is empty` | `baseUrl` is not set in a run with `deploy: false`, which does not ask GitHub for the address of the site. | Set `baseUrl` as in step 2 (the message proposes the value for your repository), or run with `deploy: true`. |
+| `The address of the Pages site, ..., cannot be the base URL` | The site has a custom domain without HTTPS, so GitHub reports an `http://` address, and `baseUrl` is empty. | Turn on Enforce HTTPS under Settings > Pages, or set `baseUrl` as in step 2. |
 | `The Pages site answered without an address` | GitHub returned the Pages site without its address, and `baseUrl` is empty. | Set `baseUrl` as in step 2; the message proposes the value for your repository. |
 | Warning: `The Pages site is published privately at ...` | The site is private: only signed-in people who can read the repository see it, so the AL compiler cannot fetch the endpoints. Publish ends green and checks no URL. | Switch GitHub Pages visibility to **Public** under Settings > Pages; with Enterprise Managed Users that is not possible, see "Private sites" in section 2. |
 | Warning: `The Pages site is served at ..., but baseUrl is ...` | `baseUrl` is set to another address than the one GitHub serves the site at, for example after a custom domain was added. | Set `baseUrl` to that address, or empty it so Publish takes it from GitHub. |
