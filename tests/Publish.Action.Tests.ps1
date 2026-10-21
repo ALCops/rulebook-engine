@@ -155,6 +155,8 @@ Describe 'template/.github/workflows/Publish.yaml' {
 
 Describe 'Publish.ps1 -Phase Stage' {
     It 'stages a template copy with the site without deploying and writes the outputs and the summary' {
+        # The dry run makes no API call.
+        Mock Invoke-PagesPreflight { throw 'must not run' }
         $root = Copy-Template
         $outputFile = Join-Path $TestDrive 'github-output.txt'
         $env:GITHUB_OUTPUT = $outputFile
@@ -174,6 +176,9 @@ Describe 'Publish.ps1 -Phase Stage' {
         $outputs | Should-MatchString ('(?m)^stagingPath=' + [regex]::Escape($run.Result.StagingPath) + '$')
         $outputs | Should-MatchString ('(?m)^manifestPath=' + [regex]::Escape($run.Result.ManifestPath) + '$')
         $outputs | Should-MatchString '(?m)^pageUrl=https://contoso\.github\.io/rulebook/$'
+        $outputs | Should-MatchString '(?m)^private=false$'
+        $run.Result.Private | Should-BeFalse
+        Should-Invoke Invoke-PagesPreflight -Times 0 -Exactly
         $run.Summary | Should-MatchString 'Staged only \(deploy is off\): 36 files'
         $run.Summary | Should-MatchString 'The dashboard site: 637 pages built with Hugo in [0-9.]+ s'
         $run.Summary | Should-MatchString '\| catalog \| https://contoso\.github\.io/rulebook/catalog/diagnostics\.json \|'
@@ -299,7 +304,7 @@ Describe 'Publish.ps1 -Phase Stage' {
         $leaf = Split-Path -Leaf $root
         $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
         $errors.Count | Should-Be 1
-        $errors[0] | Should-BeLikeString "::error file=$leaf/.github/Rulebook-Settings.json,title=Publish::baseUrl is empty*`"https://contoso.github.io/rulebook`"*run Publish with deploy true*address of the Pages site*"
+        $errors[0] | Should-BeLikeString "::error file=$leaf/.github/Rulebook-Settings.json,title=Publish::baseUrl is empty. Leave it empty and run Publish with deploy true to take the address of the Pages site, or set `"baseUrl`": `"https://contoso.github.io/rulebook`" in .github/Rulebook-Settings.json*commit it in a pull request and run Publish again."
         # The dry run makes no API call.
         $run.Result.Preflight | Should-BeNull
         $run.Lines | Should-ContainCollection @($errors[0])
@@ -315,8 +320,21 @@ Describe 'Publish.ps1 -Phase Stage' {
     }
 
     It 'reports a wrong target and an empty baseUrl together' {
-        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Target = 'gist' }
+        Mock Invoke-PagesPreflight { throw 'must not run' }
+        $outputFile = Join-Path $TestDrive 'together-output.txt'
+        $env:GITHUB_OUTPUT = $outputFile
+        try {
+            $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Target = 'gist' }
+        } finally {
+            $env:GITHUB_OUTPUT = $null
+        }
         $run.Result.ExitCode | Should-Be 1
+        # A failed stage step writes only the failure output; private is not written, and the check step does not run.
+        $outputs = Get-Content -LiteralPath $outputFile -Raw
+        $outputs | Should-MatchString '(?m)^failure=target$'
+        $outputs | Should-NotMatchString '(?m)^private='
+        $run.Result.Private | Should-BeFalse
+        Should-Invoke Invoke-PagesPreflight -Times 0 -Exactly
         $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
         $errors.Count | Should-Be 2
         $errors[0] | Should-BeLikeString "*Publish target 'gist' is not implemented yet*issues/57*"
@@ -445,7 +463,7 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run.Result.Failure | Should-Be 'baseUrl-invalid'
         $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
         $errors.Count | Should-Be 1
-        $errors[0] | Should-BeLikeString '*The address of the Pages site, http://rules.contoso.com, cannot be the base URL: it must be an https URL*Enforce HTTPS*'
+        $errors[0] | Should-MatchString 'The address of the Pages site, `http://rules\.contoso\.com`, cannot be the base URL: it must be an https URL.*Enforce HTTPS'
         Test-Path -LiteralPath $run.Result.StagingPath | Should-BeFalse
     }
 

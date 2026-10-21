@@ -11,13 +11,14 @@ in the settings and -HugoPath is the default 'hugo'; otherwise it prints why it 
 -Phase Stage reads the settings, resolves the target (only 'pages' is implemented) and the base URL, runs the GitHub
 Pages preflight when -Deploy is set (an empty base URL is then taken from html_url of the Pages site, D57; a private
 site is a warning, the output private=true and no check), stages the endpoints, the rendered skeletons,
-rulebook.json (with -Repository), catalog/diagnostics.json and the plain index.html into -StagingPath (New-RulebookPublishStage, which refuses stale
-endpoints: Publish is a gate and never commits, D42). When site.enabled is true it then copies the staged
-rulebook.json to site/data/rulebook.json and builds site/ with Hugo into the staging folder (Build-RulebookSite), so
-the dashboard replaces the plain index.html; a target that cannot serve HTML or a missing site/hugo.yaml is a warning
-and keeps the plain page, a missing Hugo or a failed build is failure 'site'. It writes the manifest to -ManifestPath
-(with one page entry per stage and level page, the setup page and the first rule page), the URL list to the job summary and the
-outputs stagingPath, manifestPath, pageUrl and private to GITHUB_OUTPUT.
+rulebook.json (with -Repository), catalog/diagnostics.json and the plain index.html into -StagingPath
+(New-RulebookPublishStage, which refuses stale endpoints: Publish is a gate and never commits, D42). When
+site.enabled is true it then copies the staged rulebook.json to site/data/rulebook.json and builds site/ with Hugo
+into the staging folder (Build-RulebookSite), so the dashboard replaces the plain index.html; a target that cannot
+serve HTML or a missing site/hugo.yaml is a warning and keeps the plain page, a missing Hugo or a failed build is
+failure 'site'. It writes the manifest to -ManifestPath (with one page entry per stage and level page, the setup
+page and the first rule page), the URL list to the job summary and the outputs stagingPath, manifestPath, pageUrl
+and private to GITHUB_OUTPUT.
 
 -Phase Check reads -ManifestPath and runs Test-RulebookEndpoints: one error annotation per URL that is missing or
 differs after -WindowSeconds, and the result table in the job summary.
@@ -146,7 +147,8 @@ if ($Phase -eq 'Stage') {
         } catch {
             $empty = [string]::IsNullOrWhiteSpace($BaseUrl) -and [string]::IsNullOrEmpty([string]$settings['baseUrl'])
             $message = $_.Exception.Message
-            if ($empty) { $message += ' Or leave it empty and run Publish with deploy true: it then takes the address of the Pages site.' }
+            # The dry run offers the other way out first: a deploy takes the address of the Pages site.
+            if ($empty) { $message = $message.Replace('baseUrl is empty. Set ', 'baseUrl is empty. Leave it empty and run Publish with deploy true to take the address of the Pages site, or set ') }
             Add-Annotation -Context $ctx -File $(if ([string]::IsNullOrWhiteSpace($BaseUrl)) { $settingsFile }) -Message $message
             Add-Failure -Context $ctx -Kind $(if ($empty) { 'baseUrl-empty' } else { 'baseUrl-invalid' })
             $failed = $true
@@ -179,7 +181,7 @@ if ($Phase -eq 'Stage') {
                                 Write-Host "Base URL from the Pages site: $resolvedBaseUrl"
                                 $notes.Add("Base URL from the Pages site: ``$resolvedBaseUrl`` (baseUrl is empty).")
                             } catch {
-                                Add-Annotation -Context $ctx -Message "The address of the Pages site, $($preflight.HtmlUrl), cannot be the base URL: $($_.Exception.Message.Replace('The baseUrl input ', 'it ')) Turn on Enforce HTTPS under Settings > Pages, or set baseUrl in $settingsFile."
+                                Add-Annotation -Context $ctx -Message "The address of the Pages site, ``$($preflight.HtmlUrl)``, cannot be the base URL: $($_.Exception.Message.Replace('The baseUrl input ', 'it ')) Turn on Enforce HTTPS under Settings > Pages, or set baseUrl in $settingsFile."
                                 Add-Failure -Context $ctx -Kind 'baseUrl-invalid'
                                 $failed = $true
                             }
@@ -300,7 +302,7 @@ try {
             'missing' { 'is missing (HTTP 404)' }
             'different' { 'serves a different body than the committed file' }
             'timeout' { "timed out after $TimeoutSeconds s" }
-            'redirect' { "answers with a redirect (HTTP $($result.Status)), which the compiler does not follow; set baseUrl to the final address" }
+            'redirect' { "answers with a redirect (HTTP $($result.Status)), which the compiler does not follow; set baseUrl to the final address, or leave it empty so Publish takes the address of the Pages site" }
             default { if ($result.Status -gt 0) { "failed (HTTP $($result.Status))" } else { 'failed' } }
         }
         if ($result.Detail) { $reason += " ($($result.Detail))" }
