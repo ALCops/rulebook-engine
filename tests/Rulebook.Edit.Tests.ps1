@@ -1150,6 +1150,10 @@ Describe 'Read-RulebookChangeSetText' {
         foreach ($line in $read.Errors) { $line.Contains('\u0022') | Should-BeFalse -Because $line }
     }
 
+    It 'names a schema error with its JSON pointer' {
+        (Read-RulebookChangeSetText -Text '{"version":2,"changes":[]}').Errors[0] | Should-Be 'The change set does not match the schema: Expected "1" at /version'
+    }
+
     It 'reports a schema that cannot be read' {
         $read = Read-RulebookChangeSetText -Text '{"version":1}' -SchemaPath (Join-Path (Get-TestFolder) 'missing.schema.json')
         $read.ChangeSet | Should-BeNull

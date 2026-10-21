@@ -95,6 +95,17 @@ BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
     $script:schemaDir = Join-Path $script:repoRoot 'schemas'
     $script:fixtureDir = Join-Path $PSScriptRoot 'fixtures' 'schemas'
+    Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Common.psd1') -Force
+
+    function Test-Fixture {
+        # The schema evaluation of the engine (Test-RulebookSchema, D56) on a fixture file: { IsValid, Errors }.
+        param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Schema)
+        Test-RulebookSchema -Json (Get-Content -LiteralPath $Path -Raw) -SchemaPath $Schema
+    }
+}
+
+AfterAll {
+    Remove-Module Rulebook.Common -ErrorAction SilentlyContinue
 }
 
 Describe 'Schema files' {
@@ -154,33 +165,47 @@ Describe 'Fixtures' {
 
 Describe '<Base>' -ForEach $suites {
     It 'accepts <Name>' -ForEach $Valid {
-        Test-Json -Path $Path -SchemaFile $Schema | Should-BeTrue
+        (Test-Fixture -Path $Path -Schema $Schema).IsValid | Should-BeTrue
     }
 
     It 'rejects <Name>' -ForEach $Invalid {
-        Test-Json -Path $Path -SchemaFile $Schema -ErrorAction SilentlyContinue | Should-BeFalse
+        (Test-Fixture -Path $Path -Schema $Schema).IsValid | Should-BeFalse
+    }
+
+    It 'names every error of <Name> with its location' -ForEach $Invalid {
+        $errors = @((Test-Fixture -Path $Path -Schema $Schema).Errors)
+        $errors.Count | Should-BeGreaterThan 0
+        foreach ($line in $errors) { $line | Should-MatchString '\A.+ at (/\S*|the root)\z' }
+    }
+}
+
+Describe 'Schema error lines' {
+    It 'names the pattern error of a lowercase rule id with its JSON pointer' {
+        $path = Join-Path $fixtureDir 'invalid' 'ruleset.delta' 'rule-id-lowercase.json'
+        $result = Test-Fixture -Path $path -Schema (Join-Path $schemaDir 'ruleset.delta.schema.json')
+        $result.Errors[0] | Should-Be 'The string value is not a match for the indicated regular expression at /rules/0/id'
     }
 }
 
 Describe 'ruleset.schema.json (hub)' {
     It 'accepts <Name>' -ForEach $hubValidCases {
-        Test-Json -Path $Path -SchemaFile $Hub | Should-BeTrue
+        (Test-Fixture -Path $Path -Schema $Hub).IsValid | Should-BeTrue
     }
 
     It 'does not reject an endpoint rule with a justification (anyOf; the endpoint profile does)' {
         $path = Join-Path $fixtureDir 'invalid' 'ruleset.endpoint' 'with-justification.json'
-        Test-Json -Path $path -SchemaFile (Join-Path $schemaDir 'ruleset.schema.json') | Should-BeTrue
+        (Test-Fixture -Path $path -Schema (Join-Path $schemaDir 'ruleset.schema.json')).IsValid | Should-BeTrue
     }
 
     It 'rejects <Name>' -ForEach $hubDefaultCases {
-        Test-Json -Path $Path -SchemaFile $Hub -ErrorAction SilentlyContinue | Should-BeFalse
+        (Test-Fixture -Path $Path -Schema $Hub).IsValid | Should-BeFalse
     }
 }
 
 Describe 'Live files' {
     It 'docs/rulebook/matrix/twins.json matches rulebook-twins.schema.json' {
         $path = Join-Path $repoRoot 'docs' 'rulebook' 'matrix' 'twins.json'
-        Test-Json -Path $path -SchemaFile (Join-Path $schemaDir 'rulebook-twins.schema.json') | Should-BeTrue
+        (Test-Fixture -Path $path -Schema (Join-Path $schemaDir 'rulebook-twins.schema.json')).IsValid | Should-BeTrue
     }
 
     It 'template/ holds the JSON files of the shipped content (<Expected>)' -ForEach @(@{ Count = $templateCases.Count; Expected = $templateJsonCount }) {
@@ -189,7 +214,7 @@ Describe 'Live files' {
 
     It '<Name> matches the schema of its folder' -ForEach $templateCases {
         $Schema | Should-NotBeNull -Because "$Name sits in no folder with a schema"
-        Test-Json -Path $Path -SchemaFile $Schema | Should-BeTrue
+        (Test-Fixture -Path $Path -Schema $Schema).IsValid | Should-BeTrue
     }
 }
 
@@ -213,6 +238,6 @@ Describe 'docs/reference/naming.md' {
     }
 
     It 'example <Name> matches its schema' -ForEach $exampleCases {
-        Test-Json -Json $Json -SchemaFile $Schema | Should-BeTrue
+        (Test-RulebookSchema -Json $Json -SchemaPath $Schema).IsValid | Should-BeTrue
     }
 }

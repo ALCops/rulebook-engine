@@ -109,6 +109,14 @@ Describe 'C1 parse and schema profile' {
         $c1.Message | Should-BeLikeString '*ruleset.endpoint.schema.json*includedRuleSets*'
     }
 
+    It 'names the first schema error with its JSON pointer' {
+        $root = Copy-Fixture
+        Edit-FixtureJson -Path (Join-Path $root 'base' 'strict.ruleset.json') -Script { $_.rules[0].id = 'lc0015' }
+        $c1 = @(Test-Rulebook -RepositoryRoot $root | Where-Object Rule -EQ 'C1')
+        $c1.Count | Should-Be 1
+        $c1[0].Message | Should-Be 'base/strict.ruleset.json does not match ruleset.delta.schema.json: The string value is not a match for the indicated regular expression at /rules/0/id'
+    }
+
     It 'reports an unparsable basedOn target as C1 only, not as an unresolved basedOn' {
         $root = Copy-Fixture
         Write-FixtureText -Path (Join-Path $root 'base' 'legacy.ruleset.json') -Text '{ "name": "Rulebook Legacy", "rules": [ '
