@@ -182,7 +182,7 @@ The checks are numbered `C1` to `C16` so that WP02 and WP03 can reference them; 
 
 | # | Rule | Severity | Why |
 |---|---|---|---|
-| C1 | Every file in `base/`, `stages/`, `rulesets/` and `skeletons/` parses and matches its schema profile: delta (level and stage files, `justification` optional, D40), endpoint, skeleton (section 5.4). | error | Invalid JSON discards the whole ruleset at compile time. |
+| C1 | Every file in `base/`, `stages/`, `rulesets/` and `skeletons/` parses and matches its schema profile: delta (level and stage files, `justification` optional, D40), endpoint, skeleton (section 5.4); the finding names the first schema error with its JSON pointer. | error | Invalid JSON discards the whole ruleset at compile time. |
 | C2 | No id twice in one file. | error | Compiler error `ERR_RuleSetHasDuplicateRules`. |
 | C3 | No `includedRuleSets` and no `generalAction` in delta or endpoint files; a skeleton has exactly one include with action `Default` and no `generalAction` either. | error | An include would reintroduce a fetch. |
 | C4 | Rule `action` is one of Error, Warning, Info, Hidden, None. Never `Default`. | error | `Default` fails deserialisation. |
@@ -227,7 +227,7 @@ A rule is `id` (`^[A-Z]{2,3}[0-9]{4}i?$`), `action` (`Error`, `Warning`, `Info`,
 
 ### 5.5 Generate and Validate modules
 
-`modules/Rulebook.Generate` and `modules/Rulebook.Validate` (WP03) implement sections 5.1 and 5.3. Each is a `.psm1` with a `.psd1` manifest (pwsh 7.4); `Rulebook.Validate` imports `Rulebook.Generate` from its own folder. Precedence and provenance worked through on the test fixture: [reference/effective-diff.md](reference/effective-diff.md).
+`modules/Rulebook.Generate` and `modules/Rulebook.Validate` (WP03) implement sections 5.1 and 5.3. Each is a `.psm1` with a `.psd1` manifest (pwsh 7.4); `Rulebook.Validate` imports `Rulebook.Generate` and `Rulebook.Common` from its own folder. Precedence and provenance worked through on the test fixture: [reference/effective-diff.md](reference/effective-diff.md).
 
 **Rulebook.Generate**
 
@@ -296,7 +296,7 @@ The scan of section 7.4 (WP08) is five modules, each a `.psm1` with a `.psd1` ma
 |---|---|---|
 | `Rulebook.Edit` (WP09, WP15) | `Read-OverridesFile`, `ConvertTo-OverridesJson`, `Write-OverridesFile`, `Set-RulebookOverride`, `Remove-RulebookOverride`, `Remove-RulebookQuarantine`, `ConvertTo-RulebookChangeSet`, `ConvertFrom-RulebookIssueBody`, `Read-RulebookChangeSetText`, `Test-RulebookChangeSet`, `Invoke-RulebookChangeSet`, `Get-RulebookChangeTitle`, `ConvertTo-ChangeTable`, `ConvertTo-ChangePullRequestBody`, `ConvertTo-ChangeSummary`, `ConvertTo-ChangeItemList`, `Publish-RulebookChange` | `overrides.json` in the template layout, the change set of sections 7.5 and 7.6 (`set`, `remove` and `release` from quarantine, version 1) read from a `rulebook-change` issue body and checked against its schema, applied all or nothing on a candidate copy, the per-endpoint table and the no-op rule (D48), and the pull request or direct commit (D47). Contract: [reference/change-mechanics.md](reference/change-mechanics.md). |
 | `Rulebook.Action` (#58) | `Format-AnnotationText`, `ConvertTo-SingleLine`, `Format-TableCell`, `New-ActionContext`, `Add-Annotation`, `Add-Failure`, `Write-Text`, `Resolve-ActionPath`, `Write-ActionOutput`, `Limit-SummaryText` | The helpers every action entry script shares: workflow command escaping and annotations, the failure kind, the job summary and `GITHUB_OUTPUT`. No engine imports. |
-| `Rulebook.Common` (#78) | `Invoke-Git`, `Get-OrdinalMap`, `Get-OrdinalSet`, `ConvertFrom-JsonElement` | The leaf helpers several engine modules share: git with UTF-8 output, no credential prompt and an environment for that process only (the token header of `Rulebook.GitHub`), the insertion-ordered map and the set with ordinal (case-sensitive) keys, and the System.Text.Json element reader that keeps strings as strings (WP15; the readers of `overrides.json`, the quarantine files and the change set). Imports nothing; `Rulebook.Generate`, `Rulebook.GitHub`, `Rulebook.Catalog`, `Rulebook.Quarantine`, `Rulebook.Edit`, `Rulebook.Template`, `Rulebook.Levels` and `Rulebook.Update` import it themselves. |
+| `Rulebook.Common` (#78) | `Invoke-Git`, `Get-OrdinalMap`, `Get-OrdinalSet`, `ConvertFrom-JsonElement`, `Test-RulebookSchema` | The leaf helpers several engine modules share: git with UTF-8 output, no credential prompt and an environment for that process only (the token header of `Rulebook.GitHub`), the insertion-ordered map and the set with ordinal (case-sensitive) keys, and the System.Text.Json element reader that keeps strings as strings (WP15; the readers of `overrides.json`, the quarantine files and the change set), and the JSON schema evaluator (JsonSchema.Net inside pwsh, one parsed schema per file per session, D56). Imports nothing; `Rulebook.Generate`, `Rulebook.Validate`, `Rulebook.GitHub`, `Rulebook.Catalog`, `Rulebook.Quarantine`, `Rulebook.Edit`, `Rulebook.Template`, `Rulebook.Levels` and `Rulebook.Update` import it themselves. |
 
 ### 5.9 Levels module
 
