@@ -32,7 +32,7 @@ Publish never changes your repository. It publishes what is committed, and it st
 
 - **Public repository on GitHub Free.** On the Free plan GitHub Pages works for public repositories only. A private repository can serve a public site on GitHub Pro, Team or Enterprise Cloud. The site itself must be public either way: the AL compiler fetches the endpoints without signing in (see "Private sites" below).
 - **Pages creation allowed.** In an organization, an owner must allow *Pages creation > Public* under Organization settings > Member privileges. While it is off, nobody can create a site, owners included.
-- **Private sites (Enterprise Cloud).** A private or internal repository of an Enterprise Cloud organization publishes its site privately by default: it is served from a random `https://<name>.pages.github.io` address, only to people who are signed in and can read the repository. The AL compiler fetches the endpoints without signing in, so it cannot use a private site; the dashboard still works for your colleagues. Switch GitHub Pages visibility to **Public** under Settings > Pages. With Enterprise Managed Users the site cannot be public, and the endpoints need another host ([rulebook-engine#56](https://github.com/ALCops/rulebook-engine/issues/56), section 4). On a private site Publish ends green with a warning and skips the check after the deploy.
+- **Private sites (Enterprise Cloud).** A private or internal repository of an Enterprise Cloud organization can publish its site privately: it is then served from a random `https://<name>.pages.github.io` address, only to people who are signed in and can read the repository. The AL compiler fetches the endpoints without signing in, so it cannot use a private site; the dashboard still works for your colleagues. The **GitHub Pages visibility** dropdown under Settings > Pages shows which one you have; switch it to **Public**. With Enterprise Managed Users the dropdown is absent and the site is private (observed on 2026-10-21), and the endpoints need another host ([rulebook-engine#56](https://github.com/ALCops/rulebook-engine/issues/56), section 4). On a private site Publish ends green with a warning and skips the check after the deploy.
 
 ### One-time setup
 
@@ -77,7 +77,7 @@ Publish checks before it deploys and after it deploys. Its message says what to 
 | `The committed endpoints do not match their inputs` | `rulesets/` is out of date. | Open a pull request that regenerates it; the Validate workflow names the files. |
 | `Publish target '...' is not implemented yet` | `publish.target` names a planned target. | Set `publish.target` to `pages` (section 4). |
 | Failure `site`, or a warning about `site/hugo.yaml` or the matrix marker | The dashboard site could not be built, or is built from changed files. | [dashboard.md](dashboard.md) section 7. |
-| `... is missing`, `... serves a different body`, `... answers with a redirect` | After the deploy, a URL did not serve the committed file. | Check `baseUrl` (a redirect means it is not the final address), then run Publish again. |
+| `... is missing`, `... serves a different body`, `... answers with a redirect` | After the deploy, a URL did not serve the committed file. | Check `baseUrl` (a redirect means it is not the final address; or leave it empty so Publish takes the address of the Pages site), then run Publish again. |
 
 ## 4. Other hosts
 
