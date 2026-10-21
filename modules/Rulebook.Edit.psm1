@@ -1161,10 +1161,13 @@ function Read-RulebookChangeSetText {
     Parses and checks change set JSON against the change set schema: { ChangeSet, Errors }.
     .DESCRIPTION
     Strict JSON (System.Text.Json: no comments, no trailing commas); a syntax error is one error 'The change set is not
-    valid JSON (line <l>, byte position <p>): <reason>' (both 1-based; the position counts UTF-8 bytes). Then Test-Json against -SchemaPath (default
-    schemas/rulebook-changeset.schema.json of the engine): every schema error is one line 'The change set does not
-    match the schema: <error>' (a line Test-Json repeats is kept once); when Test-Json rejects the text without naming an error (a change that matches none of
-    the set, remove and release shapes), one line says what each shape needs. Only a text without errors gets a
+    valid JSON (line <l>, byte position <p>): <reason>' (both 1-based; the position counts UTF-8 bytes). Then
+    Test-RulebookSchema of Rulebook.Common (JsonSchema.Net, D56) against -SchemaPath (default
+    schemas/rulebook-changeset.schema.json of the engine): every distinct schema error is one line 'The change set does
+    not match the schema: <error> at <JSON pointer>', outermost first (a change that matches none of the set, remove
+    and release shapes gives 'Expected 1 matching subschema but found 0 at /changes/<n>', then what each shape
+    missed). A schema that cannot be read or resolved gives the one line 'The change set cannot be checked against the
+    schema: <reason>'. Only a text without errors gets a
     ChangeSet: ordered dictionaries with ordinal keys, arrays, and strings kept as strings (a justification that looks
     like a date stays text). The catalog, the slugs and repeated changes are checked by Test-RulebookChangeSet.
     Returns data, never throws.
@@ -1197,27 +1200,14 @@ function Read-RulebookChangeSetText {
         return $result
     }
     try {
-        $schemaErrors = $null
-        $valid = $false
         try {
-            $valid = Test-Json -Json $Text -SchemaFile $SchemaPath -ErrorAction SilentlyContinue -ErrorVariable schemaErrors
+            $check = Test-RulebookSchema -Json $Text -SchemaPath $SchemaPath
         } catch {
             $result.Errors = [string[]]@("The change set cannot be checked against the schema: $(ConvertTo-SingleLine $_.Exception.Message)")
             return $result
         }
-        if (-not $valid) {
-            $lines = [System.Collections.Generic.List[string]]::new()
-            foreach ($schemaError in @($schemaErrors | Where-Object { $null -ne $_ })) {
-                # The wording of Test-Json varies across PowerShell versions; only its own prefix is dropped, the
-                # escaped quotes it prints are read back, and a line it repeats is kept once.
-                $message = ([string]$schemaError.Exception.Message -replace '\A\s*The JSON is not valid with the schema:\s*', '').Replace('\u0022', '"').Trim()
-                $line = $prefix + (ConvertTo-SingleLine $message)
-                if ($message -and -not $lines.Contains($line)) { $lines.Add($line) }
-            }
-            if ($lines.Count -eq 0) {
-                $lines.Add($prefix + 'every change is a set { op, id, action, levels, stages, justification? }, a remove { op, id, levels, stages } or a release { op, id, stages }, with an id such as LC0015, an action Error, Warning, Info, Hidden or None, and levels and stages ["*"] or a list of distinct lowercase slugs; no other keys.')
-            }
-            $result.Errors = [string[]]$lines.ToArray()
+        if (-not $check.IsValid) {
+            $result.Errors = [string[]]@($check.Errors | ForEach-Object { $prefix + (ConvertTo-SingleLine $_) })
             return $result
         }
         $result.ChangeSet = ConvertFrom-JsonElement $document.RootElement
