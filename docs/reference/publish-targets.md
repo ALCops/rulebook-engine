@@ -36,14 +36,14 @@ Every target publishes the same files ([naming.md](naming.md) section 4): `index
 
 ### Prerequisites
 
-- **Visibility and plan.** On GitHub Free the rulebook repository must be **public**. A private repository can serve a public Pages site on GitHub Pro, Team or Enterprise Cloud (per GitHub's docs, not observed); a private site needs Enterprise Cloud ([spike (d)](spikes/d-pages-private-repo.md)).
+- **Visibility and plan.** On GitHub Free the rulebook repository must be **public**. A private repository can serve a public Pages site on GitHub Pro, Team or Enterprise Cloud (per GitHub's docs, not observed); a private site needs Enterprise Cloud ([spike (d)](spikes/d-pages-private-repo.md)). A private site is useless for endpoints: it is served from a random `https://<name>.pages.github.io/` host, `https://<owner>.github.io/<repo>/` answers `301` to it, and the host answers every anonymous request with `302` to a sign-in (header `x-pages-private: 1`); the compiler fetches anonymously and does not follow redirects. A private or internal repository of an Enterprise Cloud organization publishes privately by default (GitHub Pages visibility under Settings > Pages switches it to public); an organization with Enterprise Managed Users can only publish privately and has no visibility setting (*observed* 2026-10-21, [#134](https://github.com/ALCops/rulebook-engine/issues/134)), so its endpoints need another target ([#56](https://github.com/ALCops/rulebook-engine/issues/56)). Publish ends green on a private site with a warning (section 3), and the dashboard works for signed-in readers.
 - **Organization policy.** An organization owner must allow *Pages creation > Public* under Organization settings > Member privileges. With it off, nobody (owners included) can create a site; an existing site keeps serving.
 
 ### One-time setup
 
 1. **Enable Pages once**, by someone with admin rights on the repository: Settings > Pages > Build and deployment > Source **GitHub Actions**. The same from the command line: `gh api -X POST repos/<owner>/<repo>/pages -f build_type=workflow` (answers `201 Created`). Publish never creates the site itself; its workflow token has no admin rights, and `actions/configure-pages` with `enablement: true` fails with "Resource not accessible by integration" for the same reason (spike (d)).
-2. **Set `baseUrl`** in `.github/Rulebook-Settings.json` to the site address without a trailing slash: `https://<owner>.github.io/<repo>`, all lowercase, or `https://<owner>.github.io` for a repository named `<owner>.github.io`. With `baseUrl` empty, Publish fails and proposes this value. Commit the change in a pull request.
-3. **Run Publish**: the merge to `main` triggers it, or run it by hand (Actions > Publish > Run workflow). The first run creates the `github-pages` environment if it does not exist yet; this also happens on a run that fails the preflight.
+2. **`baseUrl` (optional).** With `baseUrl` empty in `.github/Rulebook-Settings.json` (the template ships `""`), Publish with `deploy` true takes `html_url` of the preflight answer without its trailing slash as the base URL, logs `Base URL from the Pages site: <url>` and writes it into the job summary ([D57](../adr/0057-baseurl-is-derived-from-the-pages-site-and-the-setting-overrides.md)). `html_url` exists as soon as the site is created, before any deploy, and reflects a custom domain. A set value (the setting or the `baseUrl` input) overrides it: `https://<owner>.github.io/<repo>`, all lowercase, `https://<owner>.github.io` for a repository named `<owner>.github.io`, or a custom domain, without a trailing slash. A dry run (`deploy: 'false'`) makes no API call, so an empty `baseUrl` fails it with `baseUrl-empty` and the proposed value.
+3. **Run Publish**: a push to `main` that changes the settings triggers it, or run it by hand (Actions > Publish > Run workflow). The first run creates the `github-pages` environment if it does not exist yet; this also happens on a run that fails the preflight.
 
 After the run, `<baseUrl>/` lists every endpoint and skeleton and shows the two commands that download the skeletons of a level into an AL project with the init script. Copy a skeleton from there or use the script; the repository copies under `skeletons/` keep `{BASEURL}`.
 
@@ -53,7 +53,7 @@ After the run, `<baseUrl>/` lists every endpoint and skeleton and shows the two 
 
 ### Custom domain
 
-An Actions-built Pages site takes its custom domain from Settings > Pages > Custom domain (with the DNS records GitHub lists there); a `CNAME` file in the published folder is ignored, so Publish does not write one. After the domain is set, change `baseUrl` to `https://<custom domain>` in a pull request. Until then the preflight warns that the site is served at another address than `baseUrl`, and the skeletons keep pointing at the `github.io` address, which GitHub then redirects to the custom domain. The compiler does not follow redirects, and neither does the reachability check: every URL fails as `redirect` (naming the target) on the first attempt, so the run fails at once, until `baseUrl` is the final address. The same applies after renaming the repository or the owner. A custom domain has not been tested with the compiler's anti-SSRF policy ([naming.md](naming.md) section 4), so compile once against it.
+An Actions-built Pages site takes its custom domain from Settings > Pages > Custom domain (with the DNS records GitHub lists there); a `CNAME` file in the published folder is ignored, so Publish does not write one. With `baseUrl` empty, the next run takes the custom domain from `html_url`. With `baseUrl` set, change it to `https://<custom domain>` (or empty it) in a pull request after the domain is set. Until then the preflight warns that the site is served at another address than `baseUrl`, and the skeletons keep pointing at the `github.io` address, which GitHub then redirects to the custom domain. The compiler does not follow redirects, and neither does the reachability check: every URL fails as `redirect` (naming the target) on the first attempt, so the run fails at once, until `baseUrl` is the final address. The same applies after renaming the repository or the owner. A custom domain has not been tested with the compiler's anti-SSRF policy ([naming.md](naming.md) section 4), so compile once against it.
 
 ### Cache
 
@@ -65,11 +65,12 @@ On GitHub Free a public repository made private loses its Pages site: the endpoi
 
 ## 3. Preflight messages
 
-Before the deploy, Publish calls `GET /repos/{owner}/{repo}/pages` with the workflow token and maps the answer (`Get-PagesPreflightResult`). Every row but the first fails the run before anything is uploaded.
+Before the deploy, Publish calls `GET /repos/{owner}/{repo}/pages` with the workflow token and maps the answer (`Get-PagesPreflightResult`, which returns `Ok`, `Message`, `Warning`, `HtmlUrl` and `Private`). Every row but the first two fails the run before anything is uploaded.
 
 | Answer | Message (shortened) | What to do |
 |---|---|---|
-| `200`, `build_type: workflow` | GitHub Pages is enabled with Source GitHub Actions. | Nothing. When `html_url` differs from `baseUrl` (a custom domain), a **warning**: set `baseUrl` to the address the site is served at. |
+| `200`, `build_type: workflow` | GitHub Pages is enabled with Source GitHub Actions. | Nothing. With `baseUrl` empty, `html_url` without its trailing slash is the base URL (D57); an answer without `html_url` then fails with `baseUrl-empty` and the proposed value. When a set `baseUrl` differs from `html_url` (a custom domain), a **warning**: set `baseUrl` to the address the site is served at, or empty it. |
+| `200`, `build_type: workflow`, `public: false` | The same, and a **warning**: the Pages site is published privately at `<html_url>`; only signed-in people with read access see it and the AL compiler cannot fetch the endpoints; make it public under Settings > Pages (GitHub Pages visibility) or publish from a public host; with Enterprise Managed Users it cannot be public ([#56](https://github.com/ALCops/rulebook-engine/issues/56)). | The run stays green: the stage step writes the output `private` `true` and a summary line that no endpoint was checked, and the check step is skipped. With a set `baseUrl` that differs from `html_url` both warnings are written. |
 | `200`, `build_type: legacy` | The site builds from a branch. | Settings > Pages > Source **GitHub Actions**. |
 | `404` | GitHub Pages is not enabled for this repository. Enable it once (Source GitHub Actions); on a Free organization the repository must be public and an owner must allow Pages creation. Publish never creates the site itself. | Section 2, step 1. |
 | "Your current plan does not support GitHub Pages for this repository." | The plan does not support Pages for a private repository. | Make the repository public, upgrade, or wait for `dist-repo` ([#55](https://github.com/ALCops/rulebook-engine/issues/55)). |
@@ -88,7 +89,7 @@ After `deploy-pages` reports success, `Test-RulebookEndpoints` requests every en
 ::error title=Publish::https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json is missing (HTTP 404) after 23 attempt(s) in 660.4 s. Consumers of this URL compile with AL1033 (alc aborts; VS Code falls back to the analyzer defaults).
 ```
 
-The job summary lists every URL with its result, HTTP status, attempts and seconds. `skipCheck: 'true'` skips the check.
+The job summary lists every URL with its result, HTTP status, attempts and seconds. `skipCheck: 'true'` skips the check, and so does a private site (the stage output `private` is `true`).
 
 ## 5. Action reference
 
@@ -97,7 +98,7 @@ The job summary lists every URL with its result, HTTP status, attempts and secon
 | Input | Default | Meaning |
 |---|---|---|
 | `repositoryRoot` | `.` | The rulebook repository, relative to the workspace. |
-| `baseUrl` | empty | Overrides `baseUrl` of the settings (https, no trailing slash). |
+| `baseUrl` | empty | Overrides `baseUrl` of the settings (https, no trailing slash). With both empty, `deploy` true takes the address of the Pages site (D57). |
 | `target` | empty | Overrides `publish.target`. Only `pages` is implemented. |
 | `deploy` | `'true'` | `'false'` stages only: no preflight, no deploy, no check. The engine's `publish-action` CI job runs this way. |
 | `skipCheck` | `'false'` | `'true'` skips the reachability check. |
@@ -110,6 +111,7 @@ The job summary lists every URL with its result, HTTP status, attempts and secon
 | `stagingPath` | The staging folder (`$RUNNER_TEMP/rulebook-publish`). |
 | `failure` | Empty on success; otherwise why the install or stage step failed: `target`, `baseUrl-empty`, `baseUrl-invalid`, `preflight`, `stage`, `site` (Hugo missing, its install or the build failed; the annotation carries the last 20 lines of Hugo's output) or `error`. |
 | `pageUrl` | The site URL from `deploy-pages`, or `<baseUrl>/` when nothing was deployed. |
+| `private` | `'true'` when the preflight found a private Pages site (`public: false`), which skips the check; `'false'` otherwise (also in a dry run). Empty when the stage step failed. |
 
 Steps: Install Hugo (`Publish.ps1 -Phase Install`: when `site.enabled` is true and `hugoPath` is `'hugo'`, `Install-Hugo` installs `hugo_extended_<HUGO_VERSION>_linux-amd64.deb` of the Hugo release after comparing it with `HUGO_SHA256`; both are step variables of `action.yaml`, `HUGO_VERSION` 0.167.0, the hash taken from `hugo_0.167.0_checksums.txt` of the release; otherwise the step prints why it skips), `Publish.ps1 -Phase Stage` (settings, target, base URL, preflight, `New-RulebookPublishStage`, the site build of [dashboard.md](../dashboard.md) section 4, the manifest `$RUNNER_TEMP/rulebook-publish.manifest.json` next to the staging folder, the URL list in the job summary), `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5`, `Publish.ps1 -Phase Check`. To move the pin, take the new version's hash from its checksums file and change both variables together. The modules are `modules/Rulebook.Publish` and `modules/Rulebook.Site`; the tests are `tests/Rulebook.Publish.Tests.ps1`, `tests/Rulebook.Site.Tests.ps1` and `tests/Publish.Action.Tests.ps1`.
 
