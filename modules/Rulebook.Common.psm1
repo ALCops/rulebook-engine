@@ -114,9 +114,10 @@ function Initialize-SchemaEvaluator {
 function Get-CachedSchema {
     # The parsed schema of the file at Path, read once per session (key: the full path, ordinal). FromFile sets the
     # base URI to the file URI, which makes a relative $ref resolve to the sibling file through Fetch. A schema that
-    # cannot be read or parsed throws.
+    # cannot be read or parsed throws. A relative Path resolves against the PowerShell location (GetFullPath alone
+    # would use the process directory).
     param([Parameter(Mandatory)][string]$Path)
-    $full = [System.IO.Path]::GetFullPath($Path)
+    $full = [System.IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path))
     $schema = $null
     if ($script:SchemaCache.TryGetValue($full, [ref]$schema)) { return $schema }
     try {
