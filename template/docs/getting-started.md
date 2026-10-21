@@ -63,7 +63,7 @@ Run Actions > **Publish** > Run workflow on `main` (it also runs by itself on ev
 
 ## 7. Check the result
 
-Open these three addresses in a browser, with `<baseUrl>` the address of your site:
+Open these three addresses in a browser, with `<baseUrl>` the address of your site. On a public site they open without a redirect; on a private site (Publish warned "The Pages site is published privately") GitHub's sign-in page comes first, which is expected, and the AL compiler cannot use the endpoints ([hosting.md](hosting.md) section 2):
 
 1. `<baseUrl>/`: the dashboard, the grid of the first stage with one row per rule and one column per level ([dashboard.md](dashboard.md)). Its link **Set up an AL project** opens `<baseUrl>/setup/`: one table per stage, one row per level, with the endpoint URL and a skeleton download link. With `site.enabled` set to `false`, `<baseUrl>/` is that plain index page instead.
 2. `<baseUrl>/rulebook.json`: the levels and stages of your rulebook.
