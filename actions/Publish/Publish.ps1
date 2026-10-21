@@ -10,8 +10,8 @@ in the settings and -HugoPath is the default 'hugo'; otherwise it prints why it 
 
 -Phase Stage reads the settings, resolves the target (only 'pages' is implemented) and the base URL, runs the GitHub
 Pages preflight when -Deploy is set (an empty base URL is then taken from html_url of the Pages site, D57; a private
-site is a warning, the output private=true and no check), stages the endpoints, the rendered skeletons, rulebook.json (with -Repository),
-catalog/diagnostics.json and the plain index.html into -StagingPath (New-RulebookPublishStage, which refuses stale
+site is a warning, the output private=true and no check), stages the endpoints, the rendered skeletons,
+rulebook.json (with -Repository), catalog/diagnostics.json and the plain index.html into -StagingPath (New-RulebookPublishStage, which refuses stale
 endpoints: Publish is a gate and never commits, D42). When site.enabled is true it then copies the staged
 rulebook.json to site/data/rulebook.json and builds site/ with Hugo into the staging folder (Build-RulebookSite), so
 the dashboard replaces the plain index.html; a target that cannot serve HTML or a missing site/hugo.yaml is a warning
@@ -172,9 +172,17 @@ if ($Phase -eq 'Stage') {
                             Add-Failure -Context $ctx -Kind 'baseUrl-empty'
                             $failed = $true
                         } else {
-                            $resolvedBaseUrl = $preflight.HtmlUrl
-                            Write-Host "Base URL from the Pages site: $resolvedBaseUrl"
-                            $notes.Add("Base URL from the Pages site: ``$resolvedBaseUrl`` (baseUrl is empty).")
+                            # The address passes the same check as a set baseUrl: a custom domain without
+                            # Enforce HTTPS answers with an http html_url, which the compiler must not be given.
+                            try {
+                                $resolvedBaseUrl = Resolve-RulebookBaseUrl -Settings $null -Override $preflight.HtmlUrl
+                                Write-Host "Base URL from the Pages site: $resolvedBaseUrl"
+                                $notes.Add("Base URL from the Pages site: ``$resolvedBaseUrl`` (baseUrl is empty).")
+                            } catch {
+                                Add-Annotation -Context $ctx -Message "The address of the Pages site, $($preflight.HtmlUrl), cannot be the base URL: $($_.Exception.Message.Replace('The baseUrl input ', 'it ')) Turn on Enforce HTTPS under Settings > Pages, or set baseUrl in $settingsFile."
+                                Add-Failure -Context $ctx -Kind 'baseUrl-invalid'
+                                $failed = $true
+                            }
                         }
                     }
                     if ($preflight.Private) {
@@ -271,7 +279,7 @@ if ($Phase -eq 'Stage') {
         Manifest     = $manifest
         Preflight    = $preflight
         Private      = $private
-        Site        = $siteBuilt
+        Site         = $siteBuilt
         Annotations  = $ctx.Annotations.ToArray()
         Summary      = $summaryText
     }

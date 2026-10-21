@@ -435,6 +435,20 @@ Describe 'Publish.ps1 -Phase Stage' {
         Test-Path -LiteralPath $run.Result.StagingPath | Should-BeFalse
     }
 
+    It 'fails baseUrl-invalid when the Pages site answers with an http address' {
+        Mock Invoke-PagesPreflight {
+            Get-PagesPreflightResult -StatusCode 200 -Body '{"build_type":"workflow","html_url":"http://rules.contoso.com/","public":true}' -BaseUrl $BaseUrl -Repository $Repository |
+                Add-Member -NotePropertyName StatusCode -NotePropertyValue 200 -PassThru
+        }
+        $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Deploy = $true }
+        $run.Result.ExitCode | Should-Be 1
+        $run.Result.Failure | Should-Be 'baseUrl-invalid'
+        $errors = @($run.Result.Annotations | Where-Object { $_.StartsWith('::error') })
+        $errors.Count | Should-Be 1
+        $errors[0] | Should-BeLikeString '*The address of the Pages site, http://rules.contoso.com, cannot be the base URL: it must be an https URL*Enforce HTTPS*'
+        Test-Path -LiteralPath $run.Result.StagingPath | Should-BeFalse
+    }
+
     It 'stops a wrong target with deploy and an empty baseUrl before the preflight' {
         Mock Invoke-PagesPreflight { throw 'must not run' }
         $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template -EmptyBaseUrl); Target = 'gist'; Deploy = $true }
