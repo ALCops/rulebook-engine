@@ -1,7 +1,8 @@
 # Common suite for #78: modules/Rulebook.Common, the git runner and the ordinal collections several engine modules
-# share, and the engine ref with the URL builders (D52, #63). The git cases run against repositories in TestDrive
-# (tests/Helpers/RepoFixture.ps1) and are skipped without git. The ref cases set GITHUB_ACTION_REF and
-# GITHUB_ACTION_PATH and restore them after every case.
+# share, the JSON schema evaluator (D56), and the engine ref with the URL builders (D52, #63). The git cases run
+# against repositories in TestDrive (tests/Helpers/RepoFixture.ps1) and are skipped without git. The ref cases set
+# GITHUB_ACTION_REF and GITHUB_ACTION_PATH and restore them after every case. The JsonSchema.Net build check runs in
+# CI only; the member check runs everywhere.
 
 BeforeDiscovery {
     $script:gitMissing = $null -eq (Get-Command git -ErrorAction SilentlyContinue)
@@ -285,5 +286,141 @@ Describe 'Get-RulebookEngineRef and the URL builders' {
 
     It 'refuses a docs page that leaves docs/' {
         { Get-RulebookDocsUrl -Page 'levels/../../README.md' } | Should-Throw
+    }
+}
+
+Describe 'Test-RulebookSchema' {
+    BeforeAll {
+        $script:schemaDir = Join-Path $repoRoot 'schemas'
+        $script:delta = Join-Path $schemaDir 'ruleset.delta.schema.json'
+        # The first call loads JsonSchema.Net when this host has not yet (the Add-Type fallback of the module).
+        $null = Test-RulebookSchema -Json '{}' -SchemaPath $delta
+    }
+
+    It 'runs on the JsonSchema.Net build the module names (CI only)' -Skip:(-not $env:GITHUB_ACTIONS) {
+        $tested = InModuleScope Rulebook.Common { $script:JsonSchemaNetTested }
+        $location = ('Json.Schema.JsonSchema' -as [type]).Assembly.Location
+        ([System.Diagnostics.FileVersionInfo]::GetVersionInfo($location).ProductVersion -split '\+')[0] | Should-Be $tested
+    }
+
+    It 'finds the JsonSchema.Net members the module uses' {
+        $schemaType = 'Json.Schema.JsonSchema' -as [type]
+        $schemaType | Should-NotBeNull
+        $schemaType.GetMethod('FromFile', [type[]]@([string])) | Should-NotBeNull
+        $schemaType.GetMethod('Evaluate', [type[]]@([System.Text.Json.Nodes.JsonNode], ('Json.Schema.EvaluationOptions' -as [type]))) | Should-NotBeNull
+        $optionsType = 'Json.Schema.EvaluationOptions' -as [type]
+        $optionsType.GetProperty('OutputFormat').CanWrite | Should-BeTrue
+        $optionsType.GetProperty('SchemaRegistry') | Should-NotBeNull
+        $fetch = ('Json.Schema.SchemaRegistry' -as [type]).GetProperty('Fetch')
+        $fetch.CanWrite | Should-BeTrue
+        $fetch.PropertyType | Should-Be ([Func[[Uri], [Json.Schema.IBaseDocument]]])
+        [enum]::GetNames(('Json.Schema.OutputFormat' -as [type])) | Should-ContainCollection @('List')
+        $resultsType = 'Json.Schema.EvaluationResults' -as [type]
+        foreach ($name in 'IsValid', 'Details', 'HasErrors', 'Errors', 'InstanceLocation') {
+            $resultsType.GetProperty($name) | Should-NotBeNull -Because "EvaluationResults.$name"
+        }
+        $resultsType.GetProperty('Errors').PropertyType | Should-Be ([System.Collections.Generic.IReadOnlyDictionary[string, string]])
+        # The members as the module calls them, on a real result: the pointer of the first detail with errors.
+        $detail = InModuleScope Rulebook.Common -Parameters @{ Path = $delta } {
+            param($Path)
+            $node = [System.Text.Json.Nodes.JsonNode]::Parse('{ "name": "Rulebook Strict", "rules": [ { "id": "lc0015", "action": "None" } ] }')
+            $results = (Get-CachedSchema -Path $Path).Evaluate($node, $script:SchemaOptions)
+            @($results.Details | Where-Object HasErrors)[0]
+        }
+        $detail.InstanceLocation.ToString() | Should-Be '/rules/0/id'
+        $pairs = @($detail.Errors.GetEnumerator())
+        $pairs[0].Key | Should-Be 'pattern'
+        $pairs[0].Value | Should-Be 'The string value is not a match for the indicated regular expression'
+    }
+
+    It 'prints a string const as one quoted value' {
+        $changeSet = Join-Path $schemaDir 'rulebook-changeset.schema.json'
+        $result = Test-RulebookSchema -Json '{"version":1,"changes":[{"op":"zzz"}]}' -SchemaPath $changeSet
+        $result.Errors | Should-ContainCollection @('Expected "remove" at /changes/0/op')
+    }
+
+    It 'keeps an empty string const as an empty quoted value' {
+        $path = Join-Path (Get-TestFolder) 'empty-const.schema.json'
+        Write-FixtureText -Path $path -Text '{ "$schema": "https://json-schema.org/draft/2020-12/schema", "properties": { "x": { "const": "" } } }'
+        (Test-RulebookSchema -Json '{ "x": "y" }' -SchemaPath $path).Errors[0] | Should-Be 'Expected "" at /x'
+    }
+
+    It 'accepts a valid text' {
+        $result = Test-RulebookSchema -Json '{ "name": "Rulebook Strict", "rules": [ { "id": "LC0015", "action": "None" } ] }' -SchemaPath $delta
+        $result.IsValid | Should-BeTrue
+        @($result.Errors).Count | Should-Be 0
+    }
+
+    It 'names an error below the root with its JSON pointer' {
+        $result = Test-RulebookSchema -Json '{ "name": "Rulebook Strict", "rules": [ { "id": "LC0015", "action": "Off" } ] }' -SchemaPath $delta
+        $result.IsValid | Should-BeFalse
+        $result.Errors[0] | Should-Be 'Value should match one of the values specified by the enum at /rules/0/action'
+    }
+
+    It 'names an error at the root as at the root' {
+        $result = Test-RulebookSchema -Json '{}' -SchemaPath $delta
+        $result.IsValid | Should-BeFalse
+        $result.Errors[0] | Should-BeLikeString 'Required properties * are not present at the root'
+    }
+
+    It 'refuses a text that is not strict JSON' {
+        $result = Test-RulebookSchema -Json '{ /* c */ "name": "x", "rules": [] }' -SchemaPath $delta
+        $result.IsValid | Should-BeFalse
+        @($result.Errors).Count | Should-Be 1
+        $result.Errors[0] | Should-BeLikeString 'the text is not valid JSON: *'
+    }
+
+    It 'refuses a property name repeated in one object: <Name>' -ForEach @(
+        @{ Name = 'at the root'; Json = '{ "name": "a", "name": "b", "rules": [] }'; Expected = "the text is not valid JSON: the property name 'name' is repeated at the root" }
+        @{ Name = 'in a rule'; Json = '{ "name": "a", "rules": [ { "id": "LC0001", "id": "LC0002", "action": "None" } ] }'; Expected = "the text is not valid JSON: the property name 'id' is repeated at /rules/0" }
+        @{ Name = 'under an escaped name'; Json = '{ "a/b~c": { "x": 1, "x": 2 } }'; Expected = "the text is not valid JSON: the property name 'x' is repeated at /a~1b~0c" }
+    ) {
+        $result = Test-RulebookSchema -Json $Json -SchemaPath $delta
+        $result.IsValid | Should-BeFalse
+        @($result.Errors) | Should-BeCollection @($Expected)
+    }
+
+    It 'accepts the same property name in two objects' {
+        (Test-RulebookSchema -Json '{ "name": "a", "rules": [ { "id": "LC0001", "action": "None" }, { "id": "LC0002", "action": "None" } ] }' -SchemaPath $delta).IsValid | Should-BeTrue
+    }
+
+    It 'resolves a relative schema path against the PowerShell location' {
+        $folder = Get-TestFolder
+        Copy-Item -LiteralPath (Join-Path $schemaDir 'rulebook-twins.schema.json') -Destination (Join-Path $folder 'relative.schema.json')
+        Push-Location -LiteralPath $folder
+        try {
+            $result = Test-RulebookSchema -Json '{}' -SchemaPath 'relative.schema.json'
+        } finally {
+            Pop-Location
+        }
+        $result.IsValid | Should-BeFalse
+        $full = [System.IO.Path]::GetFullPath((Join-Path $folder 'relative.schema.json'))
+        InModuleScope Rulebook.Common -Parameters @{ Full = $full } { param($Full) $script:SchemaCache.ContainsKey($Full) } | Should-BeTrue
+    }
+
+    It 'throws when the schema file is missing' {
+        { Test-RulebookSchema -Json '{}' -SchemaPath (Join-Path (Get-TestFolder) 'missing.schema.json') } | Should-Throw -ExceptionMessage 'The schema * cannot be read: *'
+    }
+
+    It 'throws when the schema file is not JSON' {
+        $path = Join-Path (Get-TestFolder) 'broken.schema.json'
+        Write-FixtureText -Path $path -Text '{ "type": '
+        { Test-RulebookSchema -Json '{}' -SchemaPath $path } | Should-Throw -ExceptionMessage 'The schema * cannot be read: *'
+    }
+
+    It 'throws when the sibling schema of a $ref is missing' {
+        $path = Join-Path (Get-TestFolder) 'ruleset.delta.schema.json'
+        Copy-Item -LiteralPath $delta -Destination $path
+        { Test-RulebookSchema -Json '{}' -SchemaPath $path } | Should-Throw -ExceptionMessage 'The schema * cannot be evaluated: *'
+    }
+
+    It 'parses a schema file once per session' {
+        $path = Join-Path (Get-TestFolder) 'rulebook-twins.schema.json'
+        Copy-Item -LiteralPath (Join-Path $schemaDir 'rulebook-twins.schema.json') -Destination $path
+        $before = InModuleScope Rulebook.Common { $script:SchemaCache.Count }
+        $null = Test-RulebookSchema -Json '{}' -SchemaPath $path
+        InModuleScope Rulebook.Common { $script:SchemaCache.Count } | Should-Be ($before + 1)
+        $null = Test-RulebookSchema -Json '{}' -SchemaPath $path
+        InModuleScope Rulebook.Common { $script:SchemaCache.Count } | Should-Be ($before + 1)
     }
 }

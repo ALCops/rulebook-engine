@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule. Closed on purpose: a work package that needs a new key adds it here in its own pull request.",
+  "$comment": "No $id on purpose: every Rulebook schema is addressed by its file location (docs/reference/naming.md section 6). Closed on purpose: a work package that needs a new key adds it here in its own pull request.",
   "title": "Rulebook settings",
   "description": ".github/Rulebook-Settings.json of an organization rulebook repository. Not expressible here and checked by C5: slugs unique per array after lowercasing, basedOn resolving to an existing base/<slug>.ruleset.json without a cycle, quarantine values naming stages from the settings. See docs/ARCHITECTURE.md section 8 and docs/reference/naming.md.",
   "$defs": {

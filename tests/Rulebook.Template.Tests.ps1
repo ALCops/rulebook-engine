@@ -8,6 +8,7 @@ BeforeAll {
     . (Join-Path $PSScriptRoot 'Helpers' 'EngineRef.ps1')
     $script:savedEngineRef = Clear-EngineRefEnvironment
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
+    Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Common.psd1') -Force
     Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
     Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Validate.psd1') -Force
     Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Template.psd1') -Force
@@ -150,7 +151,7 @@ Describe 'Build-RulebookBase' {
                 '}'
                 ''
             ) -join "`n")
-        Test-Json -Path (Join-Path $baseOut 'twins.json') -SchemaFile (Join-Path $schemaDir 'rulebook-twins.schema.json') | Should-BeTrue
+        (Test-RulebookSchema -Json (Get-Content -LiteralPath (Join-Path $baseOut 'twins.json') -Raw) -SchemaPath (Join-Path $schemaDir 'rulebook-twins.schema.json')).IsValid | Should-BeTrue
     }
 
     It 'sorts the twin pairs by the sort key of the PTE side' {
@@ -167,7 +168,7 @@ Describe 'Build-RulebookBase' {
 
     It 'writes valid delta files' {
         foreach ($name in 'core.ruleset.json', 'extended.ruleset.json') {
-            Test-Json -Path (Join-Path $baseOut $name) -SchemaFile (Join-Path $schemaDir 'ruleset.delta.schema.json') | Should-BeTrue
+            (Test-RulebookSchema -Json (Get-Content -LiteralPath (Join-Path $baseOut $name) -Raw) -SchemaPath (Join-Path $schemaDir 'ruleset.delta.schema.json')).IsValid | Should-BeTrue
         }
     }
 
@@ -245,7 +246,7 @@ Describe 'Build-RulebookStages' {
         $lines[1] | Should-Be "  `"`$schema`": `"$deltaUrl`","
         $lines[2] | Should-Be '  "name": "Rulebook stage CI",'
         $lines[3] | Should-Be '  "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",'
-        Test-Json -Path (Join-Path $stagesOut 'ci.json') -SchemaFile (Join-Path $schemaDir 'ruleset.delta.schema.json') | Should-BeTrue
+        (Test-RulebookSchema -Json (Get-Content -LiteralPath (Join-Path $stagesOut 'ci.json') -Raw) -SchemaPath (Join-Path $schemaDir 'ruleset.delta.schema.json')).IsValid | Should-BeTrue
     }
 
     It 'returns nothing on a second run and deletes a stray default.json' {
@@ -313,7 +314,7 @@ Describe 'Build-RulebookCatalog' {
     }
 
     It 'passes the catalog schema and Read-Catalog' {
-        Test-Json -Path $catalogPath -SchemaFile (Join-Path $schemaDir 'rulebook-catalog.schema.json') | Should-BeTrue
+        (Test-RulebookSchema -Json (Get-Content -LiteralPath $catalogPath -Raw) -SchemaPath (Join-Path $schemaDir 'rulebook-catalog.schema.json')).IsValid | Should-BeTrue
         (Read-Catalog -Path $catalogPath)['AL0603'].Default | Should-Be 'None'
     }
 
@@ -356,7 +357,7 @@ Describe 'New-RulebookSkeleton' {
     It 'writes skeletons that pass the skeleton profile and carry no $schema' {
         foreach ($name in $skeletonNames) {
             $path = Join-Path $skeletonOut $name
-            Test-Json -Path $path -SchemaFile (Join-Path $schemaDir 'ruleset.skeleton.schema.json') | Should-BeTrue
+            (Test-RulebookSchema -Json (Get-Content -LiteralPath $path -Raw) -SchemaPath (Join-Path $schemaDir 'ruleset.skeleton.schema.json')).IsValid | Should-BeTrue
             [System.IO.File]::ReadAllText($path) | Should-NotMatchString 'schema'
         }
     }
@@ -433,7 +434,7 @@ Describe 'Shipped template content' {
         $settings['quarantine']['prereleaseStages'] | Should-BeNull
         $settings['twins'] | Should-Be 'both'
         $settings['baseUrl'] | Should-Be ''
-        Test-Json -Path $path -SchemaFile (Join-Path $schemaDir 'rulebook-settings.schema.json') | Should-BeTrue
+        (Test-RulebookSchema -Json (Get-Content -LiteralPath $path -Raw) -SchemaPath (Join-Path $schemaDir 'rulebook-settings.schema.json')).IsValid | Should-BeTrue
     }
 
     It 'has the entry counts of the file table in matrix/counts.md' {

@@ -125,6 +125,7 @@ BeforeDiscovery {
 
 BeforeAll {
     $script:repoRoot = Split-Path -Parent $PSScriptRoot
+    Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Common.psd1') -Force
     Import-Module (Join-Path $script:repoRoot 'modules' 'Rulebook.Generate.psd1') -Force
     . (Join-Path $PSScriptRoot 'Helpers' 'RepoFixture.ps1')
 
@@ -755,7 +756,7 @@ Describe 'Update-RulebookEndpoints' {
         foreach ($line in $lines[1..($lines.Count - 2)]) {
             $line | Should-MatchString '^(  "(name|description)": ".*",|  "rules": \[\]|  "rules": \[|    \{ "id": "[A-Z]{2,3}[0-9]{4}i?", "action": "(Error|Warning|Info|Hidden|None)" \},?|  \])$'
         }
-        Test-Json -Path (Join-Path $validMinimal 'rulesets' $Leaf) -SchemaFile (Join-Path $repoRoot 'schemas' 'ruleset.endpoint.schema.json') | Should-BeTrue
+        (Test-RulebookSchema -Json (Get-Content -LiteralPath (Join-Path $validMinimal 'rulesets' $Leaf) -Raw) -SchemaPath (Join-Path $repoRoot 'schemas' 'ruleset.endpoint.schema.json')).IsValid | Should-BeTrue
     }
 
     It 'throws without settings' {

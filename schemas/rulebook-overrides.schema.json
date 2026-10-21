@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "No $id on purpose: Test-Json resolves relative references only without an absolute $id, and every Rulebook schema follows the same rule.",
+  "$comment": "No $id on purpose: every Rulebook schema is addressed by its file location (docs/reference/naming.md section 6).",
   "title": "Rulebook overrides",
   "description": "overrides.json of an organization rulebook repository: rule changes with level and stage selectors. Selectors are non-empty arrays of lowercase slugs or [\"*\"]; whether a slug exists in the settings is validation check C10. See docs/reference/naming.md.",
   "$defs": {

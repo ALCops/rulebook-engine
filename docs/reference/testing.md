@@ -29,6 +29,7 @@ How the engine is tested: the conventions the Pester suites follow, the fixtures
 - **git.** Cases that need git are skipped without it (`-Skip:$gitMissing`, set in `BeforeDiscovery`).
 - **Paths.** `Join-Path` with segments, `/` in every comparison of a repository-relative path: the suites run on Linux in CI and on Windows locally.
 - **Names.** Test names hold no control characters (they would break the NUnit XML); a `-ForEach` case names its data in the title (`<Name> reports exactly <FindingsText>`).
+- **PowerShell versions.** The suites run on pwsh 7.6.7 (Windows 11), 7.6.3 (WSL Ubuntu) and `ubuntu-latest` in CI (7.6.7 since runner image 20261018). Schema checks use the JsonSchema.Net inside pwsh through `Test-RulebookSchema` of `Rulebook.Common` ([D56](../adr/0056-schema-validation-uses-jsonschema-net-directly.md)), not `Test-Json`; the build the module names is checked by the Common suite (in CI only), its API members everywhere.
 - **Strict mode.** The modules run with `Set-StrictMode -Version 3.0`; a seam object that may lack a member is read through `PSObject.Properties['Name']`.
 
 ## 2. Fixtures
@@ -115,6 +116,10 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `actions/Validate/Validate.ps1` | 193 | 1 | Listing note in the action's own copy of the effective-diff renderer; `Get-EffectiveDiffBlock` has the tested copy (spin-off: share it). |
 | `modules/Rulebook.Catalog.psm1` | 128 | 1 | Invalid JSON in a file the schema or Validate check reports first; the reader's own message is defensive. |
 | `modules/Rulebook.Catalog.psm1` | 226 | 1 | Writer branch for an empty array; no shipped or fixture file has one. |
+| `modules/Rulebook.Common.psm1` | 104 | 0 | (#114 numbering; the line runs, its branch does not.) The `Add-Type` of `JsonSchema.Net.dll`: every pwsh the suites run on has the type loaded already. |
+| `modules/Rulebook.Common.psm1` | 110 | 0 | (#114 numbering; the line runs, its branch does not.) The `$null` of the `Fetch` delegate for a URI that is not a file: no Rulebook schema references one. |
+| `modules/Rulebook.Common.psm1` | 127, 249, 265 | 0 | (#114 numbering; the lines run, their branch does not.) An exception without an inner exception; .NET method calls from PowerShell always wrap one. |
+| `modules/Rulebook.Common.psm1` | 288 | 0 | (#114 numbering; the line runs, its branch does not.) An invalid result without an error line; JsonSchema.Net in List output always names one. Kept so callers can index `Errors[0]` under strict mode. |
 | `modules/Rulebook.Edit.psm1` | 160, 166 | 2 | Describe texts for an unchanged entry and a replaced entry with another action; the rendered cases cover the other branches. |
 | `modules/Rulebook.Edit.psm1` | 241 | 1 | overrides.json that is not JSON at change time; Validate reports it first (C10) and the change plan stops on validation. |
 | `modules/Rulebook.Edit.psm1` | 583-585, 600-602, 650-652, 702-704 | 12 | The rulebook cannot be read at plan time after Validate passed; defensive. |
@@ -125,8 +130,7 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `modules/Rulebook.Edit.psm1` | 969-970 | 2 | Nothing to commit after the plan saw changes (the base moved to the same content in between). |
 | `modules/Rulebook.Edit.psm1` | 975 | 1 | The effective diff fails in the clone after the push; the result carries a note instead. |
 | `modules/Rulebook.Edit.psm1` | 733-735 | 3 | (WP15 follow-up numbering, a Linux run of the Edit, ChangeRule and GitHub suites.) A quarantine file that cannot be read when a release is planned; `Read-RulebookInputs` reads every quarantine file first and stops the plan with "The rulebook cannot be read". |
-| `modules/Rulebook.Edit.psm1` | 1194-1195 | 2 | (WP15 follow-up numbering.) A JSON parse failure that is not a `JsonException`; `System.Text.Json` throws one for every syntax error. |
-| `modules/Rulebook.Edit.psm1` | 1218 | 1 | (WP15 follow-up numbering.) `Test-Json` rejects a change set without naming an error: *observed* with pwsh 7.6.7 on Windows for a change that matches none of the set, remove and release shapes; pwsh 7.6.3 on Linux names the errors, so a Linux run never reaches the fallback line. |
+| `modules/Rulebook.Edit.psm1` | 1198-1199 | 2 | (#114 numbering.) A JSON parse failure that is not a `JsonException`; `System.Text.Json` throws one for every syntax error. |
 | `modules/Rulebook.Extract.psm1` | 65-67 | 3 | pwsh not in `$PSHOME` (a .NET global tool install); the suites run the pwsh of `$PSHOME`. |
 | `modules/Rulebook.Extract.psm1` | 122, 129 | 2 | Defensive fallbacks for an assembly or package id outside the two known packages. |
 | `modules/Rulebook.Extract.psm1` | 205-208, 210 | 5 | The body of the `AssemblyResolve` handler of the in-process extraction: on `ubuntu-latest` the runtime finds the stub dependencies next to the loading assembly on its own and never asks the handler; on Windows it asks, and the in-process case covers these lines there. |
@@ -169,10 +173,10 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `modules/Rulebook.Update.psm1` | 1436 | 1 | A planned deletion whose file is already gone in the clone (someone deleted it in between). |
 | `modules/Rulebook.Update.psm1` | 1446 | 1 | Nothing to commit after the plan saw changes (the base moved to the same content in between). |
 | `modules/Rulebook.Update.psm1` | 1454 | 1 | The effective diff fails in the clone after the push; the result carries a note instead. |
-| `modules/Rulebook.Validate.psm1` | 88 | 1 | Schema check on a file whose text was not read first; every caller reads the text first. |
-| `modules/Rulebook.Validate.psm1` | 269-270 | 2 | `Read-Catalog` throws after the catalog schema passed; defensive. |
-| `modules/Rulebook.Validate.psm1` | 422-423 | 2 | C4 hint for `Default` in overrides.json; the overrides schema rejects it first (C10). |
-| `modules/Rulebook.Validate.psm1` | 703 | 1 | The regeneration check throws after its prerequisites passed; defensive. |
+| `modules/Rulebook.Validate.psm1` | 86 | 0 | (#114 numbering; the line runs, its throw path does not.) An engine schema file that cannot be read, parsed or resolved: `Test-RulebookSchema` throws and the exception leaves `Test-Rulebook` on purpose, because the schemas are engine files, not rulebook input (the header's "never throws on bad input" is about the repository). The Common suite proves the throws; no Validate case breaks an engine schema. |
+| `modules/Rulebook.Validate.psm1` | 265-266 | 2 | `Read-Catalog` throws after the catalog schema passed; defensive. |
+| `modules/Rulebook.Validate.psm1` | 418-419 | 2 | C4 hint for `Default` in overrides.json; the overrides schema rejects it first (C10). |
+| `modules/Rulebook.Validate.psm1` | 699 | 1 | The regeneration check throws after its prerequisites passed; defensive. |
 | `scripts/Get-RulebookSkeletons.ps1` | 83-84, 92 | 3 | A download that fails without an error record, or answers with a stream; the suites mock text responses. |
 | `scripts/Get-RulebookSkeletons.ps1` | 113 | 1 | An address that is not an absolute URL; the script builds every address from `-BaseUrl`. |
 | `scripts/Get-RulebookSkeletons.ps1` | 230, 236 | 2 | A served skeleton that is not JSON or not a Rulebook skeleton; the publish job serves only generated skeletons. |
