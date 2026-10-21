@@ -1164,12 +1164,13 @@ function Read-RulebookChangeSetText {
     valid JSON (line <l>, byte position <p>): <reason>' (both 1-based; the position counts UTF-8 bytes). Then
     Test-RulebookSchema of Rulebook.Common (JsonSchema.Net, D56) against -SchemaPath (default
     schemas/rulebook-changeset.schema.json of the engine): every distinct schema error is one line 'The change set does
-    not match the schema: <error> at <JSON pointer>', outermost first (a change that matches none of the set, remove
-    and release shapes gives 'Expected 1 matching subschema but found 0 at /changes/<n>', then what each shape
-    missed). A schema that cannot be read or resolved gives the one line 'The change set cannot be checked against the
-    schema: <reason>'. Only a text without errors gets a
-    ChangeSet: ordered dictionaries with ordinal keys, arrays, and strings kept as strings (a justification that looks
-    like a date stays text). The catalog, the slugs and repeated changes are checked by Test-RulebookChangeSet.
+    not match the schema: <error> at <JSON pointer>', in evaluation order, a failing parent before its children (a
+    change that matches none of the set, remove and release shapes gives 'Expected 1 matching subschema but found 0
+    at /changes/<n>', then what each shape missed); a property name repeated in one object gives the line 'The change
+    set does not match the schema: the text is not valid JSON: the property name '<name>' is repeated at <pointer>'.
+    A schema that cannot be read or resolved gives the one line 'The change set cannot be checked against the schema:
+    <reason>'. Only a text without errors gets a ChangeSet: ordered dictionaries with ordinal keys, arrays, and
+    strings kept as strings (a justification that looks like a date stays text). The catalog, the slugs and repeated changes are checked by Test-RulebookChangeSet.
     Returns data, never throws.
     #>
     [CmdletBinding()]

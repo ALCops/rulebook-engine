@@ -370,6 +370,34 @@ Describe 'Test-RulebookSchema' {
         $result.Errors[0] | Should-BeLikeString 'the text is not valid JSON: *'
     }
 
+    It 'refuses a property name repeated in one object: <Name>' -ForEach @(
+        @{ Name = 'at the root'; Json = '{ "name": "a", "name": "b", "rules": [] }'; Expected = "the text is not valid JSON: the property name 'name' is repeated at the root" }
+        @{ Name = 'in a rule'; Json = '{ "name": "a", "rules": [ { "id": "LC0001", "id": "LC0002", "action": "None" } ] }'; Expected = "the text is not valid JSON: the property name 'id' is repeated at /rules/0" }
+        @{ Name = 'under an escaped name'; Json = '{ "a/b~c": { "x": 1, "x": 2 } }'; Expected = "the text is not valid JSON: the property name 'x' is repeated at /a~1b~0c" }
+    ) {
+        $result = Test-RulebookSchema -Json $Json -SchemaPath $delta
+        $result.IsValid | Should-BeFalse
+        @($result.Errors) | Should-BeCollection @($Expected)
+    }
+
+    It 'accepts the same property name in two objects' {
+        (Test-RulebookSchema -Json '{ "name": "a", "rules": [ { "id": "LC0001", "action": "None" }, { "id": "LC0002", "action": "None" } ] }' -SchemaPath $delta).IsValid | Should-BeTrue
+    }
+
+    It 'resolves a relative schema path against the PowerShell location' {
+        $folder = Get-TestFolder
+        Copy-Item -LiteralPath (Join-Path $schemaDir 'rulebook-twins.schema.json') -Destination (Join-Path $folder 'relative.schema.json')
+        Push-Location -LiteralPath $folder
+        try {
+            $result = Test-RulebookSchema -Json '{}' -SchemaPath 'relative.schema.json'
+        } finally {
+            Pop-Location
+        }
+        $result.IsValid | Should-BeFalse
+        $full = [System.IO.Path]::GetFullPath((Join-Path $folder 'relative.schema.json'))
+        InModuleScope Rulebook.Common -Parameters @{ Full = $full } { param($Full) $script:SchemaCache.ContainsKey($Full) } | Should-BeTrue
+    }
+
     It 'throws when the schema file is missing' {
         { Test-RulebookSchema -Json '{}' -SchemaPath (Join-Path (Get-TestFolder) 'missing.schema.json') } | Should-Throw -ExceptionMessage 'The schema * cannot be read: *'
     }

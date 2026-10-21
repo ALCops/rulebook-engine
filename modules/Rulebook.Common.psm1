@@ -2,10 +2,11 @@
 # Rulebook.Common: the leaf helpers several engine modules share (#78): the git runner with UTF-8 output decoding and
 # a per-process environment, the ordinal collections (an insertion-ordered map and a set, both case-sensitive), the
 # JSON element reader that keeps strings as strings, the JSON schema evaluator (Test-RulebookSchema: JsonSchema.Net as
-# shipped inside pwsh, one parsed schema per file per session, D56), and the engine ref with the URL builders for the schema, script and user docs URLs the engine prints or writes (D52,
-# #63): the ref is GITHUB_ACTION_REF, else the ref folder of GITHUB_ACTION_PATH, else main, so an action at @v1
-# names v1 URLs and engine CI and a local run name main. The user docs live in the template repository, whose
-# branches differ from the engine's (D53): the engine ref is mapped to a template ref first (ConvertTo-TemplateRef).
+# shipped inside pwsh, one parsed schema per file per session, D56), and the engine ref with the URL builders for the
+# schema, script and user docs URLs the engine prints or writes (D52, #63): the ref is GITHUB_ACTION_REF, else the ref
+# folder of GITHUB_ACTION_PATH, else main, so an action at @v1 names v1 URLs and engine CI and a local run name main.
+# The user docs live in the template repository, whose branches differ from the engine's (D53): the engine ref is
+# mapped to a template ref first (ConvertTo-TemplateRef).
 # Imports nothing; every module that calls one of these functions imports this module itself (a nested import is not
 # transitive).
 
@@ -130,6 +131,34 @@ function Get-CachedSchema {
     return $schema
 }
 
+function Find-RepeatedJsonProperty {
+    # "the property name '<name>' is repeated at <JSON pointer>" for the first object in Element (depth first) that
+    # names a property twice, else $null.
+    # System.Text.Json reads such a text without complaint, but a JsonNode built from it throws inside the schema
+    # evaluation; the text is refused as not valid JSON instead (strict JSON, as for comments and trailing commas).
+    param([Parameter(Mandatory)][System.Text.Json.JsonElement]$Element, [AllowEmptyString()][string]$Pointer = '')
+    switch ($Element.ValueKind) {
+        'Object' {
+            $names = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+            foreach ($property in $Element.EnumerateObject()) {
+                $where = if ($Pointer -eq '') { 'the root' } else { $Pointer }
+                if (-not $names.Add($property.Name)) { return "the property name '$($property.Name)' is repeated at $where" }
+                $child = Find-RepeatedJsonProperty -Element $property.Value -Pointer "$Pointer/$($property.Name.Replace('~', '~0').Replace('/', '~1'))"
+                if ($null -ne $child) { return $child }
+            }
+        }
+        'Array' {
+            $index = 0
+            foreach ($item in $Element.EnumerateArray()) {
+                $child = Find-RepeatedJsonProperty -Element $item -Pointer "$Pointer/$index"
+                if ($null -ne $child) { return $child }
+                $index++
+            }
+        }
+    }
+    return $null
+}
+
 #endregion
 
 #region Exported functions
@@ -193,10 +222,11 @@ function Test-RulebookSchema {
     Evaluates a JSON text against a Rulebook schema file and returns { IsValid, Errors }.
     .DESCRIPTION
     Errors is one line per distinct schema error, '<text> at <JSON pointer>' ('at the root' for the empty pointer), in
-    evaluation order (outermost failing keyword first); a text that is not strict JSON (a comment, a trailing comma)
-    gives the one line 'the text is not valid JSON: <reason>'. The evaluator is JsonSchema.Net as shipped inside pwsh
-    (D56), called directly rather than through the cmdlet of the Utility module: each schema file is parsed once per
-    session and its relative $ref resolves to the sibling file through its own file location. Throws when the schema itself cannot be read, parsed or resolved (an engine defect,
+    evaluation order (a failing parent before its children); a text that is not strict JSON (a comment, a trailing
+    comma, a property name repeated in one object) gives the one line 'the text is not valid JSON: <reason>'. The
+    evaluator is JsonSchema.Net as shipped inside pwsh (D56), called directly rather than through the cmdlet of the
+    Utility module: each schema file is parsed once per session and its relative $ref resolves to the sibling file
+    through its own file location. Throws when the schema itself cannot be read, parsed or resolved (an engine defect,
     never a rulebook input error).
     #>
     [CmdletBinding()]
@@ -207,14 +237,25 @@ function Test-RulebookSchema {
     )
     Initialize-SchemaEvaluator
     $schema = Get-CachedSchema -Path $SchemaPath
+    $problem = $null
+    $document = $null
     try {
-        $node = [System.Text.Json.Nodes.JsonNode]::Parse($Json)
+        $document = [System.Text.Json.JsonDocument]::Parse($Json)
+        $problem = Find-RepeatedJsonProperty -Element $document.RootElement
     } catch {
         $inner = if ($null -ne $_.Exception.InnerException) { $_.Exception.InnerException } else { $_.Exception }
+        $problem = $inner.Message
+    } finally {
+        if ($null -ne $document) { $document.Dispose() }
+    }
+    if ($null -ne $problem) {
         return [pscustomobject]@{
-            PSTypeName = 'Rulebook.SchemaResult'; IsValid = $false; Errors = [string[]]@("the text is not valid JSON: $($inner.Message)")
+            PSTypeName = 'Rulebook.SchemaResult'; IsValid = $false; Errors = [string[]]@("the text is not valid JSON: $problem")
         }
     }
+    $node = [System.Text.Json.Nodes.JsonNode]::Parse($Json)
+    # The text is strict JSON without repeated names here, so a failure is the schema's: a $ref that does not resolve
+    # (a sibling file missing or unreadable through Fetch) or a schema the library cannot evaluate.
     try {
         $results = $schema.Evaluate($node, $script:SchemaOptions)
     } catch {
@@ -225,7 +266,7 @@ function Test-RulebookSchema {
         return [pscustomobject]@{ PSTypeName = 'Rulebook.SchemaResult'; IsValid = $true; Errors = [string[]]@() }
     }
     # List output: the root result plus one flat entry per evaluated location; a oneOf miss repeats branch lines, so
-    # each line is added once. JsonSchema.Net writes a quote in a 'const' text as ": read back as ".
+    # each line is added once. JsonSchema.Net writes a quote in a 'const' text as \u0022: read back as ".
     $lines = [System.Collections.Generic.List[string]]::new()
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($detail in @(@($results) + @($results.Details))) {
@@ -233,7 +274,8 @@ function Test-RulebookSchema {
         $where = $detail.InstanceLocation.ToString()
         if ($where -eq '') { $where = 'the root' }
         foreach ($entry in $detail.Errors.GetEnumerator()) {
-            # A string const comes back as "\u0022x\u0022" (the serialised value inside the quotes of the text): one pair.
+            # A string const comes back as "\u0022x\u0022" (the serialised value inside the quotes of the text):
+            # one pair of quotes.
             $text = ([string]$entry.Value) -replace '"\\u0022(.*?)\\u0022"', '"$1"'
             $line = "$($text.Replace('\u0022', '"').Trim()) at $where"
             if ($seen.Add($line)) { $lines.Add($line) }

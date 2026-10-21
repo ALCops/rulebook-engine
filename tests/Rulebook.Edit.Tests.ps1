@@ -1154,6 +1154,12 @@ Describe 'Read-RulebookChangeSetText' {
         (Read-RulebookChangeSetText -Text '{"version":2,"changes":[]}').Errors[0] | Should-Be 'The change set does not match the schema: Expected "1" at /version'
     }
 
+    It 'reports a property name repeated in one change as a schema line, not as a schema that cannot be checked' {
+        $read = Read-RulebookChangeSetText -Text '{"version":1,"changes":[{"op":"release","id":"LC0099","id":"LC0098","stages":["ci"]}]}'
+        $read.ChangeSet | Should-BeNull
+        @($read.Errors) | Should-BeCollection @("The change set does not match the schema: the text is not valid JSON: the property name 'id' is repeated at /changes/0")
+    }
+
     It 'prints a string const of the schema as one quoted value' {
         (Read-RulebookChangeSetText -Text '{"version":1,"changes":[{"op":"zzz"}]}').Errors | Should-ContainCollection @('The change set does not match the schema: Expected "remove" at /changes/0/op')
     }
