@@ -233,7 +233,9 @@ function Test-RulebookSchema {
         $where = $detail.InstanceLocation.ToString()
         if ($where -eq '') { $where = 'the root' }
         foreach ($entry in $detail.Errors.GetEnumerator()) {
-            $line = "$(([string]$entry.Value).Replace('\u0022', '"').Trim()) at $where"
+            # A string const comes back as "\u0022x\u0022" (the serialised value inside the quotes of the text): one pair.
+            $text = ([string]$entry.Value) -replace '"\\u0022(.*?)\\u0022"', '"$1"'
+            $line = "$($text.Replace('\u0022', '"').Trim()) at $where"
             if ($seen.Add($line)) { $lines.Add($line) }
         }
     }

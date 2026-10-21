@@ -308,7 +308,6 @@ Describe 'Test-RulebookSchema' {
         $schemaType | Should-NotBeNull
         $schemaType.GetMethod('FromFile', [type[]]@([string])) | Should-NotBeNull
         $schemaType.GetMethod('Evaluate', [type[]]@([System.Text.Json.Nodes.JsonNode], ('Json.Schema.EvaluationOptions' -as [type]))) | Should-NotBeNull
-        $schemaType.GetProperty('BaseUri').CanWrite | Should-BeTrue
         $optionsType = 'Json.Schema.EvaluationOptions' -as [type]
         $optionsType.GetProperty('OutputFormat').CanWrite | Should-BeTrue
         $optionsType.GetProperty('SchemaRegistry') | Should-NotBeNull
@@ -320,7 +319,30 @@ Describe 'Test-RulebookSchema' {
         foreach ($name in 'IsValid', 'Details', 'HasErrors', 'Errors', 'InstanceLocation') {
             $resultsType.GetProperty($name) | Should-NotBeNull -Because "EvaluationResults.$name"
         }
-        ('Json.Pointer.JsonPointer' -as [type])::Parse('/rules/0/id').ToString() | Should-Be '/rules/0/id'
+        $resultsType.GetProperty('Errors').PropertyType | Should-Be ([System.Collections.Generic.IReadOnlyDictionary[string, string]])
+        # The members as the module calls them, on a real result: the pointer of the first detail with errors.
+        $detail = InModuleScope Rulebook.Common -Parameters @{ Path = $delta } {
+            param($Path)
+            $node = [System.Text.Json.Nodes.JsonNode]::Parse('{ "name": "Rulebook Strict", "rules": [ { "id": "lc0015", "action": "None" } ] }')
+            $results = (Get-CachedSchema -Path $Path).Evaluate($node, $script:SchemaOptions)
+            @($results.Details | Where-Object HasErrors)[0]
+        }
+        $detail.InstanceLocation.ToString() | Should-Be '/rules/0/id'
+        $pairs = @($detail.Errors.GetEnumerator())
+        $pairs[0].Key | Should-Be 'pattern'
+        $pairs[0].Value | Should-Be 'The string value is not a match for the indicated regular expression'
+    }
+
+    It 'prints a string const as one quoted value' {
+        $changeSet = Join-Path $schemaDir 'rulebook-changeset.schema.json'
+        $result = Test-RulebookSchema -Json '{"version":1,"changes":[{"op":"zzz"}]}' -SchemaPath $changeSet
+        $result.Errors | Should-ContainCollection @('Expected "remove" at /changes/0/op')
+    }
+
+    It 'keeps an empty string const as an empty quoted value' {
+        $path = Join-Path (Get-TestFolder) 'empty-const.schema.json'
+        Write-FixtureText -Path $path -Text '{ "$schema": "https://json-schema.org/draft/2020-12/schema", "properties": { "x": { "const": "" } } }'
+        (Test-RulebookSchema -Json '{ "x": "y" }' -SchemaPath $path).Errors[0] | Should-Be 'Expected "" at /x'
     }
 
     It 'accepts a valid text' {

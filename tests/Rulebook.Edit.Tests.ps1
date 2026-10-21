@@ -1154,6 +1154,10 @@ Describe 'Read-RulebookChangeSetText' {
         (Read-RulebookChangeSetText -Text '{"version":2,"changes":[]}').Errors[0] | Should-Be 'The change set does not match the schema: Expected "1" at /version'
     }
 
+    It 'prints a string const of the schema as one quoted value' {
+        (Read-RulebookChangeSetText -Text '{"version":1,"changes":[{"op":"zzz"}]}').Errors | Should-ContainCollection @('The change set does not match the schema: Expected "remove" at /changes/0/op')
+    }
+
     It 'reports a schema that cannot be read' {
         $read = Read-RulebookChangeSetText -Text '{"version":1}' -SchemaPath (Join-Path (Get-TestFolder) 'missing.schema.json')
         $read.ChangeSet | Should-BeNull
