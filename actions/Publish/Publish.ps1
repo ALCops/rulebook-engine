@@ -181,7 +181,9 @@ if ($Phase -eq 'Stage') {
                                 Write-Host "Base URL from the Pages site: $resolvedBaseUrl"
                                 $notes.Add("Base URL from the Pages site: ``$resolvedBaseUrl`` (baseUrl is empty).")
                             } catch {
-                                $fix = if ($preflight.HtmlUrl.StartsWith('http://', [System.StringComparison]::OrdinalIgnoreCase)) { "Turn on Enforce HTTPS under Settings > Pages, or set baseUrl in $settingsFile." } else { "Set baseUrl in $settingsFile." }
+                                # The message names the settings file as the module's messages do; the annotation
+                                # carries no file attribute because the value came from the Pages API, not the file.
+                                $fix = if ($preflight.HtmlUrl.StartsWith('http://', [System.StringComparison]::OrdinalIgnoreCase)) { 'Turn on Enforce HTTPS under Settings > Pages, or set baseUrl in .github/Rulebook-Settings.json.' } else { 'Set baseUrl in .github/Rulebook-Settings.json.' }
                                 Add-Annotation -Context $ctx -Message "The address of the Pages site, ``$($preflight.HtmlUrl)``, cannot be the base URL: $($_.Exception.Message.Replace('The baseUrl input ', 'it ')) $fix"
                                 Add-Failure -Context $ctx -Kind 'baseUrl-invalid'
                                 $failed = $true
