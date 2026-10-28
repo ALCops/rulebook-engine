@@ -20,16 +20,17 @@
   <div class="copy-block">
 <pre><code id="init-{{ $level.slug }}">Invoke-WebRequest {{ $data.initScriptUrl }} -OutFile Get-RulebookSkeletons.ps1
 ./Get-RulebookSkeletons.ps1 -BaseUrl {{ $base }} -Level {{ $level.slug }} -Ref {{ $data.engineRef }}</code></pre>
-  <button type="button" class="copy-button" data-copy-target="#init-{{ $level.slug }}" hidden>Copy</button>
+  <button type="button" class="copy-button" data-copy-target="#init-{{ $level.slug }}" aria-label="Copy the init commands of {{ $level.name }}" hidden>Copy</button>
   </div>
-  <p class="copy-line"><span>VS Code, the default stage:</span> <code>{{ $vscode }}</code> <button type="button" class="copy-button" data-copy="{{ $vscode }}" hidden>Copy</button></p>
-  <p class="copy-line"><span>AL-Go, the CI stage:</span> <code>{{ $algo }}</code> <button type="button" class="copy-button" data-copy="{{ $algo }}" hidden>Copy</button></p>
+  <p class="copy-line"><span>VS Code, the default stage:</span> <code>{{ $vscode }}</code> <button type="button" class="copy-button" data-copy="{{ $vscode }}" aria-label="Copy the al.ruleSetPath line of {{ $level.name }}" hidden>Copy</button></p>
+  <p class="copy-line"><span>AL-Go, the CI stage:</span> <code>{{ $algo }}</code> <button type="button" class="copy-button" data-copy="{{ $algo }}" aria-label="Copy the rulesetFile line of {{ $level.name }}" hidden>Copy</button></p>
 </details>
 {{- end }}
-<p>The levels and stages of this site, machine-readable: <a href="{{ "rulebook.json" | relURL }}"><code>{{ $base }}/rulebook.json</code></a> <button type="button" class="copy-button" data-copy="{{ $base }}/rulebook.json" hidden>Copy</button></p>
+<p>The levels and stages of this site, machine-readable: <a href="{{ "rulebook.json" | relURL }}"><code>{{ $base }}/rulebook.json</code></a> <button type="button" class="copy-button" data-copy="{{ $base }}/rulebook.json" aria-label="Copy the rulebook.json URL" hidden>Copy</button></p>
 {{- range $stage := $data.stages }}
 <h2 id="stage-{{ $stage.slug }}">Stage {{ $stage.name }}</h2>
 {{ with $stage.description }}<p>{{ . }}</p>{{ end }}
+<div class="table-wrap">
 <table class="endpoints">
   <thead><tr><th scope="col">Level</th><th scope="col">Endpoint</th><th scope="col">Listed ids</th><th scope="col">Skeleton</th></tr></thead>
   <tbody>
@@ -37,10 +38,11 @@
   {{- $endpoint := cond (eq $stage.slug "default") (printf "%s/rulesets/%s.ruleset.json" $base $level.slug) (printf "%s/rulesets/%s.%s.ruleset.json" $base $level.slug $stage.slug) }}
   {{- $skeleton := printf "%s.%s.ruleset.json" $level.slug $stage.slug }}
   {{- $listed := "" }}{{ range $level.counts }}{{ if eq .stage $stage.slug }}{{ $listed = .listed }}{{ end }}{{ end }}
-  <tr><td>{{ $level.name }}</td><td><a href="{{ $endpoint }}"><code>{{ $endpoint }}</code></a> <button type="button" class="copy-button" data-copy="{{ $endpoint }}" hidden>Copy</button></td><td class="count">{{ $listed }}</td><td><a class="button download" href="{{ printf "%s/skeletons/%s" $base $skeleton }}" download="{{ $skeleton }}">{{ $skeleton }}</a></td></tr>
+  <tr><td>{{ $level.name }}</td><td><a href="{{ $endpoint }}"><code>{{ $endpoint }}</code></a> <button type="button" class="copy-button" data-copy="{{ $endpoint }}" aria-label="Copy endpoint {{ $endpoint }}" hidden>Copy</button></td><td class="count">{{ $listed }}</td><td><a class="button download" href="{{ printf "%s/skeletons/%s" $base $skeleton }}" download="{{ $skeleton }}">{{ $skeleton }}</a></td></tr>
   {{- end }}
   </tbody>
 </table>
+</div>
 {{- end }}
-<p class="copy-status" aria-live="polite"></p>
+<p class="copy-status sr-only" aria-live="polite"></p>
 {{ end }}

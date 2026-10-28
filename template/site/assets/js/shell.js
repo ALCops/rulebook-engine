@@ -90,6 +90,7 @@
     document.body.appendChild(area);
     var focused = document.activeElement;
     area.select();
+    area.setSelectionRange(0, text.length);
     var done = false;
     try { done = document.execCommand('copy'); } catch (e) { done = false; }
     document.body.removeChild(area);
@@ -108,24 +109,32 @@
 
   function report(button, done) {
     var message = done ? 'Copied' : 'Copy failed: select the text and copy it';
-    copyButtons.forEach(function (other) { other.textContent = 'Copy'; });
+    copyButtons.forEach(function (other) { other.textContent = other.dataset.label; });
     button.textContent = done ? 'Copied' : 'Copy failed';
-    if (status) status.textContent = message;
+    // Emptied first and written a moment later, so a second click announces the message again.
+    if (status) {
+      status.textContent = '';
+      setTimeout(function () { status.textContent = message; }, 50);
+    }
     if (resetTimer) clearTimeout(resetTimer);
     resetTimer = setTimeout(function () {
-      button.textContent = 'Copy';
+      button.textContent = button.dataset.label;
       if (status) status.textContent = '';
       resetTimer = null;
     }, 2000);
   }
 
   copyButtons.forEach(function (button) {
+    button.dataset.label = button.textContent;
     button.hidden = false;
     button.addEventListener('click', function () {
       var text = button.getAttribute('data-copy');
       if (text === null) {
-        var target = document.querySelector(button.getAttribute('data-copy-target'));
-        text = target ? target.textContent : '';
+        var target = null;
+        try { target = document.querySelector(button.getAttribute('data-copy-target')); } catch (e) { /* not a selector */ }
+        // A target that is not on the page is a failure, never an empty clipboard.
+        if (!target) { report(button, false); return; }
+        text = target.textContent;
       }
       copyText(text).then(function (done) { report(button, done); });
     });
