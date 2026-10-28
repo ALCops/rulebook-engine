@@ -15,7 +15,7 @@ Your AL projects fetch their rules from URLs. This page explains where those URL
 
 | URL | Content |
 |---|---|
-| `<baseUrl>/` | With `site.enabled` set to `true` (shipped): the dashboard, the grid of the first stage ([dashboard.md](dashboard.md)). With `false`: an index page, how to set up an AL project with the init script, then one table per stage, one row per level, with the endpoint URL, the number of rules it lists and a download link for the skeleton. |
+| `<baseUrl>/` | With `site.enabled` set to `true` (shipped): the dashboard's landing page, with the grid of each stage at `<baseUrl>/stages/<stage>/` ([dashboard.md](dashboard.md)). With `false`: an index page, how to set up an AL project with the init script, then one table per stage, one row per level, with the endpoint URL, the number of rules it lists and a download link for the skeleton. |
 | `<baseUrl>/setup/`, `<baseUrl>/stages/<stage>/`, `<baseUrl>/levels/<level>/`, `<baseUrl>/rules/<id>/` | The other pages of the dashboard, only with `site.enabled` set to `true`: the setup page with the content of the index page above, a grid per stage, a page per level and per rule ([dashboard.md](dashboard.md) section 1). The site's styles and scripts are under `css/` and `js/`. |
 | `<baseUrl>/rulebook.json` | Your rulebook, machine-readable: the levels and stages, which the init script reads ([al-project.md](al-project.md)), and every rule with its action on every endpoint and the input that decides it, the data of the dashboard ([dashboard.md](dashboard.md) section 6). |
 | `<baseUrl>/catalog/diagnostics.json` | Your `catalog/diagnostics.json`, byte for byte. |

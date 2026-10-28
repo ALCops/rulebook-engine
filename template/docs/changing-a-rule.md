@@ -49,7 +49,7 @@ The justification is optional, and worth writing: it travels with the entry, app
 
 With the dashboard on ([dashboard.md](dashboard.md)), anyone who reads your site can propose changes without opening the Actions tab:
 
-1. **Click a cell** of the grid at `<baseUrl>/` or on a stage or rule page, and pick an action, **Reset** (on a cell an override decides, badge `O`) or **Release** (on a quarantined cell, badge `Q`).
+1. **Click a cell** of the grid on a stage page (`<baseUrl>/stages/<stage>/`) or a rule page, and pick an action, **Reset** (on a cell an override decides, badge `O`) or **Release** (on a quarantined cell, badge `Q`).
 2. **Collect the changes in the cart.** It shows, for every change, the action before and after on each endpoint it touches, takes an optional justification per action and an optional note, and keeps everything in the browser until you submit.
 3. **Submit on GitHub.** The cart opens the issue form **Rulebook change** of your repository in a new tab with the change set filled in; you read it and click **Create**. A cart that is too large for one link is submitted in parts or copied into the empty form ([dashboard.md](dashboard.md) section 3).
 

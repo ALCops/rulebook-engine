@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-17
+- **Addendum 2026-10-28:** with WP16 [#139](https://github.com/ALCops/rulebook-engine/issues/139) `/` is a landing page and the first stage's grid is at `stages/<slug>/`; the rendered-not-aliased principle holds for the landing.
 
 - **Decision:** the dashboard site renders one static page per stage (`/` is the grid of the first stage, `stages/<slug>/` every stage with its stage summary), one per level and one per rule, and the engine exports, for every override and quarantine cell, the action the cell would have without that input, so the cart shows the before and after of a change without any precedence logic in the browser.
 - **The shape:**
