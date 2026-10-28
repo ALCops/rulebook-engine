@@ -1,7 +1,12 @@
-{{- /* The cart panel; cart.mjs fills and shows it. Nothing here works without JavaScript, so it stays hidden. */ -}}
+{{- /* The cart drawer, a modal dialog over the page below the header, and the overlay behind it; cart.mjs fills,
+  opens and closes them (drawer-core.mjs). Nothing here works without JavaScript, so both stay hidden. */ -}}
 {{- $data := hugo.Data.rulebook -}}
-<aside id="cart" class="cart" aria-labelledby="cart-heading" hidden>
-  <h2 id="cart-heading">Cart</h2>
+<div class="cart-overlay" hidden></div>
+<aside id="cart" class="cart" role="dialog" aria-modal="true" aria-labelledby="cart-heading" hidden>
+  <div class="cart-head">
+    <h2 id="cart-heading">Cart</h2>
+    <button type="button" class="cart-close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.7 2.6 8 6.9l4.3-4.3 1.1 1.1L9.1 8l4.3 4.3-1.1 1.1L8 9.1l-4.3 4.3-1.1-1.1L6.9 8 2.6 3.7z" fill="currentColor"/></svg></button>
+  </div>
   <p class="cart-empty">The cart is empty. Click a cell to add a change.</p>
   <ol class="cart-list"></ol>
   <label class="cart-note">Note for the issue (optional)

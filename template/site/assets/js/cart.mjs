@@ -1,14 +1,18 @@
-// The cart panel: keeps the cart in localStorage under rulebook-cart:<repository>, listens for "rulebook:choose"
-// (matrix.js), shows the before and after of every change from rulebook.json and opens the prefilled issue form.
-// Every decision is in cart-core.mjs; this file only reads and writes the page.
+// The cart drawer: keeps the cart in localStorage under rulebook-cart:<repository>, listens for "rulebook:choose"
+// (matrix.js), shows the before and after of every change from rulebook.json and opens the prefilled issue form. The
+// drawer is a modal dialog: it opens on an added change and on the Cart button, closes on its close button, Escape
+// and the overlay, holds the focus while open (Tab wraps inside) and gives it back to the Cart button.
+// Every decision is in cart-core.mjs and drawer-core.mjs; this file only reads and writes the page.
 import * as core from './cart-core.mjs';
+import * as drawer from './drawer-core.mjs';
 
 // The body of every page carries the repository, the issue form and the data file (baseof.html).
 const config = document.querySelector('[data-rulebook-json]');
 const panel = document.getElementById('cart');
 const toggle = document.querySelector('.cart-toggle');
+const overlay = document.querySelector('.cart-overlay');
 
-if (config && panel && toggle) {
+if (config && panel && toggle && overlay) {
   const repository = config.dataset.repository || '';
   const issueTemplate = config.dataset.issueTemplate || '';
   const key = core.storageKey(repository);
@@ -20,9 +24,23 @@ if (config && panel && toggle) {
   const status = panel.querySelector('.cart-status');
   const submit = panel.querySelector('[data-cart="submit"]');
   const parts = panel.querySelector('[data-cart="parts"]');
+  const closeButton = panel.querySelector('.cart-close');
   const hasCells = document.querySelector('td[data-level]') !== null;
   let data = null;
   let pendingParts = null;
+  let drawerState = drawer.initialState();
+
+  // The textareas grow with their content: CSS field-sizing where the browser has it, else the height follows the
+  // scroll height on every input and whenever the drawer opens (a hidden textarea has no scroll height).
+  const sizesItself = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('field-sizing', 'content');
+  const grow = (area) => {
+    if (sizesItself || panel.hidden) return;
+    area.style.height = 'auto';
+    area.style.height = `${area.scrollHeight + area.offsetHeight - area.clientHeight}px`;
+  };
+  const growAll = () => panel.querySelectorAll('textarea').forEach(grow);
+  // A narrower window wraps the text onto more lines.
+  if (!sizesItself) window.addEventListener('resize', growAll);
 
   // Whatever is stored goes through sanitize: every page of the same host shares localStorage.
   const load = () => {
@@ -101,7 +119,15 @@ if (config && panel && toggle) {
       const body = table.createTBody();
       for (const cell of row.cells) {
         const tr = body.insertRow();
-        tr.append(element('td', `${cell.level}.${cell.stage}`), element('td', `${cell.before ?? 'unset'} (${cell.beforeSource})`), element('td', `${cell.after ?? 'unset'} (${cell.afterSource})`));
+        // In the 24rem drawer the endpoint may break after its dot and the source sits under the action.
+        const endpoint = element('td');
+        endpoint.append(`${cell.level}.`, document.createElement('wbr'), cell.stage);
+        const decided = (action, source) => {
+          const td = element('td', action ?? 'unset');
+          td.append(' ', element('small', `(${source})`));
+          return td;
+        };
+        tr.append(endpoint, decided(cell.before, cell.beforeSource), decided(cell.after, cell.afterSource));
       }
       item.append(table);
     }
@@ -114,24 +140,33 @@ if (config && panel && toggle) {
     controls.append(drop);
     item.append(controls);
     if (row.change.op === 'set') {
-      const label = element('label', 'Justification (optional) ');
-      const input = element('input');
-      input.type = 'text';
-      input.value = row.change.justification || '';
-      input.addEventListener('change', () => update(core.setJustification(cart, row.index, input.value)));
-      label.append(input);
+      // Several lines are fine: a line end travels as \n in the JSON of the change set. Typing updates the cart and
+      // the size without drawing the list again, so the focus stays in the field.
+      const label = element('label', 'Justification (optional) ', 'cart-justification');
+      const area = element('textarea');
+      area.rows = 1;
+      area.value = row.change.justification || '';
+      area.addEventListener('input', () => {
+        cart = core.setJustification(cart, row.index, area.value);
+        pendingParts = null;
+        status.textContent = '';
+        save();
+        measure();
+        grow(area);
+      });
+      label.append(area);
       item.append(label);
     }
     return item;
   };
 
-  const show = () => {
+  // The count of the Cart button, the size of the issue link and the Submit buttons; the list is not drawn again.
+  const measure = () => {
     const count = cart.changes.length;
     // On a page without cells (a level page) the toggle shows only when the cart holds something.
     toggle.hidden = !hasCells && count === 0;
     toggle.querySelector('.cart-count').textContent = String(count);
     panel.querySelector('.cart-empty').hidden = count > 0;
-    if (document.activeElement !== note) note.value = cart.note;
     // The link can fail (a data file without repository, a broken character): the list still renders, so every
     // change can be seen and removed.
     try {
@@ -150,11 +185,20 @@ if (config && panel && toggle) {
       fail(error);
     }
     if (!pendingParts) parts.textContent = 'Submit in parts';
+  };
+
+  const show = () => {
+    const count = cart.changes.length;
+    if (document.activeElement !== note) { note.value = cart.note; grow(note); }
+    measure();
     if (count === 0) { list.replaceChildren(); return; }
     const plain = () => list.replaceChildren(...cart.changes.map((change) => element('li', describe(change))));
     loadData().then((loaded) => {
       try {
         list.replaceChildren(...core.rows(cart, loaded).map(renderRow));
+        growAll();
+        // Remove or an axis checkbox drew the list again and took the focused element with it: back into the drawer.
+        if (drawerState.open && !panel.contains(document.activeElement)) closeButton.focus();
       } catch (error) {
         plain();
         fail(error);
@@ -173,6 +217,33 @@ if (config && panel && toggle) {
       submit.disabled = true;
       fail(error);
     }
+  };
+
+  // The drawer: shown or hidden with its overlay, aria-expanded on the Cart button, the is-open class on <body> (the
+  // page behind does not scroll), and the focus where drawer-core.mjs says. The focus moves after the current event:
+  // matrix.js puts it back on the cell once its popover has dispatched the choice that opens the drawer.
+  const focusables = () => [...panel.querySelectorAll('button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])')]
+    .filter((node) => !node.disabled && node.getClientRects().length > 0);
+
+  // On a page without cells Clear hides the Cart button while the drawer is open; the focus then goes to the main
+  // content instead of a hidden button.
+  const focusBadge = () => {
+    const main = document.getElementById('content');
+    if (!toggle.hidden || !main) { toggle.focus(); return; }
+    main.tabIndex = -1;
+    main.focus();
+  };
+
+  const drawerEvent = (event) => {
+    const result = drawer.transition(drawerState, event);
+    drawerState = { open: result.open };
+    panel.hidden = !result.open;
+    overlay.hidden = !result.open;
+    document.body.classList.toggle('is-open', result.open);
+    toggle.setAttribute('aria-expanded', String(result.open));
+    if (result.open) growAll();
+    if (result.focus === drawer.FOCUS_CLOSE_BUTTON) queueMicrotask(() => closeButton.focus());
+    else if (result.focus === drawer.FOCUS_BADGE) queueMicrotask(() => focusBadge());
   };
 
   const confirmClear = () => {
@@ -194,20 +265,40 @@ if (config && panel && toggle) {
     } else {
       update(core.addChange(cart, { op: 'set', id, action, levels: [level], stages: [stage] }));
     }
-    panel.hidden = false;
-    toggle.setAttribute('aria-expanded', 'true');
+    drawerEvent('add');
   });
 
-  toggle.addEventListener('click', () => {
-    panel.hidden = !panel.hidden;
-    toggle.setAttribute('aria-expanded', String(!panel.hidden));
-  });
+  toggle.addEventListener('click', () => drawerEvent('badge'));
+  closeButton.addEventListener('click', () => drawerEvent('close'));
+  overlay.addEventListener('click', () => drawerEvent('overlay'));
 
+  // In the capture phase, before matrix.js and shell.js see the key: Escape while a cell's popover or the menu below
+  // 768 px is open belongs to that (matrix.js and shell.js close it, the drawer stays), and Tab stays inside the open
+  // drawer. Escape that ends an input method composition is the composition's.
+  document.addEventListener('keydown', (event) => {
+    if (!drawerState.open) return;
+    if (event.key === 'Escape') {
+      if (event.isComposing || document.querySelector('.popover, .site-nav.is-open')) return;
+      event.preventDefault();
+      drawerEvent('escape');
+    } else if (event.key === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      const items = focusables();
+      const at = drawer.tabTarget(items.length, items.indexOf(document.activeElement), event.shiftKey);
+      if (at >= 0) {
+        event.preventDefault();
+        items[at].focus();
+      }
+    }
+  }, true);
+
+  // Typing updates the cart and the size; the list is not drawn again.
   note.addEventListener('input', () => {
     cart = core.setNote(cart, note.value);
     pendingParts = null;
+    status.textContent = '';
     save();
-    render();
+    measure();
+    grow(note);
   });
 
   submit.addEventListener('click', () => {

@@ -28,6 +28,7 @@
   --quarantine: #a33f00;
   --mark-text: #ffffff;
   --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+  --scrim: rgba(31, 35, 40, 0.35);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   /* The height of the sticky header; shell.js sets the measured value on :root, 3rem is the value without it. */
@@ -61,6 +62,7 @@
   --quarantine: #f0883e;
   --mark-text: #0d1117;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --scrim: rgba(1, 4, 9, 0.6);
   color-scheme: dark;
 }
 
@@ -91,6 +93,7 @@
     --quarantine: #f0883e;
     --mark-text: #0d1117;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --scrim: rgba(1, 4, 9, 0.6);
     color-scheme: dark;
   }
 }
@@ -142,6 +145,7 @@ button { font: inherit; color: inherit; }
 .header-tools { display: flex; flex: none; align-items: center; gap: 0.5rem; }
 .theme-toggle, .menu-toggle, .cart-toggle { display: inline-flex; align-items: center; gap: 0.35rem; height: 1.85rem; padding: 0 0.5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer; font-size: 0.85rem; }
 .theme-toggle svg, .menu-toggle svg { width: 1rem; height: 1rem; }
+.cart-toggle[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .cart-count { min-width: 1.25rem; padding: 0 0.3rem; border-radius: 1rem; background: var(--accent); color: var(--accent-text); font-size: 0.75rem; font-weight: 600; text-align: center; }
 
 /* Layout */
@@ -238,15 +242,37 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
 .popover button, .cart button, .stage-summary button { padding: 0.15rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); cursor: pointer; font-size: 0.8rem; }
 .popover button:hover, .cart button:hover { border-color: var(--accent); }
 
-/* Cart */
-.cart { position: fixed; top: var(--header-h); right: 0; bottom: 0; z-index: 5; width: min(28rem, 100%); overflow-y: auto; padding: 1rem; background: var(--bg); border-left: 1px solid var(--line); box-shadow: var(--shadow); }
-.cart h2 { margin-top: 0; }
-.cart-list { padding-left: 1.2rem; }
-.cart-list > li { margin-bottom: 0.8rem; }
-.cart-list table { font-size: 0.8rem; margin: 0.3rem 0; }
-.cart-list input[type="text"], .cart-note textarea { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
-.cart-note textarea { display: block; }
-.cart-size meter { width: 12rem; }
+/* Cart: an off-canvas drawer below the sticky header, over the page, with the overlay behind it (cart.mjs opens and
+   closes both, drawer-core.mjs). Closed it takes no room, so the matrix keeps the full page width. 24rem wide, the
+   full width below 768 px; it scrolls inside, and the page behind does not scroll while it is open. */
+body.is-open { overflow: hidden; }
+.cart-overlay { position: fixed; top: var(--header-h); right: 0; bottom: 0; left: 0; z-index: 4; background: var(--scrim); }
+.cart { position: fixed; top: var(--header-h); right: 0; bottom: 0; z-index: 5; display: flex; flex-direction: column; width: 24rem; max-width: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 0 1rem 1rem; background: var(--bg); border-left: 1px solid var(--line); box-shadow: var(--shadow); }
+@media (prefers-reduced-motion: no-preference) {
+  .cart:not([hidden]) { animation: cart-in 0.16s ease-out; }
+  .cart-overlay:not([hidden]) { animation: cart-fade 0.16s ease-out; }
+}
+@keyframes cart-in { from { transform: translateX(100%); } }
+@keyframes cart-fade { from { opacity: 0; } }
+.cart-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 -1rem 0.5rem; padding: 0.6rem 1rem; background: var(--bg); border-bottom: 1px solid var(--line); }
+.cart h2 { margin: 0; }
+.cart .cart-close { display: inline-flex; align-items: center; justify-content: center; width: 1.85rem; height: 1.85rem; padding: 0; border-radius: 6px; background: var(--bg); }
+.cart-close svg { width: 1rem; height: 1rem; }
+.cart-list { margin: 0.5rem 0; padding-left: 1.2rem; }
+.cart-list > li { margin-bottom: 0.8rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--line); }
+.cart-list p { margin: 0.3rem 0; overflow-wrap: anywhere; }
+.cart-list table { width: 100%; font-size: 0.8rem; margin: 0.3rem 0; }
+.cart-list td, .cart-list th { overflow-wrap: break-word; }
+.cart-list td small { display: block; color: var(--muted); font-size: 0.95em; }
+/* The justification and the note grow with their content: field-sizing where the browser has it (cart.mjs sets the
+   height elsewhere); min-height keeps one line, max-height keeps a long text from pushing the buttons away. */
+.cart textarea { display: block; width: 100%; min-height: 2rem; max-height: 50vh; margin-top: 0.2rem; padding: 0.3rem 0.45rem; field-sizing: content; resize: vertical; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; font: inherit; line-height: 1.4; }
+.cart-justification { display: block; color: var(--muted); font-size: 0.85rem; }
+.cart-justification textarea { color: var(--text); }
+.cart-note { display: block; margin: 0.5rem 0; }
+.cart-note textarea { min-height: 3.2rem; }
+.cart-size { display: flex; align-items: center; gap: 0.5rem; }
+.cart-size meter { flex: none; width: 6rem; }
 .cart-size.over { color: var(--error); font-weight: 600; }
 .cart-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .cart-nochange { color: var(--muted); font-style: italic; }
@@ -286,6 +312,8 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
   table.endpoints, table.entries, table.counts { display: block; overflow-x: auto; }
   /* An endpoint URL stays on one line; the table scrolls inside itself instead of breaking the URL per letter. */
   table.endpoints code { white-space: nowrap; overflow-wrap: normal; }
+  /* The cart drawer takes the full width below the header. */
+  .cart { width: 100%; border-left: 0; }
 }
 
 /* Print in the light set whatever the screen shows: the same tokens as :root. */
@@ -316,9 +344,11 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
     --quarantine: #a33f00;
     --mark-text: #ffffff;
     --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+    --scrim: rgba(31, 35, 40, 0.35);
     color-scheme: light;
   }
-  .site-header, .filters, .cart, .legend { display: none; }
+  .site-header, .filters, .cart, .cart-overlay, .legend { display: none; }
+  body.is-open { overflow: visible; }
   .matrix-scroll { max-height: none; overflow: visible; }
   .matrix-scroll thead th, .matrix th[scope="row"] { position: static; }
 }

@@ -191,7 +191,7 @@ jobs:
           $setupFile = Join-Path $env:STAGING_PATH 'setup' 'index.html'
           if (-not (Test-Path -LiteralPath $setupFile -PathType Leaf)) { $failures.Add('setup/index.html is missing') }
           elseif (-not (Get-Content -LiteralPath $setupFile -Raw).Contains('./Get-RulebookSkeletons.ps1 -BaseUrl https://example.github.io/rulebook -Level essential -Ref main')) { $failures.Add('setup/index.html has no init command for essential') }
-          foreach ($asset in 'css/site.css', 'js/shell.js', 'js/matrix.js', 'js/cart-core.mjs', 'js/cart.mjs') {
+          foreach ($asset in 'css/site.css', 'js/shell.js', 'js/matrix.js', 'js/cart-core.mjs', 'js/drawer-core.mjs', 'js/cart.mjs') {
             if (-not (Test-Path -LiteralPath (Join-Path $env:STAGING_PATH $asset) -PathType Leaf)) { $failures.Add("$asset is missing") }
           }
           foreach ($absent in 'rules/index.html', 'levels/index.html', 'stages/index.html', '404.html', '.hugo_build.lock') {
@@ -231,7 +231,8 @@ jobs:
           $lines | Write-Host
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value (($lines -join "`n") + "`n")
 
-      # The cart core of the site (template/site/assets/js/cart-core.mjs) against the committed site data fixture.
+      # The pure modules of the site (template/site/assets/js/cart-core.mjs against the committed site data fixture,
+      # drawer-core.mjs, the state machine of the cart drawer).
       - name: Cart tests (node --test)
         shell: bash
         run: |
