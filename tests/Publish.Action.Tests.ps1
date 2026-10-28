@@ -168,9 +168,9 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run.Result.ExitCode | Should-Be 0
         $run.Result.BaseUrl | Should-Be 'https://contoso.github.io/rulebook'
         $run.Result.Preflight | Should-BeNull
-        # 12 endpoints, 12 skeletons, rulebook.json, the catalog, index.html; 3 stage, 4 level and 628 rule pages; the 6
-        # assets of the Hugo stand-in (it writes no favicon).
-        @(Get-ChildItem -LiteralPath $run.Result.StagingPath -Recurse -File).Count | Should-Be 669
+        # 12 endpoints, 12 skeletons, rulebook.json, the catalog, index.html; 3 stage, 4 level and 628 rule pages, setup/
+        # and how-it-works/; the 6 assets of the Hugo stand-in (it writes no favicon).
+        @(Get-ChildItem -LiteralPath $run.Result.StagingPath -Recurse -File).Count | Should-Be 670
         Test-Path -LiteralPath $run.Result.ManifestPath -PathType Leaf | Should-BeTrue
         @(Get-Content -LiteralPath $run.Result.ManifestPath -Raw | ConvertFrom-Json).Count | Should-Be 36
         $outputs = Get-Content -LiteralPath $outputFile -Raw
@@ -181,13 +181,13 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run.Result.Private | Should-BeFalse
         Should-Invoke Invoke-PagesPreflight -Times 0 -Exactly
         $run.Summary | Should-MatchString 'Staged only \(deploy is off\): 36 files'
-        $run.Summary | Should-MatchString 'The dashboard site: 637 pages built with Hugo in [0-9.]+ s'
+        $run.Summary | Should-MatchString 'The dashboard site: 638 pages built with Hugo in [0-9.]+ s'
         $run.Summary | Should-MatchString '\| catalog \| https://contoso\.github\.io/rulebook/catalog/diagnostics\.json \|'
         $run.Summary | Should-MatchString '\| page \| https://contoso\.github\.io/rulebook/stages/ci/ \|'
         $run.Summary | Should-MatchString '\| skeleton \| https://contoso\.github\.io/rulebook/skeletons/strict\.ci\.ruleset\.json \|'
         $run.Summary | Should-MatchString '\| manifest \| https://contoso\.github\.io/rulebook/rulebook\.json \|'
         $run.Lines | Should-ContainCollection @("Staged 12 endpoints, 12 skeletons, rulebook.json, catalog/diagnostics.json and index.html in $($run.Result.StagingPath)")
-        @($run.Lines | Where-Object { $_ -like 'Built the site: 637 pages in * s' }).Count | Should-Be 1
+        @($run.Lines | Where-Object { $_ -like 'Built the site: 638 pages in * s' }).Count | Should-Be 1
         @($run.Result.Annotations) | Should-BeCollection @()
         # The repository reaches rulebook.json (GITHUB_REPOSITORY in the action, -Repository here).
         (Get-Content -LiteralPath (Join-Path $run.Result.StagingPath 'rulebook.json') -Raw | ConvertFrom-Json).repository | Should-Be 'Contoso/Rulebook'
@@ -209,7 +209,7 @@ Describe 'Publish.ps1 -Phase Stage' {
             $page.Path | Should-Be ($page.Url.Substring('https://contoso.github.io/rulebook/'.Length) + 'index.html')
             Test-Path -LiteralPath $page.StagedFile -PathType Leaf | Should-BeTrue
         }
-        $run.Result.Site.PageCount | Should-Be 637
+        $run.Result.Site.PageCount | Should-Be 638
         $run.Result.Manifest[-10].Kind | Should-Be 'index'
     }
 
