@@ -19,7 +19,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 
 ## 1. Files
 
-96 files: 64 written by hand (14, plus the 18 pages and 2 images of `docs/` and the 30 files of `site/`), 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
+97 files: 65 written by hand (14, plus the 18 pages and 2 images of `docs/` and the 31 files of `site/`), 32 generated. The class is what the update workflow does with the file in an organization repository ([ARCHITECTURE.md](../ARCHITECTURE.md) section 7.3).
 
 | Path | Class | Origin |
 |---|---|---|
@@ -33,7 +33,7 @@ What `template/` holds, where each file comes from, and how to regenerate it aft
 | `.github/ISSUE_TEMPLATE/rulebook-change.yml` | system | Hand-written (WP14): the issue form the dashboard cart prefills, byte for byte as [dashboard.md](../dashboard.md) section 7; `ApplyRulebookChange.yaml` (WP15) applies a submitted form when its author can push to the repository (D55), and its markdown line says so. No `config.yml` ships, so blank issues stay enabled and an organization's own `config.yml` is never touched |
 | `README.md` | never touched after creation | Hand-written, organization-facing |
 | `docs/**` (18 pages, `docs/images/` with 2 PNGs) | customizable (D50) | Hand-written: the user documentation, moved from ALCops/rulebook at `e2cb9f0` with WP13; `docs/README.md` lists the pages |
-| `site/**` (30 files: `hugo.yaml`, `.gitignore`, `content/`, `layouts/`, `assets/`, `static/`) | customizable (D35) | Hand-written (WP14): the dashboard site of [dashboard.md](../dashboard.md) section 4; `site/data/` is gitignored and written by the Publish action. No ALCops URL and no branch name in any file (a Deploy test checks it) |
+| `site/**` (31 files: `hugo.yaml`, `.gitignore`, `content/`, `layouts/`, `assets/`, `static/`) | customizable (D35) | Hand-written (WP14): the dashboard site of [dashboard.md](../dashboard.md) section 4; `site/data/` is gitignored and written by the Publish action. No ALCops URL and no branch name in any file (a Deploy test checks it) |
 | `overrides.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `quarantine.default.json`, `quarantine.ci.json`, `quarantine.vnext.json` | org-owned | Hand-written: `$schema` and `"rules": []` |
 | `base/essential.ruleset.json`, `recommended`, `strict`, `complete` | system | `Build-RulebookBase` |

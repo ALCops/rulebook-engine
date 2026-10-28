@@ -522,7 +522,7 @@ Describe 'Build-RulebookSite' {
         $result.PageCount | Should-Be 39
         $result.Pages[0] | Should-Be 'index.html'
         foreach ($page in 'stages/ci/index.html', 'levels/strict/index.html', 'rules/lc0089i/index.html') { $result.Pages -ccontains $page | Should-BeTrue }
-        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js', 'js/shell.js')
+        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/drawer-core.mjs', 'js/matrix.js', 'js/shell.js')
         $result.Output | Should-ContainCollection @('Start building sites (stub)')
     }
 
@@ -576,7 +576,7 @@ Describe 'Build-RulebookSite' {
         $result.PageCount | Should-Be 39
         foreach ($page in 'rules/index.html', 'levels/index.html', 'stages/index.html', '404.html', 'sitemap.xml', 'index.xml') { Test-Path -LiteralPath (Join-Path $staging $page) | Should-BeFalse }
         Test-Path -LiteralPath (Join-Path $site '.hugo_build.lock') | Should-BeFalse
-        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js', 'js/shell.js')
+        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/drawer-core.mjs', 'js/matrix.js', 'js/shell.js')
         Get-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Raw | Should-Be '{}'
         $index = Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw
         $default = Get-Content -LiteralPath (Join-Path $staging 'stages' 'default' 'index.html') -Raw
@@ -592,6 +592,19 @@ Describe 'Build-RulebookSite' {
             Get-Content -LiteralPath (Join-Path $staging $page) -Raw | Should-MatchString ([regex]::Escape('<body data-repository="contoso/rulebook" data-issue-template="rulebook-change.yml" data-rulebook-json="/rulebook/rulebook.json">'))
         }
         $index | Should-NotMatchString 'name="generator"'
+        # The cart drawer (#140): a modal dialog labelled by its heading, a close button and one overlay, both hidden
+        # without JavaScript; cart.mjs is the one module with a script tag, the pure modules it imports have none.
+        foreach ($text in $index, $default) {
+            $text | Should-MatchString ([regex]::Escape('<div class="cart-overlay" hidden></div>'))
+            $text | Should-MatchString ([regex]::Escape('<aside id="cart" class="cart" role="dialog" aria-modal="true" aria-labelledby="cart-heading" hidden>'))
+            $text | Should-MatchString '<h2 id="cart-heading">Cart</h2>\s*<button type="button" class="cart-close" aria-label="Close">'
+            $text | Should-MatchString '<label class="cart-note">Note for the issue \(optional\)\s*<textarea name="note"'
+            $text | Should-MatchString ([regex]::Escape('<script type="module" src="/rulebook/js/cart.mjs"></script>'))
+            $text | Should-NotMatchString '<script[^>]*(cart|drawer)-core\.mjs'
+        }
+        $css = Get-Content -LiteralPath (Join-Path $staging 'css' 'site.css') -Raw
+        $css | Should-MatchString '(?m)^\.cart \{ position: fixed; top: var\(--header-h\);[^\n]* width: 24rem;'
+        $css | Should-MatchString '(?m)^\.cart textarea \{[^\n]*field-sizing: content;'
         # A JSON number compares as an int: one override reads in the singular, two in the plural.
         Get-Content -LiteralPath (Join-Path $staging 'levels' 'essential' 'index.html') -Raw | Should-MatchString '<dd>1 override decides a cell of this level</dd>'
         $ci | Should-MatchString '<dd>2 overrides decide a cell of this stage</dd>'

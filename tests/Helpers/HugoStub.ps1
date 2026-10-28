@@ -46,6 +46,6 @@ foreach ($stage in $data['stages']) {
 foreach ($level in $data['levels']) { Write-Page "levels/$($level['slug'])/index.html" "<h1>$($level['name'])</h1>`n" }
 Write-Page 'setup/index.html' "<h1 id=`"al-project`">Set up an AL project</h1>`n<pre><code>./Get-RulebookSkeletons.ps1 -BaseUrl $($data['baseUrl']) -Level $($data['levels'][0]['slug']) -Ref $($data['engineRef'])</code></pre>`n"
 foreach ($rule in $data['rules']) { Write-Page "rules/$(([string]$rule['id']).ToLowerInvariant())/index.html" "<h1>$($rule['id'])</h1>`n" }
-foreach ($asset in 'css/site.css', 'js/shell.js', 'js/matrix.js', 'js/cart-core.mjs', 'js/cart.mjs') { Write-Page $asset "/* stub */`n" }
+foreach ($asset in 'css/site.css', 'js/shell.js', 'js/matrix.js', 'js/cart-core.mjs', 'js/drawer-core.mjs', 'js/cart.mjs') { Write-Page $asset "/* stub */`n" }
 Write-Output 'Start building sites (stub)'
 exit 0
