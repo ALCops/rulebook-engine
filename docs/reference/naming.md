@@ -88,7 +88,7 @@ The published layout (Publish, WP05, WP06 and WP14) is exactly these files plus 
 With `site.enabled` true the dashboard site replaces `index.html` and adds, with Hugo's lowercased paths:
 
 ```
-<baseUrl>/stages/<stage>/                          the matrix of one stage and its stage summary (/ is the first stage)
+<baseUrl>/stages/<stage>/                          the matrix of one stage and its stage summary (every stage, the first included; / is the landing page)
 <baseUrl>/levels/<level>/                          one page per level
 <baseUrl>/rules/<id lowercased>/                   one page per rule
 <baseUrl>/setup/                                   Set up an AL project (#al-project), the section of the plain index

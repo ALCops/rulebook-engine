@@ -198,7 +198,8 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run = Invoke-Entry @{ RepositoryRoot = $root }
         $staging = $run.Result.StagingPath
         [System.IO.File]::ReadAllText((Join-Path $root 'site' 'data' 'rulebook.json')) | Should-Be ([System.IO.File]::ReadAllText((Join-Path $staging 'rulebook.json')))
-        Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw | Should-MatchString 'data-rulebook-matrix="default"'
+        Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw | Should-MatchString 'data-rulebook-landing'
+        Get-Content -LiteralPath (Join-Path $staging 'stages' 'default' 'index.html') -Raw | Should-MatchString 'data-rulebook-matrix="default"'
         $pages = @($run.Result.Manifest | Where-Object Kind -CEQ 'page')
         @($pages | ForEach-Object Url) | Should-BeCollection @(
             'https://contoso.github.io/rulebook/stages/default/', 'https://contoso.github.io/rulebook/stages/ci/', 'https://contoso.github.io/rulebook/stages/vnext/'
@@ -272,7 +273,7 @@ Describe 'Publish.ps1 -Phase Stage' {
         Test-Path -LiteralPath $run.Result.ManifestPath | Should-BeFalse
     }
 
-    It 'warns when the built index.html has no matrix marker and publishes it as built' {
+    It 'warns when the built page of the first stage has no matrix marker and publishes it as built' {
         $env:HUGO_STUB_NOMARKER = '1'
         try {
             $run = Invoke-Entry @{ RepositoryRoot = (Copy-Template) }
@@ -280,7 +281,7 @@ Describe 'Publish.ps1 -Phase Stage' {
             $env:HUGO_STUB_NOMARKER = $null
         }
         $run.Result.ExitCode | Should-Be 0
-        @($run.Result.Annotations) | Should-BeCollection @('::warning title=Publish::The built index.html has no data-rulebook-matrix marker: site/layouts may have dropped the matrix. The site is published as built.')
+        @($run.Result.Annotations) | Should-BeCollection @('::warning title=Publish::The built stages/default/index.html has no data-rulebook-matrix marker: site/layouts may have dropped the matrix. The site is published as built.')
         @($run.Result.Manifest | Where-Object Kind -CEQ 'page').Count | Should-Be 9
     }
 

@@ -1,8 +1,58 @@
 {{ define "main" }}
+{{- /* The landing page (#139): the title, the lead and the text of content/_index.md (an organization edits that file,
+  not this layout), then the facts, the three steps of the developer path and the entry cards, from the data file.
+  The grid of the first stage is at stages/<slug>/; this page carries no matrix and no data-rulebook-matrix. */ -}}
 {{- $data := hugo.Data.rulebook -}}
-{{- $stage := index $data.stages 0 -}}
-<h1>Rulebook matrix</h1>
-<p class="lead">{{ or $stage.description (printf "The action of every rule on every level, in the stage %s." $stage.name) }}</p>
-{{ partial "matrix.html" (dict "data" $data "stage" $stage) }}
-{{ partial "legend.html" (dict "data" $data "stage" $stage) }}
+{{- $first := index $data.stages 0 -}}
+{{- $setup := "setup/" | relURL -}}
+{{- $analyzers := slice -}}
+{{- range $data.rules }}{{ if not (in $analyzers .analyzer) }}{{ $analyzers = $analyzers | append .analyzer }}{{ end }}{{ end -}}
+{{- $home := "" }}{{ with $data.docs }}{{ $home = .home }}{{ end -}}
+<h1>{{ .Title }}</h1>
+<p class="lead">{{ .Description }}</p>
+<p class="hero-actions"><a class="button primary" href="{{ printf "stages/%s/" $first.slug | relURL }}">Open the matrix</a> <a class="button" href="{{ $setup }}">Set up an AL project</a></p>
+<div class="landing-grid">
+  <div class="prose">{{ .Content }}</div>
+  <aside class="facts-panel" aria-labelledby="facts">
+    <h2 id="facts">Facts</h2>
+    <dl class="stats">
+      <div><dt>Rules</dt><dd>{{ len $data.rules }}</dd></div>
+      <div><dt>Analyzers</dt><dd>{{ len $analyzers }}</dd></div>
+      <div><dt>Levels</dt><dd>{{ len $data.levels }}</dd></div>
+      <div><dt>Stages</dt><dd>{{ len $data.stages }}</dd></div>
+    </dl>
+    <dl class="facts">
+      <dt>Last published</dt><dd><time datetime="{{ $data.generatedAt }}">{{ $data.generatedAt }}</time></dd>
+      <dt>Engine</dt><dd><code>{{ $data.engineRef }}</code></dd>
+    </dl>
+  </aside>
+</div>
+<h2 id="get-started">Get a ruleset into your project</h2>
+<ol class="steps">
+  <li><a href="{{ $setup }}#levels"><strong>Pick a level</strong></a><span>Pick the level that matches how strict you want the rules: {{ range $i, $level := $data.levels }}{{ if $i }}, {{ end }}<a href="{{ printf "levels/%s/" $level.slug | relURL }}">{{ $level.name }}</a>{{ end }}.</span></li>
+  <li><a href="{{ $setup }}#stage-{{ $first.slug }}"><strong>Get the file or the URL</strong></a><span>One endpoint per level and stage; the init script downloads the skeletons of a level into <code>.rulebook/</code>.</span></li>
+  <li><a href="{{ $setup }}#al-project"><strong>Point VS Code and AL-Go at it</strong></a><span><code>al.ruleSetPath</code> for the editor, <code>rulesetFile</code> for CI.</span></li>
+</ol>
+<h2 id="stages">Stages</h2>
+<ul class="cards">
+  {{- range $data.stages }}
+  <li class="card"><a href="{{ printf "stages/%s/" .slug | relURL }}"><span class="card-kicker">Stage</span><strong>{{ .name }}</strong>{{ with .description }}<span class="card-text">{{ . }}</span>{{ end }}</a></li>
+  {{- end }}
+</ul>
+<h2 id="levels">Levels</h2>
+<ul class="cards">
+  {{- range $data.levels }}
+  <li class="card"><a href="{{ printf "levels/%s/" .slug | relURL }}"><span class="card-kicker">Level</span><strong>{{ .name }}</strong>{{ with .description }}<span class="card-text">{{ . }}</span>{{ end }}</a></li>
+  {{- end }}
+</ul>
+<h2 id="more">More</h2>
+<ul class="cards">
+  <li class="card"><a href="{{ $setup }}"><span class="card-kicker">Set up</span><strong>Set up an AL project</strong><span class="card-text">The init script, the endpoints and the skeletons of every level and stage.</span></a></li>
+  {{- with $data.docsUrl }}
+  <li class="card"><a href="{{ . }}"><span class="card-kicker">Guide</span><strong>How this works</strong><span class="card-text">The matrix, the markers, the cart and how a change is applied.</span></a></li>
+  {{- end }}
+  {{- with $home }}
+  <li class="card"><a href="{{ . }}"><span class="card-kicker">Help</span><strong>ALCops documentation</strong><span class="card-text">The analyzers behind these rules and their documentation.</span></a></li>
+  {{- end }}
+</ul>
 {{ end }}
