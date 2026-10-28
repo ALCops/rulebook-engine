@@ -224,7 +224,8 @@ test('issueUrl encodes the change set and the note, and leaves out an empty note
 
 test('a multi-line justification and note arrive in the issue form unchanged and count in the bytes (#140)', () => {
   // The drawer's textareas take several lines: a line end in the justification travels as \n inside the JSON of the
-  // changes field, one in the note as %0A; reading the form back gives the text as typed, CRLF included.
+  // changes field, one in the note as %0A; reading the form back gives the text as typed. A textarea gives LF; the
+  // CRLF of the note is synthetic input, to show that any line end survives.
   const justification = 'First line\nSecond line, & more';
   const note = 'Why:\r\nthe house style';
   const cart = core.setNote(core.addChange(core.emptyCart(), set('LC0015', 'None', ['strict'], ['ci'], justification)), note);

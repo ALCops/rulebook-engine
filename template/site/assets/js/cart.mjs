@@ -39,6 +39,8 @@ if (config && panel && toggle && overlay) {
     area.style.height = `${area.scrollHeight + area.offsetHeight - area.clientHeight}px`;
   };
   const growAll = () => panel.querySelectorAll('textarea').forEach(grow);
+  // A narrower window wraps the text onto more lines.
+  if (!sizesItself) window.addEventListener('resize', growAll);
 
   // Whatever is stored goes through sanitize: every page of the same host shares localStorage.
   const load = () => {
@@ -195,6 +197,8 @@ if (config && panel && toggle && overlay) {
       try {
         list.replaceChildren(...core.rows(cart, loaded).map(renderRow));
         growAll();
+        // Remove or an axis checkbox drew the list again and took the focused element with it: back into the drawer.
+        if (drawerState.open && !panel.contains(document.activeElement)) closeButton.focus();
       } catch (error) {
         plain();
         fail(error);
@@ -221,6 +225,15 @@ if (config && panel && toggle && overlay) {
   const focusables = () => [...panel.querySelectorAll('button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])')]
     .filter((node) => !node.disabled && node.getClientRects().length > 0);
 
+  // On a page without cells Clear hides the Cart button while the drawer is open; the focus then goes to the main
+  // content instead of a hidden button.
+  const focusBadge = () => {
+    const main = document.getElementById('content');
+    if (!toggle.hidden || !main) { toggle.focus(); return; }
+    main.tabIndex = -1;
+    main.focus();
+  };
+
   const drawerEvent = (event) => {
     const result = drawer.transition(drawerState, event);
     drawerState = { open: result.open };
@@ -230,7 +243,7 @@ if (config && panel && toggle && overlay) {
     toggle.setAttribute('aria-expanded', String(result.open));
     if (result.open) growAll();
     if (result.focus === drawer.FOCUS_CLOSE_BUTTON) queueMicrotask(() => closeButton.focus());
-    else if (result.focus === drawer.FOCUS_BADGE) queueMicrotask(() => toggle.focus());
+    else if (result.focus === drawer.FOCUS_BADGE) queueMicrotask(() => focusBadge());
   };
 
   const confirmClear = () => {
@@ -259,12 +272,13 @@ if (config && panel && toggle && overlay) {
   closeButton.addEventListener('click', () => drawerEvent('close'));
   overlay.addEventListener('click', () => drawerEvent('overlay'));
 
-  // In the capture phase, before matrix.js and shell.js see the key: Escape while a cell's popover is open belongs to
-  // the popover (matrix.js closes it, the drawer stays), and Tab stays inside the open drawer.
+  // In the capture phase, before matrix.js and shell.js see the key: Escape while a cell's popover or the menu below
+  // 768 px is open belongs to that (matrix.js and shell.js close it, the drawer stays), and Tab stays inside the open
+  // drawer. Escape that ends an input method composition is the composition's.
   document.addEventListener('keydown', (event) => {
     if (!drawerState.open) return;
     if (event.key === 'Escape') {
-      if (document.querySelector('.popover')) return;
+      if (event.isComposing || document.querySelector('.popover, .site-nav.is-open')) return;
       event.preventDefault();
       drawerEvent('escape');
     } else if (event.key === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey) {

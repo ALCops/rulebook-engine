@@ -348,6 +348,7 @@ body.is-open { overflow: hidden; }
     color-scheme: light;
   }
   .site-header, .filters, .cart, .cart-overlay, .legend { display: none; }
+  body.is-open { overflow: visible; }
   .matrix-scroll { max-height: none; overflow: visible; }
   .matrix-scroll thead th, .matrix th[scope="row"] { position: static; }
 }

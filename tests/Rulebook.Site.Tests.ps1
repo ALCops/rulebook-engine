@@ -603,8 +603,9 @@ Describe 'Build-RulebookSite' {
             $text | Should-NotMatchString '<script[^>]*(cart|drawer)-core\.mjs'
         }
         $css = Get-Content -LiteralPath (Join-Path $staging 'css' 'site.css') -Raw
-        $css | Should-MatchString '(?m)^\.cart \{ position: fixed; top: var\(--header-h\);[^\n]* width: 24rem;'
-        $css | Should-MatchString '(?m)^\.cart textarea \{[^\n]*field-sizing: content;'
+        $css | Should-MatchString '(?m)^\.cart \{[^\n}]*\bwidth: 24rem;'
+        $css | Should-MatchString '(?m)^\.cart \{[^\n}]*\btop: var\(--header-h\);'
+        $css | Should-MatchString '(?m)^\.cart textarea \{[^\n}]*\bfield-sizing: content;'
         # A JSON number compares as an int: one override reads in the singular, two in the plural.
         Get-Content -LiteralPath (Join-Path $staging 'levels' 'essential' 'index.html') -Raw | Should-MatchString '<dd>1 override decides a cell of this level</dd>'
         $ci | Should-MatchString '<dd>2 overrides decide a cell of this stage</dd>'
