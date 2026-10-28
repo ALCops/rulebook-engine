@@ -2,7 +2,10 @@
 {{- $data := hugo.Data.rulebook -}}
 {{- $level := index $data.levels .Params.item -}}
 <h1>Level {{ $level.name }}</h1>
-<p class="lead">{{ or $level.description (printf "What the level %s changes, and the action of its entries before and after it." $level.name) }}</p>
+<p class="lead">The rules the level {{ $level.name }} changes, the levels it is built on, and how many rules end up at each action in every stage.</p>
+{{- with $level.description }}
+<p class="intro">{{ . }}</p>
+{{- end }}
 <dl class="facts">
   <dt>Level file</dt><dd><code>{{ $level.file }}</code></dd>
   <dt>Chain</dt><dd>{{ range $i, $file := $level.chain }}{{ if $i }} &rarr; {{ end }}<code>{{ $file }}</code>{{ end }}</dd>
@@ -10,7 +13,7 @@
   <dt>Entries</dt><dd>{{ $level.entryCount }}, {{ $level.loweredCount }} lowered</dd>
   <dt>Overrides</dt><dd>{{ $level.overrideCount }} {{ if eq (int $level.overrideCount) 1 }}override decides{{ else }}overrides decide{{ end }} a cell of this level</dd>
 </dl>
-<h2>Counts per stage</h2>
+<h2>Counts per stage{{ partial "help-link.html" (dict "data" $data "key" "levels" "fragment" "9-how-your-levels-show-up" "topic" "how levels show up") }}</h2>
 <table class="counts">
   <thead><tr><th scope="col">Stage</th><th scope="col">Error</th><th scope="col">Warning</th><th scope="col">Info</th><th scope="col">Hidden</th><th scope="col">None</th><th scope="col">Listed</th></tr></thead>
   <tbody>
@@ -21,7 +24,7 @@
   {{- end }}
   </tbody>
 </table>
-<h2>Entries of the level file</h2>
+<h2>Entries of the level file{{ partial "help-link.html" (dict "data" $data "key" "levels" "fragment" "1-what-a-level-is" "topic" "what a level is") }}</h2>
 {{- if $level.entries }}
 <table class="entries">
   <thead><tr><th scope="col">Id</th><th scope="col">Title</th><th scope="col">From</th><th scope="col">To</th><th scope="col">Justification</th></tr></thead>

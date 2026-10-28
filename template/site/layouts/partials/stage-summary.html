@@ -5,7 +5,7 @@
 {{- $levelName := dict -}}
 {{- range $data.levels }}{{ $levelName = merge $levelName (dict .slug .name) }}{{ end -}}
 <section class="stage-summary" aria-labelledby="stage-summary">
-<h2 id="stage-summary">What the stage {{ $stage.name }} changes</h2>
+<h2><span id="stage-summary">What the stage {{ $stage.name }} changes</span>{{ partial "help-link.html" (dict "data" $data "key" "levels" "fragment" "1-what-a-level-is" "topic" "levels and stages") }}</h2>
 <dl class="facts">
   <dt>Stage file</dt><dd>{{ with $stage.file }}<code>{{ . }}</code>{{ else }}none: this stage is the level result as is{{ end }}</dd>
   <dt>Entries</dt><dd>{{ $stage.entryCount }}</dd>
@@ -41,7 +41,7 @@
 {{- else }}
 <p>{{ if $stage.file }}The stage file lists no entry.{{ else }}No stage file: every cell is the level result.{{ end }}</p>
 {{- end }}
-<h3>Quarantine of the stage</h3>
+<h3>Quarantine of the stage{{ partial "help-link.html" (dict "data" $data "key" "quarantine" "fragment" "4-adopting-a-quarantined-rule" "topic" "quarantine") }}</h3>
 {{- $quarantine := index $data.quarantine $stage.slug }}
 {{- if $quarantine }}
 <p>Ids the daily scan found before the catalog knew them; they stay at None in this stage until released.</p>

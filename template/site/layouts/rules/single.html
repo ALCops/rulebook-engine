@@ -15,7 +15,7 @@
   {{- end }}
 </dl>
 {{- if $rule.justifications }}
-<h2>Justifications</h2>
+<h2>Justifications{{ partial "help-link.html" (dict "data" $data "key" "changingARule" "topic" "changing a rule") }}</h2>
 {{- /* Keyed by source token (level:<slug>, stage:<slug>); a range over the map walks the keys alphabetically, so the
   level files come first. A level file can be one that is not published itself (the root of a chain). */}}
 <dl class="justifications">
@@ -25,7 +25,7 @@
   {{- end }}
 </dl>
 {{- end }}
-<h2>Every endpoint</h2>
+<h2>Every endpoint{{ partial "help-link.html" (dict "data" $data "key" "dashboard" "fragment" "1-what-the-site-shows" "topic" "the cells and their markers") }}</h2>
 <div class="table-wrap" data-rulebook-rule="{{ $rule.id }}">
 <table class="matrix rule-matrix" role="grid">
   <thead><tr><th scope="col">Level</th>{{ range $data.stages }}<th scope="col"><a href="{{ printf "stages/%s/" .slug | relURL }}">{{ .name }}</a></th>{{ end }}</tr></thead>

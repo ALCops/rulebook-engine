@@ -168,11 +168,11 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run.Result.ExitCode | Should-Be 0
         $run.Result.BaseUrl | Should-Be 'https://contoso.github.io/rulebook'
         $run.Result.Preflight | Should-BeNull
-        # 12 endpoints, 12 skeletons, rulebook.json, the catalog, index.html; 3 stage, 4 level and 628 rule pages; the 6
-        # assets of the Hugo stand-in (it writes no favicon).
-        @(Get-ChildItem -LiteralPath $run.Result.StagingPath -Recurse -File).Count | Should-Be 669
+        # 12 endpoints, 12 skeletons, rulebook.json, the catalog, index.html; 3 stage, 4 level and 628 rule pages, setup/
+        # and how-it-works/; the 6 assets of the Hugo stand-in (it writes no favicon).
+        @(Get-ChildItem -LiteralPath $run.Result.StagingPath -Recurse -File).Count | Should-Be 670
         Test-Path -LiteralPath $run.Result.ManifestPath -PathType Leaf | Should-BeTrue
-        @(Get-Content -LiteralPath $run.Result.ManifestPath -Raw | ConvertFrom-Json).Count | Should-Be 36
+        @(Get-Content -LiteralPath $run.Result.ManifestPath -Raw | ConvertFrom-Json).Count | Should-Be 37
         $outputs = Get-Content -LiteralPath $outputFile -Raw
         $outputs | Should-MatchString ('(?m)^stagingPath=' + [regex]::Escape($run.Result.StagingPath) + '$')
         $outputs | Should-MatchString ('(?m)^manifestPath=' + [regex]::Escape($run.Result.ManifestPath) + '$')
@@ -180,14 +180,14 @@ Describe 'Publish.ps1 -Phase Stage' {
         $outputs | Should-MatchString '(?m)^private=false$'
         $run.Result.Private | Should-BeFalse
         Should-Invoke Invoke-PagesPreflight -Times 0 -Exactly
-        $run.Summary | Should-MatchString 'Staged only \(deploy is off\): 36 files'
-        $run.Summary | Should-MatchString 'The dashboard site: 637 pages built with Hugo in [0-9.]+ s'
+        $run.Summary | Should-MatchString 'Staged only \(deploy is off\): 37 files'
+        $run.Summary | Should-MatchString 'The dashboard site: 638 pages built with Hugo in [0-9.]+ s'
         $run.Summary | Should-MatchString '\| catalog \| https://contoso\.github\.io/rulebook/catalog/diagnostics\.json \|'
         $run.Summary | Should-MatchString '\| page \| https://contoso\.github\.io/rulebook/stages/ci/ \|'
         $run.Summary | Should-MatchString '\| skeleton \| https://contoso\.github\.io/rulebook/skeletons/strict\.ci\.ruleset\.json \|'
         $run.Summary | Should-MatchString '\| manifest \| https://contoso\.github\.io/rulebook/rulebook\.json \|'
         $run.Lines | Should-ContainCollection @("Staged 12 endpoints, 12 skeletons, rulebook.json, catalog/diagnostics.json and index.html in $($run.Result.StagingPath)")
-        @($run.Lines | Where-Object { $_ -like 'Built the site: 637 pages in * s' }).Count | Should-Be 1
+        @($run.Lines | Where-Object { $_ -like 'Built the site: 638 pages in * s' }).Count | Should-Be 1
         @($run.Result.Annotations) | Should-BeCollection @()
         # The repository reaches rulebook.json (GITHUB_REPOSITORY in the action, -Repository here).
         (Get-Content -LiteralPath (Join-Path $run.Result.StagingPath 'rulebook.json') -Raw | ConvertFrom-Json).repository | Should-Be 'Contoso/Rulebook'
@@ -204,13 +204,14 @@ Describe 'Publish.ps1 -Phase Stage' {
         @($pages | ForEach-Object Url) | Should-BeCollection @(
             'https://contoso.github.io/rulebook/stages/default/', 'https://contoso.github.io/rulebook/stages/ci/', 'https://contoso.github.io/rulebook/stages/vnext/'
             'https://contoso.github.io/rulebook/levels/essential/', 'https://contoso.github.io/rulebook/levels/recommended/', 'https://contoso.github.io/rulebook/levels/strict/'
-            'https://contoso.github.io/rulebook/levels/complete/', 'https://contoso.github.io/rulebook/setup/', 'https://contoso.github.io/rulebook/rules/al0200/')
+            'https://contoso.github.io/rulebook/levels/complete/', 'https://contoso.github.io/rulebook/setup/', 'https://contoso.github.io/rulebook/how-it-works/'
+            'https://contoso.github.io/rulebook/rules/al0200/')
         foreach ($page in $pages) {
             $page.Path | Should-Be ($page.Url.Substring('https://contoso.github.io/rulebook/'.Length) + 'index.html')
             Test-Path -LiteralPath $page.StagedFile -PathType Leaf | Should-BeTrue
         }
-        $run.Result.Site.PageCount | Should-Be 637
-        $run.Result.Manifest[-10].Kind | Should-Be 'index'
+        $run.Result.Site.PageCount | Should-Be 638
+        $run.Result.Manifest[-11].Kind | Should-Be 'index'
     }
 
     It 'stages the plain index.html, both data files and no page with site.enabled false' {
@@ -282,7 +283,7 @@ Describe 'Publish.ps1 -Phase Stage' {
         }
         $run.Result.ExitCode | Should-Be 0
         @($run.Result.Annotations) | Should-BeCollection @('::warning title=Publish::The built stages/default/index.html has no data-rulebook-matrix marker: site/layouts may have dropped the matrix. The site is published as built.')
-        @($run.Result.Manifest | Where-Object Kind -CEQ 'page').Count | Should-Be 9
+        @($run.Result.Manifest | Where-Object Kind -CEQ 'page').Count | Should-Be 10
     }
 
     It 'lets the baseUrl input override the setting' {
@@ -391,7 +392,7 @@ Describe 'Publish.ps1 -Phase Stage' {
         Should-Invoke Invoke-PagesPreflight -Times 1 -Exactly -ParameterFilter { [string]::IsNullOrEmpty($BaseUrl) -and $Repository -eq 'Contoso/Rulebook' }
         $run.Lines | Should-ContainCollection @('Base URL from the Pages site: https://contoso.github.io/rulebook')
         $run.Summary | Should-MatchString 'Base URL from the Pages site: `https://contoso\.github\.io/rulebook` \(baseUrl is empty\)\.'
-        $run.Summary | Should-MatchString 'Deploying to GitHub Pages: 36 files for `https://contoso\.github\.io/rulebook`\.'
+        $run.Summary | Should-MatchString 'Deploying to GitHub Pages: 37 files for `https://contoso\.github\.io/rulebook`\.'
         Get-Content -LiteralPath (Join-Path $run.Result.StagingPath 'skeletons' 'strict.ci.ruleset.json') -Raw | Should-MatchString ([regex]::Escape('https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json'))
         (Get-Content -LiteralPath (Join-Path $run.Result.StagingPath 'rulebook.json') -Raw | ConvertFrom-Json).baseUrl | Should-Be 'https://contoso.github.io/rulebook'
         @(Get-Content -LiteralPath $run.Result.ManifestPath -Raw | ConvertFrom-Json | Where-Object { -not $_.Url.StartsWith('https://contoso.github.io/rulebook/') }) | Should-BeCollection @()
@@ -552,10 +553,10 @@ Describe 'Publish.ps1 -Phase Check' {
         $stage.Result.ExitCode | Should-Be 0
         $run = Invoke-Entry @{ Phase = 'Check'; ManifestPath = $stage.Result.ManifestPath; WindowSeconds = 0; TimeoutSeconds = 5 }
         $run.Result.ExitCode | Should-Be 1
-        @($run.Result.Results).Count | Should-Be 36
+        @($run.Result.Results).Count | Should-Be 37
         @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/rulesets/strict.ci.ruleset.json failed (*) after 1 attempt(s)*AL1033*' }).Count | Should-Be 1
         @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/ failed*' }).Count | Should-Be 1
-        $run.Summary | Should-MatchString '\*\*0 of 36 URLs\*\*'
+        $run.Summary | Should-MatchString '\*\*0 of 37 URLs\*\*'
         @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/catalog/diagnostics.json failed*' }).Count | Should-Be 1
         @($run.Result.Annotations | Where-Object { $_ -like '::error title=Publish::https://127.0.0.1:9/rulebook/stages/ci/ failed*' }).Count | Should-Be 1
     }

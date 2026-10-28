@@ -1,0 +1,20 @@
+{{ define "main" }}
+{{- /* How this works (#143): the site explains itself in one screen and links the documentation for depth. Every
+  paragraph ends with a link from the docs map of rulebook.json (D58), so no URL is written here; a key the data file
+  does not have leaves its link out. */ -}}
+{{- $data := hugo.Data.rulebook -}}
+{{- $docs := or $data.docs dict -}}
+{{- $first := index $data.stages 0 -}}
+<h1>{{ .Title }}</h1>
+<p class="lead">What the levels, stages and cells of this site mean, and how a change from the cart reaches the rulebook.</p>
+<div class="prose help">
+<h2 id="levels">Levels</h2>
+<p>A level says how strict the rules are, as one ruleset per stage: {{ range $i, $level := $data.levels }}{{ if $i }}, {{ end }}<a href="{{ printf "levels/%s/" $level.slug | relURL }}">{{ $level.name }}</a>{{ end }}. A level is based on another level and changes the action of some rules: it keeps every action of that level unless its own file sets another (a level based on none starts from the analyzer defaults). The level page lists what it changes. {{ with $docs.levels }}<a class="more" href="{{ . }}">Levels and starting points</a>{{ end }}</p>
+<h2 id="stages">Stages</h2>
+<p>A stage is a moment a ruleset is used, such as editing in VS Code, a CI build or a build against the next major version: {{ range $i, $stage := $data.stages }}{{ if $i }}, {{ end }}<a href="{{ printf "stages/%s/" $stage.slug | relURL }}">{{ $stage.name }}</a>{{ end }}. A stage can adjust the result of every level for that moment, and every level is published once per stage, so an AL project can point the editor at one endpoint and its build at another; the <a href="{{ "setup/" | relURL }}">setup page</a> has the URLs. {{ with $docs.alProject }}<a class="more" href="{{ . }}">The rulebook in an AL project</a>{{ end }}</p>
+<h2 id="cells">Cells</h2>
+<p>A cell of the <a href="{{ printf "stages/%s/" $first.slug | relURL }}">matrix</a> is the action one endpoint gives one rule: Error, Warning, Info, Hidden or None. Its marker says which input decided it: a badge <span class="mark mark-override" aria-hidden="true">O</span> for an override{{ with $docs.overrides }} (<a href="{{ . }}">overrides</a>){{ end }}, a ring <span class="mark mark-twins" aria-hidden="true"></span> for the twins rule{{ with $docs.twins }} (<a href="{{ . }}">per-tenant extension or AppSource</a>){{ end }}, a dot <span class="mark mark-stage" aria-hidden="true"></span> for the stage file, a badge <span class="mark mark-quarantine" aria-hidden="true">Q</span> for the quarantine of a new id{{ with $docs.quarantine }} (<a href="{{ . }}">quarantine</a>){{ end }}, and no marker for the level file or the analyzer default. {{ with $docs.dashboard }}<a class="more" href="{{ . }}">The dashboard</a>{{ end }}</p>
+<h2 id="changes">Changes</h2>
+<p>Click a cell to put a change in the cart. <strong>Submit on GitHub</strong> opens a prefilled issue form in the organization repository{{ with $data.repository }} <code>{{ . }}</code>{{ end }}, and <strong>Create</strong> files the issue. When you may push there, the Apply Rulebook Change workflow turns the issue into a pull request (or a commit, as the settings say), and the site shows the change once it is merged and published. {{ with $docs.changingARule }}<a class="more" href="{{ . }}">Changing a rule</a>{{ end }}</p>
+</div>
+{{ end }}

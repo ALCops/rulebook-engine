@@ -519,9 +519,8 @@ Describe 'Build-RulebookSite' {
         Get-Content -LiteralPath (Join-Path $staging 'stages' 'default' 'index.html') -Raw | Should-MatchString 'data-rulebook-matrix="default"'
         $result.MarkerPage | Should-Be 'stages/default/index.html'
         $result.MarkerPresent | Should-BeTrue
-        $result.PageCount | Should-Be 39
-        $result.Pages[0] | Should-Be 'index.html'
-        foreach ($page in 'stages/ci/index.html', 'levels/strict/index.html', 'rules/lc0089i/index.html') { $result.Pages -ccontains $page | Should-BeTrue }
+        $result.PageCount | Should-Be 40
+        foreach ($page in 'index.html', 'how-it-works/index.html', 'setup/index.html', 'stages/ci/index.html', 'levels/strict/index.html', 'rules/lc0089i/index.html') { $result.Pages -ccontains $page | Should-BeTrue }
         $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/drawer-core.mjs', 'js/matrix.js', 'js/shell.js')
         $result.Output | Should-ContainCollection @('Start building sites (stub)')
     }
@@ -571,9 +570,9 @@ Describe 'Build-RulebookSite' {
         $result = Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination $staging
         $result.MarkerPage | Should-Be 'stages/default/index.html'
         $result.MarkerPresent | Should-BeTrue
-        # 30 rules, 3 stages, 4 levels, the setup page and the landing page; no list page for rules/, levels/ or
-        # stages/ and no 404 page.
-        $result.PageCount | Should-Be 39
+        # 30 rules, 3 stages, 4 levels, the setup page, how-it-works/ and the landing page; no list page for rules/,
+        # levels/ or stages/ and no 404 page.
+        $result.PageCount | Should-Be 40
         foreach ($page in 'rules/index.html', 'levels/index.html', 'stages/index.html', '404.html', 'sitemap.xml', 'index.xml') { Test-Path -LiteralPath (Join-Path $staging $page) | Should-BeFalse }
         Test-Path -LiteralPath (Join-Path $site '.hugo_build.lock') | Should-BeFalse
         $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/drawer-core.mjs', 'js/matrix.js', 'js/shell.js')
@@ -621,7 +620,8 @@ Describe 'Build-RulebookSite' {
         # A quarantine cell has its fallback and no override index; the stage page lists it with a Release button.
         $ci | Should-MatchString ([regex]::Escape('data-id="LC0099" data-level="strict" data-stage="ci" data-action="None" data-source="quarantine" data-fallback="Warning" data-fallback-source="default" tabindex="-1"><span class="chip">None</span><span class="mark mark-quarantine"'))
         $ci | Should-MatchString ([regex]::Escape('<button type="button" data-release data-id="LC0099" data-stage="ci" hidden>Release</button>'))
-        $ci | Should-MatchString '<h2 id="stage-summary">What the stage CI changes</h2>'
+        # The section is labelled by the heading text only, not by the help link beside it.
+        $ci | Should-MatchString '<section class="stage-summary" aria-labelledby="stage-summary">\n<h2><span id="stage-summary">What the stage CI changes</span> <a class="help-link" '
         # Every stage link points at stages/<slug>/, the first one too; a stage page marks its own link, the landing
         # page none (#139).
         $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/default/" data-stage-link="default">default</a>'))
@@ -676,15 +676,15 @@ Describe 'Build-RulebookSite' {
         $default | Should-MatchString ([regex]::Escape('<a href="/rulebook/setup/#al-project">Set up an AL project</a>'))
         # The setup anchors the three steps of the landing page link to.
         foreach ($anchor in 'al-project', 'levels', 'stage-default') { $setup | Should-MatchString " id=`"$anchor`"" }
-        # The two URLs the site shows come from the data file.
-        $index | Should-MatchString ([regex]::Escape('href="https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md"'))
+        # The URLs the site shows come from the data file: the issue form from repository, the documentation from docs.
         $index | Should-MatchString ([regex]::Escape('href="https://github.com/contoso/rulebook/issues/new?template=rulebook-change.yml"'))
         # The shell (#138): the favicons, the head tags from the content adapter, the header, the lead under every
         # title, the main kind and the footer with the facts and the two links of the data file.
         foreach ($icon in 'favicon.svg', 'favicon.png') { Test-Path -LiteralPath (Join-Path $staging $icon) -PathType Leaf | Should-BeTrue }
         $level = Get-Content -LiteralPath (Join-Path $staging 'levels' 'strict' 'index.html') -Raw
         $rule = Get-Content -LiteralPath (Join-Path $staging 'rules' 'lc0029' 'index.html') -Raw
-        foreach ($text in $index, $default, $ci, $level, $rule, $setup) {
+        $help = Get-Content -LiteralPath (Join-Path $staging 'how-it-works' 'index.html') -Raw
+        foreach ($text in $index, $default, $ci, $level, $rule, $setup, $help) {
             $text | Should-MatchString '<script>document\.documentElement\.classList\.add\(''has-js''\);try\{var t=localStorage\.getItem\(''rulebook-theme''\)'
             foreach ($tag in 'name="description"', 'property="og:title"', 'property="og:description"', 'property="og:type" content="website"', 'property="og:url"', 'property="og:site_name" content="Rulebook \| contoso"', 'rel="icon" href="/rulebook/favicon\.png"', 'rel="icon" href="/rulebook/favicon\.svg"') { $text | Should-MatchString "<(meta|link) $tag" }
             $text | Should-MatchString '<a class="brand" href="/rulebook/"><svg class="logo"'
@@ -726,7 +726,7 @@ Describe 'Build-RulebookSite' {
             '/rulebook/levels/essential/', '/rulebook/levels/recommended/', '/rulebook/levels/strict/', '/rulebook/levels/complete/')
         $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="/rulebook/stages/ci/"><span class="card-kicker">Stage</span><strong>CI</strong><span class="card-text">Pull request and release builds. Postponable diagnostics relaxed to Info.</span></a></li>'))
         $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="/rulebook/setup/"><span class="card-kicker">Set up</span>'))
-        $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md"><span class="card-kicker">Guide</span><strong>How this works</strong>'))
+        $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="/rulebook/how-it-works/"><span class="card-kicker">Guide</span><strong>How this works</strong>'))
         $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="https://alcops.dev"><span class="card-kicker">Help</span>'))
         $ci | Should-MatchString '<main id="content" class="page page-stage">'
         $level | Should-MatchString '<main id="content" class="page page-level">'
@@ -741,6 +741,46 @@ Describe 'Build-RulebookSite' {
         }
         $ci | Should-MatchString 'data-id="AL0001" data-level="essential" data-stage="ci" [^>]*tabindex="0">'
         $rule | Should-MatchString 'data-id="LC0029" data-level="essential" data-stage="default" [^>]*tabindex="0">'
+        # In-context help (#143). how-it-works/ is a page of kind help with its lead and description; each of its four
+        # paragraphs ends with a link whose href is a docs map value of the data file, and the markers link their pages.
+        $docs = (Get-Content -LiteralPath $siteFixture -Raw | ConvertFrom-Json -AsHashtable)['docs']
+        $help | Should-MatchString '<main id="content" class="page page-help">'
+        $help | Should-MatchString '<title>How this works \| Rulebook</title>'
+        $help | Should-MatchString '<meta name="description" content="What the levels, stages and cells of this rulebook mean'
+        $help | Should-MatchString '<h1>How this works</h1>\n<p class="lead">What the levels, stages and cells of this site mean'
+        Should-BeCollection -Actual ([string[]]@([regex]::Matches($help, '<a class="more" href="([^"]+)">') | ForEach-Object { $_.Groups[1].Value })) -Expected @($docs['levels'], $docs['alProject'], $docs['dashboard'], $docs['changingARule'])
+        ([regex]::Matches($help, '<h2 id="[a-z]+">[^<]+</h2>\n<p>[^\n]*<a class="more" href="[^"]+">[^<]+</a></p>')).Count | Should-Be 4
+        foreach ($key in 'overrides', 'twins', 'quarantine') { $help | Should-MatchString ([regex]::Escape("<a href=`"$($docs[$key])`">")) }
+        # The header Help link opens it on every page (and marks it there), so do the landing card and the legend.
+        foreach ($text in $index, $default, $ci, $level, $rule, $setup) { $text | Should-MatchString ([regex]::Escape('<a class="nav-docs" href="/rulebook/how-it-works/">Help</a>')) }
+        $help | Should-MatchString ([regex]::Escape('<a class="nav-docs" href="/rulebook/how-it-works/" aria-current="page">Help</a>'))
+        # The legend: five focusable markers whose aria-label is the explanation (site.css shows it as the tooltip; no
+        # title, so the browser shows no second tooltip), and the link to how-it-works/ instead of docsUrl.
+        foreach ($text in $default, $rule) {
+            $legend = [regex]::Match($text, '<details class="legend">[\s\S]*?</details>').Value
+            Should-BeCollection -Actual ([string[]]@([regex]::Matches($legend, '<span class="tip" tabindex="0" role="img" aria-label="([A-Z][a-z ]+): [^"]+">') | ForEach-Object { $_.Groups[1].Value })) -Expected @('Override', 'Twins', 'Stage file', 'No marker', 'Quarantine')
+            $legend | Should-NotMatchString 'class="tip"[^>]* title='
+            $legend | Should-MatchString ([regex]::Escape('<a href="/rulebook/how-it-works/">How this works</a>'))
+            $legend | Should-NotMatchString 'docs/dashboard\.md'
+        }
+        # A lead under every title, and the description of the data file below it on the stage and level pages.
+        $ci | Should-MatchString '</h1>\n<p class="lead">The action every rule gets on every level in the stage CI;[^<]+</p>\n<p class="intro">Pull request and release builds\.'
+        $level | Should-MatchString '</h1>\n<p class="lead">The rules the level Strict changes,[^<]+</p>\n<p class="intro">Recommended with advisory rules'
+        # The help links after the section headings: every href is a docs map value, with at most a section of that
+        # template page, and the section exists there (a GitHub heading id, the same on alcops.dev, D58).
+        $pages = @($docs.Keys | Where-Object { $_ -cne 'home' } | ForEach-Object { $docs[$_] })
+        $links = @(foreach ($text in $default, $ci, $level, $rule, $setup) { [regex]::Matches($text, '<a class="help-link" href="([^"]+)" aria-label="Help: [^"]+" title="Help: [^"]+">\?</a></h[23]>') | ForEach-Object { $_.Groups[1].Value } })
+        $links.Count | Should-Be 11
+        ([regex]::Matches($setup, 'class="help-link"')).Count | Should-Be 4
+        foreach ($link in $links) {
+            $page, $fragment = $link.Split('#', 2)
+            $pages -ccontains $page | Should-BeTrue -Because "$link starts with a docs map value"
+            if ($fragment) {
+                $file = Join-Path $repoRoot 'template' 'docs' ($page.Substring($page.LastIndexOf('/') + 1))
+                $ids = @([regex]::Matches([System.IO.File]::ReadAllText($file), '(?m)^#{1,6} (.+?)\s*$') | ForEach-Object { ($_.Groups[1].Value.ToLowerInvariant() -replace '[^\p{L}\p{N} _-]', '') -replace ' ', '-' })
+                $ids -ccontains $fragment | Should-BeTrue -Because "$link names a heading of $file"
+            }
+        }
     }
 
     It 'ships equal dark token sets for the toggle and the system setting, and the light set for print' {

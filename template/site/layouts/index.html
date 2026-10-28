@@ -48,9 +48,7 @@
 <h2 id="more">More</h2>
 <ul class="cards">
   <li class="card"><a href="{{ $setup }}"><span class="card-kicker">Set up</span><strong>Set up an AL project</strong><span class="card-text">The init script, the endpoints and the skeletons of every level and stage.</span></a></li>
-  {{- with $data.docsUrl }}
-  <li class="card"><a href="{{ . }}"><span class="card-kicker">Guide</span><strong>How this works</strong><span class="card-text">The matrix, the markers, the cart and how a change is applied.</span></a></li>
-  {{- end }}
+  <li class="card"><a href="{{ "how-it-works/" | relURL }}"><span class="card-kicker">Guide</span><strong>How this works</strong><span class="card-text">Levels, stages, the markers of a cell and how a change from the cart is applied.</span></a></li>
   {{- with $home }}
   <li class="card"><a href="{{ . }}"><span class="card-kicker">Help</span><strong>ALCops documentation</strong><span class="card-text">The analyzers behind these rules and their documentation.</span></a></li>
   {{- end }}

@@ -1,0 +1,5 @@
+{{- /* A "?" link after a section heading (#143): the documentation page of the docs map of rulebook.json (key), with an
+  optional section of that page (fragment, a heading id of the page, which stays when the map is repointed, D58). The map
+  names the targets, so no site file names a documentation URL; without the key the link is left out. */ -}}
+{{- $href := "" }}{{ with .data.docs }}{{ $href = index . $.key }}{{ end -}}
+{{- with $href }} <a class="help-link" href="{{ . }}{{ with $.fragment }}#{{ . }}{{ end }}" aria-label="Help: {{ $.topic }}" title="Help: {{ $.topic }}">?</a>{{ end -}}

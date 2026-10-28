@@ -151,7 +151,7 @@ jobs:
           $top = @(Get-ChildItem -LiteralPath $env:STAGING_PATH | ForEach-Object Name | Sort-Object)
           if ($endpoints.Count -ne 12) { $failures.Add("expected 12 endpoints, found $($endpoints.Count)") }
           if ($skeletons.Count -ne 12) { $failures.Add("expected 12 skeletons, found $($skeletons.Count)") }
-          if (($top -join ',') -cne 'catalog,css,favicon.png,favicon.svg,index.html,js,levels,rulebook.json,rules,rulesets,setup,skeletons,stages') { $failures.Add("unexpected top level: $($top -join ', ')") }
+          if (($top -join ',') -cne 'catalog,css,favicon.png,favicon.svg,how-it-works,index.html,js,levels,rulebook.json,rules,rulesets,setup,skeletons,stages') { $failures.Add("unexpected top level: $($top -join ', ')") }
           $skeleton = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'skeletons' 'strict.ci.ruleset.json') -Raw
           if (-not $skeleton.Contains('"path": "https://example.github.io/rulebook/rulesets/strict.ci.ruleset.json"')) { $failures.Add('skeletons/strict.ci.ruleset.json does not carry the rendered URL') }
           if (-not (Get-Content -LiteralPath template/skeletons/strict.ci.ruleset.json -Raw).Contains('{BASEURL}')) { $failures.Add('template/skeletons/strict.ci.ruleset.json lost {BASEURL}') }
@@ -191,6 +191,11 @@ jobs:
           $setupFile = Join-Path $env:STAGING_PATH 'setup' 'index.html'
           if (-not (Test-Path -LiteralPath $setupFile -PathType Leaf)) { $failures.Add('setup/index.html is missing') }
           elseif (-not (Get-Content -LiteralPath $setupFile -Raw).Contains('./Get-RulebookSkeletons.ps1 -BaseUrl https://example.github.io/rulebook -Level essential -Ref main')) { $failures.Add('setup/index.html has no init command for essential') }
+          # how-it-works/ (#143): the help page, its lead, and the header Help link of the landing page pointing at it.
+          $helpFile = Join-Path $env:STAGING_PATH 'how-it-works' 'index.html'
+          if (-not (Test-Path -LiteralPath $helpFile -PathType Leaf)) { $failures.Add('how-it-works/index.html is missing') }
+          elseif (-not (Get-Content -LiteralPath $helpFile -Raw).Contains('<main id="content" class="page page-help">')) { $failures.Add('how-it-works/index.html has no page-help main') }
+          if (-not $index.Contains('<a class="nav-docs" href="/rulebook/how-it-works/">Help</a>')) { $failures.Add('index.html has no Help link to how-it-works/') }
           foreach ($asset in 'css/site.css', 'js/shell.js', 'js/matrix.js', 'js/cart-core.mjs', 'js/drawer-core.mjs', 'js/cart.mjs') {
             if (-not (Test-Path -LiteralPath (Join-Path $env:STAGING_PATH $asset) -PathType Leaf)) { $failures.Add("$asset is missing") }
           }

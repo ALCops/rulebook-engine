@@ -1,14 +1,16 @@
 <details class="legend">
   <summary>What the cells mean</summary>
   <p>A cell is the action the endpoint of that level and stage gives the rule. The marker says which input decided it, in the order the generator applies them:</p>
-  <ul>
-    <li><span class="mark mark-override">O</span> an entry of <code>overrides.json</code> (point at the badge for its position in the file, from 0)</li>
-    <li><span class="mark mark-twins"></span> the twins rule of the settings</li>
-    <li><span class="mark mark-stage"></span> the stage file</li>
-    <li>no marker: the level file, or the analyzer default</li>
-    <li><span class="mark mark-quarantine">Q</span> the quarantine of the stage, for an id no level file names</li>
+  {{- /* Each marker is a tooltip (#143): its aria-label is the explanation, which site.css shows below it on hover and on
+    keyboard focus (.tip::after), so it works without JavaScript. */}}
+  <ul class="legend-marks">
+    <li><span class="tip" tabindex="0" role="img" aria-label="Override: an entry of overrides.json decides the cell"><span class="mark mark-override">O</span></span> an entry of <code>overrides.json</code> (point at the badge for its position in the file, from 0)</li>
+    <li><span class="tip" tabindex="0" role="img" aria-label="Twins: the twins rule of the settings decides the cell"><span class="mark mark-twins"></span></span> the twins rule of the settings</li>
+    <li><span class="tip" tabindex="0" role="img" aria-label="Stage file: the file of this stage decides the cell"><span class="mark mark-stage"></span></span> the stage file</li>
+    <li><span class="tip" tabindex="0" role="img" aria-label="No marker: the level file or the analyzer default decides the cell"><span class="mark mark-blank"></span></span> no marker: the level file, or the analyzer default</li>
+    <li><span class="tip" tabindex="0" role="img" aria-label="Quarantine: a new id this stage keeps at None until it is released"><span class="mark mark-quarantine">Q</span></span> the quarantine of the stage, for an id no level file names</li>
   </ul>
-  <p>Click a cell, or press Enter or Space on it, to put a change in the cart (the grid is one Tab stop: the arrow keys move between its cells, Home and End go to the ends of a row): an action, Reset on an override cell (remove the override), Release on a quarantine cell. The cart opens the change set as an issue in this repository; the Apply Rulebook Change workflow applies it when you may push. {{ with .data.docsUrl }}<a href="{{ . }}">More in the documentation.</a>{{ end }}</p>
+  <p>Click a cell, or press Enter or Space on it, to put a change in the cart (the grid is one Tab stop: the arrow keys move between its cells, Home and End go to the ends of a row): an action, Reset on an override cell (remove the override), Release on a quarantine cell. The cart opens the change set as an issue in this repository; the Apply Rulebook Change workflow applies it when you may push. <a href="{{ "how-it-works/" | relURL }}">How this works</a>.</p>
   <p>To use an endpoint in an AL project, see <a href="{{ "setup/" | relURL }}#al-project">Set up an AL project</a>.</p>
   {{- with .stage }}
   <p>This page shows the stage <strong>{{ .name }}</strong>. The stage links at the top switch the grid and keep the filters.</p>

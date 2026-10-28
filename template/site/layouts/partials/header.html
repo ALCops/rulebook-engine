@@ -14,9 +14,9 @@
     <div class="nav-tools">
     {{- $setup := "setup/" | relURL }}
     <a class="nav-setup" href="{{ $setup }}"{{ if eq $setup .RelPermalink }} aria-current="page"{{ end }}>Set up</a>
-    {{- with $data.docsUrl }}
-    <a class="nav-docs" href="{{ . }}">Help</a>
-    {{- end }}
+    {{- /* Help opens how-it-works/, which links the documentation of the docs map for depth (#143). */}}
+    {{- $help := "how-it-works/" | relURL }}
+    <a class="nav-docs" href="{{ $help }}"{{ if eq $help .RelPermalink }} aria-current="page"{{ end }}>Help</a>
     </div>
   </nav>
   {{- /* Outside the navigation, so the cart count and the toggle stay in view when the menu is folded (below 768 px).

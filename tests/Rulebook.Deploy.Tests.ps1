@@ -315,8 +315,9 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
         $text | Should-MatchString 'set `templateUrl` to end in `@preview`'
     }
 
-    It 'names no ALCops URL and no branch in the site files, which the rewrite does not reach (.js, .mjs, .css, .gotmpl)' {
-        # The site reads docsUrl and repository from data/rulebook.json; data/, public/ and resources/ are build output.
+    It 'names no ALCops URL, no alcops.dev URL and no branch in the site files, which the rewrite does not reach (.js, .mjs, .css, .gotmpl)' {
+        # The site reads docs, docsUrl and repository from data/rulebook.json, so an engine release can repoint the
+        # documentation links (D58, #143); data/, public/ and resources/ are build output and not scanned.
         # A binary file (static/favicon.png) is no text the pattern can read.
         $siteDir = Join-Path $repoRoot 'template' 'site'
         $files = @(Get-ChildItem -LiteralPath $siteDir -Recurse -File -Force | Where-Object { [System.IO.Path]::GetRelativePath($siteDir, $_.FullName).Replace('\', '/') -notmatch '^(data|public|resources)/' -and $_.Extension -ne '.png' })
@@ -325,7 +326,7 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
             $number = 0
             foreach ($line in [System.IO.File]::ReadAllLines($file.FullName)) {
                 $number++
-                if ($line -match 'ALCops/|raw\.githubusercontent\.com|/main/|(blob|tree|raw)/main\b|@main|the `main` branch|\bpreview\b|\bv1\b') { "$($file.Name):$number $($Matches[0])" }
+                if ($line -match 'ALCops/|alcops\.dev|raw\.githubusercontent\.com|/main/|(blob|tree|raw)/main\b|@main|the `main` branch|\bpreview\b|\bv1\b') { "$($file.Name):$number $($Matches[0])" }
             }
         }
         @($hits) | Should-BeCollection @()

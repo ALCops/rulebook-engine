@@ -9,6 +9,9 @@
 {{- end -}}
 {{- /* setup/: how an AL project uses the endpoints, the section the plain index page has (#al-project). */ -}}
 {{- $.AddPage (dict "path" "setup" "kind" "page" "title" "Set up an AL project" "description" "How an AL project uses the rulesets of this rulebook: the init script, the endpoints and the skeletons.") -}}
+{{- /* how-it-works/: the levels, the stages, the cells and the cart in one screen, each paragraph with a link to the
+  documentation page of the docs map of the data file (#143). The kind gives <main> the class page-help. */ -}}
+{{- $.AddPage (dict "path" "how-it-works" "kind" "page" "title" "How this works" "description" "What the levels, stages and cells of this rulebook mean, and how a change from the cart becomes a pull request." "params" (dict "kind" "help")) -}}
 {{- range $i, $stage := $data.stages -}}
   {{- $.AddPage (dict "path" (printf "stages/%s" $stage.slug) "kind" "page" "title" (printf "Stage %s" $stage.name) "description" (or $stage.description (printf "The action of every rule on every level, in the stage %s." $stage.name)) "params" (dict "item" $i)) -}}
 {{- end -}}
