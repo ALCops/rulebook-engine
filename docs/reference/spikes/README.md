@@ -12,9 +12,3 @@ Results of the time-boxed experiments of WP01 ([#3](https://github.com/ALCops/ru
 | (f) [#24](https://github.com/ALCops/rulebook-engine/issues/24) | Does `suppressWarnings` remove AS0084 and AS0013 against a sparse endpoint, and stop once the endpoint lists the id? | [f-suppresswarnings-sparse-endpoint.md](f-suppresswarnings-sparse-endpoint.md) | done |
 | (g) [#25](https://github.com/ALCops/rulebook-engine/issues/25) | How long may a prefilled `issues/new` URL be, and does a `render: json` textarea survive intact? | [g-prefilled-issue-url-limit.md](g-prefilled-issue-url-limit.md) | done |
 | (h) [#26](https://github.com/ALCops/rulebook-engine/issues/26) | Does a Hugo content adapter build 628 pages from one JSON file in a few seconds, and which Hugo version to pin? | [h-hugo-content-adapter.md](h-hugo-content-adapter.md) | done |
-
-## Later spikes
-
-| Spike | Question | File | Status |
-|---|---|---|---|
-| WP16 [#137](https://github.com/ALCops/rulebook-engine/issues/137) | Should the dashboard site's shell be own CSS or a vendored Hugo theme (Hextra)? | [wp16-shell/README.md](wp16-shell/README.md) | done, own CSS (D59) |
