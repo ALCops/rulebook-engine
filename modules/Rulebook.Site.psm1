@@ -28,12 +28,32 @@ $script:DashboardDocsPage = 'dashboard.md'
 # The init script and the user page the setup page names, as the plain index page does (ConvertTo-RulebookIndexHtml).
 $script:SkeletonScriptName = 'Get-RulebookSkeletons.ps1'
 $script:AlProjectDocsPage = 'al-project.md'
+# The docs map of rulebook.json (D58, #138): one key per concept the site links, the user page under docs/ of the
+# template, built through Get-RulebookDocsUrl like docsUrl. home is the only entry that is no documentation page.
+$script:DocsHome = 'https://alcops.dev'
+$script:DocsPages = [ordered]@{
+    dashboard     = $script:DashboardDocsPage
+    levels        = 'levels.md'
+    overrides     = 'overrides.md'
+    quarantine    = 'quarantine.md'
+    twins         = 'pte-or-appsource.md'
+    changingARule = 'changing-a-rule.md'
+    alProject     = $script:AlProjectDocsPage
+}
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $script:Invariant = [System.Globalization.CultureInfo]::InvariantCulture
 # Top-level keys whose object the writer puts one member per line by structure, not by content.
-$script:MultiLineKeys = @('quarantine')
+$script:MultiLineKeys = @('docs', 'quarantine')
 
 #region Internal helpers
+
+function Get-RulebookDocsMap {
+    # The docs map of rulebook.json for an engine ref: home first, then one user page URL per concept (Get-RulebookDocsUrl).
+    param([AllowEmptyString()][string]$Ref)
+    $map = [ordered]@{ home = $script:DocsHome }
+    foreach ($pair in $script:DocsPages.GetEnumerator()) { $map[$pair.Key] = Get-RulebookDocsUrl -Page $pair.Value -Ref $Ref }
+    return $map
+}
 
 function Get-SettingValue {
     # A key of the settings dictionary, or a nested key ('site', 'includeJustifications'); $null when absent.
@@ -64,7 +84,8 @@ function ConvertTo-SiteJsonText {
     # The JSON text of a value of the site document at an indent. Objects whose values are all scalars or arrays of
     # scalars, and arrays of scalars, are written on one line; everything else one member or element per line, two
     # spaces deeper. Strings through ConvertTo-JsonString, like every engine writer. -MultiLine writes an object one
-    # member per line whatever its values are: the quarantine object keeps its layout when every list is empty.
+    # member per line whatever its values are: the quarantine object keeps its layout when every list is empty,
+    # and the docs map has one link per line.
     param($Value, [int]$Indent = 0, [switch]$MultiLine)
     if ($null -eq $Value) { return 'null' }
     if ($Value -is [bool]) { return $(if ($Value) { 'true' } else { 'false' }) }
@@ -161,7 +182,10 @@ function Get-RulebookSiteModel {
     [datetime]'2026-10-17T00:00:00', is read as UTC, not as local time), repository (only when -Repository is set),
     baseUrl, issueTemplate (rulebook-change.yml), docsUrl (the dashboard user page for -EngineRef, Get-RulebookDocsUrl),
     initScriptUrl (Get-RulebookScriptUrl of Get-RulebookSkeletons.ps1), engineRef (the ref the init command passes as
-    -Ref: -EngineRef trimmed, or Get-RulebookEngineRef), alProjectDocsUrl (the al-project.md user page), levels (the keys of the minimal form, then the Get-RulebookLevelSummary model), stages (the same, then the
+    -Ref: -EngineRef trimmed, or Get-RulebookEngineRef), alProjectDocsUrl (the al-project.md user page), docs (home,
+    then the user page of each concept the site links: dashboard, levels, overrides, quarantine, twins, changingARule,
+    alProject; dashboard and alProject equal docsUrl and alProjectDocsUrl), levels (the keys of the minimal form, then
+    the Get-RulebookLevelSummary model), stages (the same, then the
     Get-RulebookStageSummary model), rules, overrides, quarantine (every settings stage, empty arrays written).
 
     rules: the catalog ids and every id an endpoint lists as a candidate, sorted once by Get-DiagnosticSortKey; an id
@@ -306,6 +330,8 @@ function Get-RulebookSiteModel {
     $document['initScriptUrl'] = Get-RulebookScriptUrl -Name $script:SkeletonScriptName -Ref $ref
     $document['engineRef'] = $ref
     $document['alProjectDocsUrl'] = Get-RulebookDocsUrl -Page $script:AlProjectDocsPage -Ref $ref
+    # The links of the site per concept (footer, help); docsUrl and alProjectDocsUrl stay and equal dashboard and alProject.
+    $document['docs'] = Get-RulebookDocsMap -Ref $ref
     $document['levels'] = $levelItems
     $document['stages'] = $stageItems
     $document['rules'] = $rules.ToArray()
