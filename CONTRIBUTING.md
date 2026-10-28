@@ -109,6 +109,20 @@ hugo --source template/site --destination (Join-Path ([System.IO.Path]::GetTempP
 
 Every file under `template/` is LF without BOM (the Template suite checks it); on a clone with `core.autocrlf` true, write site files with LF explicitly. The site files name no ALCops URL and no branch (the Deploy suite checks it).
 
+`template/site/static/favicon.png` is a committed 180 px rendering of `favicon.svg`; there is no build step for it. After a change to `favicon.svg`, render it again once with a throwaway Playwright in a scratch folder outside the repository (`npm install playwright`, `npx playwright install chromium`) and this script, `node favicon.mjs <favicon.svg> <favicon.png>`, then commit the PNG:
+
+```javascript
+import { chromium } from 'playwright';
+import fs from 'node:fs';
+const [svgPath, pngPath] = process.argv.slice(2);
+const svg = fs.readFileSync(svgPath, 'utf8').replace('<svg ', '<svg width="180" height="180" ');
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 400, height: 400 }, deviceScaleFactor: 1 });
+await page.setContent(`<div style="width:180px;height:180px">${svg}</div>`);
+await page.locator('div').screenshot({ path: pngPath, omitBackground: true });
+await browser.close();
+```
+
 After any change to `docs/rulebook/`, `modules/Rulebook.Template.psm1`, `modules/Rulebook.Levels.psm1` or `template/.github/Rulebook-Settings.json`, run `pwsh ./tools/rulebook/Build-Template.ps1` and commit `template/` and `docs/levels/` with the change; the drift test in `tests/Rulebook.Template.Tests.ps1` fails otherwise. `Build-Template.ps1 -WhatIf` lists what is out of date without writing. The maintainer workflow for a placement change is [docs/authoring-levels.md](docs/authoring-levels.md).
 
 ## 4. CI
