@@ -3,8 +3,9 @@
 {{ partial "head.html" . }}
 {{- $data := hugo.Data.rulebook }}
 {{- $section := index (split (strings.TrimPrefix "/" .Path) "/") 0 }}
-{{- /* The page kind for the stylesheet: landing ("/"), stage, level, rule or setup. */}}
-{{- $kind := cond .IsHome "landing" (strings.TrimSuffix "s" (or $section "page")) }}
+{{- /* The page kind for the stylesheet: landing ("/"), stage, level, rule, setup, or the kind the content adapter
+  gives a page (help for how-it-works/). */}}
+{{- $kind := cond .IsHome "landing" (or .Params.kind (strings.TrimSuffix "s" (or $section "page"))) }}
 {{- /* The values the cart needs on every page: the repository and the issue form for the issue URL, the data file
   for the before and after of each change. */}}
 <body data-repository="{{ $data.repository }}" data-issue-template="{{ $data.issueTemplate }}" data-rulebook-json="{{ "rulebook.json" | relURL }}">

@@ -2,7 +2,10 @@
 {{- $data := hugo.Data.rulebook -}}
 {{- $stage := index $data.stages .Params.item -}}
 <h1>Stage {{ $stage.name }}</h1>
-<p class="lead">{{ or $stage.description (printf "The action of every rule on every level, in the stage %s." $stage.name) }}</p>
+<p class="lead">The action every rule gets on every level in the stage {{ $stage.name }}; click a cell to propose a change, and read its marker for the input that decided it.</p>
+{{- with $stage.description }}
+<p class="intro">{{ . }}</p>
+{{- end }}
 {{ partial "matrix.html" (dict "data" $data "stage" $stage) }}
 {{ partial "legend.html" (dict "data" $data "stage" $stage) }}
 {{ partial "stage-summary.html" (dict "data" $data "stage" $stage) }}
