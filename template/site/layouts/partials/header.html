@@ -1,19 +1,29 @@
 {{- $data := hugo.Data.rulebook -}}
+{{- $org := index (split (or $data.repository "") "/") 0 -}}
 <header class="site-header">
-  <a class="brand" href="{{ "" | relURL }}">{{ site.Title }}</a>
-  <nav aria-label="Site">
-    {{ partial "stage-switcher.html" (dict "data" $data "page" .) }}
-    <ul class="nav-levels" aria-label="Levels">
+  <a class="brand" href="{{ "" | relURL }}">{{ partial "logo.html" . }}<span class="brand-name">{{ site.Title }}</span>{{ with $org }}<span class="brand-org">{{ . }}</span>{{ end }}</a>
+  <nav id="site-nav" class="site-nav" aria-label="Site">
+    <div class="nav-group"><span class="nav-label" id="nav-stage">Stage</span>{{ partial "stage-switcher.html" (dict "data" $data "page" .) }}</div>
+    <div class="nav-group"><span class="nav-label" id="nav-level">Level</span>
+    <ul class="nav-levels" aria-labelledby="nav-level">
       {{- range $data.levels }}
       {{- $href := printf "levels/%s/" .slug | relURL }}
       <li><a href="{{ $href }}"{{ if eq $href $.RelPermalink }} aria-current="page"{{ end }}>{{ .name }}</a></li>
       {{- end }}
-    </ul>
+    </ul></div>
+    <div class="nav-tools">
     {{- $setup := "setup/" | relURL }}
-    <a class="nav-setup" href="{{ $setup }}"{{ if eq $setup .RelPermalink }} aria-current="page"{{ end }}>Set up an AL project</a>
+    <a class="nav-setup" href="{{ $setup }}"{{ if eq $setup .RelPermalink }} aria-current="page"{{ end }}>Set up</a>
     {{- with $data.docsUrl }}
     <a class="nav-docs" href="{{ . }}">Help</a>
     {{- end }}
-    <button type="button" class="cart-toggle" aria-controls="cart" aria-expanded="false" hidden>Cart <span class="cart-count">0</span></button>
+    </div>
   </nav>
+  {{- /* Outside the navigation, so the cart count and the toggle stay in view when the menu is folded (below 768 px).
+    The menu button is shown by the has-js class the inline script of head.html sets; it is no use without JavaScript. */}}
+  <div class="header-tools">
+    <button type="button" class="theme-toggle" aria-pressed="false" title="Dark mode" hidden><span class="sr-only">Dark mode</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5a6.5 6.5 0 1 0 0 13zm0-1.5a8 8 0 1 1 0 16A8 8 0 0 1 8 0" fill="currentColor"/></svg></button>
+    <button type="button" class="cart-toggle" aria-controls="cart" aria-expanded="false" hidden>Cart <span class="cart-count">0</span></button>
+    <button type="button" class="menu-toggle" aria-controls="site-nav" aria-expanded="false"><span class="sr-only">Menu</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3h14v1.5H1zm0 4.25h14v1.5H1zm0 4.25h14V13H1z" fill="currentColor"/></svg></button>
+  </div>
 </header>

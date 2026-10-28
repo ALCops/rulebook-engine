@@ -1,7 +1,29 @@
+{{- $data := hugo.Data.rulebook -}}
+{{- /* The organization is the owner part of repository (owner/name); the site name carries it when it is known. */ -}}
+{{- $org := index (split (or $data.repository "") "/") 0 -}}
+{{- $siteName := cond (ne $org "") (printf "%s | %s" site.Title $org) site.Title -}}
+{{- $title := cond .IsHome $siteName (printf "%s | %s" .Title site.Title) -}}
+{{- /* The description of every page comes from content/_content.gotmpl (and the front matter of content/_index.md). */ -}}
+{{- $description := or .Description "The code analysis rules of this organization for AL projects, one ruleset per level and stage." -}}
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+{{- /* Before the first paint: the has-js class (the menu folds below 768 px without a flash of the full navigation)
+  and the theme choice, so the other colour scheme never flashes. Without JavaScript the navigation stays open and
+  the system setting applies through the prefers-color-scheme block of site.css. */}}
+<script>document.documentElement.classList.add('has-js');try{var t=localStorage.getItem('rulebook-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}</script>
+<title>{{ $title }}</title>
+<meta name="description" content="{{ $description }}">
+<meta property="og:title" content="{{ $title }}">
+<meta property="og:description" content="{{ $description }}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:site_name" content="{{ $siteName }}">
+<meta name="color-scheme" content="light dark">
+{{- /* The PNG for browsers without SVG icons; a browser that reads SVG takes the later SVG link. */}}
+<link rel="icon" href="{{ "favicon.png" | relURL }}" type="image/png" sizes="180x180">
+<link rel="icon" href="{{ "favicon.svg" | relURL }}" type="image/svg+xml" sizes="any">
+<link rel="apple-touch-icon" href="{{ "favicon.png" | relURL }}">
 {{- with resources.Get "css/site.css" }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">
 {{- end }}

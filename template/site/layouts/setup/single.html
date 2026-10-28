@@ -6,11 +6,12 @@
 {{- $base := $data.baseUrl -}}
 {{- $first := index $data.levels 0 -}}
 <h1 id="al-project">Set up an AL project</h1>
+<p class="lead">Point an AL project at a ruleset of this rulebook: one file per stage, downloaded once, kept up to date by the URL it includes.</p>
 <p>An AL project keeps one file per stage in <code>.rulebook/</code>: the skeleton of its level, which includes the endpoint, with the project exceptions in its <code>rules</code>. The init script downloads the files of a level, for example:</p>
 <pre><code>Invoke-WebRequest {{ $data.initScriptUrl }} -OutFile Get-RulebookSkeletons.ps1
 ./Get-RulebookSkeletons.ps1 -BaseUrl {{ $base }} -Level {{ $first.slug }} -Ref {{ $data.engineRef }}</code></pre>
 <p>Then point VS Code at the default stage with <code>"al.ruleSetPath": ".rulebook/default.ruleset.json"</code> and AL-Go at the CI stage with <code>"rulesetFile": ".rulebook/ci.ruleset.json"</code>. Details: <a href="{{ $data.alProjectDocsUrl }}">docs/al-project.md</a>. The levels and stages of this site, machine-readable: <a href="{{ "rulebook.json" | relURL }}"><code>{{ $base }}/rulebook.json</code></a>.</p>
-<h2>Levels</h2>
+<h2 id="levels">Levels</h2>
 <dl class="facts">
   {{- range $data.levels }}
   <dt><a href="{{ printf "levels/%s/" .slug | relURL }}">{{ .name }}</a></dt><dd>{{ .description }}</dd>

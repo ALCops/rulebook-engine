@@ -8,7 +8,7 @@
     <li>no marker: the level file, or the analyzer default</li>
     <li><span class="mark mark-quarantine">Q</span> the quarantine of the stage, for an id no level file names</li>
   </ul>
-  <p>Click a cell, or focus it and press Enter, to put a change in the cart: an action, Reset on an override cell (remove the override), Release on a quarantine cell. The cart opens the change set as an issue in this repository; the Apply Rulebook Change workflow applies it when you may push. {{ with .data.docsUrl }}<a href="{{ . }}">More in the documentation.</a>{{ end }}</p>
+  <p>Click a cell, or press Enter or Space on it, to put a change in the cart (the grid is one Tab stop: the arrow keys move between its cells, Home and End go to the ends of a row): an action, Reset on an override cell (remove the override), Release on a quarantine cell. The cart opens the change set as an issue in this repository; the Apply Rulebook Change workflow applies it when you may push. {{ with .data.docsUrl }}<a href="{{ . }}">More in the documentation.</a>{{ end }}</p>
   <p>To use an endpoint in an AL project, see <a href="{{ "setup/" | relURL }}#al-project">Set up an AL project</a>.</p>
   {{- with .stage }}
   <p>This page shows the stage <strong>{{ .name }}</strong>. The stage links at the top switch the grid and keep the filters.</p>

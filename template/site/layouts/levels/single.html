@@ -2,7 +2,7 @@
 {{- $data := hugo.Data.rulebook -}}
 {{- $level := index $data.levels .Params.item -}}
 <h1>Level {{ $level.name }}</h1>
-{{ with $level.description }}<p class="lead">{{ . }}</p>{{ end }}
+<p class="lead">{{ or $level.description (printf "What the level %s changes, and the action of its entries before and after it." $level.name) }}</p>
 <dl class="facts">
   <dt>Level file</dt><dd><code>{{ $level.file }}</code></dd>
   <dt>Chain</dt><dd>{{ range $i, $file := $level.chain }}{{ if $i }} &rarr; {{ end }}<code>{{ $file }}</code>{{ end }}</dd>

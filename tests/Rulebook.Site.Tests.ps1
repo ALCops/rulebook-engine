@@ -183,7 +183,7 @@ Describe 'Get-RulebookSiteModel' {
         $with.Document['quarantine']['vnext'] | Should-BeCollection @()
     }
 
-    It 'writes issueTemplate, repository, the docsUrl and the setup URLs of engine ref <Ref>' -ForEach @(
+    It 'writes issueTemplate, repository, the docsUrl, the setup URLs and the docs map of engine ref <Ref>' -ForEach @(
         @{ Ref = ''; Engine = 'main'; Template = 'preview' }
         @{ Ref = 'main'; Engine = 'main'; Template = 'preview' }
         @{ Ref = 'v1'; Engine = 'v1'; Template = 'main' }
@@ -191,7 +191,7 @@ Describe 'Get-RulebookSiteModel' {
     ) {
         $model = Get-Model -Root $validRoot -EngineRef $Ref
         $document = $model.Document
-        Should-BeCollection -Actual ([string[]]@($document.Keys)) -Expected @('generatedAt', 'repository', 'baseUrl', 'issueTemplate', 'docsUrl', 'initScriptUrl', 'engineRef', 'alProjectDocsUrl', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
+        Should-BeCollection -Actual ([string[]]@($document.Keys)) -Expected @('generatedAt', 'repository', 'baseUrl', 'issueTemplate', 'docsUrl', 'initScriptUrl', 'engineRef', 'alProjectDocsUrl', 'docs', 'levels', 'stages', 'rules', 'overrides', 'quarantine')
         $document['issueTemplate'] | Should-Be 'rulebook-change.yml'
         $document['repository'] | Should-Be 'contoso/rulebook'
         $document['baseUrl'] | Should-Be $baseUrl
@@ -200,6 +200,15 @@ Describe 'Get-RulebookSiteModel' {
         $document['initScriptUrl'] | Should-Be "https://raw.githubusercontent.com/ALCops/rulebook-engine/$Engine/scripts/Get-RulebookSkeletons.ps1"
         $document['engineRef'] | Should-Be $Engine
         $document['alProjectDocsUrl'] | Should-Be "https://github.com/ALCops/rulebook/blob/$Template/docs/al-project.md"
+        # The docs map (D58): home, then one user page per concept on the same template ref; the two older keys equal
+        # their entries.
+        $docs = $document['docs']
+        Should-BeCollection -Actual ([string[]]@($docs.Keys)) -Expected @('home', 'dashboard', 'levels', 'overrides', 'quarantine', 'twins', 'changingARule', 'alProject')
+        $docs['home'] | Should-Be 'https://alcops.dev'
+        $pages = @{ dashboard = 'dashboard'; levels = 'levels'; overrides = 'overrides'; quarantine = 'quarantine'; twins = 'pte-or-appsource'; changingARule = 'changing-a-rule'; alProject = 'al-project' }
+        foreach ($key in $pages.Keys) { $docs[$key] | Should-Be "https://github.com/ALCops/rulebook/blob/$Template/docs/$($pages[$key]).md" }
+        $docs['dashboard'] | Should-Be $document['docsUrl']
+        $docs['alProject'] | Should-Be $document['alProjectDocsUrl']
     }
 
     It 'leaves repository out when it is not known' {
@@ -266,6 +275,8 @@ Describe 'ConvertTo-RulebookSiteDataJson' {
         $validText | Should-MatchString '(?m)^      "chain": \["essential", "recommended"\],$'
         $validText | Should-MatchString '(?m)^      "justifications": \{\},$'
         $validText | Should-MatchString '(?m)^    "vnext": \[\]$'
+        # The docs map is one link per line although every value is a string.
+        $validText | Should-MatchString '(?m)^  "docs": \{\n    "home": "https://alcops\.dev",\n    "dashboard": "[^"]+",\n'
         foreach ($line in $validText.TrimEnd("`n").Split("`n")) { $line | Should-MatchString '^(  )*[^ ]' }
         Test-Json -Json $validText | Should-BeTrue
     }
@@ -506,7 +517,7 @@ Describe 'Build-RulebookSite' {
         $result.PageCount | Should-Be 39
         $result.Pages[0] | Should-Be 'index.html'
         foreach ($page in 'stages/ci/index.html', 'levels/strict/index.html', 'rules/lc0089i/index.html') { $result.Pages -ccontains $page | Should-BeTrue }
-        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js')
+        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js', 'js/shell.js')
         $result.Output | Should-ContainCollection @('Start building sites (stub)')
     }
 
@@ -546,7 +557,7 @@ Describe 'Build-RulebookSite' {
         $result.PageCount | Should-Be 39
         foreach ($page in 'rules/index.html', 'levels/index.html', 'stages/index.html', '404.html', 'sitemap.xml', 'index.xml') { Test-Path -LiteralPath (Join-Path $staging $page) | Should-BeFalse }
         Test-Path -LiteralPath (Join-Path $site '.hugo_build.lock') | Should-BeFalse
-        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js')
+        $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js', 'js/shell.js')
         Get-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Raw | Should-Be '{}'
         $index = Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw
         $ci = Get-Content -LiteralPath (Join-Path $staging 'stages' 'ci' 'index.html') -Raw
@@ -564,14 +575,16 @@ Describe 'Build-RulebookSite' {
         Get-Content -LiteralPath (Join-Path $staging 'css' 'site.css') -Raw | Should-MatchString '(?m)^\[hidden\] \{ display: none !important; \}$'
         ([regex]::Matches($index, '<tr data-id=')).Count | Should-Be 30
         # The override cell of LC0029 on recommended.ci, on the stage page and on the rule page, with the real id.
-        $cell = '<td class="a-none" data-id="LC0029" data-level="recommended" data-stage="ci" data-action="None" data-source="override" data-fallback="Warning" data-fallback-source="level:recommended" data-override="1" tabindex="0">None'
+        # The action sits in a chip (D59); a grid is one Tab stop (#113), so only its first cell has tabindex 0.
+        $cell = '<td class="a-none" data-id="LC0029" data-level="recommended" data-stage="ci" data-action="None" data-source="override" data-fallback="Warning" data-fallback-source="level:recommended" data-override="1" tabindex="-1"><span class="chip">None</span>'
         Get-Content -LiteralPath (Join-Path $staging 'stages' 'ci' 'index.html') -Raw | Should-MatchString ([regex]::Escape($cell))
         Get-Content -LiteralPath (Join-Path $staging 'rules' 'lc0029' 'index.html') -Raw | Should-MatchString ([regex]::Escape($cell))
         # A quarantine cell has its fallback and no override index; the stage page lists it with a Release button.
-        $ci | Should-MatchString ([regex]::Escape('data-id="LC0099" data-level="strict" data-stage="ci" data-action="None" data-source="quarantine" data-fallback="Warning" data-fallback-source="default" tabindex="0">None<span class="mark mark-quarantine"'))
+        $ci | Should-MatchString ([regex]::Escape('data-id="LC0099" data-level="strict" data-stage="ci" data-action="None" data-source="quarantine" data-fallback="Warning" data-fallback-source="default" tabindex="-1"><span class="chip">None</span><span class="mark mark-quarantine"'))
         $ci | Should-MatchString ([regex]::Escape('<button type="button" data-release data-id="LC0099" data-stage="ci" hidden>Release</button>'))
         $ci | Should-MatchString '<h2 id="stage-summary">What the stage CI changes</h2>'
-        # The first stage link points at / on every page; the stage page marks its own link.
+        # The first stage link points at / on every page; the stage page marks its own link (the landing page of #139
+        # moves it to stages/<first>/).
         $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/" data-stage-link="default">default</a>'))
         $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/ci/" data-stage-link="ci" aria-current="page">CI</a>'))
         $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/" data-stage-link="default" aria-current="page">default</a>'))
@@ -584,10 +597,72 @@ Describe 'Build-RulebookSite' {
         $setup | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/preview/docs/al-project.md">docs/al-project.md</a>'))
         $setup | Should-MatchString ([regex]::Escape('<a href="https://contoso.github.io/rulebook/rulesets/strict.ruleset.json"><code>https://contoso.github.io/rulebook/rulesets/strict.ruleset.json</code></a></td><td class="count">9</td><td><a href="https://contoso.github.io/rulebook/skeletons/strict.default.ruleset.json"'))
         $setup | Should-MatchString ([regex]::Escape('href="https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json"'))
-        $index | Should-MatchString ([regex]::Escape('<a class="nav-setup" href="/rulebook/setup/">Set up an AL project</a>'))
+        $index | Should-MatchString ([regex]::Escape('<a class="nav-setup" href="/rulebook/setup/">Set up</a>'))
         $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/setup/#al-project">Set up an AL project</a>'))
         # The two URLs the site shows come from the data file.
         $index | Should-MatchString ([regex]::Escape('href="https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md"'))
         $index | Should-MatchString ([regex]::Escape('href="https://github.com/contoso/rulebook/issues/new?template=rulebook-change.yml"'))
+        # The shell (#138): the favicons, the head tags from the content adapter, the header, the lead under every
+        # title, the main kind and the footer with the facts and the two links of the data file.
+        foreach ($icon in 'favicon.svg', 'favicon.png') { Test-Path -LiteralPath (Join-Path $staging $icon) -PathType Leaf | Should-BeTrue }
+        $level = Get-Content -LiteralPath (Join-Path $staging 'levels' 'strict' 'index.html') -Raw
+        $rule = Get-Content -LiteralPath (Join-Path $staging 'rules' 'lc0029' 'index.html') -Raw
+        foreach ($text in $index, $ci, $level, $rule, $setup) {
+            $text | Should-MatchString '<script>document\.documentElement\.classList\.add\(''has-js''\);try\{var t=localStorage\.getItem\(''rulebook-theme''\)'
+            foreach ($tag in 'name="description"', 'property="og:title"', 'property="og:description"', 'property="og:type" content="website"', 'property="og:url"', 'property="og:site_name" content="Rulebook \| contoso"', 'rel="icon" href="/rulebook/favicon\.png"', 'rel="icon" href="/rulebook/favicon\.svg"') { $text | Should-MatchString "<(meta|link) $tag" }
+            $text | Should-MatchString '<a class="brand" href="/rulebook/"><svg class="logo"'
+            $text | Should-MatchString '<span class="brand-name">Rulebook</span><span class="brand-org">contoso</span>'
+            $text | Should-MatchString '<span class="nav-label" id="nav-stage">Stage</span><ul class="stage-switcher" aria-labelledby="nav-stage">'
+            $text | Should-MatchString '<ul class="nav-levels" aria-labelledby="nav-level">'
+            $text | Should-MatchString '<button type="button" class="theme-toggle" aria-pressed="false"'
+            # The toggle, the cart and the menu button sit outside the navigation, so they stay in view when it folds.
+            $text | Should-MatchString '</nav>\s*<div class="header-tools">\s*<button type="button" class="theme-toggle"[^\n]*\n\s*<button type="button" class="cart-toggle"[^\n]*\n\s*<button type="button" class="menu-toggle" aria-controls="site-nav" aria-expanded="false">'
+            $text | Should-MatchString ([regex]::Escape('<button type="button" class="cart-toggle" aria-controls="cart" aria-expanded="false" hidden>Cart <span class="cart-count">0</span></button>'))
+            $text | Should-MatchString '</h1>\n<p class="lead">[^<]+</p>'
+            $text | Should-MatchString ([regex]::Escape('<span>Generated <time datetime="2026-10-17T00:00:00Z">2026-10-17T00:00:00Z</time></span>'))
+            $text | Should-MatchString ([regex]::Escape('<span>engine <code>main</code></span>'))
+            $text | Should-MatchString ([regex]::Escape('<span><a href="https://github.com/contoso/rulebook">contoso/rulebook</a></span>'))
+            $text | Should-MatchString ([regex]::Escape('<span class="powered">Powered by <a href="https://alcops.dev">ALCops</a></span>'))
+            $text | Should-MatchString ([regex]::Escape('<script src="/rulebook/js/shell.js" defer></script>'))
+        }
+        $index | Should-MatchString '<title>Rulebook \| contoso</title>'
+        $ci | Should-MatchString '<title>Stage CI \| Rulebook</title>'
+        $ci | Should-MatchString ([regex]::Escape('<meta name="description" content="Pull request and release builds. Postponable diagnostics relaxed to Info.">'))
+        $ci | Should-MatchString ([regex]::Escape('<meta property="og:url" content="https://contoso.github.io/rulebook/stages/ci/">'))
+        $rule | Should-MatchString ([regex]::Escape('<meta name="description" content="The action of LC0029 on every level and stage of this rulebook.">'))
+        $setup | Should-MatchString '<meta name="description" content="How an AL project uses the rulesets of this rulebook'
+        $index | Should-MatchString '<main id="content" class="page page-matrix">'
+        $ci | Should-MatchString '<main id="content" class="page page-stage">'
+        $level | Should-MatchString '<main id="content" class="page page-level">'
+        $rule | Should-MatchString '<main id="content" class="page page-rule">'
+        $setup | Should-MatchString '<main id="content" class="page page-setup">'
+        $index | Should-MatchString '<div class="matrix-scroll">\n<table class="matrix" role="grid">'
+        $rule | Should-MatchString '<table class="matrix rule-matrix" role="grid">'
+        # One Tab stop per grid (#113): the first cell of the first rule row, on a stage page and on a rule page.
+        foreach ($text in $index, $ci, $rule) {
+            ([regex]::Matches($text, '<td [^>]*tabindex="0"')).Count | Should-Be 1
+            ([regex]::Matches($text, '<td [^>]*tabindex="-1"')).Count | Should-Be $(if ($text -ceq $rule) { 11 } else { 119 })
+        }
+        $ci | Should-MatchString 'data-id="AL0001" data-level="essential" data-stage="ci" [^>]*tabindex="0">'
+        $rule | Should-MatchString 'data-id="LC0029" data-level="essential" data-stage="default" [^>]*tabindex="0">'
+    }
+
+    It 'ships equal dark token sets for the toggle and the system setting, and the light set for print' {
+        # site.css sets the dark tokens twice (D59): [data-theme="dark"] for the toggle and a prefers-color-scheme block
+        # for the system setting without JavaScript. The two must stay the same, line for line.
+        $css = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'template' 'site' 'assets' 'css' 'site.css')).Replace("`r`n", "`n")
+        $toggle = [regex]::Match($css, '(?ms)^\[data-theme="dark"\] \{\n(.*?)^\}').Groups[1].Value
+        $system = [regex]::Match($css, '(?ms)^@media \(prefers-color-scheme: dark\) \{\n  :root:not\(\[data-theme="light"\]\) \{\n(.*?)^  \}\n\}').Groups[1].Value
+        $toggle | Should-MatchString '--bg: '
+        $lines = { param($Text) , [string[]]@($Text.TrimEnd("`n").Split("`n") | ForEach-Object { $_.Trim() }) }
+        Should-BeCollection -Actual (& $lines $system) -Expected (& $lines $toggle)
+        # Every colour token of the light set has a dark value.
+        $light = [regex]::Match($css, '(?ms)^:root \{\n(.*?)^\}').Groups[1].Value
+        $names = { param($Text) , [string[]]@([regex]::Matches($Text, '(?m)^\s*(--[a-z0-9-]+):') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -notin '--font', '--mono', '--header-h' }) }
+        Should-BeCollection -Actual (& $names $toggle) -Expected (& $names $light)
+        # Print uses the light set, line for line, whatever the screen shows.
+        $print = [regex]::Match($css, '(?ms)^@media print \{\n  :root:not\(\[data-theme="light"\]\), :root\[data-theme\] \{\n(.*?)^  \}').Groups[1].Value
+        $colours = { param($Text) , [string[]]@((& $lines $Text) -match '^--' -notmatch '^--(font|mono|header-h):') }
+        Should-BeCollection -Actual (& $colours $print) -Expected (& $colours $light)
     }
 }

@@ -1,0 +1,14 @@
+{{- /* The facts of the publish run and the links of rulebook.json: the organization repository and docs.home. */ -}}
+{{- $data := hugo.Data.rulebook -}}
+{{- $home := "" }}{{ with $data.docs }}{{ $home = .home }}{{ end -}}
+<footer class="site-footer">
+  <p>
+    <span>Generated <time datetime="{{ $data.generatedAt }}">{{ $data.generatedAt }}</time></span>
+    <span>engine <code>{{ $data.engineRef }}</code></span>
+    {{- with $data.repository }}
+    <span><a href="https://github.com/{{ . }}">{{ . }}</a></span>
+    {{- end }}
+    <span><a href="{{ "rulebook.json" | relURL }}"><code>rulebook.json</code></a></span>
+    <span class="powered">Powered by {{ with $home }}<a href="{{ . }}">ALCops</a>{{ else }}ALCops{{ end }}</span>
+  </p>
+</footer>

@@ -19,6 +19,9 @@ test('the fixture is the export the cart reads', () => {
   assert.equal(template, 'rulebook-change.yml');
   assert.deepEqual(data.levels.map((level) => level.slug), ['essential', 'recommended', 'strict', 'complete']);
   assert.deepEqual(data.stages.map((stage) => stage.slug), ['default', 'ci', 'vnext']);
+  // The docs map the footer and the help links read (#138); home is the only entry that is no user page.
+  assert.equal(data.docs.home, 'https://alcops.dev');
+  assert.equal(data.docs.dashboard, data.docsUrl);
 });
 
 test('storageKey and emptyCart', () => {

@@ -2,20 +2,20 @@
 <html lang="en">
 {{ partial "head.html" . }}
 {{- $data := hugo.Data.rulebook }}
+{{- $section := index (split (strings.TrimPrefix "/" .Path) "/") 0 }}
+{{- /* The page kind for the stylesheet: matrix ("/"), stage, level, rule or setup. */}}
+{{- $kind := cond .IsHome "matrix" (strings.TrimSuffix "s" (or $section "page")) }}
 {{- /* The values the cart needs on every page: the repository and the issue form for the issue URL, the data file
   for the before and after of each change. */}}
 <body data-repository="{{ $data.repository }}" data-issue-template="{{ $data.issueTemplate }}" data-rulebook-json="{{ "rulebook.json" | relURL }}">
+<a class="skip" href="#content">Skip to content</a>
 {{ partial "header.html" . }}
-<main id="content">
+<main id="content" class="page page-{{ $kind }}">
 {{ block "main" . }}{{ end }}
 </main>
 {{ partial "cart.html" . }}
 {{ partial "popover.html" . }}
-<footer class="site-footer">
-{{- with hugo.Data.rulebook }}
-<p>Generated {{ .generatedAt }} from {{ with .repository }}<code>{{ . }}</code>{{ else }}this repository{{ end }}. Endpoints, skeletons and <a href="{{ "rulebook.json" | relURL }}"><code>rulebook.json</code></a> are published next to this site.</p>
-{{- end }}
-</footer>
+{{ partial "footer.html" . }}
 {{ partial "scripts.html" . }}
 </body>
 </html>

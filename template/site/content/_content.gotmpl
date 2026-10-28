@@ -1,18 +1,20 @@
 {{- /* One page per stage, level and rule of data/rulebook.json, which the Publish action writes. The export sorts
   the rules and keeps the settings order of levels and stages, so nothing is sorted here. Each page carries the
-  position of its item; the layouts read the item from hugo.Data.rulebook (page params lowercase their keys). */ -}}
+  position of its item; the layouts read the item from hugo.Data.rulebook (page params lowercase their keys). The
+  description goes into the meta description and Open Graph tags of the page (partials/head.html): the stage or level
+  description of the data file, a fixed sentence otherwise. */ -}}
 {{- $data := hugo.Data.rulebook -}}
 {{- if not $data -}}
   {{- errorf "site/data/rulebook.json is missing: the Publish action writes it before the build (Export-RulebookSiteData)" -}}
 {{- end -}}
 {{- /* setup/: how an AL project uses the endpoints, the section the plain index page has (#al-project). */ -}}
-{{- $.AddPage (dict "path" "setup" "kind" "page" "title" "Set up an AL project") -}}
+{{- $.AddPage (dict "path" "setup" "kind" "page" "title" "Set up an AL project" "description" "How an AL project uses the rulesets of this rulebook: the init script, the endpoints and the skeletons.") -}}
 {{- range $i, $stage := $data.stages -}}
-  {{- $.AddPage (dict "path" (printf "stages/%s" $stage.slug) "kind" "page" "title" (printf "Stage %s" $stage.name) "params" (dict "item" $i)) -}}
+  {{- $.AddPage (dict "path" (printf "stages/%s" $stage.slug) "kind" "page" "title" (printf "Stage %s" $stage.name) "description" (or $stage.description (printf "The action of every rule on every level, in the stage %s." $stage.name)) "params" (dict "item" $i)) -}}
 {{- end -}}
 {{- range $i, $level := $data.levels -}}
-  {{- $.AddPage (dict "path" (printf "levels/%s" $level.slug) "kind" "page" "title" (printf "Level %s" $level.name) "params" (dict "item" $i)) -}}
+  {{- $.AddPage (dict "path" (printf "levels/%s" $level.slug) "kind" "page" "title" (printf "Level %s" $level.name) "description" (or $level.description (printf "What the level %s changes." $level.name)) "params" (dict "item" $i)) -}}
 {{- end -}}
 {{- range $i, $rule := $data.rules -}}
-  {{- $.AddPage (dict "path" (printf "rules/%s" $rule.id) "kind" "page" "title" $rule.id "params" (dict "item" $i)) -}}
+  {{- $.AddPage (dict "path" (printf "rules/%s" $rule.id) "kind" "page" "title" $rule.id "description" (printf "The action of %s on every level and stage of this rulebook." $rule.id) "params" (dict "item" $i)) -}}
 {{- end -}}

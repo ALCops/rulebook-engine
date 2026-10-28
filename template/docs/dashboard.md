@@ -2,7 +2,7 @@
 
 The Publish workflow can build a small website out of your rulebook and put it at the same address as your endpoints. Each stage gets a grid with one row per rule and one column per level, and each cell shows the action that endpoint gives the rule and which input decided it. There is a page for every stage, every level and every rule, and a setup page for AL projects. From a cell you can put a change in a cart, and the cart opens an issue in your rulebook repository with the change set already filled in. The site reads your rules but never changes them: the **Apply Rulebook Change** workflow applies a submitted change set when its author may push to the repository.
 
-> **Status:** written 2026-10-17 with the dashboard site of the engine ([#16](https://github.com/ALCops/rulebook-engine/issues/16)); section 3 updated 2026-10-18 with the Apply Rulebook Change workflow ([#17](https://github.com/ALCops/rulebook-engine/issues/17)). Everything below is stated by the files in `site/`, the Publish action, the issue form `.github/ISSUE_TEMPLATE/rulebook-change.yml` and the workflow `.github/workflows/ApplyRulebookChange.yaml`. The answers of the workflow in section 3 are quoted from the engine's contributor reference, [change-mechanics.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/reference/change-mechanics.md) sections 13 and 14. A live run on 2026-10-18 observed the pull request, the existing pull request, the list of errors, "Nothing to change.", the direct commit and the missing secret, how GitHub writes an issue from the form, and the label; the refusal of an author who cannot push (an issue by `github-actions[bot]`) was observed in that run too; the refusal of an editor and the other failures are quoted from the reference only. The design, the data contract and the decisions are in the engine's [dashboard.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/dashboard.md). Publishing in general is [hosting.md](hosting.md); the Change Rule workflow, the other way to change a rule, is [changing-a-rule.md](changing-a-rule.md).
+> **Status:** written 2026-10-17 with the dashboard site of the engine ([#16](https://github.com/ALCops/rulebook-engine/issues/16)); section 3 updated 2026-10-18 with the Apply Rulebook Change workflow ([#17](https://github.com/ALCops/rulebook-engine/issues/17)); sections 1, 5 and 6 updated 2026-10-28 with the new look of the site: header, dark mode, mobile menu, footer and keyboard route ([#138](https://github.com/ALCops/rulebook-engine/issues/138)). Everything below is stated by the files in `site/`, the Publish action, the issue form `.github/ISSUE_TEMPLATE/rulebook-change.yml` and the workflow `.github/workflows/ApplyRulebookChange.yaml`. The answers of the workflow in section 3 are quoted from the engine's contributor reference, [change-mechanics.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/reference/change-mechanics.md) sections 13 and 14. A live run on 2026-10-18 observed the pull request, the existing pull request, the list of errors, "Nothing to change.", the direct commit and the missing secret, how GitHub writes an issue from the form, and the label; the refusal of an author who cannot push (an issue by `github-actions[bot]`) was observed in that run too; the refusal of an editor and the other failures are quoted from the reference only. The design, the data contract and the decisions are in the engine's [dashboard.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/dashboard.md). Publishing in general is [hosting.md](hosting.md); the Change Rule workflow, the other way to change a rule, is [changing-a-rule.md](changing-a-rule.md).
 
 ## Contents
 
@@ -35,7 +35,13 @@ A cell shows the action and a marker for the input that decided it:
 
 The block **What the cells mean** below every grid repeats this legend and links to this page; so does the **Help** link in the header. Above the grid of a matrix page are four filters: analyzer, action, the deciding input (override, quarantine, stage file, twins rule, level file, analyzer default) and a text field for the id or the title, with a row counter. The filters are stored in the address after `#`, for example `#source=override&q=LC00`, so a link with them opens the same view, and the stage links keep them when you switch stages.
 
-Without JavaScript the grids and pages are still complete; the filters, the popover and the cart are hidden then.
+**Every page** has a header with the ALCops logo, "Rulebook" and your organization (the owner of the repository), the **Stage** and **Level** links, **Set up**, **Help**, a dark-mode button and the cart. Below 768 px wide the links fold behind a menu button; the dark-mode button and the cart stay beside it. Under each title one sentence says what the page shows. The footer shows when the site was published, the engine version that built it, a link to your rulebook repository, the link to `rulebook.json` and "Powered by ALCops". A link to a page shows its title and description when you paste it into a chat or an issue.
+
+**Dark mode** follows the setting of your system. The button in the header switches it; the browser remembers the choice for every project site of the same `<owner>.github.io` address, until you switch back to what your system says.
+
+**Keyboard.** A grid is one stop of the Tab key: Tab reaches its first cell, and the arrow keys move from there between the cells and the rule links at the start of each row. Home goes to the rule link of the row and End to its last cell; Ctrl+Home goes to the first rule link and Ctrl+End to the last cell of the grid. Enter or Space on a cell opens the change menu, Escape closes it and puts you back on the cell. On a narrow screen the grid scrolls inside its frame, with the header row and the rule column kept in place.
+
+Without JavaScript the grids and pages are still complete; the filters, the popover, the cart, the dark-mode button and the menu button are hidden then, the navigation is always shown, dark mode still follows your system, and only the first cell of a grid can be reached with Tab.
 
 ## 2. Turning it on
 
@@ -53,7 +59,7 @@ With the site on, `<baseUrl>/` is the matrix, and the setup content of the plain
 
 ## 3. Changing a rule from the site
 
-1. **Click a cell**, or focus it with Tab and press Enter or Space. A popover offers the five actions `Error`, `Warning`, `Info`, `Hidden` and `None`; **Reset** only on a cell with the `O` badge (it removes the override that decides the cell); **Release** only on a cell with the `Q` badge (it releases the id from the quarantine of that stage). A stage page also has a Release button next to every id in its quarantine list. Escape closes the popover. Rule pages have the same popover.
+1. **Click a cell**, or reach it from the keyboard (Tab to the grid, then the arrow keys) and press Enter or Space. A popover offers the five actions `Error`, `Warning`, `Info`, `Hidden` and `None`; **Reset** only on a cell with the `O` badge (it removes the override that decides the cell); **Release** only on a cell with the `Q` badge (it releases the id from the quarantine of that stage). A stage page also has a Release button next to every id in its quarantine list. Escape closes the popover. Rule pages have the same popover.
 2. **The cart** opens on the right with the change, and the **Cart** button in the header shows how many changes it holds. An action becomes a change for exactly that level and stage; Reset becomes a removal of the whole override entry, with that entry's levels and stages; Release becomes a release for that stage. Per change you can:
    - tick **all levels** or **all stages** to widen it to `*` (a removal names one entry and cannot be widened); untick to go back;
    - type a justification (actions only; it goes into the override entry);
@@ -116,16 +122,30 @@ With `includeJustifications` set to `true`, the override justifications are writ
 
 ## 5. Adapting `site/`
 
-`site/` holds the whole site: `hugo.yaml` (the title), `layouts/` (the HTML of every page), `assets/css/site.css` (the colours are variables at the top) and `assets/js/` (the filters, the popover and the cart). It uses no theme, no npm and no framework. You can change any of these files.
+`site/` holds the whole site: `hugo.yaml` (the title), `content/` (the pages and their descriptions), `layouts/` (the HTML of every page; `partials/logo.html` is the logo of the header), `assets/css/site.css` (the design tokens at the top), `assets/js/` (the dark-mode button and the menu, the filters, the popover and the cart) and `static/` (`favicon.svg` and `favicon.png`). It uses no theme, no npm, no web font and no framework. You can change any of these files.
+
+**The tokens.** The colours of the site are variables at the top of `site.css`, in three blocks: the light set under `:root`, the dark set under `[data-theme="dark"]` (the dark-mode button) and the same dark set again inside `@media (prefers-color-scheme: dark)` (the system setting). Change both dark blocks the same way. The ones an organization usually changes:
+
+| Token | Used for |
+|---|---|
+| `--accent`, `--accent-text`, `--accent-soft` | links, the current stage and level, the cart count; `--accent-text` is the text on `--accent` |
+| `--bg`, `--surface`, `--surface-2`, `--line`, `--line-strong` | the page, the header and footer, the group rows of the grid, the borders |
+| `--text`, `--muted`, `--brand` | body text, secondary text, the logo and "Rulebook" |
+| `--error`, `--warning`, `--info`, `--hidden`, `--none` and their `-bg` pairs | the action chips of the grid |
+| `--override`, `--quarantine`, `--mark-text` | the `O` and `Q` badges |
+| `--font`, `--mono` | the system font stack and the monospace font of ids and chips |
+
+Keep a text colour and its background at a contrast of at least 4.5:1 (WCAG AA), in both sets. To use your own logo, replace the SVG in `layouts/partials/logo.html` (keep `fill="currentColor"` to follow the colour scheme) and the two favicons in `static/`.
 
 **Updates.** `site/` is a customizable file class, like `docs/` ([updating.md](updating.md) section 1). The update replaces a site file you have not changed. A file you changed is kept, and when the template changed it too, the update pull request lists it under "Skipped: local changes" with a link to the template diff, so you can take over what you need. A site file you deleted comes back while the template ships it, unless you list it in `unusedRulebookFiles`. With `site.updateMode` set to `"overwrite"` the template's files always replace yours.
 
-A file you changed and the update kept keeps running against a newer `rulebook.json` and the template's newer scripts, so it can break after an update. The safest changes are the title in `hugo.yaml` and the colour variables at the top of `site.css`. If you change `layouts/` or `assets/js/`, check the "Skipped: local changes" list of every update pull request and build the site locally before you merge it.
+A file you changed and the update kept keeps running against a newer `rulebook.json` and the template's newer scripts, so it can break after an update. The safest changes are the title in `hugo.yaml` and the tokens at the top of `site.css`. If you change `layouts/` or `assets/js/`, check the "Skipped: local changes" list of every update pull request and build the site locally before you merge it.
 
 **What the site needs.** Publish builds whatever `site/` holds. Keep these parts when you change a layout:
 
 - the attribute `data-rulebook-matrix` on the grid of `<baseUrl>/` (the `section` in `layouts/partials/matrix.html`). Without it Publish warns that `site/layouts` may have dropped the matrix, and still publishes the site as built;
-- the attributes `data-repository`, `data-issue-template` and `data-rulebook-json` on `<body>` (`layouts/baseof.html`), the `cart` and `popover` partials, and the cart button in the header: the cart needs them to work.
+- the attributes `data-repository`, `data-issue-template` and `data-rulebook-json` on `<body>` (`layouts/baseof.html`), the `cart` and `popover` partials, and the cart button in the header: the cart needs them to work;
+- `role="grid"` on a grid table and `tabindex` on its cells (`layouts/partials/cell.html`): the keyboard route needs them.
 
 **Building it locally.** You need Hugo 0.156.0 or later, extended, and a data file in `site/data/rulebook.json`. The quickest data file is the published one: download `<baseUrl>/rulebook.json` into `site/data/`. To see changes you have not published yet, write the file from a clone of the engine ([ALCops/rulebook-engine](https://github.com/ALCops/rulebook-engine)) instead. Run it in the root of your rulebook repository: `Export-RulebookSiteData` reads `.github/Rulebook-Settings.json` and `catalog/diagnostics.json` there and throws without them. Pass `-Repository` with your repository as `owner/name`, or the cart cannot build the issue link:
 
@@ -143,7 +163,7 @@ Publish writes two files for other tooling (scripts, an editor extension, a repo
 
 | File | Content |
 |---|---|
-| `<baseUrl>/rulebook.json` | One document with everything the site shows. The keys in order: `generatedAt`, `repository`, `baseUrl`, `issueTemplate`, `docsUrl`, `initScriptUrl`, `engineRef` and `alProjectDocsUrl` (the links and the engine ref of the setup page), `levels` (settings order, with the facts, counts and entries of each level page), `stages` (the same for the stage pages), `rules` (every id with its default and one cell per level and stage: `action`, `source`, and on override and quarantine cells the `fallback` the cart uses), `overrides` (the entries of `overrides.json` in file order) and `quarantine` (one list per stage). The init script reads the `levels` and `stages` names and slugs. |
+| `<baseUrl>/rulebook.json` | One document with everything the site shows. The keys in order: `generatedAt`, `repository`, `baseUrl`, `issueTemplate`, `docsUrl`, `initScriptUrl`, `engineRef` and `alProjectDocsUrl` (the links and the engine ref of the setup page), `docs` (the documentation link of each topic the site links, and `home`, the ALCops site of the footer), `levels` (settings order, with the facts, counts and entries of each level page), `stages` (the same for the stage pages), `rules` (every id with its default and one cell per level and stage: `action`, `source`, and on override and quarantine cells the `fallback` the cart uses), `overrides` (the entries of `overrides.json` in file order) and `quarantine` (one list per stage). The init script reads the `levels` and `stages` names and slugs. |
 | `<baseUrl>/catalog/diagnostics.json` | Your `catalog/diagnostics.json`, byte for byte. |
 
 `generatedAt` is UTC text such as `2026-10-17T08:30:00Z`. PowerShell's `ConvertFrom-Json` turns it into a date; read it with `ConvertFrom-Json -DateKind String` (PowerShell 7.5 and later) to keep the text. The complete key list with an example is section 5 of the engine's [dashboard.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/dashboard.md).

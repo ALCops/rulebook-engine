@@ -5,18 +5,20 @@
 {{- $levels := $data.levels -}}
 {{ partial "filters.html" (dict "data" $data) }}
 <section class="matrix-root" data-rulebook-matrix="{{ $stage.slug }}">
-<table class="matrix">
+<div class="matrix-scroll">
+<table class="matrix" role="grid">
   <caption>Stage {{ $stage.name }}: the action of every rule per level, {{ len $data.rules }} rules</caption>
   <thead><tr><th scope="col">Rule</th>{{ range $levels }}<th scope="col"><a href="{{ printf "levels/%s/" .slug | relURL }}">{{ .name }}</a></th>{{ end }}</tr></thead>
   <tbody>
   {{- $group := "" }}
-  {{- range $rule := $data.rules }}
+  {{- range $r, $rule := $data.rules }}
   {{- if ne $rule.analyzer $group }}{{ $group = $rule.analyzer }}
   <tr class="group" data-group="{{ $group }}"><th colspan="{{ add 1 (len $levels) }}" scope="rowgroup">{{ $group }}</th></tr>
   {{- end }}
   <tr data-id="{{ $rule.id }}" data-analyzer="{{ $rule.analyzer }}" data-title="{{ $rule.title }}"{{ if $rule.unknown }} data-unknown{{ end }}><th scope="row"><a href="{{ printf "rules/%s/" (lower $rule.id) | relURL }}">{{ $rule.id }}</a>{{ with $rule.title }} <span class="title">{{ . }}</span>{{ end }}</th>
-    {{- range $level := $levels }}{{ partial "cell.html" (dict "rule" $rule "level" $level "stage" $stage) }}{{ end }}</tr>
+    {{- range $l, $level := $levels }}{{ partial "cell.html" (dict "rule" $rule "level" $level "stage" $stage "first" (and (eq $r 0) (eq $l 0))) }}{{ end }}</tr>
   {{- end }}
   </tbody>
 </table>
+</div>
 </section>

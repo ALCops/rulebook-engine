@@ -55,7 +55,7 @@ outputs:
     description: The issue number.
     value: ${{ steps.apply.outputs.issue }}
   issueState:
-    description: "The state of the issue after the run: open, closed-completed or closed-not-planned (for a skipped issue the state it had)."
+    description: "The state of the issue after the run: open, closed-completed or closed-not-planned (for a skipped issue the state it had, which can also be closed-duplicate or closed)."
     value: ${{ steps.apply.outputs.issueState }}
   failure:
     description: "Why the step failed, empty on success: validation, token, push, pull-request, issue or error."
