@@ -84,6 +84,7 @@ D1 to D14 were taken in the requirements interview of 2026-09-29, D15 to D20 in 
 | [D56](0056-schema-validation-uses-jsonschema-net-directly.md) | Schema validation uses JsonSchema.Net directly, not Test-Json | Accepted | 2026-10-21 |
 | [D57](0057-baseurl-is-derived-from-the-pages-site-and-the-setting-overrides.md) | baseUrl is derived from the Pages site, and the setting overrides it | Accepted | 2026-10-21 |
 | [D58](0058-alcops-dev-is-canonical-the-site-explains-itself-the-organization-repository-keeps-its-own-text.md) | alcops.dev is canonical, the site explains itself, the organization repository keeps its own text | Accepted | 2026-10-28 |
+| [D59](0059-the-site-shell-is-own-css-and-no-vendored-theme.md) | The site shell is own CSS, not a vendored theme | Accepted | 2026-10-28 |
 
 ## Open decisions
 
@@ -111,7 +112,7 @@ Closed: O1 and O2 by D19 (and D17), O3 by D52 ([#27](https://github.com/ALCops/r
 - WP14 planning interview of 2026-10-12 and 2026-10-17 ([#16](https://github.com/ALCops/rulebook-engine/issues/16), [#84](https://github.com/ALCops/rulebook-engine/issues/84)): D54.
 - WP15 planning interview of 2026-10-18 ([#17](https://github.com/ALCops/rulebook-engine/issues/17)): D55.
 - #114 and #96 planning interview of 2026-10-21 ([#114](https://github.com/ALCops/rulebook-engine/issues/114), [#96](https://github.com/ALCops/rulebook-engine/issues/96)): D56.
-- WP16 planning interview of 2026-10-24 ([#136](https://github.com/ALCops/rulebook-engine/issues/136)), where the direction came from, and WP16 execution interview of 2026-10-28 ([#142](https://github.com/ALCops/rulebook-engine/issues/142)): D58.
+- WP16 planning interview of 2026-10-24 ([#136](https://github.com/ALCops/rulebook-engine/issues/136)), where the direction came from, and WP16 execution interview of 2026-10-28 ([#142](https://github.com/ALCops/rulebook-engine/issues/142)): D58; the choice on [#137](https://github.com/ALCops/rulebook-engine/issues/137): D59.
 - [reference/compiler-ruleset-internals.md](../reference/compiler-ruleset-internals.md): the merge rules behind D6, D13, D16 and their supersession by D18; the `suppressWarnings` merge behind D22.
 - [reference/al-go-template-mechanics.md](../reference/al-go-template-mechanics.md): the update mechanism and the deploy behind D2, D3, D44, D52 and D53.
 - Work package issues: where each decision is implemented, see the `Affects` field and the [work package list](https://github.com/ALCops/rulebook-engine/issues?q=is%3Aissue+label%3Aworkpackage).
