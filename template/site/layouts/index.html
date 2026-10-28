@@ -1,7 +1,54 @@
 {{ define "main" }}
 {{- $data := hugo.Data.rulebook -}}
-{{- $stage := index $data.stages 0 -}}
-<h1>Rulebook matrix</h1>
-{{ partial "matrix.html" (dict "data" $data "stage" $stage) }}
-{{ partial "legend.html" (dict "data" $data "stage" $stage) }}
+{{- $org := index (split (or $data.repository "") "/") 0 -}}
+{{- $first := index $data.stages 0 -}}
+{{- $analyzers := slice -}}
+{{- range $data.rules }}{{ if not (in $analyzers .analyzer) }}{{ $analyzers = $analyzers | append .analyzer }}{{ end }}{{ end -}}
+<section class="hero">
+  <p class="eyebrow">{{ $org }} rulebook</p>
+  <h1>Code analysis rules for AL projects</h1>
+  <p class="lead">One ruleset per level and stage, published as endpoints an AL project points at.</p>
+  <p class="hero-actions"><a class="button primary" href="{{ printf "stages/%s/" $first.slug | relURL }}">Open the matrix</a> <a class="button" href="{{ "setup/" | relURL }}">Set up an AL project</a></p>
+</section>
+<div class="landing-grid">
+  <div class="prose">{{ .Content }}</div>
+  <aside class="facts-panel" aria-labelledby="facts">
+    <h2 id="facts">Facts</h2>
+    <dl class="stats">
+      <div><dt>Rules</dt><dd>{{ len $data.rules }}</dd></div>
+      <div><dt>Analyzers</dt><dd>{{ len $analyzers }}</dd></div>
+      <div><dt>Levels</dt><dd>{{ len $data.levels }}</dd></div>
+      <div><dt>Stages</dt><dd>{{ len $data.stages }}</dd></div>
+    </dl>
+    <dl class="facts small">
+      <dt>Published</dt><dd><time datetime="{{ $data.generatedAt }}">{{ $data.generatedAt }}</time></dd>
+      <dt>Engine</dt><dd><code>{{ $data.engineRef }}</code></dd>
+    </dl>
+  </aside>
+</div>
+<h2>Get a ruleset into your project</h2>
+<ol class="steps">
+  <li><a href="{{ "setup/" | relURL }}#levels"><strong>Pick a level</strong></a><span>{{ range $i, $l := $data.levels }}{{ if $i }}, {{ end }}{{ $l.name }}{{ end }}: from what you cannot ship without to everything.</span></li>
+  <li><a href="{{ "setup/" | relURL }}#al-project"><strong>Get the file or the URL</strong></a><span>The init script downloads the skeletons of a level into <code>.rulebook/</code>.</span></li>
+  <li><a href="{{ "setup/" | relURL }}#al-project"><strong>Point VS Code and AL-Go at it</strong></a><span><code>al.ruleSetPath</code> for the editor, <code>rulesetFile</code> for CI.</span></li>
+</ol>
+<h2>Stages</h2>
+<ul class="cards">
+  {{- range $data.stages }}
+  <li class="card"><a href="{{ printf "stages/%s/" .slug | relURL }}"><span class="card-kicker">Stage</span><strong>{{ .name }}</strong><span class="card-text">{{ .description }}</span></a></li>
+  {{- end }}
+</ul>
+<h2>Levels</h2>
+<ul class="cards">
+  {{- range $data.levels }}
+  <li class="card"><a href="{{ printf "levels/%s/" .slug | relURL }}"><span class="card-kicker">Level</span><strong>{{ .name }}</strong><span class="card-text">{{ .description }}</span></a></li>
+  {{- end }}
+</ul>
+<h2>More</h2>
+<ul class="cards">
+  <li class="card"><a href="{{ "setup/" | relURL }}"><span class="card-kicker">Set up</span><strong>Set up an AL project</strong><span class="card-text">The init script, the endpoints and the skeletons of every level and stage.</span></a></li>
+  {{- with $data.docsUrl }}
+  <li class="card"><a href="{{ . }}"><span class="card-kicker">Help</span><strong>How this works</strong><span class="card-text">The matrix, the markers, the cart and how a change is applied.</span></a></li>
+  {{- end }}
+</ul>
 {{ end }}
