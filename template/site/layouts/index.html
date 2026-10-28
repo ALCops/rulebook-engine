@@ -29,7 +29,7 @@
 </div>
 <h2 id="get-started">Get a ruleset into your project</h2>
 <ol class="steps">
-  <li><a href="{{ $setup }}#levels"><strong>Pick a level</strong></a><span>{{ range $i, $level := $data.levels }}{{ if $i }}, {{ end }}{{ $level.name }}{{ end }}: each level builds on the one before it.</span></li>
+  <li><a href="{{ $setup }}#levels"><strong>Pick a level</strong></a><span>Pick the level that matches how strict you want the rules: {{ range $i, $level := $data.levels }}{{ if $i }}, {{ end }}<a href="{{ printf "levels/%s/" $level.slug | relURL }}">{{ $level.name }}</a>{{ end }}.</span></li>
   <li><a href="{{ $setup }}#stage-{{ $first.slug }}"><strong>Get the file or the URL</strong></a><span>One endpoint per level and stage; the init script downloads the skeletons of a level into <code>.rulebook/</code>.</span></li>
   <li><a href="{{ $setup }}#al-project"><strong>Point VS Code and AL-Go at it</strong></a><span><code>al.ruleSetPath</code> for the editor, <code>rulesetFile</code> for CI.</span></li>
 </ol>

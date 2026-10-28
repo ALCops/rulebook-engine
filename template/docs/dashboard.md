@@ -142,7 +142,7 @@ Keep a text colour and its background at a contrast of at least 4.5:1 (WCAG AA),
 
 A file you changed and the update kept keeps running against a newer `rulebook.json` and the template's newer scripts, so it can break after an update. The safest changes are the title in `hugo.yaml` and the tokens at the top of `site.css`. If you change `layouts/` or `assets/js/`, check the "Skipped: local changes" list of every update pull request and build the site locally before you merge it.
 
-**The landing text.** The text of `<baseUrl>/` is `content/_index.md`: `title` is the heading, `description` the sentence under it (and the description a chat shows for a link to the site), and the paragraphs below the front matter are the body, in Markdown. Change them there; the layout `layouts/index.html` adds the facts, the steps and the cards from the data file.
+**The landing text.** The text of `<baseUrl>/` is `content/_index.md`: `title` is the heading, `description` the sentence under it (and the description a chat shows for a link to the site), and the paragraphs below the front matter are the body, in Markdown. Change them there; the layout `layouts/index.html` adds the facts, the steps and the cards from the data file. If you edited `content/_index.md` before the landing page came, the update keeps your file with its old front matter (`title: Matrix`, no body); take the new text from the template diff the update pull request links.
 
 **What the site needs.** Publish builds whatever `site/` holds. Keep these parts when you change a layout:
 

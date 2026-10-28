@@ -233,7 +233,7 @@ if ($Phase -eq 'Stage') {
                     }
                     if ($site) {
                         Write-Host ('Built the site: {0} pages in {1} s' -f $site.PageCount, $site.Seconds.ToString([System.Globalization.CultureInfo]::InvariantCulture))
-                        if (-not $site.MarkerPresent) { Add-Annotation -Context $ctx -Command warning -Message "The built $($site.MarkerPage) has no data-rulebook-matrix marker: site/layouts may have dropped the matrix. The site is published as built." }
+                        if (-not $site.MarkerPresent) { Add-Annotation -Context $ctx -Command warning -Message "The built $(if ($site.MarkerPage) { $site.MarkerPage } else { 'page of the first stage' }) has no data-rulebook-matrix marker: site/layouts may have dropped the matrix. The site is published as built." }
                         # Hugo lowercases page paths; the check requests every stage and level page, the setup page and
                         # the first rule page.
                         $pagePaths = @(foreach ($stage in $inputs.Stages) { "stages/$($stage.Slug)/" }) + @(foreach ($level in $inputs.Levels) { "levels/$($level.Slug)/" }) + @('setup/')

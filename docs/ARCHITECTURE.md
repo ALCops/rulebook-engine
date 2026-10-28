@@ -674,7 +674,7 @@ No decision is open; new ones are tracked in the open decisions table of [adr/RE
 | Release | the top heading of `RELEASENOTES.md`, `## vX.Y.Z[-pre]`: the engine branch `v<major>`, the template's `main`, the tag `vX.Y.Z[-pre]` on both repositories, a GitHub Release on the engine (D53) | `## v1.0.0-beta.1`: engine `v1`, template `main`, `v1.0.0-beta.1` |
 | Deploy workflows | `.github/workflows/Deploy.yaml` (release, manual, `dryRun`), `.github/workflows/RefreshTemplate.yaml` (`ALCops/rulebook@preview` on every push to `main` touching `template/`); entry `tools/deploy/Invoke-Deploy.ps1`, module `Rulebook.Deploy` | `gh workflow run Deploy.yaml -f dryRun=true` |
 | Template commit of a release | `Release <version> from ALCops/rulebook-engine@<sha7>`; a refresh: `Refresh from ALCops/rulebook-engine@<sha7>` | `Release v1.0.0-beta.1 from ALCops/rulebook-engine@1a2b3c4` |
-| Dashboard | `<baseUrl>/` (the first stage), `<baseUrl>/stages/<slug>/`, `<baseUrl>/levels/<slug>/`, `<baseUrl>/rules/<id lowercased>/`, `<baseUrl>/setup/` (WP14, D54; the data is the Published manifest row); the site source is `site/` with `site/data/rulebook.json` gitignored | `https://contoso.github.io/rulebook/rules/al0432/` |
+| Dashboard | `<baseUrl>/` (the landing page, WP16 #139), `<baseUrl>/stages/<slug>/` (every stage, the first included), `<baseUrl>/levels/<slug>/`, `<baseUrl>/rules/<id lowercased>/`, `<baseUrl>/setup/` (WP14, D54; the data is the Published manifest row); the site source is `site/` with `site/data/rulebook.json` gitignored | `https://contoso.github.io/rulebook/rules/al0432/` |
 
 ### File classes for the update
 
