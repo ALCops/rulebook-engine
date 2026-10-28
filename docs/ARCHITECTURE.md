@@ -98,12 +98,12 @@ There are no majors: the engine's `v1` and the template's `main` only move forwa
 
 | Place | Carries | Why there |
 |---|---|---|
-| alcops.dev, `https://alcops.dev/docs/rulebook/<page>/` | The user documentation: every page of `template/docs/`, the generated level pages (D49), reference material, a glossary; the latest release only, each page with a note that links its `preview` text on GitHub. | Canonical: next to the analyzer pages, one copy to search and fix. |
+| alcops.dev, `https://alcops.dev/docs/rulebook/<page>/` | Target, once alcops.dev serves the pages: the user documentation: every page of `template/docs/`, the generated level pages (D49), reference material, a glossary; the latest release only, each page with a note that links its `preview` text on GitHub. | Canonical: next to the analyzer pages, one copy to search and fix. |
 | The organization's site | The in-context explanation: how it works, page leads, legend tooltips, the setup page, deep links from the `docs` map in `rulebook.json`. | Where the question comes up; only text that holds for every engine release, no documentation URL in a site file. |
 | The organization repository, `docs/` | A README pointing to alcops.dev and the site, and the organization's own text (house standard, approvers, exceptions); customizable (D50). | Only the organization knows it. |
 | The engine, `docs/` | Contributor documentation: architecture, decisions, reference, design, the level matrix. | Engine contributors. |
 
-Until alcops.dev serves the pages ([#105](https://github.com/ALCops/rulebook-engine/issues/105) carries the mechanics), `template/docs/` ships them in full and `Get-RulebookDocsUrl` targets them on GitHub at the template ref that matches the engine ref (D53). The repointing to alcops.dev is a change of that one function for the release refs; the site renders whatever targets the data file carries and never changes for it.
+Until alcops.dev serves the pages ([#105](https://github.com/ALCops/rulebook-engine/issues/105) carries the mechanics), `template/docs/` ships them in full and `Get-RulebookDocsUrl` targets them on GitHub at the template ref that matches the engine ref (D53). The repointing to alcops.dev changes that function for the release refs, the two self-contained scripts that copy its mapping (`scripts/Get-RulebookSkeletons.ps1`, `scripts/New-RulebookOffLevel.ps1`) and the CI assertion on the `preview` docs URL; the site renders whatever targets the data file carries and never changes for it.
 
 ## 4. Org rulebook repo layout
 
