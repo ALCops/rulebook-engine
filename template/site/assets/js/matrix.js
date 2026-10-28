@@ -142,7 +142,9 @@
   }
 
   function navigate(event, item) {
-    if (event.altKey || event.metaKey) return false;
+    // Shift, Alt, Meta and Ctrl with an arrow stay with the browser; Ctrl only goes with Home and End.
+    if (event.altKey || event.metaKey || event.shiftKey) return false;
+    if (event.ctrlKey && event.key !== 'Home' && event.key !== 'End') return false;
     var grid = item.closest('table[role="grid"]');
     if (!grid) return false;
     var rows = rowsOf(grid);
@@ -164,6 +166,7 @@
       default: return false;
     }
     var target = rows[r][Math.min(c, rows[r].length - 1)];
+    close();
     moveTabStop(grid, target);
     target.focus();
     return true;

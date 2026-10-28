@@ -1,5 +1,7 @@
-// The shell: the colour scheme toggle and the menu below 768 px. Without JavaScript the system setting decides the
-// colour scheme (the prefers-color-scheme block of site.css) and the navigation is shown in full.
+// The shell: the colour scheme toggle, the menu below 768 px and --header-h, the height of the sticky header that
+// the cart and the matrix container are placed against. The has-js class is set by the inline script of head.html.
+// Without JavaScript the system setting decides the colour scheme (the prefers-color-scheme block of site.css), the
+// navigation is shown in full and --header-h keeps its value of site.css.
 (function () {
   'use strict';
 
@@ -30,9 +32,24 @@
 
   var menu = document.querySelector('.menu-toggle');
   var nav = document.getElementById('site-nav');
+
+  // The header wraps (a long organization, many levels), so its height is measured, not assumed. The open menu is
+  // left out: it lies over the page, and its own height limit is the screen below the folded header.
+  var header = document.querySelector('.site-header');
+  if (header) {
+    var measure = function () {
+      if (nav && nav.classList.contains('is-open')) return;
+      html.style.setProperty('--header-h', header.offsetHeight + 'px');
+    };
+    measure();
+    if (window.ResizeObserver) { new ResizeObserver(measure).observe(header); } else { window.addEventListener('resize', measure); }
+    // The browser jumped to the anchor of the address before the height was known: jump again with the real one.
+    var target = null;
+    try { target = location.hash.length > 1 ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null; } catch (e) { /* not an id */ }
+    if (target) target.scrollIntoView();
+  }
+
   if (menu && nav) {
-    menu.hidden = false;
-    document.documentElement.classList.add('has-menu');
     menu.addEventListener('click', function () {
       var open = menu.getAttribute('aria-expanded') !== 'true';
       menu.setAttribute('aria-expanded', String(open));

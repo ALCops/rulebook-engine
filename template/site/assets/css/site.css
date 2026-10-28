@@ -1,6 +1,6 @@
 /* The dashboard site. Plain CSS, no framework. An organization adapts the look through the tokens below: the light
    set under :root, the dark set twice (the toggle's [data-theme=dark] and the system setting without a choice);
-   keep the two dark blocks equal, a site test compares them. Text pairs meet WCAG AA (4.5:1) in both sets. */
+   keep the two dark blocks equal, and the print block equal to :root; a site test compares them. Text pairs meet WCAG AA (4.5:1) in both sets. */
 
 :root {
   --bg: #ffffff;
@@ -30,6 +30,7 @@
   --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* The height of the sticky header; shell.js sets the measured value on :root, 3rem is the value without it. */
   --header-h: 3rem;
   color-scheme: light;
 }
@@ -99,7 +100,8 @@
 /* The hidden attribute wins over every display rule below: the filters, the cart and its buttons stay hidden until
    the scripts show them, also without JavaScript. */
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; }
+/* An anchor (#al-project, #levels, #stage-summary, the skip link) lands below the sticky header. */
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--header-h) + 0.5rem); }
 body { margin: 0; font: 14px/1.5 var(--font); color: var(--text); background: var(--bg); }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -120,11 +122,12 @@ button { font: inherit; color: inherit; }
 
 /* Header */
 .site-header { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 0.75rem 1.25rem; min-height: var(--header-h); padding: 0 1rem; background: var(--surface); border-bottom: 1px solid var(--line); }
-.brand { display: flex; align-items: center; gap: 0.5rem; color: var(--brand); white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: 0.5rem; min-width: 0; color: var(--brand); white-space: nowrap; }
 .brand:hover { text-decoration: none; }
 .brand .logo { height: 1.4rem; width: auto; }
 .brand-name { font-weight: 600; padding-left: 0.5rem; border-left: 1px solid var(--line-strong); }
-.brand-org { color: var(--muted); font-family: var(--mono); font-size: 0.85em; }
+.brand > * { flex: none; }
+.brand > .brand-org { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-family: var(--mono); font-size: 0.85em; }
 .brand-org::before { content: "/ "; color: var(--line-strong); }
 .site-nav { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 0.25rem 1.25rem; }
 .nav-group { display: flex; align-items: center; gap: 0.4rem; }
@@ -136,6 +139,7 @@ button { font: inherit; color: inherit; }
 .nav-tools { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
 .nav-tools > a { padding: 0.15rem 0.5rem; border-radius: 4px; color: var(--text); font-size: 0.85rem; }
 .nav-tools > a[aria-current="page"] { background: var(--surface-2); }
+.header-tools { display: flex; flex: none; align-items: center; gap: 0.5rem; }
 .theme-toggle, .menu-toggle, .cart-toggle { display: inline-flex; align-items: center; gap: 0.35rem; height: 1.85rem; padding: 0 0.5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer; font-size: 0.85rem; }
 .theme-toggle svg, .menu-toggle svg { width: 1rem; height: 1rem; }
 .cart-count { min-width: 1.25rem; padding: 0 0.3rem; border-radius: 1rem; background: var(--accent); color: var(--accent-text); font-size: 0.75rem; font-weight: 600; text-align: center; }
@@ -163,7 +167,8 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
 .facts dd { margin: 0; }
 
 /* Matrix: the grid scrolls inside its container; the header row and the rule column stay in place. */
-.matrix-scroll { max-height: calc(100vh - var(--header-h) - 2rem); overflow: auto; scroll-padding-top: 2rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+/* The scroll padding keeps a focused cell clear of the sticky header row and rule column. */
+.matrix-scroll { max-height: calc(100vh - var(--header-h) - 2rem); overflow: auto; scroll-padding: 2rem 0 0 14rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .matrix { width: 100%; }
 .matrix caption { padding: 0.5rem; text-align: left; color: var(--muted); font-size: 0.8rem; }
 .matrix-scroll thead th { position: sticky; top: 0; z-index: 2; }
@@ -219,14 +224,24 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
 .cart-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .cart-nochange { color: var(--muted); font-style: italic; }
 
-/* Below 768 px: the navigation folds behind the menu button (only with JavaScript; without it the navigation wraps). */
+/* Below 768 px: the navigation folds behind the menu button (only with JavaScript, class has-js; without it the
+   navigation wraps under the brand and the header does not stick, so it does not cover a third of the screen). The
+   theme toggle, the cart and the menu button stay beside the brand. */
 .menu-toggle { display: none; }
 @media (max-width: 767px) {
-  .site-header { flex-wrap: wrap; padding: 0.4rem 0.75rem; }
-  .has-menu .menu-toggle { display: inline-flex; margin-left: auto; }
-  .has-menu .site-nav { display: none; }
-  .site-nav { flex-basis: 100%; flex-direction: column; align-items: stretch; gap: 0.6rem; padding: 0.5rem 0 0.75rem; }
-  .has-menu .site-nav.is-open { display: flex; }
+  .site-header { position: static; flex-wrap: wrap; padding: 0.4rem 0.75rem; }
+  .has-js .site-header { position: sticky; }
+  /* The brand gives way (the organization is cut with an ellipsis) so the tools stay on its row. */
+  .site-header { column-gap: 0.5rem; }
+  .brand { flex: 1 1 0; gap: 0.4rem; }
+  .brand .logo { height: 1.1rem; }
+  .brand-name { padding-left: 0.4rem; }
+  .header-tools { margin-left: auto; gap: 0.3rem; }
+  .theme-toggle, .menu-toggle, .cart-toggle { padding: 0 0.4rem; }
+  .has-js .menu-toggle { display: inline-flex; }
+  .has-js .site-nav { display: none; }
+  .site-nav { order: 3; flex-basis: 100%; flex-direction: column; align-items: stretch; gap: 0.6rem; padding: 0.5rem 0 0.75rem; }
+  .has-js .site-nav.is-open { display: flex; max-height: calc(100vh - var(--header-h)); overflow-y: auto; }
   .nav-group { flex-direction: column; align-items: flex-start; }
   .site-nav ul { flex-wrap: wrap; }
   .nav-tools { margin-left: 0; flex-wrap: wrap; }
@@ -234,6 +249,7 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
   .facts { grid-template-columns: 1fr; }
   .facts dd { margin-bottom: 0.4rem; }
   .matrix th[scope="row"] { max-width: 9rem; }
+  .matrix-scroll { scroll-padding-left: 9rem; }
   .matrix th[scope="row"] .title { display: none; }
   .site-footer .powered { margin-left: 0; }
   table.endpoints, table.entries, table.counts { display: block; overflow-x: auto; }
@@ -241,7 +257,36 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
   table.endpoints code { white-space: nowrap; overflow-wrap: normal; }
 }
 
+/* Print in the light set whatever the screen shows: the same tokens as :root. */
 @media print {
+  :root:not([data-theme="light"]), :root[data-theme] {
+    --bg: #ffffff;
+    --surface: #f6f8fa;
+    --surface-2: #eef1f4;
+    --text: #1f2328;
+    --muted: #59636e;
+    --line: #d1d9e0;
+    --line-strong: #b7c0c9;
+    --accent: #0969da;
+    --accent-text: #ffffff;
+    --accent-soft: #ddf4ff;
+    --brand: #1f2328;
+    --error: #b3141f;
+    --error-bg: #ffebe9;
+    --warning: #7d5300;
+    --warning-bg: #fff4c2;
+    --info: #0757b5;
+    --info-bg: #ddf4ff;
+    --hidden: #4f5862;
+    --hidden-bg: #e8ecf0;
+    --none: #636c76;
+    --none-bg: transparent;
+    --override: #7340c9;
+    --quarantine: #a33f00;
+    --mark-text: #ffffff;
+    --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+    color-scheme: light;
+  }
   .site-header, .filters, .cart, .legend { display: none; }
   .matrix-scroll { max-height: none; overflow: visible; }
   .matrix-scroll thead th, .matrix th[scope="row"] { position: static; }

@@ -8,9 +8,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-{{- /* The theme choice before the first paint, so the other colour scheme never flashes. Without JavaScript the
-  system setting applies through the prefers-color-scheme block of site.css. */}}
-<script>try{var t=localStorage.getItem('rulebook-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}</script>
+{{- /* Before the first paint: the has-js class (the menu folds below 768 px without a flash of the full navigation)
+  and the theme choice, so the other colour scheme never flashes. Without JavaScript the navigation stays open and
+  the system setting applies through the prefers-color-scheme block of site.css. */}}
+<script>document.documentElement.classList.add('has-js');try{var t=localStorage.getItem('rulebook-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}</script>
 <title>{{ $title }}</title>
 <meta name="description" content="{{ $description }}">
 <meta property="og:title" content="{{ $title }}">
@@ -21,7 +22,7 @@
 <meta name="color-scheme" content="light dark">
 {{- /* The PNG for browsers without SVG icons; a browser that reads SVG takes the later SVG link. */}}
 <link rel="icon" href="{{ "favicon.png" | relURL }}" type="image/png" sizes="180x180">
-<link rel="icon" href="{{ "favicon.svg" | relURL }}" type="image/svg+xml">
+<link rel="icon" href="{{ "favicon.svg" | relURL }}" type="image/svg+xml" sizes="any">
 <link rel="apple-touch-icon" href="{{ "favicon.png" | relURL }}">
 {{- with resources.Get "css/site.css" }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">

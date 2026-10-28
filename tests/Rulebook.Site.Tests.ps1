@@ -608,14 +608,15 @@ Describe 'Build-RulebookSite' {
         $level = Get-Content -LiteralPath (Join-Path $staging 'levels' 'strict' 'index.html') -Raw
         $rule = Get-Content -LiteralPath (Join-Path $staging 'rules' 'lc0029' 'index.html') -Raw
         foreach ($text in $index, $ci, $level, $rule, $setup) {
-            $text | Should-MatchString '<script>try\{var t=localStorage\.getItem\(''rulebook-theme''\)'
+            $text | Should-MatchString '<script>document\.documentElement\.classList\.add\(''has-js''\);try\{var t=localStorage\.getItem\(''rulebook-theme''\)'
             foreach ($tag in 'name="description"', 'property="og:title"', 'property="og:description"', 'property="og:type" content="website"', 'property="og:url"', 'property="og:site_name" content="Rulebook \| contoso"', 'rel="icon" href="/rulebook/favicon\.png"', 'rel="icon" href="/rulebook/favicon\.svg"') { $text | Should-MatchString "<(meta|link) $tag" }
             $text | Should-MatchString '<a class="brand" href="/rulebook/"><svg class="logo"'
             $text | Should-MatchString '<span class="brand-name">Rulebook</span><span class="brand-org">contoso</span>'
             $text | Should-MatchString '<span class="nav-label" id="nav-stage">Stage</span><ul class="stage-switcher" aria-labelledby="nav-stage">'
             $text | Should-MatchString '<ul class="nav-levels" aria-labelledby="nav-level">'
             $text | Should-MatchString '<button type="button" class="theme-toggle" aria-pressed="false"'
-            $text | Should-MatchString '<button type="button" class="menu-toggle" aria-controls="site-nav" aria-expanded="false" hidden>'
+            # The toggle, the cart and the menu button sit outside the navigation, so they stay in view when it folds.
+            $text | Should-MatchString '</nav>\s*<div class="header-tools">\s*<button type="button" class="theme-toggle"[^\n]*\n\s*<button type="button" class="cart-toggle"[^\n]*\n\s*<button type="button" class="menu-toggle" aria-controls="site-nav" aria-expanded="false">'
             $text | Should-MatchString ([regex]::Escape('<button type="button" class="cart-toggle" aria-controls="cart" aria-expanded="false" hidden>Cart <span class="cart-count">0</span></button>'))
             $text | Should-MatchString '</h1>\n<p class="lead">[^<]+</p>'
             $text | Should-MatchString ([regex]::Escape('<span>Generated <time datetime="2026-10-17T00:00:00Z">2026-10-17T00:00:00Z</time></span>'))
@@ -646,7 +647,7 @@ Describe 'Build-RulebookSite' {
         $rule | Should-MatchString 'data-id="LC0029" data-level="essential" data-stage="default" [^>]*tabindex="0">'
     }
 
-    It 'ships equal dark token sets for the toggle and the system setting' {
+    It 'ships equal dark token sets for the toggle and the system setting, and the light set for print' {
         # site.css sets the dark tokens twice (D59): [data-theme="dark"] for the toggle and a prefers-color-scheme block
         # for the system setting without JavaScript. The two must stay the same, line for line.
         $css = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'template' 'site' 'assets' 'css' 'site.css')).Replace("`r`n", "`n")
@@ -659,5 +660,9 @@ Describe 'Build-RulebookSite' {
         $light = [regex]::Match($css, '(?ms)^:root \{\n(.*?)^\}').Groups[1].Value
         $names = { param($Text) , [string[]]@([regex]::Matches($Text, '(?m)^\s*(--[a-z0-9-]+):') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -notin '--font', '--mono', '--header-h' }) }
         Should-BeCollection -Actual (& $names $toggle) -Expected (& $names $light)
+        # Print uses the light set, line for line, whatever the screen shows.
+        $print = [regex]::Match($css, '(?ms)^@media print \{\n  :root:not\(\[data-theme="light"\]\), :root\[data-theme\] \{\n(.*?)^  \}').Groups[1].Value
+        $colours = { param($Text) , [string[]]@((& $lines $Text) -match '^--' -notmatch '^--(font|mono|header-h):') }
+        Should-BeCollection -Actual (& $colours $print) -Expected (& $colours $light)
     }
 }
