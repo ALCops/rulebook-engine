@@ -1,7 +1,28 @@
+{{- $data := hugo.Data.rulebook -}}
+{{- $org := index (split (or $data.repository "") "/") 0 -}}
+{{- $description := .Description -}}
+{{- if not $description }}
+  {{- $section := index (split (strings.TrimPrefix "/" .Path) "/") 0 }}
+  {{- if eq $section "stages" }}{{ $description = (index $data.stages .Params.item).description }}
+  {{- else if eq $section "levels" }}{{ $description = (index $data.levels .Params.item).description }}
+  {{- else if eq $section "rules" }}{{ $description = printf "The action of %s on every level and stage of this rulebook." .Title }}
+  {{- else }}{{ $description = "How an AL project uses the rulesets of this rulebook." }}{{ end }}
+{{- end }}
+{{- $title := cond .IsHome (printf "%s %s" site.Title $org) (printf "%s | %s" .Title site.Title) }}
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+{{- /* The theme choice before the first paint: no flash of the other colour scheme. Without JavaScript the system
+  setting applies through the prefers-color-scheme block of site.css. */}}
+<script>try{var t=localStorage.getItem('rulebook-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}</script>
+<title>{{ $title }}</title>
+<meta name="description" content="{{ $description }}">
+<meta property="og:title" content="{{ $title }}">
+<meta property="og:description" content="{{ $description }}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:site_name" content="{{ site.Title }} {{ $org }}">
+<meta name="color-scheme" content="light dark">
 {{- with resources.Get "css/site.css" }}
 <link rel="stylesheet" href="{{ .RelPermalink }}">
 {{- end }}
