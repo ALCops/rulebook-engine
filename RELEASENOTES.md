@@ -3,6 +3,7 @@
 ## v1.0.0-beta.8
 
 - Documentation strategy (D58): alcops.dev is to become the canonical home of the user documentation, the published site will explain itself and link there, and an organization's `docs/` will keep a README and its own text; nothing moves yet: `docs/` ships every page as today, the README says where the pages are going, and every link keeps opening them on GitHub ([#145](https://github.com/ALCops/rulebook-engine/pull/145))
+- Site shell decision (D59): the redesigned site will be built on its own CSS and a small script, without a vendored Hugo theme; a spike that built the shell twice, on own CSS and on Hextra, is recorded with its screenshots; nothing changes in `site/` yet ([#146](https://github.com/ALCops/rulebook-engine/pull/146))
 
 ## v1.0.0-beta.7
 

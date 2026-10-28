@@ -67,6 +67,8 @@ Alternatives considered and why they lost, in one table (the detail is in D31 an
 | Hand-off: the page renders the JSON and the user pastes it into GitHub's editor | Zero automation; stays as the fallback when a cart exceeds the URL limit. |
 | Plain static HTML without a generator | Works, but Hugo renders the 628-row grid and one page per rule at build time, so the JavaScript stays small, and the publish action already runs on a runner where installing Hugo costs nothing for the organization. |
 
+The shell of the site (header, dark mode, mobile menu, footer, design tokens) is own CSS and a small script in `site/`, not a vendored Hugo theme ([D59](adr/0059-the-site-shell-is-own-css-and-no-vendored-theme.md)). A spike built the shell twice, on own CSS and on a vendored Hextra; the [spike record](reference/spikes/wp16-shell/README.md) has the comparison.
+
 ## 4. Site
 
 > **Status:** implemented by WP14 ([#16](https://github.com/ALCops/rulebook-engine/issues/16), [D54](adr/0054-the-site-renders-one-page-per-stage-and-the-engine-exports-the-fallback-action.md)). Code: `template/site/`, `Install-Hugo` and `Build-RulebookSite` of `modules/Rulebook.Site.psm1`, the site step of `actions/Publish/Publish.ps1`.
