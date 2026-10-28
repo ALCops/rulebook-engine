@@ -32,13 +32,14 @@
 
   var menu = document.querySelector('.menu-toggle');
   var nav = document.getElementById('site-nav');
+  var narrow = window.matchMedia('(max-width: 767px)');
 
-  // The header wraps (a long organization, many levels), so its height is measured, not assumed. The open menu is
-  // left out: it lies over the page, and its own height limit is the screen below the folded header.
+  // The header wraps (a long organization, many levels), so its height is measured, not assumed. The open menu below
+  // 768 px is left out: it lies over the page, and its own height limit is the screen below the folded header.
   var header = document.querySelector('.site-header');
   if (header) {
     var measure = function () {
-      if (nav && nav.classList.contains('is-open')) return;
+      if (nav && nav.classList.contains('is-open') && narrow.matches) return;
       html.style.setProperty('--header-h', header.offsetHeight + 'px');
     };
     measure();
@@ -50,6 +51,13 @@
   }
 
   if (menu && nav) {
+    // Wider than 768 px the navigation is always shown: an open menu closes, so the header is measured again.
+    narrow.addEventListener('change', function () {
+      if (!narrow.matches && nav.classList.contains('is-open')) {
+        menu.setAttribute('aria-expanded', 'false');
+        nav.classList.remove('is-open');
+      }
+    });
     menu.addEventListener('click', function () {
       var open = menu.getAttribute('aria-expanded') !== 'true';
       menu.setAttribute('aria-expanded', String(open));

@@ -121,7 +121,7 @@ h1 .title, th .title { color: var(--muted); font-weight: normal; }
 button { font: inherit; color: inherit; }
 
 /* Header */
-.site-header { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 0.75rem 1.25rem; min-height: var(--header-h); padding: 0 1rem; background: var(--surface); border-bottom: 1px solid var(--line); }
+.site-header { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 0.75rem 1.25rem; min-height: 3rem; padding: 0 1rem; background: var(--surface); border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 0.5rem; min-width: 0; color: var(--brand); white-space: nowrap; }
 .brand:hover { text-decoration: none; }
 .brand .logo { height: 1.4rem; width: auto; }
@@ -241,7 +241,9 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
   .has-js .menu-toggle { display: inline-flex; }
   .has-js .site-nav { display: none; }
   .site-nav { order: 3; flex-basis: 100%; flex-direction: column; align-items: stretch; gap: 0.6rem; padding: 0.5rem 0 0.75rem; }
-  .has-js .site-nav.is-open { display: flex; max-height: calc(100vh - var(--header-h)); overflow-y: auto; }
+  .has-js .site-nav.is-open { display: flex; max-height: calc(100vh - var(--header-h)); max-height: calc(100dvh - var(--header-h)); overflow-y: auto; }
+  /* Without JavaScript the header does not stick, so an anchor needs no room for it. */
+  html:not(.has-js) { scroll-padding-top: 0.5rem; }
   .nav-group { flex-direction: column; align-items: flex-start; }
   .site-nav ul { flex-wrap: wrap; }
   .nav-tools { margin-left: 0; flex-wrap: wrap; }
