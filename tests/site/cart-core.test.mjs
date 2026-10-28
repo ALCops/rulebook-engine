@@ -222,6 +222,25 @@ test('issueUrl encodes the change set and the note, and leaves out an empty note
   assert.equal(core.emptyFormUrl(repository, template), 'https://github.com/contoso/rulebook/issues/new?template=rulebook-change.yml');
 });
 
+test('a multi-line justification and note arrive in the issue form unchanged and count in the bytes (#140)', () => {
+  // The drawer's textareas take several lines: a line end in the justification travels as \n inside the JSON of the
+  // changes field, one in the note as %0A; reading the form back gives the text as typed, CRLF included.
+  const justification = 'First line\nSecond line, & more';
+  const note = 'Why:\r\nthe house style';
+  const cart = core.setNote(core.addChange(core.emptyCart(), set('LC0015', 'None', ['strict'], ['ci'], justification)), note);
+  const url = core.issueUrl(repository, template, cart);
+  const params = new URL(url).searchParams;
+  assert.equal(JSON.parse(params.get('changes')).changes[0].justification, justification);
+  assert.equal(JSON.parse(params.get('changes')).note, note);
+  assert.equal(params.get('note'), note);
+  assert.ok(url.includes('%5Cn'), 'the line end of the justification is the JSON escape \\n');
+  assert.ok(url.endsWith('&note=Why%3A%0D%0Athe%20house%20style'));
+  const single = core.setNote(core.addChange(core.emptyCart(), set('LC0015', 'None', ['strict'], ['ci'], 'First lineSecond line, & more')), 'Why:the house style');
+  // The meter counts every line end: the justification's in the changes field (%5Cn), the note's in the changes field
+  // (%5Cr%5Cn) and in the note field (%0D%0A).
+  assert.equal(core.fits(url).bytes - core.fits(core.issueUrl(repository, template, single)).bytes, '%5Cn'.length + '%5Cr%5Cn'.length + '%0D%0A'.length);
+});
+
 test('byteLength counts UTF-8 bytes and fits flips at 7372 bytes', () => {
   assert.equal(core.byteLength('é'), 2);
   assert.equal(core.byteLength('abc'), 3);
