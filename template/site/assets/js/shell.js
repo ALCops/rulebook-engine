@@ -1,7 +1,8 @@
-// The shell: the colour scheme toggle, the menu below 768 px and --header-h, the height of the sticky header that
-// the cart and the matrix container are placed against. The has-js class is set by the inline script of head.html.
+// The shell: the colour scheme toggle, the menu below 768 px, --header-h (the height of the sticky header that the
+// cart and the matrix container are placed against) and the copy buttons of the setup page. The has-js class is set
+// by the inline script of head.html.
 // Without JavaScript the system setting decides the colour scheme (the prefers-color-scheme block of site.css), the
-// navigation is shown in full and --header-h keeps its value of site.css.
+// navigation is shown in full, --header-h keeps its value of site.css and the copy buttons stay hidden.
 (function () {
   'use strict';
 
@@ -71,4 +72,71 @@
       }
     });
   }
+
+  // Copy buttons: data-copy holds the text, data-copy-target the selector of the element whose text is copied. The
+  // Clipboard API where the page may use it, else a selected textarea and execCommand. The button says "Copied" (or
+  // "Copy failed") and the one live region p.copy-status announces it; both reset after two seconds.
+  var status = document.querySelector('.copy-status');
+  var copyButtons = document.querySelectorAll('button[data-copy], button[data-copy-target]');
+  var resetTimer = null;
+
+  function copyByTextarea(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '0';
+    area.style.left = '-9999px';
+    document.body.appendChild(area);
+    var focused = document.activeElement;
+    area.select();
+    area.setSelectionRange(0, text.length);
+    var done = false;
+    try { done = document.execCommand('copy'); } catch (e) { done = false; }
+    document.body.removeChild(area);
+    if (focused && focused.focus) focused.focus();
+    return done;
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).then(
+        function () { return true; },
+        function () { return copyByTextarea(text); });
+    }
+    return Promise.resolve(copyByTextarea(text));
+  }
+
+  function report(button, done) {
+    var message = done ? 'Copied' : 'Copy failed: select the text and copy it';
+    copyButtons.forEach(function (other) { other.textContent = other.dataset.label; });
+    button.textContent = done ? 'Copied' : 'Copy failed';
+    // Emptied first and written a moment later, so a second click announces the message again.
+    if (status) {
+      status.textContent = '';
+      setTimeout(function () { status.textContent = message; }, 50);
+    }
+    if (resetTimer) clearTimeout(resetTimer);
+    resetTimer = setTimeout(function () {
+      button.textContent = button.dataset.label;
+      if (status) status.textContent = '';
+      resetTimer = null;
+    }, 2000);
+  }
+
+  copyButtons.forEach(function (button) {
+    button.dataset.label = button.textContent;
+    button.hidden = false;
+    button.addEventListener('click', function () {
+      var text = button.getAttribute('data-copy');
+      if (text === null) {
+        var target = null;
+        try { target = document.querySelector(button.getAttribute('data-copy-target')); } catch (e) { /* not a selector */ }
+        // A target that is not on the page is a failure, never an empty clipboard.
+        if (!target) { report(button, false); return; }
+        text = target.textContent;
+      }
+      copyText(text).then(function (done) { report(button, done); });
+    });
+  });
 })();

@@ -636,8 +636,42 @@ Describe 'Build-RulebookSite' {
         $setup | Should-MatchString ([regex]::Escape('Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1'))
         $setup | Should-MatchString ([regex]::Escape('./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level essential -Ref main'))
         $setup | Should-MatchString ([regex]::Escape('<a href="https://github.com/ALCops/rulebook/blob/preview/docs/al-project.md">docs/al-project.md</a>'))
-        $setup | Should-MatchString ([regex]::Escape('<a href="https://contoso.github.io/rulebook/rulesets/strict.ruleset.json"><code>https://contoso.github.io/rulebook/rulesets/strict.ruleset.json</code></a></td><td class="count">9</td><td><a href="https://contoso.github.io/rulebook/skeletons/strict.default.ruleset.json"'))
+        $setup | Should-MatchString ([regex]::Escape('<a href="https://contoso.github.io/rulebook/rulesets/strict.ruleset.json"><code>https://contoso.github.io/rulebook/rulesets/strict.ruleset.json</code></a> <button type="button" class="copy-button" data-copy="https://contoso.github.io/rulebook/rulesets/strict.ruleset.json" aria-label="Copy endpoint https://contoso.github.io/rulebook/rulesets/strict.ruleset.json" hidden>Copy</button></td><td class="count">9</td><td><a class="button download" href="https://contoso.github.io/rulebook/skeletons/strict.default.ruleset.json" download="strict.default.ruleset.json">strict.default.ruleset.json</a></td>'))
         $setup | Should-MatchString ([regex]::Escape('href="https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json"'))
+        # The copy and download buttons (#141): one block per level, the first open, with the two commands of the init
+        # script (one button copies both, by the id of their code element) and the two settings lines; a copy button
+        # beside every endpoint and the rulebook.json URL; a download link per skeleton; one live region. Every copy
+        # button is hidden until shell.js shows it.
+        $levelBlocks = [regex]::Matches($setup, '<details class="level-setup" id="setup-([a-z0-9-]+)"( open)?>')
+        Should-BeCollection -Actual ([string[]]@($levelBlocks | ForEach-Object { $_.Groups[1].Value })) -Expected @('essential', 'recommended', 'strict', 'complete')
+        Should-BeCollection -Actual ([string[]]@($levelBlocks | ForEach-Object { $_.Groups[2].Value })) -Expected @(' open', '', '', '')
+        # Each button names what it copies (aria-label), so 25 buttons are not 25 times "Copy" to a screen reader.
+        foreach ($level in @(@('essential', 'Essential'), @('recommended', 'Recommended'), @('strict', 'Strict'), @('complete', 'Complete'))) {
+            $slug, $name = $level
+            $setup | Should-MatchString ([regex]::Escape("<pre><code id=`"init-$slug`">Invoke-WebRequest https://raw.githubusercontent.com/ALCops/rulebook-engine/main/scripts/Get-RulebookSkeletons.ps1 -OutFile Get-RulebookSkeletons.ps1`n./Get-RulebookSkeletons.ps1 -BaseUrl https://contoso.github.io/rulebook -Level $slug -Ref main</code></pre>`n  <button type=`"button`" class=`"copy-button`" data-copy-target=`"#init-$slug`" aria-label=`"Copy the init commands of $name`" hidden>Copy</button>"))
+            $setup | Should-MatchString ([regex]::Escape("<code>&#34;al.ruleSetPath&#34;: &#34;.rulebook/default.ruleset.json&#34;</code> <button type=`"button`" class=`"copy-button`" data-copy=`"&#34;al.ruleSetPath&#34;: &#34;.rulebook/default.ruleset.json&#34;`" aria-label=`"Copy the al.ruleSetPath line of $name`" hidden>Copy</button>"))
+            $setup | Should-MatchString ([regex]::Escape("<code>&#34;rulesetFile&#34;: &#34;.rulebook/ci.ruleset.json&#34;</code> <button type=`"button`" class=`"copy-button`" data-copy=`"&#34;rulesetFile&#34;: &#34;.rulebook/ci.ruleset.json&#34;`" aria-label=`"Copy the rulesetFile line of $name`" hidden>Copy</button>"))
+        }
+        $setup | Should-MatchString ([regex]::Escape('<code>https://contoso.github.io/rulebook/rulebook.json</code></a> <button type="button" class="copy-button" data-copy="https://contoso.github.io/rulebook/rulebook.json" aria-label="Copy the rulebook.json URL" hidden>Copy</button>'))
+        # Every URL, path and command shown in code has its copy button: 4 init blocks, 8 settings lines, the
+        # rulebook.json URL and 12 endpoints; every copy button is hidden without JavaScript.
+        $copyButtons = [regex]::Matches($setup, '<button type="button" class="copy-button" (data-copy="[^"]+"|data-copy-target="#init-[a-z0-9-]+") aria-label="Copy [^"]+" hidden>Copy</button>')
+        $copyButtons.Count | Should-Be 25
+        ([regex]::Matches($setup, '<button[^>]*data-copy')).Count | Should-Be 25
+        $endpoints = [regex]::Matches($setup, '<a href="(https://contoso\.github\.io/rulebook/rulesets/[a-z0-9.-]+)"><code>')
+        $endpoints.Count | Should-Be 12
+        foreach ($endpoint in $endpoints) {
+            $url = $endpoint.Groups[1].Value
+            $setup | Should-MatchString ([regex]::Escape("<code>$url</code></a> <button type=`"button`" class=`"copy-button`" data-copy=`"$url`" aria-label=`"Copy endpoint $url`" hidden>Copy</button>"))
+        }
+        # The endpoint tables scroll inside .table-wrap, so the table keeps its table semantics.
+        ([regex]::Matches($setup, '<div class="table-wrap">\n<table class="endpoints">')).Count | Should-Be 3
+        $skeletonLinks = [regex]::Matches($setup, '<a class="button download" href="https://contoso\.github\.io/rulebook/skeletons/([a-z0-9.-]+)" download="([a-z0-9.-]+)">([a-z0-9.-]+)</a>')
+        $skeletonLinks.Count | Should-Be 12
+        foreach ($link in $skeletonLinks) { $link.Groups[2].Value | Should-Be $link.Groups[1].Value; $link.Groups[3].Value | Should-Be $link.Groups[1].Value }
+        ([regex]::Matches($setup, '/skeletons/')).Count | Should-Be 12
+        ([regex]::Matches($setup, 'class="copy-status')).Count | Should-Be 1
+        $setup | Should-MatchString ([regex]::Escape('<p class="copy-status sr-only" aria-live="polite"></p>'))
         $index | Should-MatchString ([regex]::Escape('<a class="nav-setup" href="/rulebook/setup/">Set up</a>'))
         $default | Should-MatchString ([regex]::Escape('<a href="/rulebook/setup/#al-project">Set up an AL project</a>'))
         # The setup anchors the three steps of the landing page link to.

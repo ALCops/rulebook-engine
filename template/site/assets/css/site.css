@@ -181,6 +181,24 @@ button { font: inherit; color: inherit; }
 .card-kicker { color: var(--muted); font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .card-text { color: var(--muted); font-size: 0.85rem; }
 
+/* Setup: one block per level (the first open), copy buttons beside every command, path and URL (shell.js shows and
+   binds them; hidden without JavaScript), the skeletons as download links styled as buttons, the endpoint tables in
+   a .table-wrap that scrolls. The live region that announces "Copied" is .sr-only; the button itself says it. */
+.level-setup { margin: 0 0 0.5rem; max-width: 60rem; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.level-setup[open] { padding-bottom: 0.75rem; }
+.level-setup summary { cursor: pointer; }
+.level-setup .summary-text { color: var(--muted); }
+.level-setup p { margin: 0.5rem 0; }
+.copy-block { position: relative; }
+.copy-block pre { margin: 0; padding-right: 6.5rem; }
+.copy-block .copy-button { position: absolute; top: 0.4rem; right: 0.4rem; min-width: 5.5rem; }
+.copy-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; }
+.copy-line > span { color: var(--muted); }
+.copy-button { padding: 0.05rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.75rem; line-height: 1.4; white-space: nowrap; }
+.copy-button:hover { border-color: var(--accent); }
+table.endpoints td { white-space: nowrap; }
+.button.download { padding: 0.05rem 0.5rem; border-radius: 4px; font-family: var(--mono); font-size: 0.75rem; font-weight: normal; }
+
 /* Filters */
 .filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem 0.75rem; margin: 0.75rem 0; }
 .filters label { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.75rem; color: var(--muted); }
@@ -309,7 +327,7 @@ body.is-open { overflow: hidden; }
   .matrix-scroll { scroll-padding-left: 9rem; }
   .matrix th[scope="row"] .title { display: none; }
   .site-footer .powered { margin-left: 0; }
-  table.endpoints, table.entries, table.counts { display: block; overflow-x: auto; }
+  table.entries, table.counts { display: block; overflow-x: auto; }
   /* An endpoint URL stays on one line; the table scrolls inside itself instead of breaking the URL per letter. */
   table.endpoints code { white-space: nowrap; overflow-wrap: normal; }
   /* The cart drawer takes the full width below the header. */
@@ -347,7 +365,7 @@ body.is-open { overflow: hidden; }
     --scrim: rgba(31, 35, 40, 0.35);
     color-scheme: light;
   }
-  .site-header, .filters, .cart, .cart-overlay, .legend { display: none; }
+  .site-header, .filters, .cart, .cart-overlay, .legend, .copy-button { display: none; }
   body.is-open { overflow: visible; }
   .matrix-scroll { max-height: none; overflow: visible; }
   .matrix-scroll thead th, .matrix th[scope="row"] { position: static; }
