@@ -317,8 +317,9 @@ Describe 'Convert-DeployReference and Update-DeployReference' {
 
     It 'names no ALCops URL and no branch in the site files, which the rewrite does not reach (.js, .mjs, .css, .gotmpl)' {
         # The site reads docsUrl and repository from data/rulebook.json; data/, public/ and resources/ are build output.
+        # A binary file (static/favicon.png) is no text the pattern can read.
         $siteDir = Join-Path $repoRoot 'template' 'site'
-        $files = @(Get-ChildItem -LiteralPath $siteDir -Recurse -File -Force | Where-Object { [System.IO.Path]::GetRelativePath($siteDir, $_.FullName).Replace('\', '/') -notmatch '^(data|public|resources)/' })
+        $files = @(Get-ChildItem -LiteralPath $siteDir -Recurse -File -Force | Where-Object { [System.IO.Path]::GetRelativePath($siteDir, $_.FullName).Replace('\', '/') -notmatch '^(data|public|resources)/' -and $_.Extension -ne '.png' })
         $files.Count | Should-BeGreaterThan 20
         $hits = foreach ($file in $files) {
             $number = 0

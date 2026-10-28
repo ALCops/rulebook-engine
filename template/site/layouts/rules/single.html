@@ -2,6 +2,7 @@
 {{- $data := hugo.Data.rulebook -}}
 {{- $rule := index $data.rules .Params.item -}}
 <h1>{{ $rule.id }}{{ with $rule.title }} <span class="title">{{ . }}</span>{{ end }}</h1>
+<p class="lead">The action of {{ $rule.id }} on every level and stage of this rulebook, and the input that decided it.</p>
 <dl class="facts">
   <dt>Analyzer</dt><dd>{{ $rule.analyzer }}</dd>
   {{- if $rule.unknown }}
@@ -26,12 +27,12 @@
 {{- end }}
 <h2>Every endpoint</h2>
 <div class="table-wrap" data-rulebook-rule="{{ $rule.id }}">
-<table class="matrix rule-matrix">
+<table class="matrix rule-matrix" role="grid">
   <thead><tr><th scope="col">Level</th>{{ range $data.stages }}<th scope="col"><a href="{{ printf "stages/%s/" .slug | relURL }}">{{ .name }}</a></th>{{ end }}</tr></thead>
   <tbody>
-  {{- range $level := $data.levels }}
+  {{- range $l, $level := $data.levels }}
   <tr data-id="{{ $rule.id }}"><th scope="row"><a href="{{ printf "levels/%s/" $level.slug | relURL }}">{{ $level.name }}</a></th>
-    {{- range $stage := $data.stages }}{{ partial "cell.html" (dict "rule" $rule "level" $level "stage" $stage) }}{{ end }}</tr>
+    {{- range $s, $stage := $data.stages }}{{ partial "cell.html" (dict "rule" $rule "level" $level "stage" $stage "first" (and (eq $l 0) (eq $s 0))) }}{{ end }}</tr>
   {{- end }}
   </tbody>
 </table>

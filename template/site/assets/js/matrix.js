@@ -1,5 +1,5 @@
-// The matrix pages: filters in the URL hash, the row counter, the stage links that keep the filters, and the
-// popover of a cell. A choice in the popover (or a Release button of the stage page) is sent as the event
+// The matrix pages: filters in the URL hash, the row counter, the stage links that keep the filters, the keyboard
+// route through a grid (one Tab stop, the arrow keys move between the cells, #113) and the popover of a cell. A choice in the popover (or a Release button of the stage page) is sent as the event
 // "rulebook:choose" with { id, level, stage, action }, action being one of the five actions, 'reset' or 'release';
 // cart.mjs listens for it. Without JavaScript the pages show the full grid and nothing here is needed.
 (function () {
@@ -68,6 +68,7 @@
       if (visible) { shown++; groupShown = true; }
     }
     if (group) group.hidden = !groupShown;
+    keepTabStop(root.querySelector('table[role="grid"]'));
     var counter = form && form.querySelector('.row-count');
     if (counter) counter.textContent = shown === total ? total + ' rules' : shown + ' of ' + total + ' rules';
   }
@@ -110,6 +111,63 @@
     apply(initial);
   }
 
+  // The keyboard route: a grid (table[role=grid]) has one cell with tabindex 0, the Tab stop; the arrow keys move it
+  // within the rows the filters show, Home and End to the ends of a row, Ctrl+Home and Ctrl+End to the first and the
+  // last cell of the grid. Without JavaScript the first cell is the only one in the tab order.
+  function rowsOf(grid) {
+    var rows = [];
+    var all = grid.querySelectorAll('tbody tr');
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].hidden) continue;
+      var cells = all[i].querySelectorAll('td[data-level]');
+      if (cells.length) rows.push(Array.prototype.slice.call(cells));
+    }
+    return rows;
+  }
+
+  function moveTabStop(grid, cell) {
+    var current = grid.querySelectorAll('td[tabindex="0"]');
+    for (var i = 0; i < current.length; i++) { if (current[i] !== cell) current[i].tabIndex = -1; }
+    if (cell) cell.tabIndex = 0;
+  }
+
+  // After filtering: the Tab stop moves to the first shown cell when its row is hidden.
+  function keepTabStop(grid) {
+    if (!grid) return;
+    var stop = grid.querySelector('td[tabindex="0"]');
+    if (stop && !stop.closest('tr').hidden) return;
+    var rows = rowsOf(grid);
+    moveTabStop(grid, rows.length ? rows[0][0] : null);
+  }
+
+  function navigate(event, cell) {
+    if (event.altKey || event.metaKey) return false;
+    var grid = cell.closest('table[role="grid"]');
+    if (!grid) return false;
+    var rows = rowsOf(grid);
+    var r = -1;
+    var c = -1;
+    for (var i = 0; i < rows.length && r < 0; i++) {
+      c = rows[i].indexOf(cell);
+      if (c >= 0) r = i;
+    }
+    if (r < 0) return false;
+    var last = rows.length - 1;
+    switch (event.key) {
+      case 'ArrowUp': r = Math.max(0, r - 1); break;
+      case 'ArrowDown': r = Math.min(last, r + 1); break;
+      case 'ArrowLeft': c = Math.max(0, c - 1); break;
+      case 'ArrowRight': c = Math.min(rows[r].length - 1, c + 1); break;
+      case 'Home': if (event.ctrlKey) r = 0; c = 0; break;
+      case 'End': if (event.ctrlKey) r = last; c = rows[r].length - 1; break;
+      default: return false;
+    }
+    var target = rows[r][Math.min(c, rows[r].length - 1)];
+    moveTabStop(grid, target);
+    target.focus();
+    return true;
+  }
+
   // The popover of a cell.
   var template = document.getElementById('cell-popover');
   var open = null;
@@ -150,13 +208,20 @@
   if (template) {
     document.addEventListener('click', function (event) {
       var cell = event.target.closest('td[data-level]');
-      if (cell) { show(cell); return; }
+      if (cell) {
+        var grid = cell.closest('table[role="grid"]');
+        if (grid) moveTabStop(grid, cell);
+        show(cell);
+        return;
+      }
       if (open && !open.popover.contains(event.target)) close();
     });
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') { close(true); return; }
       var cell = event.target.closest && event.target.closest('td[data-level]');
-      if (cell && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); show(cell); }
+      if (!cell) return;
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); show(cell); return; }
+      if (navigate(event, cell)) event.preventDefault();
     });
   }
 

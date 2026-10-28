@@ -6,6 +6,7 @@
 {{- $base := $data.baseUrl -}}
 {{- $first := index $data.levels 0 -}}
 <h1 id="al-project">Set up an AL project</h1>
+<p class="lead">Point an AL project at a ruleset of this rulebook: one file per stage, downloaded once, kept up to date by the URL it includes.</p>
 <p>An AL project keeps one file per stage in <code>.rulebook/</code>: the skeleton of its level, which includes the endpoint, with the project exceptions in its <code>rules</code>. The init script downloads the files of a level, for example:</p>
 <pre><code>Invoke-WebRequest {{ $data.initScriptUrl }} -OutFile Get-RulebookSkeletons.ps1
 ./Get-RulebookSkeletons.ps1 -BaseUrl {{ $base }} -Level {{ $first.slug }} -Ref {{ $data.engineRef }}</code></pre>

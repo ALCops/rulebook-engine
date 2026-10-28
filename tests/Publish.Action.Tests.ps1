@@ -168,8 +168,9 @@ Describe 'Publish.ps1 -Phase Stage' {
         $run.Result.ExitCode | Should-Be 0
         $run.Result.BaseUrl | Should-Be 'https://contoso.github.io/rulebook'
         $run.Result.Preflight | Should-BeNull
-        # 12 endpoints, 12 skeletons, rulebook.json, the catalog, index.html; 3 stage, 4 level and 628 rule pages; 4 assets.
-        @(Get-ChildItem -LiteralPath $run.Result.StagingPath -Recurse -File).Count | Should-Be 667
+        # 12 endpoints, 12 skeletons, rulebook.json, the catalog, index.html; 3 stage, 4 level and 628 rule pages; the 5
+        # assets of the Hugo stand-in (it writes no favicon).
+        @(Get-ChildItem -LiteralPath $run.Result.StagingPath -Recurse -File).Count | Should-Be 668
         Test-Path -LiteralPath $run.Result.ManifestPath -PathType Leaf | Should-BeTrue
         @(Get-Content -LiteralPath $run.Result.ManifestPath -Raw | ConvertFrom-Json).Count | Should-Be 36
         $outputs = Get-Content -LiteralPath $outputFile -Raw
