@@ -1,10 +1,8 @@
-{{- /* Links, not tabs: one page per stage. "/" renders the first stage, so its link points there; matrix.js
-  appends the filters (the URL hash) to every link. */ -}}
+{{- /* Links, not tabs: one page per stage, the first one too ("/" is the landing page). A stage page marks its own
+  link; matrix.js appends the filters (the URL hash) to every link. */ -}}
 <ul class="stage-switcher" aria-labelledby="nav-stage">
-  {{- range $i, $stage := .data.stages }}
-  {{- $own := printf "stages/%s/" $stage.slug | relURL }}
-  {{- $href := cond (eq $i 0) ("" | relURL) $own }}
-  {{- $current := or (eq $own $.page.RelPermalink) (and (eq $i 0) $.page.IsHome) }}
-  <li><a href="{{ $href }}" data-stage-link="{{ $stage.slug }}"{{ if $current }} aria-current="page"{{ end }}>{{ $stage.name }}</a></li>
+  {{- range $stage := .data.stages }}
+  {{- $href := printf "stages/%s/" $stage.slug | relURL }}
+  <li><a href="{{ $href }}" data-stage-link="{{ $stage.slug }}"{{ if eq $href $.page.RelPermalink }} aria-current="page"{{ end }}>{{ $stage.name }}</a></li>
   {{- end }}
 </ul>

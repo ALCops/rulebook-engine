@@ -1,8 +1,11 @@
 {{- with resources.Get "js/shell.js" }}
 <script src="{{ .RelPermalink }}" defer></script>
 {{- end }}
+{{- /* The landing page has no grid, so matrix.js is not loaded there. */}}
+{{- if not .IsHome }}
 {{- with resources.Get "js/matrix.js" }}
 <script src="{{ .RelPermalink }}" defer></script>
+{{- end }}
 {{- end }}
 {{- with resources.Get "js/cart-core.mjs" }}{{ $_ := .Publish }}{{ end }}
 {{- with resources.Get "js/cart.mjs" }}
