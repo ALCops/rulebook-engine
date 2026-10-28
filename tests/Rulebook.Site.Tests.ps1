@@ -512,7 +512,12 @@ Describe 'Build-RulebookSite' {
         $result = Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination $staging -HugoPath $stub
         Get-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Raw | Should-Be '{}'
         Get-Content -LiteralPath (Join-Path $staging 'catalog' 'diagnostics.json') -Raw | Should-Be '{}'
-        Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw | Should-MatchString 'data-rulebook-matrix="default"'
+        # "/" is the landing page; the marker of the first stage's grid is on stages/<first>/ (#139).
+        $index = Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw
+        $index | Should-MatchString 'data-rulebook-landing'
+        $index | Should-NotMatchString 'data-rulebook-matrix'
+        Get-Content -LiteralPath (Join-Path $staging 'stages' 'default' 'index.html') -Raw | Should-MatchString 'data-rulebook-matrix="default"'
+        $result.MarkerPage | Should-Be 'stages/default/index.html'
         $result.MarkerPresent | Should-BeTrue
         $result.PageCount | Should-Be 39
         $result.Pages[0] | Should-Be 'index.html'
@@ -521,9 +526,22 @@ Describe 'Build-RulebookSite' {
         $result.Output | Should-ContainCollection @('Start building sites (stub)')
     }
 
-    It 'reports an index.html without the matrix marker' {
+    It 'reports a first stage page without the matrix marker' {
         $env:HUGO_STUB_NOMARKER = '1'
-        (Build-RulebookSite -SitePath (New-SiteCopy) -BaseUrl $baseUrl -Destination (New-Staging) -HugoPath $stub).MarkerPresent | Should-BeFalse
+        $result = Build-RulebookSite -SitePath (New-SiteCopy) -BaseUrl $baseUrl -Destination (New-Staging) -HugoPath $stub
+        $result.MarkerPresent | Should-BeFalse
+        $result.MarkerPage | Should-Be 'stages/default/index.html'
+    }
+
+    It 'checks the page of the first stage of the data file, not a fixed slug' {
+        $site = New-SiteCopy
+        $file = Join-Path $site 'data' 'rulebook.json'
+        $data = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json -AsHashtable
+        $data['stages'] = @($data['stages'][1], $data['stages'][0], $data['stages'][2])
+        [System.IO.File]::WriteAllText($file, ($data | ConvertTo-Json -Depth 20))
+        $result = Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination (New-Staging) -HugoPath $stub
+        $result.MarkerPage | Should-Be 'stages/ci/index.html'
+        $result.MarkerPresent | Should-BeTrue
     }
 
     It 'throws with the exit code and the last 20 lines of the output when Hugo fails' {
@@ -551,19 +569,26 @@ Describe 'Build-RulebookSite' {
         $site = New-SiteCopy
         $staging = New-Staging
         $result = Build-RulebookSite -SitePath $site -BaseUrl $baseUrl -Destination $staging
+        $result.MarkerPage | Should-Be 'stages/default/index.html'
         $result.MarkerPresent | Should-BeTrue
-        # 30 rules, 3 stages, 4 levels, the setup page and the home page; no list page for rules/, levels/ or stages/
-        # and no 404 page.
+        # 30 rules, 3 stages, 4 levels, the setup page and the landing page; no list page for rules/, levels/ or
+        # stages/ and no 404 page.
         $result.PageCount | Should-Be 39
         foreach ($page in 'rules/index.html', 'levels/index.html', 'stages/index.html', '404.html', 'sitemap.xml', 'index.xml') { Test-Path -LiteralPath (Join-Path $staging $page) | Should-BeFalse }
         Test-Path -LiteralPath (Join-Path $site '.hugo_build.lock') | Should-BeFalse
         $result.Assets | Should-BeCollection @('css/site.css', 'js/cart-core.mjs', 'js/cart.mjs', 'js/matrix.js', 'js/shell.js')
         Get-Content -LiteralPath (Join-Path $staging 'rulesets' 'strict.ruleset.json') -Raw | Should-Be '{}'
         $index = Get-Content -LiteralPath (Join-Path $staging 'index.html') -Raw
+        $default = Get-Content -LiteralPath (Join-Path $staging 'stages' 'default' 'index.html') -Raw
         $ci = Get-Content -LiteralPath (Join-Path $staging 'stages' 'ci' 'index.html') -Raw
-        $index | Should-MatchString '<section class="matrix-root" data-rulebook-matrix="default">'
-        # The cart's values sit on the body of every page, the level pages included; no generator meta tag.
-        foreach ($page in 'index.html', 'levels/strict/index.html', 'rules/lc0029/index.html') {
+        # "/" is the landing page (#139): no grid, no matrix script; the grid of the first stage is at stages/default/.
+        $default | Should-MatchString '<section class="matrix-root" data-rulebook-matrix="default">'
+        $index | Should-NotMatchString 'data-rulebook-matrix'
+        $index | Should-NotMatchString '<table'
+        $index | Should-NotMatchString 'js/matrix\.js'
+        $default | Should-MatchString ([regex]::Escape('<script src="/rulebook/js/matrix.js" defer></script>'))
+        # The cart's values sit on the body of every page, the landing and level pages included; no generator meta tag.
+        foreach ($page in 'index.html', 'stages/default/index.html', 'levels/strict/index.html', 'rules/lc0029/index.html') {
             Get-Content -LiteralPath (Join-Path $staging $page) -Raw | Should-MatchString ([regex]::Escape('<body data-repository="contoso/rulebook" data-issue-template="rulebook-change.yml" data-rulebook-json="/rulebook/rulebook.json">'))
         }
         $index | Should-NotMatchString 'name="generator"'
@@ -571,9 +596,9 @@ Describe 'Build-RulebookSite' {
         Get-Content -LiteralPath (Join-Path $staging 'levels' 'essential' 'index.html') -Raw | Should-MatchString '<dd>1 override decides a cell of this level</dd>'
         $ci | Should-MatchString '<dd>2 overrides decide a cell of this stage</dd>'
         # Without JavaScript the filters stay hidden: the stylesheet lets the hidden attribute win.
-        $index | Should-MatchString '<form class="filters" role="search" hidden>'
+        $default | Should-MatchString '<form class="filters" role="search" hidden>'
         Get-Content -LiteralPath (Join-Path $staging 'css' 'site.css') -Raw | Should-MatchString '(?m)^\[hidden\] \{ display: none !important; \}$'
-        ([regex]::Matches($index, '<tr data-id=')).Count | Should-Be 30
+        ([regex]::Matches($default, '<tr data-id=')).Count | Should-Be 30
         # The override cell of LC0029 on recommended.ci, on the stage page and on the rule page, with the real id.
         # The action sits in a chip (D59); a grid is one Tab stop (#113), so only its first cell has tabindex 0.
         $cell = '<td class="a-none" data-id="LC0029" data-level="recommended" data-stage="ci" data-action="None" data-source="override" data-fallback="Warning" data-fallback-source="level:recommended" data-override="1" tabindex="-1"><span class="chip">None</span>'
@@ -583,11 +608,13 @@ Describe 'Build-RulebookSite' {
         $ci | Should-MatchString ([regex]::Escape('data-id="LC0099" data-level="strict" data-stage="ci" data-action="None" data-source="quarantine" data-fallback="Warning" data-fallback-source="default" tabindex="-1"><span class="chip">None</span><span class="mark mark-quarantine"'))
         $ci | Should-MatchString ([regex]::Escape('<button type="button" data-release data-id="LC0099" data-stage="ci" hidden>Release</button>'))
         $ci | Should-MatchString '<h2 id="stage-summary">What the stage CI changes</h2>'
-        # The first stage link points at / on every page; the stage page marks its own link (the landing page of #139
-        # moves it to stages/<first>/).
-        $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/" data-stage-link="default">default</a>'))
+        # Every stage link points at stages/<slug>/, the first one too; a stage page marks its own link, the landing
+        # page none (#139).
+        $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/default/" data-stage-link="default">default</a>'))
         $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/ci/" data-stage-link="ci" aria-current="page">CI</a>'))
-        $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/" data-stage-link="default" aria-current="page">default</a>'))
+        $default | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/default/" data-stage-link="default" aria-current="page">default</a>'))
+        $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/default/" data-stage-link="default">default</a>'))
+        $index | Should-NotMatchString 'data-stage-link="[a-z0-9-]+" aria-current'
         Get-Content -LiteralPath (Join-Path $staging 'levels' 'recommended' 'index.html') -Raw | Should-MatchString ([regex]::Escape('<a href="/rulebook/levels/essential/">Essential</a>'))
         # setup/: the "Set up an AL project" section of the plain index, from the data file, with the al-project anchor.
         $setup = Get-Content -LiteralPath (Join-Path $staging 'setup' 'index.html') -Raw
@@ -598,7 +625,9 @@ Describe 'Build-RulebookSite' {
         $setup | Should-MatchString ([regex]::Escape('<a href="https://contoso.github.io/rulebook/rulesets/strict.ruleset.json"><code>https://contoso.github.io/rulebook/rulesets/strict.ruleset.json</code></a></td><td class="count">9</td><td><a href="https://contoso.github.io/rulebook/skeletons/strict.default.ruleset.json"'))
         $setup | Should-MatchString ([regex]::Escape('href="https://contoso.github.io/rulebook/rulesets/strict.ci.ruleset.json"'))
         $index | Should-MatchString ([regex]::Escape('<a class="nav-setup" href="/rulebook/setup/">Set up</a>'))
-        $index | Should-MatchString ([regex]::Escape('<a href="/rulebook/setup/#al-project">Set up an AL project</a>'))
+        $default | Should-MatchString ([regex]::Escape('<a href="/rulebook/setup/#al-project">Set up an AL project</a>'))
+        # The setup anchors the three steps of the landing page link to.
+        foreach ($anchor in 'al-project', 'levels', 'stage-default') { $setup | Should-MatchString " id=`"$anchor`"" }
         # The two URLs the site shows come from the data file.
         $index | Should-MatchString ([regex]::Escape('href="https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md"'))
         $index | Should-MatchString ([regex]::Escape('href="https://github.com/contoso/rulebook/issues/new?template=rulebook-change.yml"'))
@@ -607,7 +636,7 @@ Describe 'Build-RulebookSite' {
         foreach ($icon in 'favicon.svg', 'favicon.png') { Test-Path -LiteralPath (Join-Path $staging $icon) -PathType Leaf | Should-BeTrue }
         $level = Get-Content -LiteralPath (Join-Path $staging 'levels' 'strict' 'index.html') -Raw
         $rule = Get-Content -LiteralPath (Join-Path $staging 'rules' 'lc0029' 'index.html') -Raw
-        foreach ($text in $index, $ci, $level, $rule, $setup) {
+        foreach ($text in $index, $default, $ci, $level, $rule, $setup) {
             $text | Should-MatchString '<script>document\.documentElement\.classList\.add\(''has-js''\);try\{var t=localStorage\.getItem\(''rulebook-theme''\)'
             foreach ($tag in 'name="description"', 'property="og:title"', 'property="og:description"', 'property="og:type" content="website"', 'property="og:url"', 'property="og:site_name" content="Rulebook \| contoso"', 'rel="icon" href="/rulebook/favicon\.png"', 'rel="icon" href="/rulebook/favicon\.svg"') { $text | Should-MatchString "<(meta|link) $tag" }
             $text | Should-MatchString '<a class="brand" href="/rulebook/"><svg class="logo"'
@@ -631,15 +660,34 @@ Describe 'Build-RulebookSite' {
         $ci | Should-MatchString ([regex]::Escape('<meta property="og:url" content="https://contoso.github.io/rulebook/stages/ci/">'))
         $rule | Should-MatchString ([regex]::Escape('<meta name="description" content="The action of LC0029 on every level and stage of this rulebook.">'))
         $setup | Should-MatchString '<meta name="description" content="How an AL project uses the rulesets of this rulebook'
-        $index | Should-MatchString '<main id="content" class="page page-matrix">'
+        $index | Should-MatchString '<main id="content" class="page page-landing" data-rulebook-landing>'
+        $default | Should-MatchString '<main id="content" class="page page-stage">'
+        # The landing page (#139): title, lead and text from content/_index.md, the facts, the three steps to the setup
+        # anchors and one card per stage and level of the data file.
+        $index | Should-MatchString '<h1>Code analysis rules for AL projects</h1>'
+        $index | Should-MatchString ([regex]::Escape('<meta property="og:description" content="The code analysis rules of this organization for AL projects, one ruleset per level and stage.">'))
+        $index | Should-MatchString '<div class="prose"><p>A <strong>rulebook</strong> is the set of code analysis rules'
+        $index | Should-MatchString ([regex]::Escape('<a class="button primary" href="/rulebook/stages/default/">Open the matrix</a>'))
+        foreach ($fact in '<dt>Rules</dt><dd>30</dd>', '<dt>Analyzers</dt><dd>12</dd>', '<dt>Levels</dt><dd>4</dd>', '<dt>Stages</dt><dd>3</dd>', '<dt>Last published</dt><dd><time datetime="2026-10-17T00:00:00Z">', '<dt>Engine</dt><dd><code>main</code></dd>') {
+            $index | Should-MatchString ([regex]::Escape($fact))
+        }
+        $steps = [regex]::Match($index, '<ol class="steps">[\s\S]*?</ol>').Value
+        Should-BeCollection -Actual ([string[]]@([regex]::Matches($steps, '<li><a href="([^"]+)"') | ForEach-Object { $_.Groups[1].Value })) -Expected @('/rulebook/setup/#levels', '/rulebook/setup/#stage-default', '/rulebook/setup/#al-project')
+        Should-BeCollection -Actual ([string[]]@([regex]::Matches($index, '<li class="card"><a href="([^"]+)"><span class="card-kicker">(?:Stage|Level)</span>') | ForEach-Object { $_.Groups[1].Value })) -Expected @(
+            '/rulebook/stages/default/', '/rulebook/stages/ci/', '/rulebook/stages/vnext/'
+            '/rulebook/levels/essential/', '/rulebook/levels/recommended/', '/rulebook/levels/strict/', '/rulebook/levels/complete/')
+        $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="/rulebook/stages/ci/"><span class="card-kicker">Stage</span><strong>CI</strong><span class="card-text">Pull request and release builds. Postponable diagnostics relaxed to Info.</span></a></li>'))
+        $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="/rulebook/setup/"><span class="card-kicker">Set up</span>'))
+        $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="https://github.com/ALCops/rulebook/blob/preview/docs/dashboard.md"><span class="card-kicker">Guide</span><strong>How this works</strong>'))
+        $index | Should-MatchString ([regex]::Escape('<li class="card"><a href="https://alcops.dev"><span class="card-kicker">Help</span>'))
         $ci | Should-MatchString '<main id="content" class="page page-stage">'
         $level | Should-MatchString '<main id="content" class="page page-level">'
         $rule | Should-MatchString '<main id="content" class="page page-rule">'
         $setup | Should-MatchString '<main id="content" class="page page-setup">'
-        $index | Should-MatchString '<div class="matrix-scroll">\n<table class="matrix" role="grid">'
+        $default | Should-MatchString '<div class="matrix-scroll">\n<table class="matrix" role="grid">'
         $rule | Should-MatchString '<table class="matrix rule-matrix" role="grid">'
         # One Tab stop per grid (#113): the first cell of the first rule row, on a stage page and on a rule page.
-        foreach ($text in $index, $ci, $rule) {
+        foreach ($text in $default, $ci, $rule) {
             ([regex]::Matches($text, '<td [^>]*tabindex="0"')).Count | Should-Be 1
             ([regex]::Matches($text, '<td [^>]*tabindex="-1"')).Count | Should-Be $(if ($text -ceq $rule) { 11 } else { 119 })
         }

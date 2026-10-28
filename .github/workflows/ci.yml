@@ -173,11 +173,15 @@ jobs:
           $catalogSource = (Get-FileHash -LiteralPath .ci-org/catalog/diagnostics.json -Algorithm SHA256).Hash
           $catalogStaged = (Get-FileHash -LiteralPath (Join-Path $env:STAGING_PATH 'catalog' 'diagnostics.json') -Algorithm SHA256).Hash
           if ($catalogStaged -cne $catalogSource) { $failures.Add('catalog/diagnostics.json differs from the repository file') }
-          # The site: / is the grid of the first stage; one page per stage, level and rule; no list page, no 404 page.
+          # The site: / is the landing page (#139) and the grid of the first stage is at stages/default/; one page per
+          # stage, level and rule; no list page, no 404 page.
           $index = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'index.html') -Raw
-          if (-not $index.Contains('data-rulebook-matrix="default"')) { $failures.Add('index.html has no data-rulebook-matrix="default"') }
-          $rows = [regex]::Matches($index, '<tr data-id=').Count
-          if ($rows -ne 628) { $failures.Add("index.html has $rows rule rows, expected 628") }
+          if (-not $index.Contains('data-rulebook-landing')) { $failures.Add('index.html has no data-rulebook-landing') }
+          if ($index.Contains('data-rulebook-matrix')) { $failures.Add('index.html carries data-rulebook-matrix') }
+          $grid = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'stages' 'default' 'index.html') -Raw
+          if (-not $grid.Contains('data-rulebook-matrix="default"')) { $failures.Add('stages/default/index.html has no data-rulebook-matrix="default"') }
+          $rows = [regex]::Matches($grid, '<tr data-id=').Count
+          if ($rows -ne 628) { $failures.Add("stages/default/index.html has $rows rule rows, expected 628") }
           $pages = @{ stages = 3; levels = 4; rules = 628 }
           foreach ($folder in $pages.Keys) {
             $count = @(Get-ChildItem -LiteralPath (Join-Path $env:STAGING_PATH $folder) -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'index.html') -PathType Leaf }).Count
@@ -308,7 +312,7 @@ jobs:
           if (($top -join ',') -cne 'catalog,index.html,rulebook.json,rulesets,skeletons') { $failures.Add("unexpected top level: $($top -join ', ')") }
           $index = Get-Content -LiteralPath (Join-Path $env:STAGING_PATH 'index.html') -Raw
           if (-not $index.Contains('<h2 id="al-project">')) { $failures.Add('index.html has no "Set up an AL project" section') }
-          if ($index.Contains('data-rulebook-matrix')) { $failures.Add('index.html is the site, not the plain index') }
+          if ($index.Contains('data-rulebook-landing') -or $index.Contains('data-rulebook-matrix')) { $failures.Add('index.html is the site, not the plain index') }
           if (Test-Path -LiteralPath .ci-org-plain/site/data) { $failures.Add('site/data/ was written with site.enabled false') }
           foreach ($failure in $failures) { Write-Host "::error::$failure" }
           if ($failures.Count -gt 0) { exit 1 }

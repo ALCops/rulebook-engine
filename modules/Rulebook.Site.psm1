@@ -555,8 +555,9 @@ function Build-RulebookSite {
     Hugo writes only what it renders, and its index.html replaces the plain one. -HugoPath is a command name or a path
     (a .ps1 stand-in works too). A missing command, a missing file or a non-zero exit throws; the exit message carries
     the last 20 lines of Hugo's output. Returns { Pages (every index.html under Destination, relative with '/', sorted
-    ordinally), PageCount, Assets (the files under css/ and js/), MarkerPresent (index.html carries
-    data-rulebook-matrix, the marker of the matrix page), Seconds, Output (Hugo's lines) }.
+    ordinally), PageCount, Assets (the files under css/ and js/), MarkerPage (stages/<slug>/index.html of the first
+    stage in data/rulebook.json, where the grid of the first stage is since "/" became the landing page, #139),
+    MarkerPresent (that page carries data-rulebook-matrix, the marker of the matrix), Seconds, Output (Hugo's lines) }.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Writes only the staging folder the caller names')]
     [CmdletBinding()]
@@ -586,12 +587,17 @@ function Build-RulebookSite {
     $relative = { param($Root, $Files) [string[]]$list = @($Files | ForEach-Object { [System.IO.Path]::GetRelativePath($Root, $_.FullName).Replace('\', '/') }); [System.Array]::Sort($list, [System.StringComparer]::Ordinal); , $list }
     $pages = & $relative $target @(Get-ChildItem -LiteralPath $target -Recurse -File -Filter 'index.html')
     $assets = & $relative $target @(foreach ($folder in 'css', 'js') { $path = Join-Path $target $folder; if (Test-Path -LiteralPath $path -PathType Container) { Get-ChildItem -LiteralPath $path -Recurse -File } })
-    $index = Join-Path $target 'index.html'
-    $marker = (Test-Path -LiteralPath $index -PathType Leaf) -and [System.IO.File]::ReadAllText($index).Contains($script:MatrixMarker)
+    # The grid of the first stage is at stages/<slug>/ ("/" is the landing page); a data file without a stage leaves
+    # no page to check, so the marker counts as missing.
+    $stages = @((Get-Content -LiteralPath (Join-Path $site 'data/rulebook.json') -Raw | ConvertFrom-Json -AsHashtable)['stages'])
+    $markerPage = if ($stages.Count -gt 0 -and $stages[0] -is [System.Collections.IDictionary] -and -not [string]::IsNullOrEmpty([string]$stages[0]['slug'])) { "stages/$($stages[0]['slug'])/index.html" } else { $null }
+    $markerFile = if ($markerPage) { Join-Path $target $markerPage } else { $null }
+    $marker = $null -ne $markerFile -and (Test-Path -LiteralPath $markerFile -PathType Leaf) -and [System.IO.File]::ReadAllText($markerFile).Contains($script:MatrixMarker)
     return [pscustomobject]@{
         Pages         = $pages
         PageCount     = $pages.Count
         Assets        = $assets
+        MarkerPage    = $markerPage
         MarkerPresent = [bool]$marker
         Seconds       = [math]::Round($clock.Elapsed.TotalSeconds, 2)
         Output        = $output
