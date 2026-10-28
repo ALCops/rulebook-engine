@@ -111,44 +111,45 @@
     apply(initial);
   }
 
-  // The keyboard route: a grid (table[role=grid]) has one cell with tabindex 0, the Tab stop; the arrow keys move it
-  // within the rows the filters show, Home and End to the ends of a row, Ctrl+Home and Ctrl+End to the first and the
-  // last cell of the grid. Without JavaScript the first cell is the only one in the tab order.
+  // The keyboard route (#113): a grid (table[role=grid]) is one Tab stop. Its items are the link of each row header
+  // and the cells; the one item with tabindex 0 is the stop. The arrow keys move it within the rows the filters show,
+  // Home and End to the ends of a row, Ctrl+Home and Ctrl+End to the first and the last item of the grid. Without
+  // JavaScript the first cell is the only cell in the tab order and the row links keep theirs.
   function rowsOf(grid) {
     var rows = [];
     var all = grid.querySelectorAll('tbody tr');
     for (var i = 0; i < all.length; i++) {
       if (all[i].hidden) continue;
-      var cells = all[i].querySelectorAll('td[data-level]');
-      if (cells.length) rows.push(Array.prototype.slice.call(cells));
+      var items = all[i].querySelectorAll('td[data-level], th[scope="row"] a');
+      if (items.length) rows.push(Array.prototype.slice.call(items));
     }
     return rows;
   }
 
-  function moveTabStop(grid, cell) {
-    var current = grid.querySelectorAll('td[tabindex="0"]');
-    for (var i = 0; i < current.length; i++) { if (current[i] !== cell) current[i].tabIndex = -1; }
-    if (cell) cell.tabIndex = 0;
+  function moveTabStop(grid, item) {
+    var current = grid.querySelectorAll('tbody [tabindex="0"]');
+    for (var i = 0; i < current.length; i++) { if (current[i] !== item) current[i].tabIndex = -1; }
+    if (item) item.tabIndex = 0;
   }
 
   // After filtering: the Tab stop moves to the first shown cell when its row is hidden.
   function keepTabStop(grid) {
     if (!grid) return;
-    var stop = grid.querySelector('td[tabindex="0"]');
+    var stop = grid.querySelector('tbody [tabindex="0"]');
     if (stop && !stop.closest('tr').hidden) return;
     var rows = rowsOf(grid);
-    moveTabStop(grid, rows.length ? rows[0][0] : null);
+    moveTabStop(grid, rows.length ? rows[0].filter(function (item) { return item.matches('td'); })[0] || rows[0][0] : null);
   }
 
-  function navigate(event, cell) {
+  function navigate(event, item) {
     if (event.altKey || event.metaKey) return false;
-    var grid = cell.closest('table[role="grid"]');
+    var grid = item.closest('table[role="grid"]');
     if (!grid) return false;
     var rows = rowsOf(grid);
     var r = -1;
     var c = -1;
     for (var i = 0; i < rows.length && r < 0; i++) {
-      c = rows[i].indexOf(cell);
+      c = rows[i].indexOf(item);
       if (c >= 0) r = i;
     }
     if (r < 0) return false;
@@ -167,6 +168,17 @@
     target.focus();
     return true;
   }
+
+  // With JavaScript the row links leave the tab order: the arrow keys reach them.
+  var grids = document.querySelectorAll('table[role="grid"]');
+  for (var g = 0; g < grids.length; g++) {
+    var links = grids[g].querySelectorAll('th[scope="row"] a');
+    for (var k = 0; k < links.length; k++) links[k].tabIndex = -1;
+  }
+  document.addEventListener('keydown', function (event) {
+    var link = event.target.closest && event.target.closest('table[role="grid"] th[scope="row"] a');
+    if (link && navigate(event, link)) event.preventDefault();
+  });
 
   // The popover of a cell.
   var template = document.getElementById('cell-popover');

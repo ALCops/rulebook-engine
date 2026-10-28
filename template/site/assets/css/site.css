@@ -173,7 +173,7 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
 .matrix th[scope="row"] a { font-family: var(--mono); font-weight: 600; }
 .matrix td { min-width: 6.5rem; cursor: pointer; white-space: nowrap; }
 .matrix td:hover { background: var(--surface); }
-.matrix td:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.matrix td:focus, .matrix th[scope="row"] a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .table-wrap { overflow-x: auto; }
 
 /* Actions: a chip per cell and per action label */
@@ -237,6 +237,8 @@ tr.group th { padding-top: 0.6rem; background: var(--surface-2); font-family: va
   .matrix th[scope="row"] .title { display: none; }
   .site-footer .powered { margin-left: 0; }
   table.endpoints, table.entries, table.counts { display: block; overflow-x: auto; }
+  /* An endpoint URL stays on one line; the table scrolls inside itself instead of breaking the URL per letter. */
+  table.endpoints code { white-space: nowrap; overflow-wrap: normal; }
 }
 
 @media print {
