@@ -5,7 +5,7 @@
 {{- $levelName := dict -}}
 {{- range $data.levels }}{{ $levelName = merge $levelName (dict .slug .name) }}{{ end -}}
 <section class="stage-summary" aria-labelledby="stage-summary">
-<h2 id="stage-summary">What the stage {{ $stage.name }} changes{{ partial "help-link.html" (dict "data" $data "key" "levels" "fragment" "1-what-a-level-is" "topic" "levels and stages") }}</h2>
+<h2><span id="stage-summary">What the stage {{ $stage.name }} changes</span>{{ partial "help-link.html" (dict "data" $data "key" "levels" "fragment" "1-what-a-level-is" "topic" "levels and stages") }}</h2>
 <dl class="facts">
   <dt>Stage file</dt><dd>{{ with $stage.file }}<code>{{ . }}</code>{{ else }}none: this stage is the level result as is{{ end }}</dd>
   <dt>Entries</dt><dd>{{ $stage.entryCount }}</dd>

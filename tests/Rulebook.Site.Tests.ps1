@@ -620,7 +620,8 @@ Describe 'Build-RulebookSite' {
         # A quarantine cell has its fallback and no override index; the stage page lists it with a Release button.
         $ci | Should-MatchString ([regex]::Escape('data-id="LC0099" data-level="strict" data-stage="ci" data-action="None" data-source="quarantine" data-fallback="Warning" data-fallback-source="default" tabindex="-1"><span class="chip">None</span><span class="mark mark-quarantine"'))
         $ci | Should-MatchString ([regex]::Escape('<button type="button" data-release data-id="LC0099" data-stage="ci" hidden>Release</button>'))
-        $ci | Should-MatchString '<h2 id="stage-summary">What the stage CI changes <a class="help-link" '
+        # The section is labelled by the heading text only, not by the help link beside it.
+        $ci | Should-MatchString '<section class="stage-summary" aria-labelledby="stage-summary">\n<h2><span id="stage-summary">What the stage CI changes</span> <a class="help-link" '
         # Every stage link points at stages/<slug>/, the first one too; a stage page marks its own link, the landing
         # page none (#139).
         $ci | Should-MatchString ([regex]::Escape('<a href="/rulebook/stages/default/" data-stage-link="default">default</a>'))
@@ -753,10 +754,12 @@ Describe 'Build-RulebookSite' {
         # The header Help link opens it on every page (and marks it there), so do the landing card and the legend.
         foreach ($text in $index, $default, $ci, $level, $rule, $setup) { $text | Should-MatchString ([regex]::Escape('<a class="nav-docs" href="/rulebook/how-it-works/">Help</a>')) }
         $help | Should-MatchString ([regex]::Escape('<a class="nav-docs" href="/rulebook/how-it-works/" aria-current="page">Help</a>'))
-        # The legend: five markers with a title each, focusable, and the link to how-it-works/ instead of docsUrl.
+        # The legend: five focusable markers whose aria-label is the explanation (site.css shows it as the tooltip; no
+        # title, so the browser shows no second tooltip), and the link to how-it-works/ instead of docsUrl.
         foreach ($text in $default, $rule) {
             $legend = [regex]::Match($text, '<details class="legend">[\s\S]*?</details>').Value
-            Should-BeCollection -Actual ([string[]]@([regex]::Matches($legend, '<span class="tip" tabindex="0" role="img" aria-label="([^"]+)" title="[^"]+">') | ForEach-Object { $_.Groups[1].Value })) -Expected @('Badge O', 'Ring', 'Dot', 'No marker', 'Badge Q')
+            Should-BeCollection -Actual ([string[]]@([regex]::Matches($legend, '<span class="tip" tabindex="0" role="img" aria-label="([A-Z][a-z ]+): [^"]+">') | ForEach-Object { $_.Groups[1].Value })) -Expected @('Override', 'Twins', 'Stage file', 'No marker', 'Quarantine')
+            $legend | Should-NotMatchString 'class="tip"[^>]* title='
             $legend | Should-MatchString ([regex]::Escape('<a href="/rulebook/how-it-works/">How this works</a>'))
             $legend | Should-NotMatchString 'docs/dashboard\.md'
         }
