@@ -1,0 +1,277 @@
+[
+  {
+    "name": "landing responds 200",
+    "ok": true,
+    "detail": "200"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on landing (light)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on landing (dark)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "stage responds 200",
+    "ok": true,
+    "detail": "200"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on stage (light)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on stage (dark)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "setup responds 200",
+    "ok": true,
+    "detail": "200"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on setup (light)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on setup (dark)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "help responds 200",
+    "ok": true,
+    "detail": "200"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on help (light)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on help (dark)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "level responds 200",
+    "ok": true,
+    "detail": "200"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on level (light)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on level (dark)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "rule responds 200",
+    "ok": true,
+    "detail": "200"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on rule (light)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "no horizontal page scroll at 390 on rule (dark)",
+    "ok": true,
+    "detail": "390/390"
+  },
+  {
+    "name": "landing: marker present, no matrix",
+    "ok": true,
+    "detail": "{\"landing\":true,\"matrix\":false,\"org\":\"Arthurvdv\",\"title\":\"Rulebook | Arthurvdv\",\"firstStage\":\"/rulebook-e2e-baseurl/stages/default/\",\"help\":\"/rulebook-e2e-baseurl/how-it-works/\",\"footerHome\":true,\"footerRepo\":true,\"footerTime\":true,\"footerEngine\":\"main\",\"cards\":12,\"favicon\":\"/rulebook-e2e-baseurl/favicon.png\",\"og\":\"https://arthurvdv.github.io/rulebook-e2e-baseurl/\"}"
+  },
+  {
+    "name": "landing: org = owner slug, title, Help -> how-it-works, first stage link",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "landing: footer has alcops.dev, repository, time, engine ref",
+    "ok": true,
+    "detail": "main"
+  },
+  {
+    "name": "landing: entry cards present",
+    "ok": true,
+    "detail": "12"
+  },
+  {
+    "name": "landing: og:url is the live address",
+    "ok": true,
+    "detail": "https://arthurvdv.github.io/rulebook-e2e-baseurl/"
+  },
+  {
+    "name": "theme: system light honoured",
+    "ok": true,
+    "detail": "bg rgb(255, 255, 255)"
+  },
+  {
+    "name": "theme: system light toggle flips and persists",
+    "ok": true,
+    "detail": "rgb(255, 255, 255) -> rgb(13, 17, 23) -> rgb(13, 17, 23), stored dark"
+  },
+  {
+    "name": "theme: system light second click returns to system",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "theme: system dark honoured",
+    "ok": true,
+    "detail": "bg rgb(13, 17, 23)"
+  },
+  {
+    "name": "theme: system dark toggle flips and persists",
+    "ok": true,
+    "detail": "rgb(13, 17, 23) -> rgb(255, 255, 255) -> rgb(255, 255, 255), stored light"
+  },
+  {
+    "name": "theme: system dark second click returns to system",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "matrix 1280: header row and rule column stay in view after scrolling",
+    "ok": true,
+    "detail": "{\"boxTop\":254.984375,\"boxLeft\":16,\"headTop\":255.984375,\"firstLeft\":17,\"rows\":628,\"grid\":true,\"tab0\":1}"
+  },
+  {
+    "name": "matrix: rule rows, role=grid, one Tab stop",
+    "ok": true,
+    "detail": "628 rows, tab0 1"
+  },
+  {
+    "name": "matrix 390: header row and rule column stay in view after scrolling",
+    "ok": true,
+    "detail": "{\"boxTop\":378.15625,\"boxLeft\":12,\"headTop\":379.15625,\"firstLeft\":13,\"rows\":628,\"grid\":true,\"tab0\":1}"
+  },
+  {
+    "name": "drawer: opens on cell click with focus inside and badge 1",
+    "ok": true,
+    "detail": "{\"open\":true,\"dialog\":true,\"focusIn\":true,\"badge\":\"1\"}"
+  },
+  {
+    "name": "drawer: Escape closes and focus returns to the Cart button",
+    "ok": true,
+    "detail": "{\"open\":false,\"focus\":\"cart-toggle\"}"
+  },
+  {
+    "name": "drawer: Cart button reopens with the item intact",
+    "ok": true,
+    "detail": "{\"open\":true,\"items\":1}"
+  },
+  {
+    "name": "drawer: textarea grows with lines",
+    "ok": true,
+    "detail": "32 -> 87.71875"
+  },
+  {
+    "name": "drawer: issue link targets the repository with the multi-line text",
+    "ok": true,
+    "detail": "{\"version\":1,\"changes\":[{\"op\":\"set\",\"id\":\"AL0200\",\"action\":\"Error\",\"levels\":[\"essential\"],\"stages\":[\"default\"],\"justification\":\"line one\\nline two\\nline three\\nline four\"}]}"
+  },
+  {
+    "name": "drawer: Tab stays inside",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "drawer: click beside it closes",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "drawer 390: full width",
+    "ok": true,
+    "detail": "{\"w\":390,\"iw\":390}"
+  },
+  {
+    "name": "setup: one details per level, first open",
+    "ok": true,
+    "detail": "[[\"setup-essential\",true],[\"setup-recommended\",false],[\"setup-strict\",false],[\"setup-complete\",false]]"
+  },
+  {
+    "name": "setup: copy buttons and download buttons present",
+    "ok": true,
+    "detail": "25 copy, downloads essential.default.ruleset.json,recommended.default.ruleset.json,strict.default.ruleset.json,complete.default.ruleset.json,essential.ci.ruleset.json,recommended.ci.ruleset.json,strict.ci.ruleset.json,complete.ci.ruleset.json,essential.vnext.ruleset.json,recommended.vnext.ruleset.json,strict.vnext.ruleset.json,complete.vnext.ruleset.json"
+  },
+  {
+    "name": "setup: Copy writes the clipboard and says Copied",
+    "ok": true,
+    "detail": "{\"clip\":\"Invoke-WebRequest https://raw.githubusercontent.com/ALCops/r\",\"label\":\"Copied\",\"status\":\"Copied\"}"
+  },
+  {
+    "name": "setup: Copy label resets after two seconds",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "setup: download target exists",
+    "ok": true,
+    "detail": "https://arthurvdv.github.io/rulebook-e2e-baseurl/skeletons/essential.default.ruleset.json -> 200"
+  },
+  {
+    "name": "setup without JavaScript: buttons hidden, text present",
+    "ok": true,
+    "detail": "{\"hasJs\":false,\"visible\":false,\"pre\":38}"
+  },
+  {
+    "name": "help: every external link on how-it-works comes from the docs map",
+    "ok": true,
+    "detail": "7 links"
+  },
+  {
+    "name": "help: stages/default/ has a lead and ? links from the map",
+    "ok": true,
+    "detail": "lead 148, 2 help links"
+  },
+  {
+    "name": "help: levels/recommended/ has a lead and ? links from the map",
+    "ok": true,
+    "detail": "lead 124, 2 help links"
+  },
+  {
+    "name": "help: rules/al0200/ has a lead and ? links from the map",
+    "ok": true,
+    "detail": "lead 94, 2 help links"
+  },
+  {
+    "name": "help: setup/ has a lead and ? links from the map",
+    "ok": true,
+    "detail": "lead 127, 4 help links"
+  },
+  {
+    "name": "help: legend tooltips are focusable with an accessible name",
+    "ok": true,
+    "detail": "{\"tabindex\":\"0\",\"role\":\"img\",\"label\":\"Override: an entry of overrides.json decides the cell\"}"
+  },
+  {
+    "name": "menu 390: folded nav opens from the menu button",
+    "ok": true,
+    "detail": "none -> {\"nav\":\"flex\",\"expanded\":\"true\"}"
+  },
+  {
+    "name": "no foreign requests on any page",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "no page errors",
+    "ok": true,
+    "detail": ""
+  }
+]
