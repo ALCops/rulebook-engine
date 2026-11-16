@@ -3646,117 +3646,95 @@
   },
   "DC0000": {
     "ladder": "Info/Info/Info/Info",
-    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
-    "dr": "DR-012"
+    "justification": "The only sign that the documentation analyzer crashed and skipped code; visible at every level, never blocking."
   },
   "DC0001": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A manual commit without a reason invites a later refactor to remove or copy it blindly; advisory, a gate from Strict."
   },
   "DC0002": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A write to a calculated field is not stored and looks like a bug unless a comment says why; advisory, a gate from Strict."
   },
   "DC0003": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A stray semicolon is either leftover code or an undocumented no-op; advisory, a gate from Strict."
   },
   "DC0004": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Public procedures without XML docs leave callers guessing in IntelliSense; too noisy for most projects below Strict."
   },
   "DC0005": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "XML docs that name missing parameters mislead callers in signature help; advisory, a gate from Strict."
   },
   "DC0006": {
     "ladder": "None/None/None/Info",
-    "justification": "Opt-in rule; Complete enables it at its author severity",
-    "dr": "DR-012"
+    "justification": "Opt-in documentation for internal procedures; Info in Complete only."
   },
   "DC0007": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Public objects without XML docs leave consumers without a stated purpose; too noisy for most projects below Strict."
   },
   "DC0008": {
     "ladder": "None/None/None/Info",
-    "justification": "Opt-in rule; Complete enables it at its author severity",
-    "dr": "DR-012"
+    "justification": "Opt-in documentation for internal objects; Info in Complete only."
   },
   "DC0009": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Published events without XML docs leave subscribers guessing at when they fire; too noisy for most projects below Strict."
   },
   "DC0010": {
     "ladder": "None/None/None/Info",
-    "justification": "Opt-in rule; Complete enables it at its author severity",
-    "dr": "DR-012"
+    "justification": "Opt-in documentation for internal events; Info in Complete only."
   },
   "FC0000": {
     "ladder": "Info/Info/Info/Info",
-    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
-    "dr": "DR-012"
+    "justification": "The only sign that the formatting analyzer crashed and skipped code; visible at every level, never blocking."
   },
   "FC0001": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A semicolon after a procedure header is harmless style noise; advisory below the author default, a gate from Strict."
   },
   "FC0002": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Casing that differs from the declaration is pure style with a code fix; floods legacy code, so a gate from Strict."
   },
   "FC0003": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A call without parentheses reads like a property access; style below the author default, a gate from Strict."
   },
   "FC0004": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "Unsorted permission entries cause avoidable merge conflicts and a code fix sorts them; advisory, a gate from Strict."
   },
   "FC0005": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Assignment syntax hides that a method runs; style below the author default, a gate from Strict."
   },
   "FC0006": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/None/Info/Warning",
+    "justification": "Uppercase permission letters wrongly suggest a direct grant but change nothing at runtime; opinion, Warning in Complete."
   },
   "FC0007": {
     "ladder": "None/None/None/Info",
-    "justification": "Evaluated for contradictions, none found; opt-in style stays Info in Complete",
+    "justification": "Blank lines between statement blocks are an opt-in layout preference; Info in Complete only.",
     "dr": "DR-007"
   },
   "TA0000": {
     "ladder": "Info/Info/Info/Info",
-    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
-    "dr": "DR-012"
+    "justification": "The only sign that the test automation analyzer crashed and skipped code; visible at every level, never blocking."
   },
   "TA0001": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A global procedure in a test codeunit is either a missed test attribute or a misplaced helper; advisory, a gate from Strict."
   },
   "TA0002": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Error/Error/Error",
+    "justification": "Invoking an action on a part opened on its own fails the test at runtime; Error from Recommended as only test code is hit."
   },
   "CM0001": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "A broken alcops.json silently disables rules; must block CI at every level",
-    "dr": "DR-012"
+    "justification": "A broken or unreadable alcops.json silently falls back to defaults and disables intended rules; Warning at every level."
   }
 }

@@ -185,6 +185,7 @@
     { "id": "FC0004", "action": "Warning" },
     { "id": "FC0006", "action": "Warning" },
     { "id": "FC0007", "action": "Info" },
-    { "id": "TA0001", "action": "Warning" }
+    { "id": "TA0001", "action": "Warning" },
+    { "id": "TA0002", "action": "Error" }
   ]
 }

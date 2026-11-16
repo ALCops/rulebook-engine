@@ -24,9 +24,10 @@
     { "id": "LC0009", "action": "Info", "justification": "Reports a number, not a defect; Complete shows it as Info" },
     { "id": "LC0089", "action": "Info", "justification": "Reports a number, not a defect; Complete shows it as Info" },
     { "id": "LC0097", "action": "Info", "justification": "Evaluated for contradictions, none found; opt-in style stays Info in Complete" },
-    { "id": "DC0006", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity" },
-    { "id": "DC0008", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity" },
-    { "id": "DC0010", "action": "Info", "justification": "Opt-in rule; Complete enables it at its author severity" },
-    { "id": "FC0007", "action": "Info", "justification": "Evaluated for contradictions, none found; opt-in style stays Info in Complete" }
+    { "id": "DC0006", "action": "Info", "justification": "Opt-in documentation for internal procedures; Info in Complete only." },
+    { "id": "DC0008", "action": "Info", "justification": "Opt-in documentation for internal objects; Info in Complete only." },
+    { "id": "DC0010", "action": "Info", "justification": "Opt-in documentation for internal events; Info in Complete only." },
+    { "id": "FC0006", "action": "Warning", "justification": "Uppercase permission letters wrongly suggest a direct grant but change nothing at runtime; opinion, Warning in Complete." },
+    { "id": "FC0007", "action": "Info", "justification": "Blank lines between statement blocks are an opt-in layout preference; Info in Complete only." }
   ]
 }

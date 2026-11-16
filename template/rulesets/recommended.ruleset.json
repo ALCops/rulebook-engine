@@ -11,6 +11,15 @@
     { "id": "AS0075", "action": "Hidden" },
     { "id": "AS0089", "action": "Warning" },
     { "id": "AS0099", "action": "None" },
-    { "id": "AS0103", "action": "Error" }
+    { "id": "AS0103", "action": "Error" },
+    { "id": "DC0004", "action": "None" },
+    { "id": "DC0007", "action": "None" },
+    { "id": "DC0009", "action": "None" },
+    { "id": "FC0001", "action": "Info" },
+    { "id": "FC0002", "action": "None" },
+    { "id": "FC0003", "action": "Info" },
+    { "id": "FC0005", "action": "Info" },
+    { "id": "FC0006", "action": "None" },
+    { "id": "TA0002", "action": "Error" }
   ]
 }
