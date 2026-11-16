@@ -51,25 +51,25 @@ Number of diagnostics per resolved action for every level and stage (628 ids eac
 
 | Level | Stage | Error | Warning | Info | Hidden | None | Listed |
 |---|---|---|---|---|---|---|---|
-| Essential | default | 119 | 124 | 10 | 0 | 375 | 353 |
-| Essential | ci | 119 | 124 | 10 | 0 | 375 | 353 |
-| Essential | vnext | 211 | 32 | 10 | 0 | 375 | 445 |
-| Recommended | default | 128 | 391 | 68 | 18 | 23 | 9 |
-| Recommended | ci | 128 | 384 | 75 | 18 | 23 | 16 |
-| Recommended | vnext | 220 | 302 | 65 | 18 | 23 | 98 |
-| Strict | default | 128 | 443 | 29 | 5 | 23 | 68 |
-| Strict | ci | 128 | 433 | 39 | 5 | 23 | 78 |
-| Strict | vnext | 220 | 351 | 29 | 5 | 23 | 160 |
-| Complete | default | 128 | 445 | 51 | 2 | 2 | 92 |
-| Complete | ci | 128 | 435 | 61 | 2 | 2 | 102 |
-| Complete | vnext | 220 | 353 | 51 | 2 | 2 | 184 |
+| Essential | default | 120 | 124 | 10 | 0 | 374 | 353 |
+| Essential | ci | 120 | 124 | 10 | 0 | 374 | 353 |
+| Essential | vnext | 212 | 32 | 10 | 0 | 374 | 445 |
+| Recommended | default | 129 | 390 | 68 | 17 | 24 | 10 |
+| Recommended | ci | 129 | 383 | 75 | 17 | 24 | 17 |
+| Recommended | vnext | 221 | 301 | 65 | 17 | 24 | 99 |
+| Strict | default | 129 | 442 | 29 | 4 | 24 | 69 |
+| Strict | ci | 129 | 432 | 39 | 4 | 24 | 79 |
+| Strict | vnext | 221 | 350 | 29 | 4 | 24 | 161 |
+| Complete | default | 129 | 444 | 52 | 1 | 2 | 92 |
+| Complete | ci | 129 | 434 | 62 | 1 | 2 | 102 |
+| Complete | vnext | 221 | 352 | 52 | 1 | 2 | 184 |
 
 | File | Entries |
 |---|---|
 | `base/essential.ruleset.json` | 353 |
-| `base/recommended.ruleset.json` | 352 |
+| `base/recommended.ruleset.json` | 350 |
 | `base/strict.ruleset.json` | 65 |
-| `base/complete.ruleset.json` | 24 |
+| `base/complete.ruleset.json` | 25 |
 | `stages/ci.json` | 10 |
 | `stages/vnext.json` | 95 |
 

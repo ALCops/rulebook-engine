@@ -10,6 +10,7 @@
     { "id": "AA0476", "action": "Warning" },
     { "id": "AS0075", "action": "Hidden" },
     { "id": "AS0089", "action": "Warning" },
-    { "id": "AS0099", "action": "Hidden" }
+    { "id": "AS0099", "action": "None" },
+    { "id": "AS0103", "action": "Error" }
   ]
 }

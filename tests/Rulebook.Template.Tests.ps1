@@ -237,8 +237,8 @@ Describe 'Build-RulebookStages' {
         Test-Path -LiteralPath (Join-Path $stagesOut 'default.json') | Should-BeFalse
     }
 
-    It 'lists exactly the ids whose stage column is not = with that action and the row justification' {
-        Get-RuleText -Path (Join-Path $stagesOut 'ci.json') -WithJustification | Should-BeCollection @('AL0432 Info Advisory in CI; F-05')
+    It 'lists exactly the ids whose stage column is not = with that action and the stage justification' {
+        Get-RuleText -Path (Join-Path $stagesOut 'ci.json') -WithJustification | Should-BeCollection @('AL0432 Info A team cannot always replace the obsolete object in the same change; CI advises instead of blocking.')
     }
 
     It 'names the stage with the settings casing and carries the delta profile URL' {
@@ -260,6 +260,21 @@ Describe 'Build-RulebookStages' {
         $copy = Copy-Tiny
         Edit-FixtureJson -Path (Join-Path $copy 'matrix' 'stages.json') -Script { $_['stages'] = @($_['stages']) + @(@{ name = 'Nightly'; slug = 'nightly' }) }
         { Build-RulebookStages -RulebookDir $copy -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage "*has no column 'Nightly' for stage 'nightly'*"
+    }
+
+    It 'throws when a stage has no justification column' {
+        $copy = Copy-Tiny
+        Edit-FixtureJson -Path (Join-Path $copy 'matrix' 'matrix.json') -Script { $_[1].Remove('CIJustification') }
+        { Build-RulebookStages -RulebookDir $copy -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage "*AL0432 has no column 'CIJustification' for stage 'ci'*"
+    }
+
+    It 'throws when a stage justification is = and the stage column is not, or the reverse' {
+        $copy = Copy-Tiny
+        Edit-FixtureJson -Path (Join-Path $copy 'matrix' 'matrix.json') -Script { $_[1]['CIJustification'] = '=' }
+        { Build-RulebookStages -RulebookDir $copy -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage "*AL0432 has '=' in column CIJustification*"
+        $copy = Copy-Tiny
+        Edit-FixtureJson -Path (Join-Path $copy 'matrix' 'matrix.json') -Script { $_[0]['CIJustification'] = 'A sentence' }
+        { Build-RulebookStages -RulebookDir $copy -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage "*AL0200 has 'A sentence' in column CIJustification*"
     }
 
     It 'throws when a stage column holds no action' {

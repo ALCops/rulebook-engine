@@ -46,7 +46,7 @@ Let `cell(id, level, stage)` be the resolved action from `matrix/resolved.json` 
 
 **Level files:** `base/essential.ruleset.json` has one entry per id where `cell(id, essential, default) != default(id)`, in inventory order, with that action and the matrix `Justification`. `base/<level>.ruleset.json` for every other shipped level has one entry per id where `cell(id, level, default) != cell(id, basedOn(level), default)`. The file-level `description` names the `basedOn` level.
 
-**Stage files:** `stages/<stage>.json` has one entry per id whose stage column is not `=`, with that action and the matrix `Justification` of the row, verbatim (the same text as the level entry of that id). There is no file for `default`.
+**Stage files:** `stages/<stage>.json` has one entry per id whose stage column is not `=`, with that action and the stage sentence of the row (`CIJustification`, `vNextJustification`: the column named `<stage name>Justification`), verbatim. There is no file for `default`.
 
 `modules/Rulebook.Template` implements these two derivations for the template (`Build-RulebookBase`, `Build-RulebookStages`, run by `tools/rulebook/Build-Template.ps1`); [../reference/template-content.md](../reference/template-content.md) describes the generated `template/` file by file.
 

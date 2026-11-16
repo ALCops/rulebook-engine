@@ -1,0 +1,3762 @@
+{
+  "AL0200": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0235": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0251": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0254": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0269": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0273": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0299": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0374": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0424": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0432": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+      },
+      "vnext": {
+        "action": "Warning",
+        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL0457": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0467": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0468": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0472": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Compiler warning at author severity from Recommended"
+      }
+    },
+    "dr": "DR-012"
+  },
+  "AL0473": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Compiler warning at author severity from Recommended"
+      }
+    },
+    "dr": "DR-012"
+  },
+  "AL0479": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Compiler warning at author severity from Recommended"
+      }
+    },
+    "dr": "DR-012"
+  },
+  "AL0481": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0482": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0483": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0486": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0493": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0509": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0520": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0523": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0524": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0534": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0545": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0547": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0548": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0550": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0551": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0552": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0556": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0557": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0558": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0559": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0560": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0561": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0562": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0563": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0567": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0568": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0569": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0571": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0573": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0586": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0588": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0589": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0590": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0592": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0593": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0598": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0600": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0601": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0602": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0603": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Compiler warning at author severity from Recommended"
+      }
+    },
+    "dr": "DR-012"
+  },
+  "AL0604": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0605": {
+    "ladder": "None/Hidden/Hidden/Info",
+    "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete",
+    "dr": "DR-015"
+  },
+  "AL0606": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0607": {
+    "ladder": "None/Hidden/Hidden/Info",
+    "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete",
+    "dr": "DR-015"
+  },
+  "AL0608": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0609": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0610": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0611": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0613": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0614": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0615": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0617": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0626": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0627": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0628": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0633": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0634": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0635": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0639": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0640": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0641": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0642": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0643": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0644": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0645": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0646": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0647": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0649": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0650": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0655": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0659": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0660": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0662": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0663": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0667": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0677": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0678": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
+    "dr": "DR-015"
+  },
+  "AL0679": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0684": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0685": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0692": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0694": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0695": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0697": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0700": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0702": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0711": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0715": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0717": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0719": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
+    "dr": "DR-015"
+  },
+  "AL0727": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0728": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0729": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0731": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0733": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0739": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0743": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0745": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0748": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0749": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0751": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0753": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0755": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0756": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0758": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0768": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0769": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0773": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0775": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0778": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0780": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0782": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0788": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0789": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0790": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0792": {
+    "ladder": "None/Hidden/Hidden/Info",
+    "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete",
+    "dr": "DR-015"
+  },
+  "AL0796": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0801": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+      },
+      "vnext": {
+        "action": "Warning",
+        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL0803": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0804": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0805": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0807": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0814": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0816": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0818": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0820": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0821": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0822": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0823": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0826": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0830": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0835": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0836": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0837": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0842": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0845": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0848": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0864": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0869": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0885": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0888": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0906": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0909": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0910": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0912": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0914": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0915": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0916": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0917": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0920": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0924": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL0925": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
+    "dr": "DR-015"
+  },
+  "AL1000": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1003": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1004": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1005": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1011": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1025": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1026": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Compiler warning at author severity from Recommended"
+      }
+    },
+    "dr": "DR-012"
+  },
+  "AL1029": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Compiler warning at author severity from Recommended"
+      }
+    },
+    "dr": "DR-012"
+  },
+  "AL1030": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Compiler warning at author severity from Recommended"
+      }
+    },
+    "dr": "DR-012"
+  },
+  "AL1031": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
+    "dr": "DR-015"
+  },
+  "AL1055": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1056": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1058": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1059": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1072": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1076": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
+    "dr": "DR-015"
+  },
+  "AL1078": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL1079": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
+    "dr": "DR-015"
+  },
+  "AL1080": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
+    "dr": "DR-015"
+  },
+  "AL1085": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1156": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AL1401": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1402": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1403": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1404": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1405": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1406": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1407": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1408": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1409": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1410": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1411": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1412": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+      },
+      "vnext": {
+        "action": "Warning",
+        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL1413": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1414": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1415": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1416": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1417": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1418": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1419": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1420": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1421": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1422": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1423": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1424": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1425": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1426": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1427": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1428": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1429": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
+    "dr": "DR-012"
+  },
+  "AL1430": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Compiler warning at author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0001": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0002": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0003": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0005": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0008": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0013": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0018": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0021": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0022": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0040": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0050": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0051": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0052": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0053": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0072": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at Info",
+    "dr": "DR-012"
+  },
+  "AA0073": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0074": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0087": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0100": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0101": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0102": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0103": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0104": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0105": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "AA0106": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "AA0131": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0136": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0137": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0139": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0150": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0161": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0175": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0181": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0189": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0194": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0198": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0199": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0200": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0201": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0202": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0203": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0204": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0205": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0206": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0207": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0210": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AA0211": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0213": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0214": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0215": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0216": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0217": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0218": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0219": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at Info",
+    "dr": "DR-012"
+  },
+  "AA0220": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0221": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0222": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0223": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0224": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0225": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0226": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0227": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0228": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0230": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0231": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0232": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AA0233": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0234": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at Info",
+    "dr": "DR-012"
+  },
+  "AA0235": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AA0237": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0240": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0241": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AA0242": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0243": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0244": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0245": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0246": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0247": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AA0248": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AA0249": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0250": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0251": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author chose Error but the construct does not fail at runtime; Warning keeps local builds green",
+    "dr": "DR-009"
+  },
+  "AA0252": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author chose Error but the construct does not fail at runtime; Warning keeps local builds green",
+    "dr": "DR-009"
+  },
+  "AA0448": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0462": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0470": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AA0471": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at Info",
+    "dr": "DR-012"
+  },
+  "AA0472": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at Info",
+    "dr": "DR-012"
+  },
+  "AA0473": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at Info",
+    "dr": "DR-012"
+  },
+  "AA0474": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at Info",
+    "dr": "DR-012"
+  },
+  "AA0475": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "AA0476": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author chose Error but the construct does not fail at runtime; Warning keeps local builds green",
+    "dr": "DR-009"
+  },
+  "AA0477": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AW0001": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "dr": "DR-003"
+  },
+  "AW0002": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "dr": "DR-003"
+  },
+  "AW0003": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "dr": "DR-003"
+  },
+  "AW0004": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "dr": "DR-003"
+  },
+  "AW0005": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AW0006": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AW0007": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "AW0008": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "dr": "DR-003"
+  },
+  "AW0009": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AW0010": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AW0011": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AW0012": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "dr": "DR-003"
+  },
+  "AW0013": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AW0014": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AW0015": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AW0016": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "dr": "DR-003"
+  },
+  "AW0017": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "dr": "DR-003"
+  },
+  "PTE0001": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "dr": "DR-018"
+  },
+  "PTE0002": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "dr": "DR-018"
+  },
+  "PTE0003": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0004": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A table that no permission set covers fails with a permission error for every user without SUPER; Error everywhere."
+  },
+  "PTE0005": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0006": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0007": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0008": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0009": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "dr": "DR-018"
+  },
+  "PTE0010": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0011": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0012": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PTE0013": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "dr": "DR-018"
+  },
+  "PTE0014": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PTE0015": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0016": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PTE0017": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PTE0018": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PTE0019": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PTE0020": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PTE0021": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "PTE0022": {
+    "ladder": "None/None/None/Info",
+    "justification": "Advice on member ids outside the allowed range, which enum values bound to Dataverse trip legitimately; Info in Complete only."
+  },
+  "PTE0023": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "dr": "DR-018"
+  },
+  "PTE0024": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "dr": "DR-018"
+  },
+  "PTE0025": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PTE0026": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0001": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0002": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0003": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Baseline-missing diagnostics need a configured baseline; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0004": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0005": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0006": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0007": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0008": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0009": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0010": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0011": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0013": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0014": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0015": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0016": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0018": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0019": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0020": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0021": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0022": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0023": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0024": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0025": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0026": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0027": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0028": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0029": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0030": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0031": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0032": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0033": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0034": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0035": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0036": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0038": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0039": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0040": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0041": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0042": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0043": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0044": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0047": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0048": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0049": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0050": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0051": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0052": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0053": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0054": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0055": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0056": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0057": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0058": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0059": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0060": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0061": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0062": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0063": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0064": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0065": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0066": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0067": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0068": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0069": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0070": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0071": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0072": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0073": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0074": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0075": {
+    "ladder": "None/Hidden/Hidden/Hidden",
+    "justification": "navcontainerhelper appsource.default.ruleset.json hides these two in AppSource validation",
+    "dr": "DR-021"
+  },
+  "AS0076": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0077": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0078": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0079": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0080": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0081": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0082": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0083": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0084": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0085": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0086": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0087": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0088": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0089": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "navcontainerhelper appsource.default.ruleset.json lowers AS0089 to Warning (AL cannot obsolete these objects)",
+    "dr": "DR-021"
+  },
+  "AS0090": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0091": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Baseline-missing diagnostics need a configured baseline; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0092": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0094": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0095": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0096": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0097": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0098": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0099": {
+    "ladder": "None/None/None/Info",
+    "justification": "Advice on member ids outside the allowed range, which enum values bound to Dataverse trip legitimately; Info in Complete only."
+  },
+  "AS0100": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0101": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0102": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0103": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A table that no permission set covers fails with a permission error for every user without SUPER; Error everywhere."
+  },
+  "AS0104": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0105": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0106": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0107": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0108": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0109": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0110": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0111": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0112": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0113": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0114": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0115": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0116": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0117": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0118": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0119": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0120": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0121": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0122": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0123": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0124": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0125": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AS0126": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0127": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0128": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0129": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0130": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0131": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0132": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0133": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0134": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0135": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0136": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0137": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0138": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Hidden keeps the code action available; visible from Strict",
+    "dr": "DR-012"
+  },
+  "AS0139": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0140": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0141": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0142": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0146": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0147": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0148": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "dr": "DR-018"
+  },
+  "AS0149": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AS0150": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0151": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "dr": "DR-019"
+  },
+  "AS0152": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "PC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
+    "dr": "DR-012"
+  },
+  "PC0001": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0002": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0003": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0004": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0005": {
+    "ladder": "None/None/None/Warning",
+    "justification": "Opt-in rule; Complete enables it at its author severity",
+    "dr": "DR-012"
+  },
+  "PC0006": {
+    "ladder": "None/None/None/Warning",
+    "justification": "Opt-in rule; Complete enables it at its author severity",
+    "dr": "DR-012"
+  },
+  "PC0007": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0008": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0010": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0011": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0012": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0013": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0014": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0015": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0016": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0017": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0018": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0019": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0020": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0021": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0022": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0023": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0024": {
+    "ladder": "Info/Info/Warning/Warning",
+    "justification": "Platform advice visible from Essential, blocks CI from Strict",
+    "dr": "DR-013"
+  },
+  "PC0025": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0026": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0027": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0028": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0029": {
+    "ladder": "Info/Info/Warning/Warning",
+    "justification": "Platform advice visible from Essential, blocks CI from Strict",
+    "dr": "DR-013"
+  },
+  "PC0030": {
+    "ladder": "Info/Info/Warning/Warning",
+    "justification": "Platform advice visible from Essential, blocks CI from Strict",
+    "dr": "DR-013"
+  },
+  "PC0031": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0032": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Construct always fails at runtime; blocks the local build at every level",
+    "dr": "DR-009"
+  },
+  "PC0033": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0034": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0035": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0036": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0037": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
+    "dr": "DR-013"
+  },
+  "PC0038": {
+    "ladder": "Info/Info/Warning/Warning",
+    "justification": "Platform advice visible from Essential, blocks CI from Strict",
+    "dr": "DR-013"
+  },
+  "AC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
+    "dr": "DR-012"
+  },
+  "AC0001": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0002": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0003": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0004": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0005": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0006": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0007": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0008": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at its author severity",
+    "dr": "DR-012"
+  },
+  "AC0009": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0010": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0011": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0012": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0013": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at its author severity",
+    "dr": "DR-012"
+  },
+  "AC0014": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0015": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0016": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0017": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0018": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0019": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0020": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0021": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at its author severity",
+    "dr": "DR-012"
+  },
+  "AC0022": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0023": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0024": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0025": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0026": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0027": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0028": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0029": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0030": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0031": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0032": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "AC0033": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "AC0034": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
+    "dr": "DR-012"
+  },
+  "LC0003": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0007": {
+    "ladder": "None/None/None/Info",
+    "justification": "Reports a number, not a defect; Complete shows it as Info",
+    "dr": "DR-012"
+  },
+  "LC0008": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0009": {
+    "ladder": "None/None/None/Info",
+    "justification": "Reports a number, not a defect; Complete shows it as Info",
+    "dr": "DR-012"
+  },
+  "LC0010": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0019": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0020": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0028": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0031": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "LC0033": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0040": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0043": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Secrets in Text leak through debugger and telemetry; security rule from Essential",
+    "dr": "DR-004"
+  },
+  "LC0048": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0052": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0053": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0054": {
+    "ladder": "None/None/None/None",
+    "justification": "Contradicts the mandatory-affix rules AS0011/AS0098; opinionated elsewhere",
+    "dr": "DR-005"
+  },
+  "LC0063": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "LC0081": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0082": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "LC0083": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0086": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0088": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "LC0089": {
+    "ladder": "None/None/None/Info",
+    "justification": "Reports a number, not a defect; Complete shows it as Info",
+    "dr": "DR-012"
+  },
+  "LC0089i": {
+    "ladder": "None/None/None/None",
+    "justification": "Per-increment complexity noise; LC0089 and LC0090 carry the signal",
+    "dr": "DR-006"
+  },
+  "LC0090": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0091": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0092": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0094": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0095": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0096": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "LC0097": {
+    "ladder": "None/None/None/Info",
+    "justification": "Evaluated for contradictions, none found; opt-in style stays Info in Complete",
+    "dr": "DR-007"
+  },
+  "LC0098": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "LC0099": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "DC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
+    "dr": "DR-012"
+  },
+  "DC0001": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "DC0002": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "DC0003": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "DC0004": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "DC0005": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "DC0006": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at its author severity",
+    "dr": "DR-012"
+  },
+  "DC0007": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "DC0008": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at its author severity",
+    "dr": "DR-012"
+  },
+  "DC0009": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "DC0010": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule; Complete enables it at its author severity",
+    "dr": "DR-012"
+  },
+  "FC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
+    "dr": "DR-012"
+  },
+  "FC0001": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "FC0002": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "FC0003": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "FC0004": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "FC0005": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "FC0006": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "FC0007": {
+    "ladder": "None/None/None/Info",
+    "justification": "Evaluated for contradictions, none found; opt-in style stays Info in Complete",
+    "dr": "DR-007"
+  },
+  "TA0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
+    "dr": "DR-012"
+  },
+  "TA0001": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Advisory at Recommended, blocks CI from Strict",
+    "dr": "DR-012"
+  },
+  "TA0002": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Author severity from Recommended",
+    "dr": "DR-012"
+  },
+  "CM0001": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A broken alcops.json silently disables rules; must block CI at every level",
+    "dr": "DR-012"
+  }
+}
