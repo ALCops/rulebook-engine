@@ -3111,193 +3111,155 @@
   },
   "PC0000": {
     "ladder": "Info/Info/Info/Info",
-    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
-    "dr": "DR-012"
+    "justification": "Only signal that a PlatformCop analyzer crashed and its checks did not run; always visible, never blocking."
   },
   "PC0001": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "justification": "An editable FlowField takes user input and the platform silently discards it; a user-facing defect, Warning from Essential."
   },
   "PC0002": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "AutoIncrement on a temporary table has no SQL to generate the value, so the insert fails at runtime; Error everywhere."
   },
   "PC0003": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "SetRange takes filter operators literally, so the filter matches the wrong records or none; a definite wrong result, Error everywhere."
   },
   "PC0004": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "Index 0 on a one-based List raises an index-out-of-range error at runtime; Error everywhere."
   },
   "PC0005": {
     "ladder": "None/None/None/Warning",
-    "justification": "Opt-in rule; Complete enables it at its author severity",
-    "dr": "DR-012"
+    "justification": "Leaving Extensible implicit lets dependants extend objects you meant to keep closed; opt-in design advice, Complete only."
   },
   "PC0006": {
     "ladder": "None/None/None/Warning",
-    "justification": "Opt-in rule; Complete enables it at its author severity",
-    "dr": "DR-012"
+    "justification": "Leaving Access implicit locks helper objects into the public surface; opt-in design advice, Complete only."
   },
   "PC0007": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "Passing a field that is neither FlowField nor Blob to SetAutoCalcFields raises a runtime error; Error everywhere."
   },
   "PC0008": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "With wildcard or case operators SetFilter leaves the placeholder unsubstituted and returns the wrong records; Error everywhere."
   },
   "PC0010": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A subscriber without var gets a copy, so its changes never reach the publisher; often harmless for a read only subscriber, Warning from Recommended."
   },
   "PC0011": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "justification": "A handled flag passed by value can never be raised by subscribers, so the IsHandled pattern is broken for every extender; Warning from Essential."
   },
   "PC0012": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "justification": "Assigning a FlowFilter field sets no filter, so CalcFields sums every record; a silent wrong result, Warning from Essential."
   },
   "PC0013": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "Get arguments that do not match the primary key fetch the wrong record or fail with a type error at runtime; Error everywhere."
   },
   "PC0014": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "justification": "Double quotes in a JPath make SelectToken silently return nothing; a definite wrong result, Warning from Essential."
   },
   "PC0015": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "Comparing a Guid with an empty string fails to parse and throws at runtime; Error everywhere."
   },
   "PC0016": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Clear or ClearAll leaves a SingleInstance codeunit's state intact, so an intended reset silently does nothing; a likely bug, Warning from Recommended."
   },
   "PC0017": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A record that does not match the page's source table fails with a conversion error when the page or lookup runs; Error everywhere."
   },
   "PC0018": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "Record methods on a page without a source table have no buffer, so the page opens without the passed record; Error everywhere."
   },
   "PC0019": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "justification": "The not-empty filter escaped with three quotes filters on a single quote instead of empty; a silent wrong result, Warning from Essential."
   },
   "PC0020": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "Error/Error/Error/Error",
+    "justification": "TransferFields between fields of one id with incompatible types throws at runtime, also in base app posting; Error everywhere."
   },
   "PC0021": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Same field id under different names across a TransferFields pair copies values into the wrong field; a likely bug, Warning from Recommended."
   },
   "PC0022": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Text that may exceed the target length through Validate, SetFilter, Get or a translated label throws at runtime; Warning from Recommended like AA0139."
   },
   "PC0023": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A subscriber that can lower the handled flag undoes an earlier subscriber's decision; an extensibility bug, Warning from Recommended."
   },
   "PC0024": {
-    "ladder": "Info/Info/Warning/Warning",
-    "justification": "Platform advice visible from Essential, blocks CI from Strict",
-    "dr": "DR-013"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "ApplicationArea on an API page is ignored and only adds noise; cleanup advice, a gate from Strict."
   },
   "PC0025": {
-    "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A business key in ODataKeyFields breaks Power Automate and stored links, and changing it after release breaks consumers; Warning from Essential."
   },
   "PC0026": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An API page without id and lastModifiedDateTime lacks a stable identifier and silently loses webhooks; Warning from Recommended."
   },
   "PC0027": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Running table triggers on a temporary record can write to the database through trigger code; a likely bug, Warning from Recommended."
   },
   "PC0028": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A field shorter than the field it relates to truncates looked up values and fails validation; a likely bug, Warning from Recommended."
   },
   "PC0029": {
-    "ladder": "Info/Info/Warning/Warning",
-    "justification": "Platform advice visible from Essential, blocks CI from Strict",
-    "dr": "DR-013"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Random GUIDs in key fields fragment the SQL index and slow inserts; performance advice, a gate from Strict."
   },
   "PC0030": {
-    "ladder": "Info/Info/Warning/Warning",
-    "justification": "Platform advice visible from Essential, blocks CI from Strict",
-    "dr": "DR-013"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Reads without SetLoadFields fetch every column; performance advice that fires on most reads, a gate from Strict."
   },
   "PC0031": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Partial records before a full-record write force a JIT load that costs a roundtrip and can fail under concurrency; Warning from Recommended."
   },
   "PC0032": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "A layout Caption or Summary over 250 characters makes the Report Layout Selection page fail at runtime; Error everywhere."
   },
   "PC0033": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "justification": "Control names that collide after the OData name mapping make Edit in Excel and OData calls fail; Warning from Essential."
   },
   "PC0034": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A placeholder without a matching argument shows a literal placeholder to the user; a user-facing defect, Warning from Recommended like AA0131."
   },
   "PC0035": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "CalcFields inside a loop issues one query per row and FlowField; a performance defect, Warning from Recommended."
   },
   "PC0036": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "Error/Error/Error/Error",
+    "justification": "SetRecord does not accept a temporary record and raises a runtime error; Error everywhere."
   },
   "PC0037": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Platform rejects or misexecutes the construct; blocks CI from Essential",
-    "dr": "DR-013"
+    "ladder": "None/None/Info/Warning",
+    "justification": "Direct field assignment skips OnValidate and its subscribers, but fires on most assignments and is often deliberate; advice from Strict, a gate in Complete."
   },
   "PC0038": {
-    "ladder": "Info/Info/Warning/Warning",
-    "justification": "Platform advice visible from Essential, blocks CI from Strict",
-    "dr": "DR-013"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A path that falls through returns an implicit default and can hide a logic bug; advisory, a gate from Strict."
   },
   "AC0000": {
     "ladder": "Info/Info/Info/Info",
