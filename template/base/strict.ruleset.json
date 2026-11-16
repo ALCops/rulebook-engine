@@ -3,7 +3,10 @@
   "name": "Rulebook Strict",
   "description": "Level strict, basedOn recommended. Lists the ids whose action differs from recommended. Generated from docs/rulebook; do not edit.",
   "rules": [
-    { "id": "AL0432", "action": "Warning", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near" },
+    { "id": "AL0235", "action": "Warning", "justification": "The empty CONST() filter is deprecated syntax with the same meaning as CONST(\" \"); a cheap cleanup, advisory then a gate from Strict." },
+    { "id": "AL0374", "action": "Warning", "justification": "A unique ID on an element where IDs are deprecated is dead syntax; harmless cleanup, advisory then a gate from Strict." },
+    { "id": "AL0432", "action": "Warning", "justification": "Uses an object marked for removal whose replacement may not be released yet; advisory at Recommended, a gate from Strict." },
+    { "id": "AL0483", "action": "Warning", "justification": "An Image on a nested action group in the Sections area is ignored by the client; cosmetic, advisory then a gate from Strict." },
     { "id": "AL0801", "action": "Warning", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near" },
     { "id": "AL1412", "action": "Warning", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near" },
     { "id": "AA0001", "action": "Warning", "justification": "Spacing around binary operators is pure layout the formatter fixes; no behaviour changes, so a gate from Strict only." },

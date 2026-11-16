@@ -1,27 +1,23 @@
 {
   "AL0200": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A property Microsoft has obsoleted will be removed in a later version; an upgrade risk a healthy project fixes, Warning from Recommended."
   },
   "AL0235": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "The empty CONST() filter is deprecated syntax with the same meaning as CONST(\" \"); a cheap cleanup, advisory then a gate from Strict."
   },
   "AL0251": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A permission set names an object that is not in the project or its dependencies, so it grants nothing; broken setup, Warning from Recommended."
   },
   "AL0254": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Sorting on a field that no key covers forces SQL to sort without an index; a performance risk, Warning from Recommended."
   },
   "AL0269": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a page part that references a page which is not a ListPart or CardPart; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -32,7 +28,7 @@
   },
   "AL0273": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a control named like an Area type, which dependent extensions cannot reference; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -43,7 +39,7 @@
   },
   "AL0299": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a qualified member name on something other than a trigger; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -53,18 +49,16 @@
     "dr": "DR-017"
   },
   "AL0374": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A unique ID on an element where IDs are deprecated is dead syntax; harmless cleanup, advisory then a gate from Strict."
   },
   "AL0424": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "CaptionML style multilanguage text in an app that uses translation files bypasses the XLIFF round trip; translations go missing, Warning from Recommended."
   },
   "AL0432": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near",
+    "justification": "Uses an object marked for removal whose replacement may not be released yet; advisory at Recommended, a gate from Strict.",
     "stages": {
       "ci": {
         "action": "Info",
@@ -79,17 +73,15 @@
   },
   "AL0457": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A label property sits outside its designated attribute, so translators and the Locked flag may not see it; Warning from Recommended."
   },
   "AL0467": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "The compiler cannot write a generated translation or layout file because it is read only, so that output is stale; kept at the author's default."
   },
   "AL0468": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a table field name longer than the SQL safe limit; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -100,40 +92,40 @@
   },
   "AL0472": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
+    "justification": "A translation unit whose source no longer matches the label is ignored, so users see the untranslated text; Warning from Recommended.",
     "stages": {
       "ci": {
         "action": "Info",
         "justification": "Compiler warning at author severity from Recommended"
       }
     },
-    "dr": "DR-012"
+    "dr": "DR-016"
   },
   "AL0473": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
+    "justification": "A translated string longer than the label allows is trimmed, so users see cut text; Warning from Recommended.",
     "stages": {
       "ci": {
         "action": "Info",
         "justification": "Compiler warning at author severity from Recommended"
       }
     },
-    "dr": "DR-012"
+    "dr": "DR-016"
   },
   "AL0479": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
+    "justification": "Two translation units for the same ID make the translation ambiguous; a defect in the XLIFF file, Warning from Recommended.",
     "stages": {
       "ci": {
         "action": "Info",
         "justification": "Compiler warning at author severity from Recommended"
       }
     },
-    "dr": "DR-012"
+    "dr": "DR-016"
   },
   "AL0481": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: the Image property on a field outside a CueGroup; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -144,17 +136,15 @@
   },
   "AL0482": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An image name that is wrong or unsupported for the control is not shown to the user; a visible defect, Warning from Recommended."
   },
   "AL0483": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An Image on a nested action group in the Sections area is ignored by the client; cosmetic, advisory then a gate from Strict."
   },
   "AL0486": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a member name another extension already defines on the same object; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -165,7 +155,7 @@
   },
   "AL0493": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an action in a list only area whose RunObject is not a List page; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -176,17 +166,16 @@
   },
   "AL0509": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A constant outside the ordinal range of the option type is a value no caption maps to; a likely bug, Warning from Recommended."
   },
   "AL0520": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "References a symbol that is already removed, where the compiler still tolerates it; it breaks once the schema goes, Warning from Recommended.",
+    "dr": "DR-016"
   },
   "AL0523": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a method whose name and parameter types another extension already defines on the object; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -197,7 +186,7 @@
   },
   "AL0524": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a method that duplicates one with the same signature on the base object; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -208,7 +197,7 @@
   },
   "AL0534": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a table key name longer than the SQL safe limit; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -219,7 +208,7 @@
   },
   "AL0545": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an area type the page type does not support; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -230,7 +219,7 @@
   },
   "AL0547": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an event publisher that exposes global variables; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -241,7 +230,7 @@
   },
   "AL0548": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: moving a page symbol from one area to another; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -252,7 +241,7 @@
   },
   "AL0550": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a group in an action area that holds something other than actions; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -263,7 +252,7 @@
   },
   "AL0551": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an action area that holds something other than actions; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -274,7 +263,7 @@
   },
   "AL0552": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an action area that directly holds something other than groups; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -285,7 +274,7 @@
   },
   "AL0556": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an action whose RunObject has an object type the area does not allow; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -296,17 +285,15 @@
   },
   "AL0557": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A codeunit local variable named like a field of its table shadows that field, so code reads the variable instead; a likely bug, Warning from Recommended."
   },
   "AL0558": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A codeunit global variable named like a field of its table makes it unclear which one code refers to; a likely bug, Warning from Recommended."
   },
   "AL0559": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a part page that contains another part; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -317,7 +304,7 @@
   },
   "AL0560": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a Role Center area holding something other than parts and groups; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -328,7 +315,7 @@
   },
   "AL0561": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a FactBoxes area holding something other than parts; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -339,7 +326,7 @@
   },
   "AL0562": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a SystemPart with an invalid part kind; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -350,7 +337,7 @@
   },
   "AL0563": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a control type its parent control does not allow; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -361,12 +348,11 @@
   },
   "AL0567": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A table field named like a system field shadows it, so code and filters hit the wrong one; a likely bug, Warning from Recommended."
   },
   "AL0568": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a group in an action area holding something other than actions or groups; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -377,7 +363,7 @@
   },
   "AL0569": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a procedure on a Role Center page; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -388,7 +374,7 @@
   },
   "AL0571": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a profile that uses Description where Caption belongs; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -399,7 +385,7 @@
   },
   "AL0573": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a client expression using more than simple types and field references; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -410,7 +396,7 @@
   },
   "AL0586": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an identifier with characters that are not valid; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -421,12 +407,11 @@
   },
   "AL0588": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A subscriber declares Option where the publisher passes an enum, so the types drift apart; an upgrade risk, Warning from Recommended."
   },
   "AL0589": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: one name shared by report columns and data items, which blocks extending them; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -437,7 +422,7 @@
   },
   "AL0590": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a property set on a group kind that does not support it; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -448,12 +433,11 @@
   },
   "AL0592": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An enum conversion relies on AssignmentCompatibility and the compiler relays the enum author's reason; kept at the author's default."
   },
   "AL0593": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a subscriber parameter with a smaller capacity than the publisher's; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -464,7 +448,7 @@
   },
   "AL0598": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: moving or modifying an element in the same extension object that adds it; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -475,7 +459,7 @@
   },
   "AL0600": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an option related property on an element that is not an Option; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -486,7 +470,7 @@
   },
   "AL0601": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a reference to a symbol whose obsolete state is Removed; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -497,7 +481,7 @@
   },
   "AL0602": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: access to a member its protection level hides; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -508,18 +492,18 @@
   },
   "AL0603": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
+    "justification": "An implicit conversion that can lose data or fail at runtime, such as enum to Option or Text to Code; Warning from Recommended.",
     "stages": {
       "ci": {
         "action": "Info",
         "justification": "Compiler warning at author severity from Recommended"
       }
     },
-    "dr": "DR-012"
+    "dr": "DR-016"
   },
   "AL0604": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an unqualified member reached through implicit with; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -530,12 +514,11 @@
   },
   "AL0605": {
     "ladder": "None/Hidden/Hidden/Info",
-    "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete",
-    "dr": "DR-015"
+    "justification": "Hidden twin of the implicit with future error that feeds the qualify code action; Hidden from Recommended, Info in Complete."
   },
   "AL0606": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an explicit with statement in cloud code; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -546,12 +529,11 @@
   },
   "AL0607": {
     "ladder": "None/Hidden/Hidden/Info",
-    "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete",
-    "dr": "DR-015"
+    "justification": "Hidden twin of the explicit with future error that feeds the code action removing with; Hidden from Recommended, Info in Complete."
   },
   "AL0608": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an OrderBy property without any field; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -561,23 +543,20 @@
     "dr": "DR-017"
   },
   "AL0609": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An action added to a CueGroup is not supported and the client does not render it; Warning from Essential like other dropped controls."
   },
   "AL0610": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Moving an action inside a CueGroup is not supported and the client ignores it; Warning from Essential like other dropped controls."
   },
   "AL0611": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Modifying an action inside a CueGroup is not supported and the change does not reach the client; Warning from Essential like other dropped controls."
   },
   "AL0613": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a trigger declared with the wrong signature; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -588,7 +567,7 @@
   },
   "AL0614": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a reserved value assigned to a property; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -599,7 +578,7 @@
   },
   "AL0615": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: an ODataKeyFields field that no page control uses as source; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -610,7 +589,7 @@
   },
   "AL0617": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: OnBeforeActionEvent on an action that sets RunObject; Warning from Essential gives the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -621,28 +600,23 @@
   },
   "AL0626": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A preprocessor directive lacks its identifier or number, so it does not do what the author meant; Warning from Recommended."
   },
   "AL0627": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A pragma warning directive without disable or restore is ignored, so the suppression is not applied as intended; Warning from Recommended."
   },
   "AL0628": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An unrecognized pragma is ignored, usually a typo that leaves warnings unsuppressed or code unchanged; Warning from Recommended."
   },
   "AL0633": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An implicit with pragma without disable, enable or restore is ignored, so the with scope is not what the author meant; Warning from Recommended."
   },
   "AL0634": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Trailing text after a preprocessor directive is not allowed and the directive may be misread; Warning from Recommended."
   },
   "AL0635": {
     "ladder": "Warning/Warning/Warning/Warning",

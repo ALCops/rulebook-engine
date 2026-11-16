@@ -3,8 +3,8 @@
   "name": "Rulebook Complete",
   "description": "Level complete, basedOn strict. Lists the ids whose action differs from strict. Generated from docs/rulebook; do not edit.",
   "rules": [
-    { "id": "AL0605", "action": "Info", "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete" },
-    { "id": "AL0607", "action": "Info", "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete" },
+    { "id": "AL0605", "action": "Info", "justification": "Hidden twin of the implicit with future error that feeds the qualify code action; Hidden from Recommended, Info in Complete." },
+    { "id": "AL0607", "action": "Info", "justification": "Hidden twin of the explicit with future error that feeds the code action removing with; Hidden from Recommended, Info in Complete." },
     { "id": "AL0792", "action": "Info", "justification": "Hidden compiler diagnostics feed editor code actions; visible as Info only in Complete" },
     { "id": "AA0021", "action": "Warning", "justification": "Ordering declarations by type is a house style with no effect on behaviour and many hits in old code; Info at Strict, gated in Complete." },
     { "id": "AA0022", "action": "Warning", "justification": "Rewriting IF ELSE chains as CASE is a readability opinion; Info at Strict, gated in Complete." },
