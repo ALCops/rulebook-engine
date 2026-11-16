@@ -2092,102 +2092,93 @@
   },
   "AW0001": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "justification": "The web client never shows the request page of an XMLport, so its options are silently lost; Warning from Essential.",
     "dr": "DR-003"
   },
   "AW0002": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "justification": "A cue group that mixes actions and fields loses its actions in the web client without notice; Warning from Essential.",
     "dr": "DR-003"
   },
   "AW0003": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "justification": "A repeater that contains parts is not displayed by the web client, so the user never sees it; Warning from Essential.",
     "dr": "DR-003"
   },
   "AW0004": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "justification": "A page field bound to a Blob cannot be rendered by the web client and silently disappears; Warning from Essential.",
     "dr": "DR-003"
   },
   "AW0005": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "An action without an image shows a generic icon in the action bar; a polish point, advisory, a gate from Strict."
   },
   "AW0006": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A page or report without UsageCategory and ApplicationArea cannot be found through search; advisory, a gate from Strict."
   },
   "AW0007": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Construct always fails at runtime; blocks the local build at every level",
-    "dr": "DR-009"
+    "justification": "A FlowFilter field inside a repeater cannot be displayed and the page fails to render it at runtime; Error everywhere."
   },
   "AW0008": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "justification": "A repeater on a page type other than List, ListPart or Worksheet is not shown by the web client; Warning from Essential.",
     "dr": "DR-003"
   },
   "AW0009": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A Blob of subtype Bitmap on a page is a deprecated pattern that Media or MediaSet replaces; an upgrade risk, Warning from Recommended."
   },
   "AW0010": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A repeater placed after other content on a List page breaks the expected list layout; a healthy project fixes it, Warning from Recommended."
   },
   "AW0011": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "Promoted actions without PromotedOnly appear twice in the command bar; a clutter issue, advisory, a gate from Strict."
   },
   "AW0012": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "justification": "Teaching tip properties in a location the web client does not support are silently ignored; Warning from Essential.",
     "dr": "DR-003"
   },
   "AW0013": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Promoted actions in a hidden group no longer reach the promoted side under the modern action bar, so users lose them; Warning from Essential."
   },
   "AW0014": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Actionrefs that target actions in a hidden group still render today but may be hidden later; an upgrade risk, Warning from Recommended."
   },
   "AW0015": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An action with repeater scope that is not promoted is never rendered on the repeater, so users lose it; Warning from Essential."
   },
   "AW0016": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "justification": "A rich text editor field that shares its FastTab group with other controls does not render correctly; Warning from Essential.",
     "dr": "DR-003"
   },
   "AW0017": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Web client silently drops or breaks the control; treated as a blocker from Essential",
+    "justification": "MaskType inside a repeater is not supported by the web client and has no effect; Warning from Essential.",
     "dr": "DR-003"
   },
   "PTE0001": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "justification": "An object id outside the free range blocks deployment of a per-tenant extension; Error everywhere, an AppSource project opts out.",
     "dr": "DR-018"
   },
   "PTE0002": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "justification": "A field id outside the free range blocks deployment of a per-tenant extension; Error everywhere, an AppSource project opts out.",
     "dr": "DR-018"
   },
   "PTE0003": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A subscriber to the company-open events runs on every sign-in and slows login for every user; a blocker for cloud extensions, Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0004": {
@@ -2196,87 +2187,84 @@
   },
   "PTE0005": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A compilation target other than Cloud or Extension cannot be deployed to a multi-tenant SaaS environment; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0006": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Encryption key functions are not available to a cloud extension and fail there; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0007": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "AssertError in production code opens its own transaction scope and misbehaves at runtime; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0008": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A page control or action without ApplicationArea is invisible to users in the cloud; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0009": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "justification": "The translation-only manifest properties block deployment of a per-tenant extension; Error everywhere, an AppSource project opts out.",
     "dr": "DR-018"
   },
   "PTE0010": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "An extension name longer than the limit of its extension kind is rejected when the app is published; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0011": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A publisher name longer than the limit is rejected when the app is published; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0012": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Info/Warning",
+    "justification": "Using InternalsVisibleTo is legitimate for test apps; the reminder that it is no security boundary is advice, Info until Complete."
   },
   "PTE0013": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "justification": "Entitlement objects are reserved for Microsoft and block deployment of an extension; Error everywhere, an AppSource project opts out.",
     "dr": "DR-018"
   },
   "PTE0014": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Permissions defined in XML files are a legacy format the PermissionSet object replaces; an upgrade risk, Warning from Recommended.",
+    "dr": "DR-020"
   },
   "PTE0015": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "An extension name the platform does not accept is rejected when the app is published; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0016": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A permission set extension that grants access to another app's objects can give users more than intended; Warning from Recommended.",
+    "dr": "DR-020"
   },
   "PTE0017": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A permission set extension that pulls in another app's permission set can give users more than intended; Warning from Recommended.",
+    "dr": "DR-020"
   },
   "PTE0018": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Including a set that carries another app's permissions through an extension widens access beyond intent; Warning from Recommended.",
+    "dr": "DR-020"
   },
   "PTE0019": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A wildcard in a permission set extension grants every object of a type to every holder of the extended set; a security exposure, Warning from Essential."
   },
   "PTE0020": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An explicit Base Application dependency instead of the application property ties the app to one variant; Warning from Recommended."
   },
   "PTE0021": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "The System and Microsoft namespaces are reserved and an app that defines them is rejected; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0022": {
@@ -2285,23 +2273,23 @@
   },
   "PTE0023": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "justification": "An enum ordinal outside the app's range can collide with another extension's values; advisory, a gate from Strict.",
     "dr": "DR-018"
   },
   "PTE0024": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of a per-tenant extension at its native severity; AppSource projects opt out",
+    "justification": "Moving tables or fields between apps is not supported for a per-tenant extension and blocks deployment; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0025": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An object name that a dependency already uses causes runtime and compile problems for apps without namespaces; Warning from Recommended.",
+    "dr": "DR-020"
   },
   "PTE0026": {
     "ladder": "None/Hidden/Info/Info",
-    "justification": "Hidden keeps the code action available; visible from Strict",
-    "dr": "DR-012"
+    "justification": "A table field without an explicit AllowInCustomizations value is advice that feeds a code action; Hidden, visible from Strict.",
+    "dr": "DR-020"
   },
   "AS0001": {
     "ladder": "Error/Error/Error/Error",
@@ -2340,7 +2328,7 @@
   },
   "AS0008": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "The System and Microsoft namespaces are reserved and an app that defines them is rejected; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0009": {
@@ -2510,12 +2498,12 @@
   },
   "AS0047": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "An extension name longer than the limit of its extension kind is rejected when the app is published; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0048": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A publisher name longer than the limit is rejected when the app is published; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0049": {
@@ -2540,7 +2528,7 @@
   },
   "AS0053": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A compilation target other than Cloud or Extension cannot be deployed to a multi-tenant SaaS environment; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0054": {
@@ -2580,12 +2568,12 @@
   },
   "AS0061": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A subscriber to the company-open events runs on every sign-in and slows login for every user; a blocker for cloud extensions, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0062": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A page control or action without ApplicationArea is invisible to users in the cloud; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0063": {
@@ -2679,9 +2667,8 @@
     "dr": "DR-018"
   },
   "AS0081": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Info/Warning",
+    "justification": "Using InternalsVisibleTo is legitimate for test apps; the reminder that it is no security boundary is advice, Info until Complete."
   },
   "AS0082": {
     "ladder": "Error/Error/Error/Error",
@@ -2740,8 +2727,8 @@
   },
   "AS0094": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Permissions defined in XML files are a legacy format the PermissionSet object replaces; an upgrade risk, Warning from Recommended.",
+    "dr": "DR-020"
   },
   "AS0095": {
     "ladder": "Error/Error/Error/Error",
@@ -2788,7 +2775,7 @@
   },
   "AS0104": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "An extension name the platform does not accept is rejected when the app is published; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0105": {
@@ -2818,23 +2805,22 @@
   },
   "AS0110": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A permission set extension that grants access to another app's objects can give users more than intended; Warning from Recommended.",
+    "dr": "DR-020"
   },
   "AS0111": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A permission set extension that pulls in another app's permission set can give users more than intended; Warning from Recommended.",
+    "dr": "DR-020"
   },
   "AS0112": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Including a set that carries another app's permissions through an extension widens access beyond intent; Warning from Recommended.",
+    "dr": "DR-020"
   },
   "AS0113": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A wildcard in a permission set extension grants every object of a type to every holder of the extended set; a security exposure, Warning from Essential."
   },
   "AS0114": {
     "ladder": "Error/Error/Error/Error",
@@ -2918,8 +2904,8 @@
   },
   "AS0130": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An object name that a dependency already uses causes runtime and compile problems for apps without namespaces; Warning from Recommended.",
+    "dr": "DR-020"
   },
   "AS0131": {
     "ladder": "None/Hidden/Info/Info",
@@ -2958,8 +2944,8 @@
   },
   "AS0138": {
     "ladder": "None/Hidden/Info/Info",
-    "justification": "Hidden keeps the code action available; visible from Strict",
-    "dr": "DR-012"
+    "justification": "A table field without an explicit AllowInCustomizations value is advice that feeds a code action; Hidden, visible from Strict.",
+    "dr": "DR-020"
   },
   "AS0139": {
     "ladder": "None/Warning/Warning/Warning",
