@@ -2,6 +2,9 @@
   "name": "Rulebook Strict / default",
   "description": "Level strict, stage default, twins both. Generated from base/essential.ruleset.json, base/recommended.ruleset.json, base/strict.ruleset.json plus overrides.json and quarantine.default.json; do not edit. Ids at their analyzer default are not listed.",
   "rules": [
+    { "id": "AL0642", "action": "Info" },
+    { "id": "AL0773", "action": "Info" },
+    { "id": "AL0821", "action": "Error" },
     { "id": "AA0021", "action": "Info" },
     { "id": "AA0022", "action": "Info" },
     { "id": "AA0199", "action": "Info" },
