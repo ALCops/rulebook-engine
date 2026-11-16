@@ -69,6 +69,8 @@
     { "id": "AC0030", "action": "Warning" },
     { "id": "AC0031", "action": "Warning" },
     { "id": "AC0032", "action": "Warning" },
+    { "id": "AC0033", "action": "Info" },
+    { "id": "AC0034", "action": "Info" },
     { "id": "LC0007", "action": "Info" },
     { "id": "LC0009", "action": "Info" },
     { "id": "LC0031", "action": "Warning" },

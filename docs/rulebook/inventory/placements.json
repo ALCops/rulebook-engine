@@ -3301,178 +3301,143 @@
   },
   "AC0000": {
     "ladder": "Info/Info/Info/Info",
-    "justification": "Only signal that an analyzer crashed; always visible, never blocking",
-    "dr": "DR-012"
+    "justification": "Reports that an analyzer crashed, not a defect in the code; always visible, never blocking."
   },
   "AC0001": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A list page source table without lookup and drill-down pages leaves users no way to open the record from a field value; user-facing defect, Warning from Recommended."
   },
   "AC0002": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A blank single-field key lets a later delete or rename cascade into every unrelated record with an empty relation field; data-loss risk, Warning from Recommended."
   },
   "AC0003": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "NotBlank on a key filled by a number series rejects every new record in the client before OnInsert runs; Warning from Essential since detection is heuristic."
   },
   "AC0004": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A direct Confirm call fails at runtime in job queues and web service calls where no UI exists; likely bug, Warning from Recommended."
   },
   "AC0005": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "Switching the session language by hand risks leaving it switched when the restore is missed or an error interrupts; advisory, a gate from Strict."
   },
   "AC0006": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Hardcoding the page for document and setup tables opens the wrong variant, for example a quote on the order page; Warning from Recommended."
   },
   "AC0007": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A public install or upgrade codeunit invites other apps to call it, so later cleanup becomes a breaking change; upgrade risk, Warning from Recommended."
   },
   "AC0008": {
     "ladder": "None/None/None/Info",
-    "justification": "Opt-in rule; Complete enables it at its author severity",
-    "dr": "DR-012"
+    "justification": "Opt-in check that records the per-company storage choice explicitly, since changing it later needs empty tables; Info in Complete only."
   },
   "AC0009": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A permission set caption without a length cap lets translations exceed 30 characters and get truncated in the list; advisory, a gate from Strict."
   },
   "AC0010": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Objects outside every permission set force administrators to grant access by hand before users can work; Warning from Recommended."
   },
   "AC0011": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "Without a caption a user-facing element gets no translation unit and shows the AL identifier in every language; advisory, a gate from Strict."
   },
   "AC0012": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An integration event in an internal codeunit cannot be subscribed to from other apps, so the extension point is dead; Warning from Recommended."
   },
   "AC0013": {
     "ladder": "None/None/None/Info",
-    "justification": "Opt-in rule; Complete enables it at its author severity",
-    "dr": "DR-012"
+    "justification": "Opt-in check for DropDown and Brick field groups so lookups and tiles show useful fields; Info in Complete only."
   },
   "AC0014": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Tooltip text without closing punctuation is a style lapse against the user assistance guidelines; too cosmetic to advise, a gate from Strict."
   },
   "AC0015": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Field tooltips that do not open with Specifies break the wording convention of the standard application; style, a gate from Strict."
   },
   "AC0016": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A line break escape in a tooltip renders as a literal backslash in the client; visible defect, Warning from Recommended."
   },
   "AC0017": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "Tooltips over 200 characters turn a quick hint into a block of text users must read; advisory, a gate from Strict."
   },
   "AC0018": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An unlocked empty caption adds a blank translation unit that translators must skip in every language; translation hygiene, advisory then a gate from Strict."
   },
   "AC0019": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A meaningful value at ordinal zero cannot be told apart from the default every new record gets; design advice, a gate from Strict."
   },
   "AC0020": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A token label left translatable can be translated and break the API key or identifier it carries; likely bug, Warning from Recommended."
   },
   "AC0021": {
     "ladder": "None/None/None/Info",
-    "justification": "Opt-in rule; Complete enables it at its author severity",
-    "dr": "DR-012"
+    "justification": "Opt-in naming check that marks every locked label as a token; Info in Complete only."
   },
   "AC0022": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A caption on the empty enum value is dead metadata the platform ignores; harmless clutter, advisory then a gate from Strict."
   },
   "AC0023": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An enum value with an empty caption cannot be picked in dropdowns; user-facing defect, Warning from Recommended."
   },
   "AC0024": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A public event publisher freezes its signature as public API while subscribers need no public access; extensibility risk, Warning from Recommended."
   },
   "AC0025": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "Assigning the magic number 10 for a line feed hides intent that the Type Helper separators state; readability, advisory then a gate from Strict."
   },
   "AC0026": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A field kept off every page can still be added and edited through page customization unless its exposure is set; advisory, a gate from Strict."
   },
   "AC0027": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A locked label whose text equals its name is a token and should say so with its suffix; naming refinement, advisory then a gate from Strict."
   },
   "AC0028": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A tooltip kept on the page instead of the table field must be copied to every page and goes stale; maintainability, a gate from Strict."
   },
   "AC0029": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "A page tooltip that repeats the table field tooltip stops following later table edits; maintainability, advisory then a gate from Strict."
   },
   "AC0030": {
-    "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "ladder": "None/None/Info/Warning",
+    "justification": "A discarded Get or Find result raises only the generic platform error, often deliberately; noisy advice, Info from Strict."
   },
   "AC0031": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "Table access without declared object permissions fails for users who hold only indirect permissions; advisory, a gate from Strict."
   },
   "AC0032": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Advisory at Recommended, blocks CI from Strict",
-    "dr": "DR-012"
+    "justification": "Declared permissions the code never uses mislead anyone auditing what the object touches; advisory, a gate from Strict."
   },
   "AC0033": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/None/None/Info",
+    "justification": "Advice that the app ships its own Rest Client handler so its own HTTP setting governs its calls; ALCops makes it opt-in upstream, Info in Complete only."
   },
   "AC0034": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/None/None/Info",
+    "justification": "Advice that the app carries its own Telemetry Logger instead of relying on another app of the publisher; ALCops makes it opt-in upstream, Info in Complete only."
   },
   "LC0000": {
     "ladder": "Info/Info/Info/Info",
