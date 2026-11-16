@@ -139,6 +139,7 @@
     { "id": "AS0089", "action": "Warning" },
     { "id": "AS0099", "action": "None" },
     { "id": "AS0103", "action": "Error" },
+    { "id": "AS0127", "action": "Info" },
     { "id": "PC0017", "action": "Error" },
     { "id": "PC0020", "action": "Error" },
     { "id": "PC0025", "action": "Warning" },

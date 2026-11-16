@@ -54,9 +54,9 @@ Number of diagnostics per resolved action for every level and stage (628 ids eac
 | Essential | default | 124 | 117 | 6 | 0 | 381 | 366 |
 | Essential | ci | 124 | 117 | 6 | 0 | 381 | 366 |
 | Essential | vnext | 216 | 25 | 6 | 0 | 381 | 458 |
-| Recommended | default | 135 | 329 | 101 | 17 | 46 | 88 |
-| Recommended | ci | 135 | 322 | 108 | 17 | 46 | 95 |
-| Recommended | vnext | 227 | 240 | 98 | 17 | 46 | 177 |
+| Recommended | default | 135 | 328 | 102 | 17 | 46 | 89 |
+| Recommended | ci | 135 | 321 | 109 | 17 | 46 | 96 |
+| Recommended | vnext | 227 | 239 | 99 | 17 | 46 | 178 |
 | Strict | default | 135 | 421 | 42 | 4 | 26 | 82 |
 | Strict | ci | 135 | 411 | 52 | 4 | 26 | 92 |
 | Strict | vnext | 227 | 329 | 42 | 4 | 26 | 174 |
@@ -68,7 +68,7 @@ Number of diagnostics per resolved action for every level and stage (628 ids eac
 |---|---|
 | `base/essential.ruleset.json` | 366 |
 | `base/recommended.ruleset.json` | 335 |
-| `base/strict.ruleset.json` | 113 |
+| `base/strict.ruleset.json` | 114 |
 | `base/complete.ruleset.json` | 39 |
 | `stages/ci.json` | 10 |
 | `stages/vnext.json` | 95 |

@@ -6415,7 +6415,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Adding or dropping var on a published procedure breaks every caller that compiles against it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6430,7 +6430,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-019",
-    "Justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "Justification": "An unaffixed procedure in an extension object can clash with a later base or partner procedure; needs mandatoryAffixes, so off at Essential and Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6445,7 +6445,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Shrinking a published field truncates or blocks schema sync of existing data; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6475,7 +6475,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Renaming a published enum value breaks dependents that reference it by name; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6490,7 +6490,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Deleting a published enum value orphans stored data and breaks dependents; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6505,7 +6505,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-019",
-    "Justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "Justification": "Object ids outside the AppSource range assigned to the app block submission; marketplace only, so off at Essential and Error from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6519,8 +6519,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "An explicit Base or System Application dependency instead of the application property pins versions and complicates upgrades; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6534,8 +6534,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "A longer published field can overflow when dependents copy it into their shorter fields; an upgrade risk to review, Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6549,8 +6549,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "A comma in a translated enum caption splits it into extra option captions so users see shifted labels; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6565,7 +6565,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Deleting a published object with an id breaks dependents and drops its data on upgrade; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6580,7 +6580,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-021",
-    "Justification": "navcontainerhelper appsource.default.ruleset.json lowers AS0089 to Warning (AL cannot obsolete these objects)",
+    "Justification": "Deleting a published id-less object can break dependents, but AL offers no way to obsolete these objects; Warning everywhere as in the Microsoft validation ruleset.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6595,7 +6595,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Renaming a published object breaks dependents that reference it by name; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6610,7 +6610,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-019",
-    "Justification": "Baseline-missing diagnostics need a configured baseline; off at Essential, native from Recommended",
+    "Justification": "Missing dependencies of the baseline make the breaking-change checks impossible; needs a configured baseline, so off at Essential and Error from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6625,7 +6625,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-019",
-    "Justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "Justification": "An app without an Application Insights resource gives the publisher no telemetry; a marketplace expectation, off at Essential and Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6655,7 +6655,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Narrowing the access of a published table field breaks dependents that use it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6670,7 +6670,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Changing the extension name breaks its identity for upgrade and submission; a blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6685,7 +6685,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Changing the publisher name breaks the extension identity for upgrade and submission; a blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6700,7 +6700,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-019",
-    "Justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "Justification": "A new object or member without the mandatory affix can clash with other apps; needs mandatoryAffixes and a baseline, so off at Essential and Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6730,7 +6730,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "An app.json without the application property is rejected by AppSource and couples the app to explicit platform dependencies; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6745,7 +6745,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Changing the Isolated argument of a published event changes how subscriber errors roll back for dependents; an upgrade blocker; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6760,7 +6760,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Adding a return value to a published procedure breaks dependents compiled against it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6805,7 +6805,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "A reference to an object whose obsolete tag is past the configured minimum breaks when the object is removed; fires only once the tag policy is set; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6820,7 +6820,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Removing a public API variable breaks dependents that use it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6835,7 +6835,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Narrowing the access of a public API variable breaks dependents that use it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6850,7 +6850,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Changing the type of a public API variable breaks dependents compiled against it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6864,8 +6864,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "Turning a normal table temporary makes sync fail while it still holds data, which upgrade code must clear first; a risk to review, Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6940,7 +6940,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Renaming a published external business event breaks the flows that subscribe to it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6955,7 +6955,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Removing an element without a Pending phase gives dependents no warning before their build breaks; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6969,8 +6969,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "The app a symbol moved from is missing from the baseline, so the move cannot be validated; a setup gap to fix, Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6985,7 +6985,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Moving an object to another app without PendingMove breaks dependents and the data handover; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7000,7 +7000,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Changing the length of a primary key field blocks schema sync of existing data; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7015,7 +7015,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "A MovedTo value that does not name the destination app breaks the move of the symbol and its data; an upgrade blocker; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7030,7 +7030,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "A MovedFrom value that does not name the source app breaks the move of the symbol and its data; an upgrade blocker; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7045,7 +7045,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "A moved symbol with a new name breaks dependents and the move itself; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7059,8 +7059,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "The moved symbol is not in the named source package, so the move cannot be validated; a setup gap to fix, Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7075,7 +7075,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Declaring a clustered key on an existing table forces a schema change sync rejects; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7090,7 +7090,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Retargeting a published extension object breaks its schema and dependents on upgrade; a blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7104,8 +7104,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Advisory at Recommended, blocks CI from Strict",
+    "Basis": "DR-022",
+    "Justification": "A changed XLIFF translation id drops the existing translations of that element; advisory, a gate from Strict.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7119,8 +7119,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "InternalsVisibleTo naming another publisher exposes internals to an app the publisher does not control; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7128,14 +7128,14 @@
     "id": "AS0127",
     "prefix": "AS",
     "Essential": "None",
-    "Recommended": "Warning",
+    "Recommended": "Info",
     "Strict": "Warning",
     "Complete": "Warning",
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "Objects outside a two-level namespace are an organization and naming concern, noisy on legacy code; advisory, a gate from Strict.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7150,7 +7150,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Removing an extended interface from a published interface breaks implementers and callers; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7165,7 +7165,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Adding an extended interface to a published interface breaks every existing implementer; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7194,8 +7194,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Hidden keeps the code action available; visible from Strict",
+    "Basis": "DR-022",
+    "Justification": "Reports tables added under the configured additive-change folder, a hotfix policy Microsoft leaves hidden; kept at the author's default, visible from Strict.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7209,8 +7209,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Hidden keeps the code action available; visible from Strict",
+    "Basis": "DR-022",
+    "Justification": "Reports fields added under the configured additive-change folder, a hotfix policy Microsoft leaves hidden; kept at the author's default, visible from Strict.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7224,8 +7224,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Hidden keeps the code action available; visible from Strict",
+    "Basis": "DR-022",
+    "Justification": "Reports keys added under the configured additive-change folder, a hotfix policy Microsoft leaves hidden; kept at the author's default, visible from Strict.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7239,8 +7239,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "Changing the version of a published external business event can break the flows that consume it; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7255,7 +7255,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Removing an external business event without obsoleting it first breaks its subscribers without notice; an upgrade blocker; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7269,8 +7269,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "Changing a field id without obsoleting the old field risks losing its data on upgrade; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7285,7 +7285,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Changing the id of a primary key field blocks schema sync of existing data; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7314,8 +7314,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "A new field without AllowInCustomizations leaves its exposure to user customization undecided; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7330,7 +7330,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Deleting a published analysis view breaks users and dependents that rely on it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7345,7 +7345,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "A table that looks moved from another app but lacks MovedFrom breaks the schema handover on upgrade; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7360,7 +7360,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "A destination table without MovedFrom breaks the move of the table and its data; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7374,8 +7374,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "A field widened from Integer to BigInteger can overflow dependents that read it into Integer; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7389,8 +7389,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "A parameter widened from Integer to BigInteger can break dependents that call or subscribe with Integer; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7405,7 +7405,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "Justification": "Making an interface method required without RequiredPending breaks every existing implementer; an upgrade blocker that stays silent without a baseline; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7419,8 +7419,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "Adding or removing a required interface method can fail dependent implementers at runtime; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7435,7 +7435,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-019",
-    "Justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "Justification": "A fully namespaced object outside the compliant namespace fails the AppSource affix requirement; marketplace only, off at Essential and Error from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7450,7 +7450,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-019",
-    "Justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "Justification": "Affix settings are ignored once FullNamespaceScope is on, a confusing configuration; marketplace only, Info from Recommended and a gate from Strict.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7464,8 +7464,8 @@
     "Default": "=",
     "CI": "=",
     "vNext": "=",
-    "Basis": "DR-012",
-    "Justification": "Author severity from Recommended",
+    "Basis": "DR-022",
+    "Justification": "Removing a codeunit used as a default interface implementation can fail dependents at runtime; Warning from Recommended.",
     "CIJustification": "=",
     "vNextJustification": "="
   },

@@ -24,7 +24,7 @@ Placed ids per decision record. DR-022 is the per-rule review itself; an older r
 | DR-005 | 1 |
 | DR-006 | 1 |
 | DR-007 | 2 |
-| DR-012 | 133 |
+| DR-012 | 114 |
 | DR-015 | 10 |
 | DR-016 | 3 |
 | DR-017 | 92 |
@@ -32,7 +32,7 @@ Placed ids per decision record. DR-022 is the per-rule review itself; an older r
 | DR-019 | 16 |
 | DR-020 | 12 |
 | DR-021 | 2 |
-| DR-022 | 242 |
+| DR-022 | 261 |
 
 ## 3. Level and severity intent
 
