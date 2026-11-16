@@ -43,6 +43,7 @@ function Assert-PlacementText([string]$id, [string]$what, $text) {
     if ($text -isnot [string] -or $text.Length -lt 1 -or $text.Length -gt 200 -or $text -match '\||\r|\n') {
         throw "placements.json: the $what of $id must be 1 to 200 characters without a pipe or a line break"
     }
+    if ($text -ceq '=') { throw "placements.json: the $what of $id is '='; a justification is a sentence" }
 }
 $placementsPath = Join-Path $RulebookDir 'inventory' 'placements.json'
 $placements = [ordered]@{}
@@ -392,7 +393,7 @@ foreach ($g in @($matrix | Where-Object { $_.Basis -match '^DR-' } | Group-Objec
 [void]$doc.AppendLine('| Strict | The quality gate: advisory rules that a clean project satisfies become Warning. | As Recommended. |')
 [void]$doc.AppendLine('| Complete | Everything the analyzers can tell you, opt-in rules included, except LC0089i and contradiction losers. | No Error for an opt-in rule. |')
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('Error is placed only when the rule proves a definite defect (a runtime failure, data loss, a security leak, a deployment or submission blocker) and the justification names it. Style, naming and advice stop at Warning. A rule its author ships disabled is never Error, and `vNext` raises to Error only a rule that is already Warning or Error on every level where it is on. Ladders never get weaker from one level to the next (V3, V11).')
+[void]$doc.AppendLine('Error is placed only when the rule proves a definite defect (a runtime failure, a definite wrong result, data loss, a security leak, a deployment or submission blocker) and the justification names it. Style, naming and advice stop at Warning. A rule its author ships disabled is never Error, and `vNext` raises to Error only a rule that is already Warning or Error on every level where it is on. Ladders never get weaker from one level to the next (V3, V11).')
 [void]$doc.AppendLine()
 [void]$doc.AppendLine('## 4. Project kinds and twins')
 [void]$doc.AppendLine()

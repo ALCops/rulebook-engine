@@ -43,7 +43,7 @@ Every entry is a judgment of what the rule catches and what breaks or degrades w
 | Strict | The quality gate: advisory rules that a clean project satisfies become Warning. | As Recommended. |
 | Complete | Everything the analyzers can tell you, opt-in rules included, except LC0089i and contradiction losers. | No Error for an opt-in rule. |
 
-Error is placed only when the rule proves a definite defect (a runtime failure, data loss, a security leak, a deployment or submission blocker) and the justification names it. Style, naming and advice stop at Warning. A rule its author ships disabled is never Error, and `vNext` raises to Error only a rule that is already Warning or Error on every level where it is on. Ladders never get weaker from one level to the next (V3, V11).
+Error is placed only when the rule proves a definite defect (a runtime failure, a definite wrong result, data loss, a security leak, a deployment or submission blocker) and the justification names it. Style, naming and advice stop at Warning. A rule its author ships disabled is never Error, and `vNext` raises to Error only a rule that is already Warning or Error on every level where it is on. Ladders never get weaker from one level to the next (V3, V11).
 
 ## 4. Project kinds and twins
 

@@ -121,6 +121,7 @@ foreach ($m in $matrix) {
     $lad = @($m.Essential, $m.Recommended, $m.Strict, $m.Complete)
     if (Test-Placed $m.id) {
         if ($lad -contains 'Error' -and -not $r.enabled) { Fail 'V4' "$($m.id) is Error in the ladder but its author ships it disabled" }
+        if ($m.vNext -eq 'Error' -and -not $r.enabled) { Fail 'V4' "$($m.id) is Error on vNext but its author ships it disabled" }
         if ($m.vNext -eq 'Error') { foreach ($a in $lad) { if ($a -notin 'None','Warning','Error') { Fail 'V4' "$($m.id) vNext Error raises $a; only Warning or Error may become Error" } } }
     } else {
         $mayError = ($r.family -eq 'runtime') -or ($r.prefix -in 'PTE','AS' -and $r.default -eq 'Error')
@@ -331,7 +332,7 @@ foreach ($id in $placements.Keys) {
     if ($e -isnot [System.Collections.IDictionary]) { Fail 'V15' "$id entry in placements.json is not an object"; continue }
     foreach ($k in $e.Keys) { if ($k -cnotin 'ladder','justification','stages','dr') { Fail 'V15' "$id has unknown key '$k' in placements.json (allowed: ladder, justification, stages, dr)" } }
     if ($e.Contains('stages')) {
-        if ($e['stages'] -isnot [System.Collections.IDictionary]) { Fail 'V15' "$id stages in placements.json is not an object" }
+        if ($e['stages'] -isnot [System.Collections.IDictionary]) { Fail 'V15' "$id stages in placements.json is not an object"; continue }
         else { foreach ($k in $e['stages'].Keys) { if ($k -cnotin 'ci','vnext') { Fail 'V15' "$id has stage key '$k' in placements.json (allowed: ci, vnext)" } } }
     }
     if (("$($m.Essential)/$($m.Recommended)/$($m.Strict)/$($m.Complete)") -cne [string]$e['ladder']) { Fail 'V15' "$id ladder in the matrix differs from placements.json" }

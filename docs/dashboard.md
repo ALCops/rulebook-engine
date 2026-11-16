@@ -224,7 +224,7 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
       "name": "Recommended",
       "slug": "recommended",
       "basedOn": "essential",
-      "description": "Every default-on rule at its author severity; marketplace checks join here.",
+      "description": "What a healthy project runs, each rule placed on its own merit; marketplace checks join here.",
       "file": "base/recommended.ruleset.json",
       "chain": ["essential", "recommended"],
       "basedOnName": "Essential",
@@ -244,7 +244,7 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
     {
       "name": "CI",
       "slug": "ci",
-      "description": "Pull request and release builds. Postponable diagnostics relaxed to Info.",
+      "description": "Pull request and release builds. What a team cannot fix in the same change relaxed to Info.",
       "file": "stages/ci.json",
       "entryCount": 3,
       "quarantineCount": 1,

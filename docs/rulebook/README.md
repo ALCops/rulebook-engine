@@ -44,7 +44,7 @@ Everything outside a table is written for humans; only the tables and the JSON f
 
 ## 3. Model in one paragraph
 
-Four shipped levels (Essential, Recommended, Strict, Complete) decide which diagnostics are on and at which action, for every AL project regardless of where it ships. Each level is the level below plus a delta, in the matrix and in the files: Essential is a root against the analyzer defaults, every other level is `basedOn` the one below. Every rule is placed on its own, with a one-sentence justification of what it catches and why it sits where it sits. Pipelines treat warnings as errors, so the dial is Info (advisory) versus Warning (blocks CI); Error is reserved for a definite defect: a runtime failure, data loss, a security leak, or a deployment or submission blocker of either kind of extension. Both Microsoft cops run; a rule that only makes sense for one kind of extension runs at its author's severity and the project that does not want it opts out, by disabling a cop, by `suppressWarnings` in `app.json` or by a rule in its project ruleset file. Three shipped stages modify the result per rule: `default` never differs, `CI` relaxes to Info a short list of diagnostics a team cannot fix in the same change, `vNext` raises compiler future errors to Error; each stage other than `default` is one delta file applied on top of every level. Levels and stages are configuration in a Rulebook repository, which may add, alias or remove them. Each (level, stage) is generated as one flat endpoint that lists only the ids whose action differs from the analyzer default, so the compiler fetches one small file and `suppressWarnings` keeps working for everything Rulebook leaves at default.
+Four shipped levels (Essential, Recommended, Strict, Complete) decide which diagnostics are on and at which action, for every AL project regardless of where it ships. Each level is the level below plus a delta, in the matrix and in the files: Essential is a root against the analyzer defaults, every other level is `basedOn` the one below. Every rule is placed on its own, with a one-sentence justification of what it catches and why it sits where it sits. Pipelines treat warnings as errors, so the dial is Info (advisory) versus Warning (blocks CI); Error is reserved for a definite defect: a runtime failure, a definite wrong result, data loss, a security leak, or a deployment or submission blocker of either kind of extension. Both Microsoft cops run; a rule that only makes sense for one kind of extension runs at its author's severity and the project that does not want it opts out, by disabling a cop, by `suppressWarnings` in `app.json` or by a rule in its project ruleset file. Three shipped stages modify the result per rule: `default` never differs, `CI` relaxes to Info a short list of diagnostics a team cannot fix in the same change, `vNext` raises compiler future errors to Error; each stage other than `default` is one delta file applied on top of every level. Levels and stages are configuration in a Rulebook repository, which may add, alias or remove them. Each (level, stage) is generated as one flat endpoint that lists only the ids whose action differs from the analyzer default, so the compiler fetches one small file and `suppressWarnings` keeps working for everything Rulebook leaves at default.
 
 ## 4. Counts
 
@@ -52,29 +52,29 @@ Number of diagnostics per resolved action for every level and stage (628 ids eac
 
 | Level | Stage | Error | Warning | Info | Hidden | None | Listed |
 |---|---|---|---|---|---|---|---|
-| Essential | default | 125 | 129 | 6 | 0 | 368 | 354 |
-| Essential | ci | 125 | 129 | 6 | 0 | 368 | 354 |
-| Essential | vnext | 217 | 37 | 6 | 0 | 368 | 446 |
-| Recommended | default | 136 | 306 | 120 | 17 | 49 | 112 |
-| Recommended | ci | 136 | 298 | 128 | 17 | 49 | 120 |
-| Recommended | vnext | 228 | 217 | 117 | 17 | 49 | 201 |
-| Strict | default | 136 | 417 | 44 | 4 | 27 | 87 |
-| Strict | ci | 136 | 406 | 55 | 4 | 27 | 98 |
-| Strict | vnext | 228 | 325 | 44 | 4 | 27 | 179 |
-| Complete | default | 136 | 433 | 56 | 1 | 2 | 103 |
-| Complete | ci | 136 | 422 | 67 | 1 | 2 | 114 |
-| Complete | vnext | 228 | 341 | 56 | 1 | 2 | 195 |
+| Essential | default | 127 | 127 | 6 | 0 | 368 | 356 |
+| Essential | ci | 127 | 127 | 6 | 0 | 368 | 356 |
+| Essential | vnext | 219 | 35 | 6 | 0 | 368 | 448 |
+| Recommended | default | 138 | 304 | 120 | 17 | 49 | 114 |
+| Recommended | ci | 138 | 296 | 128 | 17 | 49 | 122 |
+| Recommended | vnext | 230 | 215 | 117 | 17 | 49 | 203 |
+| Strict | default | 138 | 415 | 44 | 4 | 27 | 89 |
+| Strict | ci | 138 | 404 | 55 | 4 | 27 | 100 |
+| Strict | vnext | 230 | 323 | 44 | 4 | 27 | 181 |
+| Complete | default | 138 | 431 | 56 | 1 | 2 | 105 |
+| Complete | ci | 138 | 420 | 67 | 1 | 2 | 116 |
+| Complete | vnext | 230 | 339 | 56 | 1 | 2 | 197 |
 
 | File | Entries |
 |---|---|
-| `base/essential.ruleset.json` | 354 |
+| `base/essential.ruleset.json` | 356 |
 | `base/recommended.ruleset.json` | 319 |
 | `base/strict.ruleset.json` | 134 |
 | `base/complete.ruleset.json` | 42 |
 | `stages/ci.json` | 11 |
 | `stages/vnext.json` | 95 |
 
-Reading the table: at Essential the ladder blocks CI on 254 diagnostics (125 Error, 129 Warning) and leaves 368 off; the 125 Errors are the 105 Error defaults of PerTenantExtensionCop and AppSourceCop that are not marketplace or baseline-missing checks, the 13 runtime failures of the `runtime` family, and seven rules placed above their author default because each proves a definite defect (AL0821, AA0211, AA0243, AS0103, PC0017, PC0020, PC0036). Recommended adds 11 Errors: the marketplace and baseline-missing checks and two rules whose failure only hits test code (AA0476, TA0002). On vNext 92 Warnings become Errors because the next platform raises them as compile errors. Recommended is the Rulebook opinion per rule, so its `Listed` column counts the 112 rules placed away from the analyzer default, most of them advice at Info where the author chose Warning. The two ids that stay off even in Complete are LC0054 (contradiction loser) and LC0089i (noise).
+Reading the table: at Essential the ladder blocks CI on 254 diagnostics (127 Error, 127 Warning) and leaves 368 off; the 127 Errors are the 105 Error defaults of PerTenantExtensionCop and AppSourceCop that are not marketplace or baseline-missing checks, the 13 runtime failures of the `runtime` family, and nine rules placed above their author default because each proves a definite defect (AL0821, AA0211, AA0243, AS0103, PC0012, PC0017, PC0019, PC0020, PC0036). Recommended adds 11 Errors: the marketplace and baseline-missing checks and two rules whose failure only hits test code (AA0476, TA0002). On vNext 92 Warnings become Errors because the next platform raises them as compile errors. Recommended is the Rulebook opinion per rule, so its `Listed` column counts the 114 rules placed away from the analyzer default, most of them advice at Info where the author chose Warning. The two ids that stay off even in Complete are LC0054 (contradiction loser) and LC0089i (noise).
 
 ## 5. Regenerating
 

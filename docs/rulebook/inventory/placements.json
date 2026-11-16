@@ -1501,7 +1501,7 @@
   },
   "AL1408": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "A designer profile names something other than a page as its role center; project builds report the error twin, kept at the author's default."
+    "justification": "A designer profile names no valid object as its role center page, where a number or an object name is expected; project builds report the error twin, kept at the author's default."
   },
   "AL1409": {
     "ladder": "None/Warning/Warning/Warning",
@@ -2063,7 +2063,7 @@
   },
   "PTE0003": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "A CompanyOpen subscriber runs at every session start in every company and a failure there locks users out, so Microsoft rejects it; Error everywhere.",
+    "justification": "A CompanyOpen subscriber runs at every session start in every company and increases login time for every user, so Microsoft rejects it; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0004": {
@@ -2451,7 +2451,7 @@
   },
   "AS0061": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "A CompanyOpen subscriber runs at every session start in every company and a failure there locks users out, so Microsoft rejects it; Error everywhere.",
+    "justification": "A CompanyOpen subscriber runs at every session start in every company and increases login time for every user, so Microsoft rejects it; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0062": {
@@ -2656,7 +2656,7 @@
   },
   "AS0105": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "An object stays pending obsolete past the configured ObsoleteTag window, which fails AppSource validation; fires only once the tag policy is set, Error everywhere.",
+    "justification": "A reference to an object whose ObsoleteTag is below the configured minimum is not allowed because the object is due for removal; fires only once the tag policy is set, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0106": {
@@ -2907,8 +2907,8 @@
     "justification": "A handled flag passed by value can never be raised by subscribers, so the IsHandled pattern is broken for every extender; Warning from Essential."
   },
   "PC0012": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Assigning a FlowFilter field sets no filter, so CalcFields sums every record; a silent wrong result, Warning from Essential."
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Assigning a FlowFilter field sets no filter, so CalcFields sums every record; a definite wrong result, Error everywhere."
   },
   "PC0013": {
     "ladder": "Error/Error/Error/Error",
@@ -2916,7 +2916,7 @@
   },
   "PC0014": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Double quotes in a JPath make SelectToken find nothing; Warning from Essential, not Error, because the call returns false instead of failing and checked code may cope."
+    "justification": "Double quotes in a JPath make SelectToken find nothing; it returns false rather than a wrong value, a signalled miss and not a silent wrong result, so Warning from Essential."
   },
   "PC0015": {
     "ladder": "Error/Error/Error/Error",
@@ -2935,8 +2935,8 @@
     "justification": "Record methods on a page without a source table have no buffer, so the page opens without the passed record; Error everywhere."
   },
   "PC0019": {
-    "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "The not-empty filter escaped with three quotes filters on a single quote instead of empty; a silent wrong result, Warning from Essential."
+    "ladder": "Error/Error/Error/Error",
+    "justification": "The not-empty filter escaped with three quotes filters on a single quote instead of empty; a definite wrong result, Error everywhere."
   },
   "PC0020": {
     "ladder": "Error/Error/Error/Error",
@@ -3391,6 +3391,6 @@
   },
   "CM0001": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "A broken or unreadable alcops.json silently falls back to defaults and disables intended rules; Warning at every level."
+    "justification": "A broken or unreadable alcops.json is replaced by built-in defaults, so thresholds and settings you set do not apply; Warning at every level."
   }
 }

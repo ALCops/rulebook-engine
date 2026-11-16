@@ -91,7 +91,7 @@
     { "id": "AL1405", "action": "Warning", "justification": "A designer customization targets a control that is not on the page and is ignored; project builds report the error twin, kept at the author's default." },
     { "id": "AL1406", "action": "Warning", "justification": "A designer customization targets a view that is not on the page and is ignored; project builds report the error twin, kept at the author's default." },
     { "id": "AL1407", "action": "Warning", "justification": "A designer customization move names no targets; project builds report the error twin, kept at the author's default." },
-    { "id": "AL1408", "action": "Warning", "justification": "A designer profile names something other than a page as its role center; project builds report the error twin, kept at the author's default." },
+    { "id": "AL1408", "action": "Warning", "justification": "A designer profile names no valid object as its role center page, where a number or an object name is expected; project builds report the error twin, kept at the author's default." },
     { "id": "AL1409", "action": "Warning", "justification": "A designer profile points at a role center page that is not of type RoleCenter; project builds report the error twin, kept at the author's default." },
     { "id": "AL1410", "action": "Warning", "justification": "The target of a designer page customization or profile extension is missing; project builds report the error twin, kept at the author's default." },
     { "id": "AL1411", "action": "Warning", "justification": "A designer profile lists two customizations for the same page; project builds report the error twin, kept at the author's default." },

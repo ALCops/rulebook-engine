@@ -21,7 +21,7 @@ Pipelines compile with warnings treated as errors. That makes the action a rule 
 | `Hidden` | nothing, but code actions stay available | nothing | Only where an analyzer ships a rule as Hidden for its code fix. |
 | `Info` | blue squiggle | build succeeds | Advice, metrics, and rules a team cannot always fix in the same change. |
 | `Warning` | yellow squiggle | **build fails** | The normal enforcement level. |
-| `Error` | red squiggle, **local build fails** | build fails | A definite defect: a runtime failure, data loss, a security leak, a deployment or submission blocker. |
+| `Error` | red squiggle, **local build fails** | build fails | A definite defect: a runtime failure, a definite wrong result, data loss, a security leak, a deployment or submission blocker. |
 
 Two consequences drive the whole matrix:
 
@@ -37,7 +37,7 @@ Four shipped levels in one ladder. Each level is the level below plus a delta; m
 | Slug | Name | Intent | What is on |
 |---|---|---|---|
 | `essential` | **Essential** | You cannot ship without this. | Definite runtime failures and the deployment blockers of either kind of extension (Error), except the marketplace and baseline-missing checks; compiler warnings that become errors on a later platform; security exposures (SecretText, wildcard permission set extensions); controls and actions the client drops; PlatformCop rules that give a silent wrong result; broken configuration (alcops.json, analyzers that do not load, app.json features); the analyzer-exception rules. Everything else is `None`. |
-| `recommended` | **Recommended** | What a healthy project runs. | Decided per rule: likely bugs, performance, upgrade and user-facing defects at Warning, good practice and readability advice at Info, formatter-fixable layout and noisy style left for Strict. The marketplace and baseline-missing checks join here. Obsolete-pending at Info. The Rulebook opinion may sit above or below the author's severity; its endpoint lists the 112 rules where it does. |
+| `recommended` | **Recommended** | What a healthy project runs. | Decided per rule: likely bugs, performance, upgrade and user-facing defects at Warning, good practice and readability advice at Info, formatter-fixable layout and noisy style left for Strict. The marketplace and baseline-missing checks join here. Obsolete-pending at Info. The Rulebook opinion may sit above or below the author's severity; its endpoint lists the 114 rules where it does. |
 | `strict` | **Strict** | The quality gate. | Advisory rules a clean project satisfies become Warning; formatting, documentation and house-style rules join. Compiler Info stays Info and metrics stay off. |
 | `complete` | **Complete** | Everything the analyzers can tell you. | Adds every opt-in rule, mostly at Info and never at Error, and Hidden rules as Info. Excludes LC0089i and the loser of every contradiction (LC0054). |
 

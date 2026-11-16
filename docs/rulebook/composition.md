@@ -38,7 +38,7 @@ The matrix in `matrix/` remains the only place where a shipped placement is deci
 | Organization repository, published | `rulesets/<level>.ruleset.json`, `rulesets/<level>.<stage>.ruleset.json` | The generated endpoints: the ids whose effective action differs from the analyzer default, no justification. One per level for the `default` stage, one per level and other stage. Committed and published. | 12 |
 | Organization repository, published | `skeletons/<level>.<stage>.ruleset.json` | The file an AL project copies: one include of the endpoint URL, project exceptions in `rules`. The stage suffix is always present here. | 12 |
 
-The shipped files today: `essential` 354 entries, `recommended` 319, `strict` 134, `complete` 42, `stages/ci.json` 11, `stages/vnext.json` 95 (the file table in `matrix/counts.md`).
+The shipped files today: `essential` 356 entries, `recommended` 319, `strict` 134, `complete` 42, `stages/ci.json` 11, `stages/vnext.json` 95 (the file table in `matrix/counts.md`).
 
 ## 3. Generator contract
 
