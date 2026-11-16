@@ -143,7 +143,7 @@ foreach ($r in $inv) {
     }
 }
 
-# ---- V6 twins: declared, symmetric, exported, both sides with one ladder and one pair of stage columns ----
+# ---- V6 twins: declared, symmetric, exported, both sides with one ladder, one pair of stage columns and one set of sentences ----
 $flagPairs = @{}
 foreach ($r in $inv | Where-Object prefix -eq 'PTE') {
     $tw = @($r.flags | Where-Object { $_ -match '^twin:' } | ForEach-Object { $_.Substring(5) })
@@ -157,6 +157,9 @@ foreach ($r in $inv | Where-Object prefix -eq 'PTE') {
     $p = $mById[$r.id]; $a = $mById[$as]
     foreach ($c in 'Essential','Recommended','Strict','Complete','CI','vNext') {
         if ($p.$c -ne $a.$c) { Fail 'V6' "twins $($r.id) and $as differ in $c ($($p.$c) / $($a.$c)); both sides share one ladder and one pair of stage columns" }
+    }
+    foreach ($c in 'Justification','CIJustification','vNextJustification') {
+        if ($p.$c -cne $a.$c) { Fail 'V6' "twins $($r.id) and $as differ in $c; both sides share one sentence" }
     }
 }
 if ($twins.count -ne $flagPairs.Count -or @($twins.pairs).Count -ne $flagPairs.Count) { Fail 'V6' "twins.json lists $($twins.count) pairs, inventory flags give $($flagPairs.Count)" }
@@ -325,6 +328,12 @@ foreach ($id in $placements.Keys) {
     if ($invOrder[$id] -le $prev) { Fail 'V15' "placements.json: $id is out of inventory order" }
     $prev = $invOrder[$id]
     $e = $placements[$id]; $m = $mById[$id]
+    if ($e -isnot [System.Collections.IDictionary]) { Fail 'V15' "$id entry in placements.json is not an object"; continue }
+    foreach ($k in $e.Keys) { if ($k -cnotin 'ladder','justification','stages','dr') { Fail 'V15' "$id has unknown key '$k' in placements.json (allowed: ladder, justification, stages, dr)" } }
+    if ($e.Contains('stages')) {
+        if ($e['stages'] -isnot [System.Collections.IDictionary]) { Fail 'V15' "$id stages in placements.json is not an object" }
+        else { foreach ($k in $e['stages'].Keys) { if ($k -cnotin 'ci','vnext') { Fail 'V15' "$id has stage key '$k' in placements.json (allowed: ci, vnext)" } } }
+    }
     if (("$($m.Essential)/$($m.Recommended)/$($m.Strict)/$($m.Complete)") -cne [string]$e['ladder']) { Fail 'V15' "$id ladder in the matrix differs from placements.json" }
     if ($m.Justification -cne [string]$e['justification']) { Fail 'V15' "$id justification in the matrix differs from placements.json" }
     $dr = if ($e.Contains('dr')) { [string]$e['dr'] } else { 'DR-022' }

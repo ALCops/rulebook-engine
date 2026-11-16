@@ -187,6 +187,9 @@ function Read-MatrixInput {
             $textColumn = "$($stage.Name)Justification"
             if (-not $matrixRow.Contains($textColumn)) { throw "matrix/matrix.json: $id has no column '$textColumn' for stage '$($stage.Slug)'" }
             $text = [string]$matrixRow[$textColumn]
+            if ($column -cne '=' -and [string]::IsNullOrWhiteSpace($text)) {
+                throw "matrix/matrix.json: $id has an empty $textColumn; column $($stage.Name) is $column and needs its sentence"
+            }
             if (($column -ceq '=') -ne ($text -ceq '=')) {
                 throw "matrix/matrix.json: $id has '$text' in column $textColumn; it is = exactly when column $($stage.Name) is ="
             }

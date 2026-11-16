@@ -2063,7 +2063,7 @@
   },
   "PTE0003": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "A subscriber to the company-open events runs on every sign-in and slows login for every user; a blocker for cloud extensions, Error everywhere.",
+    "justification": "A CompanyOpen subscriber runs at every session start in every company and a failure there locks users out, so Microsoft rejects it; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0004": {
@@ -2451,7 +2451,7 @@
   },
   "AS0061": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "A subscriber to the company-open events runs on every sign-in and slows login for every user; a blocker for cloud extensions, Error everywhere.",
+    "justification": "A CompanyOpen subscriber runs at every session start in every company and a failure there locks users out, so Microsoft rejects it; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0062": {
@@ -2656,7 +2656,7 @@
   },
   "AS0105": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "A reference to an object whose obsolete tag is past the configured minimum breaks when the object is removed; fires only once the tag policy is set; Error everywhere.",
+    "justification": "An object stays pending obsolete past the configured ObsoleteTag window, which fails AppSource validation; fires only once the tag policy is set, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0106": {
@@ -2916,7 +2916,7 @@
   },
   "PC0014": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Double quotes in a JPath make SelectToken silently return nothing; a definite wrong result, Warning from Essential."
+    "justification": "Double quotes in a JPath make SelectToken find nothing; Warning from Essential, not Error, because the call returns false instead of failing and checked code may cope."
   },
   "PC0015": {
     "ladder": "Error/Error/Error/Error",

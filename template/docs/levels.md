@@ -78,15 +78,15 @@ The update's own pull request or commit may say "No effective change." under its
 
 ## 4. Adding a level
 
-Add an entry to `levels` at the position where it should appear, and create its file with the rules it changes. To put it into the ladder, point the next level's `basedOn` at it. In the live run a level House between Recommended and Strict (*observed*):
+Add an entry to `levels` at the position where it should appear, and create its file with the rules it changes. To put it into the ladder, point the next level's `basedOn` at it. In the live run a level House between Recommended and Strict (*observed*; the shipped descriptions are shown as the template has them since beta.9):
 
 ```json
   "levels": [
-    { "name": "Essential", "description": "Cannot ship without: runtime failures, the deployment blockers of both Microsoft cops, compiler future errors, PlatformCop." },
-    { "name": "Recommended", "basedOn": "Essential", "description": "Every default-on rule at its author severity; marketplace checks join here." },
+    { "name": "Essential", "description": "Cannot ship without: runtime failures, deployment blockers, compiler future errors, security exposures and broken configuration." },
+    { "name": "Recommended", "basedOn": "Essential", "description": "What a healthy project runs, each rule placed on its own merit; marketplace checks join here." },
     { "name": "House", "basedOn": "Recommended", "description": "Recommended plus the house rules." },
-    { "name": "Strict", "basedOn": "House", "description": "Recommended with advisory rules promoted to Warning." },
-    { "name": "Complete", "basedOn": "Strict", "description": "Strict plus every opt-in rule." }
+    { "name": "Strict", "basedOn": "House", "description": "The quality gate: advisory rules a clean project satisfies become Warning." },
+    { "name": "Complete", "basedOn": "Strict", "description": "Everything the analyzers report, opt-in rules included." }
   ]
 ```
 

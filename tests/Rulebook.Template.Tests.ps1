@@ -268,6 +268,12 @@ Describe 'Build-RulebookStages' {
         { Build-RulebookStages -RulebookDir $copy -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage "*AL0432 has no column 'CIJustification' for stage 'ci'*"
     }
 
+    It 'throws when a stage justification is empty and the stage column is an action' {
+        $copy = Copy-Tiny
+        Edit-FixtureJson -Path (Join-Path $copy 'matrix' 'matrix.json') -Script { $_[1]['CIJustification'] = '' }
+        { Build-RulebookStages -RulebookDir $copy -OutputPath (Get-TestFolder) } | Should-Throw -ExceptionMessage "*AL0432 has an empty CIJustification; column CI is Info and needs its sentence*"
+    }
+
     It 'throws when a stage justification is = and the stage column is not, or the reverse' {
         $copy = Copy-Tiny
         Edit-FixtureJson -Path (Join-Path $copy 'matrix' 'matrix.json') -Script { $_[1]['CIJustification'] = '=' }
