@@ -20,22 +20,22 @@ How level and stage content is maintained in the engine, how a placement change 
 
 ## 1. What a placement change is
 
-A placement change moves one or more diagnostic ids to another action at some level or stage of the shipped ladder. The placement is decided in exactly three places, all in this repository:
+A placement change moves one or more diagnostic ids to another action at some level or stage of the shipped ladder, or rewrites the sentence that justifies it. The placement is decided in these places, all in this repository ([D60](adr/0060-per-rule-placements-and-the-error-criterion.md)):
 
-- the rule tables of `tools/rulebook/Build-Matrix.ps1`: override rows `OV-nn` (explicit ids), family rows `F-nn` (by family or flag) and decision rows `D-nn` (by analyzer, default severity and enablement), evaluated in that order, first match wins ([rulebook/02-placement-algorithm.md](rulebook/02-placement-algorithm.md) is generated from them);
-- `docs/rulebook/inventory/annotations.json`: the hand-maintained family, configuration gate and twin or overlap flags per id, which the family rows read;
-- an analyzer refresh ([rulebook/versions.md](rulebook/versions.md)): new ids and changed defaults enter the inventory and are placed by the same tables.
+- `docs/rulebook/inventory/placements.json`: one hand-maintained entry per id with its ladder, its `ci` and `vnext` actions each with a sentence, its justification and the decision record it rests on (DR-022 unless it names an older one). `Build-Matrix.ps1` turns it into the matrix, and check V15 fails when an id has no entry or the matrix does not follow it;
+- `docs/rulebook/inventory/annotations.json`: the hand-maintained family, configuration gate and twin or overlap flags per id, which the review reads and the fallback rows use;
+- an analyzer refresh ([rulebook/versions.md](rulebook/versions.md)): new ids and changed defaults enter the inventory. A new id has no entry yet: `Build-Matrix.ps1` proposes a ladder from the fallback rule tables (override rows `OV-nn`, family rows `F-nn`, decision rows `D-nn`, printed in [rulebook/02-placement-algorithm.md](rulebook/02-placement-algorithm.md)) and lists the id, and the refresh pull request places it before it merges.
 
 Nobody edits a level file (`template/base/`), a stage file (`template/stages/`), an endpoint (`template/rulesets/`) or a level page (`docs/levels/`) by hand: they are generated. A hand edit is caught by the Pester drift test (`tests/Rulebook.Template.Tests.ps1` regenerates everything and compares bytes) and, for the endpoints, by C12 in the Validate action on `template/`.
 
 ## 2. Making a placement change
 
-1. **Edit and record.** Change the rule table row or the annotation. An override row names a decision record: add or supersede a `DR-nnn` record in [rulebook/decisions.md](rulebook/decisions.md) (decision, rationale, rule rows affected; a record is superseded, never edited). Respect the invariants of [rulebook/verification.md](rulebook/verification.md), in particular I3: `Error` only for the `runtime` family, the Error defaults of PerTenantExtensionCop and AppSourceCop and the `vNext` future errors.
+1. **Edit and record.** Change the entry of the id in `placements.json`: the ladder, the stage actions and the sentences (one sentence each, 1 to 200 characters, no pipe or line break: what the rule catches and why it sits where it sits; a stage sentence says why the stage differs). Both sides of a twin pair get the same entry. A decision that reaches beyond one rule gets a `DR-nnn` record in [rulebook/decisions.md](rulebook/decisions.md) (decision, rationale, rows affected; a record gets a Note or is superseded, never edited), and the entries it covers name it in `dr`. Respect the invariants of [rulebook/verification.md](rulebook/verification.md), in particular I3: `Error` only where the sentence names a definite defect, never for a rule its author ships disabled.
 2. **Rebuild the matrix and check it.**
 
    ```powershell
    pwsh ./tools/rulebook/Build-Matrix.ps1      # matrix/, 02-placement-algorithm.md, counts.md
-   pwsh ./tools/rulebook/Test-Rulebook.ps1     # V1 to V14; V14 keeps the counts table of rulebook/README.md current
+   pwsh ./tools/rulebook/Test-Rulebook.ps1     # V1 to V15; V14 keeps the counts table of rulebook/README.md current
    ```
 
    When V14 fails, copy the regenerated count rows from `matrix/counts.md` into section 4 of [rulebook/README.md](rulebook/README.md).
@@ -47,7 +47,7 @@ Nobody edits a level file (`template/base/`), a stage file (`template/stages/`),
 
    The wrapper runs `Build-RulebookBase`, `Build-RulebookStages`, `Build-RulebookCatalog`, `New-RulebookSkeleton`, `Update-RulebookEndpoints` and, since WP10, `New-RulebookLevelDocs` ([reference/template-content.md](reference/template-content.md) section 3). Commit `docs/rulebook/`, `template/` and `docs/levels/` together. `Build-Template.ps1 -WhatIf` must then print `template: current`. `-WhatIf` is a drift check for a committed state, not a preview of a pending matrix change: every step reads the files on disk, so the endpoints and the level pages show their change only once `template/` is regenerated. Run the wrapper without `-WhatIf`, then inspect `git status`.
 4. **Run the checks.** `Invoke-Pester -Path ./tests` and `Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1` ([CONTRIBUTING.md](../CONTRIBUTING.md) section 3).
-5. **Open the pull request** with a title that names the ids and the file, for example `LC0031 Warning to Info in base/recommended.ruleset.json (OV-12)`, and add the same words as its line under the top heading of `RELEASENOTES.md` (D52). The deploy copies that file into the template as `.github/RELEASENOTES.copy.md`, which an organization's update pull request quotes.
+5. **Open the pull request** with a title that names the ids and the file, for example `LC0031 Warning to Info in base/recommended.ruleset.json`, and add the same words as its line under the top heading of `RELEASENOTES.md` (D52). The deploy copies that file into the template as `.github/RELEASENOTES.copy.md`, which an organization's update pull request quotes.
 
 The issue text of #12 listed `Build-RulebookBase` and `Build-RulebookStages` as a separate step and asked for a "release notes line"; both are superseded: `Build-Template.ps1` runs every generator, and the release notes line is the pull request's line in `RELEASENOTES.md` (D52, which superseded the generated notes of D38).
 

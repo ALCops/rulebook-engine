@@ -34,7 +34,7 @@ jobs:
           if ($results.Count -gt 0) { Write-Host "::error::PSScriptAnalyzer reported $($results.Count) finding(s)"; exit 1 }
           Write-Host 'PSScriptAnalyzer: no findings'
 
-      - name: Matrix checks V1 to V14
+      - name: Matrix checks V1 to V15
         shell: pwsh
         run: ./tools/rulebook/Test-Rulebook.ps1
 

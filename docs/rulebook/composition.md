@@ -38,7 +38,7 @@ The matrix in `matrix/` remains the only place where a shipped placement is deci
 | Organization repository, published | `rulesets/<level>.ruleset.json`, `rulesets/<level>.<stage>.ruleset.json` | The generated endpoints: the ids whose effective action differs from the analyzer default, no justification. One per level for the `default` stage, one per level and other stage. Committed and published. | 12 |
 | Organization repository, published | `skeletons/<level>.<stage>.ruleset.json` | The file an AL project copies: one include of the endpoint URL, project exceptions in `rules`. The stage suffix is always present here. | 12 |
 
-The shipped files today: `essential` 353 entries, `recommended` 352, `strict` 65, `complete` 24, `stages/ci.json` 10, `stages/vnext.json` 95 (the file table in `matrix/counts.md`).
+The shipped files today: `essential` 354 entries, `recommended` 319, `strict` 134, `complete` 42, `stages/ci.json` 11, `stages/vnext.json` 95 (the file table in `matrix/counts.md`).
 
 ## 3. Generator contract
 
@@ -88,8 +88,8 @@ Quarantine entries carry `id` and an optional `justification` only; the action i
 
 | File | Entry |
 |---|---|
-| `base/<level>.ruleset.json` | `{ "id": "AL0200", "action": "Warning", "justification": "Compiler warning at author severity from Recommended; D-01" }` |
-| `stages/<stage>.json` | `{ "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" }` (the matrix row justification) |
+| `base/<level>.ruleset.json` | `{ "id": "AL0200", "action": "Warning", "justification": "A property Microsoft has obsoleted will be removed in a later version; an upgrade risk a healthy project fixes, Warning from Recommended." }` |
+| `stages/<stage>.json` | `{ "id": "AL0432", "action": "Info", "justification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking." }` (the stage sentence of the matrix row) |
 | `rulesets/` | `{ "id": "AL0432", "action": "Info" }` |
 | `base/twins.json` | `{ "pte": "PTE0011", "appsource": "AS0048", "title": "The publisher name is too long" }` inside `pairs` |
 | `overrides.json` | `{ "id": "AL0432", "action": "None", "levels": ["*"], "stages": ["ci"], "justification": "Obsoletion backlog tracked in DEV-1234" }` |
@@ -110,10 +110,10 @@ Quarantine entries carry `id` and an optional `justification` only; the action i
   "name": "Rulebook Recommended",
   "description": "Level recommended, basedOn essential. Lists the ids whose action differs from essential. Generated from docs/rulebook; do not edit.",
   "rules": [
-    { "id": "AL0200", "action": "Warning", "justification": "Compiler warning at author severity from Recommended; D-01" },
-    { "id": "AL0432", "action": "Info",    "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
-    { "id": "AS0003", "action": "Error",   "justification": "Baseline-missing diagnostics need a configured baseline; off at Essential, native from Recommended; OV-08" },
-    { "id": "AS0084", "action": "Error",   "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended; F-07" }
+    { "id": "AL0200", "action": "Warning", "justification": "A property Microsoft has obsoleted will be removed in a later version; an upgrade risk a healthy project fixes, Warning from Recommended." },
+    { "id": "AL0432", "action": "Info",    "justification": "Uses an object marked for removal whose replacement may not be released yet; advisory at Recommended, a gate from Strict." },
+    { "id": "AS0003", "action": "Error",   "justification": "A configured baseline that cannot be loaded silences every breaking-change check; broken setup, Error from Recommended." },
+    { "id": "AS0084", "action": "Error",   "justification": "Object ids outside the AppSource range assigned to the app block submission; marketplace only, so off at Essential and Error from Recommended." }
   ]
 }
 ```
@@ -128,8 +128,8 @@ AS0001 and PTE0001 are absent from this file because Recommended does not change
   "name": "Rulebook stage CI",
   "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",
   "rules": [
-    { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
-    { "id": "AL0603", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" }
+    { "id": "AL0432", "action": "Info", "justification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking." },
+    { "id": "AL0603", "action": "Info", "justification": "Fixing a conversion can depend on a publisher or dependency outside the change; CI advises instead of blocking." }
   ]
 }
 ```

@@ -73,7 +73,7 @@ The body has:
 
    | Endpoint | Before | After | Note |
    |---|---|---|---|
-   | strict.ci | Warning (level:strict, "Advisory at Recommended, blocks CI from Strict; D-13") | None (override) |  |
+   | strict.ci | Warning (level:strict, "LockTable widens locks to every read of the table and disables optimistic reads; advisory because the fix is not mechanical, a gate from Strict.") | None (override) |  |
 
    Each side is the action with the input that decides it, and that input's justification in quotes when it has one:
 

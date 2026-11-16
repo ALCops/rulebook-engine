@@ -21,14 +21,14 @@ Pipelines compile with warnings treated as errors. That makes the action a rule 
 | `Hidden` | nothing, but code actions stay available | nothing | Only where an analyzer ships a rule as Hidden for its code fix. |
 | `Info` | blue squiggle | build succeeds | Advice, metrics, and rules a team cannot always fix in the same change. |
 | `Warning` | yellow squiggle | **build fails** | The normal enforcement level. |
-| `Error` | red squiggle, **local build fails** | build fails | Definite runtime failures and the deployment blockers of PerTenantExtensionCop and AppSourceCop. |
+| `Error` | red squiggle, **local build fails** | build fails | A definite defect: a runtime failure, data loss, a security leak, a deployment or submission blocker. |
 
 Two consequences drive the whole matrix:
 
-- The meaningful dial is Info versus Warning. Raising a rule to Error buys nothing in a pipeline and costs the developer a red local build, so the ladder uses Error only for the `runtime` family and for the Error defaults of the two Microsoft cops, which block deployment or submission anyway.
+- The meaningful dial is Info versus Warning. Raising a rule to Error buys nothing in a pipeline and costs the developer a red local build, so the ladder uses Error only where the rule proves a definite defect and its justification names it. Style, naming and advice stop at Warning, and a rule its author ships disabled is never Error (D60, DR-022).
 - Local development and pipelines run the same ruleset file per stage. A developer sees exactly what will block the pull request; nothing is hidden in the editor and sprung in CI.
 
-Downgrades relative to an analyzer's own default are allowed and documented per row: a diagnostic that cannot always be fixed now (an obsolete-pending object whose replacement has not shipped) is advisory in CI rather than blocking.
+Every placement is a judgment about one rule, recorded with its own justification in `inventory/placements.json` (DR-022): what the rule catches and what breaks or degrades when it is ignored. It may sit above or below the analyzer's own default. A diagnostic that cannot always be fixed now (an obsolete-pending object whose replacement has not shipped) is advisory in CI rather than blocking, and its stage entry says why.
 
 ## 2. Levels
 
@@ -36,10 +36,10 @@ Four shipped levels in one ladder. Each level is the level below plus a delta; m
 
 | Slug | Name | Intent | What is on |
 |---|---|---|---|
-| `essential` | **Essential** | You cannot ship without this. | Definite runtime failures (Error); the Error defaults of PerTenantExtensionCop and AppSourceCop (Error), except the marketplace and baseline-missing checks; compiler warnings that become errors on a later platform; every default-on PlatformCop rule; the UICop "web client does not support" rules; SecretText for secrets; the ALCops configuration and analyzer-exception rules. Everything else is `None`. |
-| `recommended` | **Recommended** | What a healthy project runs. | Every rule that its analyzer author enables by default, at the author's severity. The marketplace and baseline-missing checks join here. Obsolete-pending at Info. This level is the analyzer defaults with nine documented deviations, which is why its endpoint is tiny. |
-| `strict` | **Strict** | The quality gate. | Same rule set as Recommended; default-on Info rules become Warning, Hidden ones become Info. Compiler Info stays Info and metrics stay off. |
-| `complete` | **Complete** | Everything the analyzers can tell you. | Adds every opt-in rule at its author's severity, and Hidden-by-default rules as Info. Excludes LC0089i and the loser of every contradiction (LC0054). |
+| `essential` | **Essential** | You cannot ship without this. | Definite runtime failures and the deployment blockers of either kind of extension (Error), except the marketplace and baseline-missing checks; compiler warnings that become errors on a later platform; security exposures (SecretText, wildcard permission set extensions); controls and actions the client drops; PlatformCop rules that give a silent wrong result; broken configuration (alcops.json, analyzers that do not load, app.json features); the analyzer-exception rules. Everything else is `None`. |
+| `recommended` | **Recommended** | What a healthy project runs. | Decided per rule: likely bugs, performance, upgrade and user-facing defects at Warning, good practice and readability advice at Info, formatter-fixable layout and noisy style left for Strict. The marketplace and baseline-missing checks join here. Obsolete-pending at Info. The Rulebook opinion may sit above or below the author's severity; its endpoint lists the 112 rules where it does. |
+| `strict` | **Strict** | The quality gate. | Advisory rules a clean project satisfies become Warning; formatting, documentation and house-style rules join. Compiler Info stays Info and metrics stay off. |
+| `complete` | **Complete** | Everything the analyzers can tell you. | Adds every opt-in rule, mostly at Info and never at Error, and Hidden rules as Info. Excludes LC0089i and the loser of every contradiction (LC0054). |
 
 The slug is the lowercased name and is what file names, URLs and override selectors use (D28). An organization lists the levels it publishes in `settings.levels`, in display order, and may add a level (`basedOn` any existing level file plus a delta file), alias one (a new name `basedOn` a shipped level with an empty delta) or stop publishing one (D29). `basedOn` is only the starting point: a level's own file may set any id higher or lower than the level it is based on.
 
@@ -67,8 +67,8 @@ An organization that builds only one kind of extension sets `twins` to `appsourc
 | Stage | Consumer | Intent | Modification |
 |---|---|---|---|
 | `default` | Editor (`al.ruleSetPath`) and any consumer without its own stage | Show what the pipeline will show. | None: `Default` is `=` for every rule and the stage has no file; its endpoint is the level result. |
-| `CI` | Pull request and release builds | Never block on a diagnostic the team has consciously postponed. | `stages/ci.json`, 10 ids at `Info`: obsolete-pending (AL0432, AL0801, AL1412), implicit conversions (AL0603), XML validation (AL1026) and translation-file mismatches (AL0472, AL0473, AL0479, AL1029, AL1030). |
-| `vNext` | Builds against the next major or minor platform | Preview what will hit `CI` next. | `stages/vnext.json`, 95 ids: `Error` for compiler future errors (`WRN_ERR_*`, 92 rules) because the next platform raises them as errors; `Warning` for the 3 obsolete-pending ids because removal is one release closer. |
+| `CI` | Pull request and release builds | Never block on what the team cannot fix in the same change. | `stages/ci.json`, 11 ids at `Info`, each with its own sentence: obsolete-pending (AL0432, AL0801, AL1412), implicit conversions (AL0603), XML validation (AL1026) and translation-file diagnostics (AL0472, AL0473, AL0479, AL1029, AL1030, LC0091). |
+| `vNext` | Builds against the next major or minor platform | Preview what will hit `CI` next. | `stages/vnext.json`, 95 ids, each with its own sentence: `Error` for compiler future errors (`WRN_ERR_*`, 92 rules) because the next platform raises them as errors; `Warning` for the 3 obsolete-pending ids because removal is one release closer. |
 
 Every stage, shipped or custom, is one delta file applied on top of every level's default result (D27). A stage token never enables a rule that the level left at `None` (invariant I5, stage rule S-4); that binds custom stage files too. New diagnostic ids that a prerelease compiler introduces are handled by the daily scan and quarantine (WP08), not by the matrix: a quarantined id is written at `None` into the endpoints of the quarantined stages until a base mentions it.
 
@@ -82,8 +82,8 @@ The matrix becomes four level files (Essential as a root delta against the analy
 |---|---|---|
 | I1 | Every inventoried id has exactly one matrix row and resolves to one action in every (level, stage). | V1, V2 |
 | I2 | Cumulative: for every stage, the set of enabled ids at a level contains the set at the level below, and no id gets a looser action at a higher level (shipped set; not enforced in an organization repository, D26). | V3, V11 |
-| I3 | `Error` appears only for family `runtime`, for the Error defaults of PerTenantExtensionCop and AppSourceCop, and on `vNext` for family `future-error`. | V4, V7 |
-| I4 | Contradiction losers are `None` everywhere; LC0089i is `None` everywhere; every twin pair is declared in the inventory, exported to `twins.json` and both sides follow their native ladder. | V5, V6 |
+| I3 | `Error` appears only where the justification names a definite defect, never for a rule its author ships disabled, and `vNext` raises to `Error` only an action that is already `Warning` or `Error`. An id without a placement keeps the fallback confinement: family `runtime`, the Error defaults of PerTenantExtensionCop and AppSourceCop, and on `vNext` family `future-error`. | V4, V7 |
+| I4 | Contradiction losers are `None` everywhere; LC0089i is `None` everywhere; every twin pair is declared in the inventory, exported to `twins.json` and both sides share one ladder and one pair of stage columns. | V5, V6 |
 | I5 | A stage token never activates an id whose level action is `None`. | V10 |
-| I6 | Every matrix row names a rule row that exists in `02-placement-algorithm.md`; every rule row names a decision record that is not superseded. | V8 |
+| I6 | Every id has an entry in `inventory/placements.json` and its matrix row follows it; every matrix row names a decision record that exists and is not superseded (a fallback rule row of `02-placement-algorithm.md` only for an id without an entry, which fails V15). | V8, V15 |
 | I7 | The root level file lists exactly the ids whose Essential action differs from the analyzer default; every other level file lists exactly the ids whose action differs from its `basedOn` level; every stage file lists exactly the ids whose stage column is not `=`; composing them reproduces every resolved cell; every endpoint lists exactly the ids that differ from the analyzer default; no file has includes. | V13 |

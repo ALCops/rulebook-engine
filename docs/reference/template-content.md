@@ -93,7 +93,7 @@ Step 5 reads the settings as an organization repository would, so a settings fil
 
 ```powershell
 pwsh ./tools/rulebook/Build-Matrix.ps1      # when the placement rules or the inventory changed
-pwsh ./tools/rulebook/Test-Rulebook.ps1     # V1 to V14
+pwsh ./tools/rulebook/Test-Rulebook.ps1     # V1 to V15
 pwsh ./tools/rulebook/Build-Template.ps1    # regenerate template/ and docs/levels/
 Invoke-Pester -Path ./tests -Output Detailed
 ```

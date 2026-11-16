@@ -43,7 +43,7 @@ Spellings are exact and case-sensitive.
 | Level | `Essential`, `Recommended`, `Strict`, `Complete` | The shipped ladder; slugs `essential`, `recommended`, `strict`, `complete`. The matrix columns carry the names. |
 | Stage | `default`, `CI`, `vNext` | The shipped stages; slugs `default`, `ci`, `vnext`. Matrix columns `Default`, `CI`, `vNext`; `Default` is always `=`. |
 | Default | `Error`, `Warning`, `Info`, `Hidden` | The severity the analyzer author chose. |
-| Family | `runtime`, `future-error`, `obsolete`, `personalization`, `breaking-change`, `marketplace`, `pte-only`, `metric`, `internal`, `config`, `general` | Assigned by hand in `inventory/annotations.json`; drives the family rows of the placement algorithm. |
+| Family | `runtime`, `future-error`, `obsolete`, `personalization`, `breaking-change`, `marketplace`, `pte-only`, `metric`, `internal`, `config`, `general` | Assigned by hand in `inventory/annotations.json`; guides the per-rule placement and drives the fallback family rows of the placement algorithm. |
 | Since | `stable`, `prerelease` | `prerelease` marks an id absent from the latest stable compiler tag named in `versions.md`. |
 | Twins setting | `both`, `appsource`, `pte` | Organization setting, not a matrix value. `both` is the default and the only valid choice for a project that runs just one of the two cops. |
 
@@ -51,17 +51,17 @@ Family meanings:
 
 | Family | Meaning |
 |---|---|
-| `runtime` | The construct fails at runtime in every case. Only these and the Error defaults of PerTenantExtensionCop and AppSourceCop may be `Error` in a ladder. |
+| `runtime` | The construct fails at runtime in every case. For an id without a placement only these and the Error defaults of PerTenantExtensionCop and AppSourceCop may be `Error` in a ladder; a placed rule is `Error` wherever its justification names a definite defect (DR-022). |
 | `future-error` | Compiler `WRN_ERR_*` warnings that the runtime turns into a compile error from a later platform version. |
 | `obsolete` | "Marked for removal" warnings that a team often cannot fix before the replacement ships. |
 | `personalization` | Compiler `WRN_PERS_*` and `INF_PERS_*` diagnostics about page customizations and profiles. |
 | `breaking-change` | AppSourceCop rules that compare against the previous version (baseline). Silent without a configured baseline. |
-| `marketplace` | Checks that only make sense for a marketplace submission: mandatory affixes, supported countries, marketplace manifest fields, AppSource ID ranges. `None` at Essential, native from Recommended (DR-019). |
+| `marketplace` | Checks that only make sense for a marketplace submission: mandatory affixes, supported countries, marketplace manifest fields, AppSource ID ranges. `None` at Essential, native from Recommended (DR-019), so Essential stays usable without `AppSourceCop.json`. |
 | `pte-only` | PerTenantExtensionCop rules that only hold for per-tenant extensions (50000 ID range, no entitlements, no moved tables). Native at every level (DR-018). |
 | `metric` | Measurement rules that report a number rather than a defect. |
 | `internal` | `X0000` analyzer-exception rules. |
 | `config` | Diagnostics that report a missing or broken configuration file. |
-| `general` | Everything else; placed by the per-analyzer decision rows. |
+| `general` | Everything else; without a placement, proposed by the per-analyzer decision rows. |
 
 ## 3. Diagnostic ID format and sort order
 
