@@ -2293,37 +2293,37 @@
   },
   "AS0001": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published table or table extension drops its data on upgrade and breaks dependents; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0002": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published field loses its data and breaks dependent extensions; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0003": {
     "ladder": "None/Error/Error/Error",
-    "justification": "Baseline-missing diagnostics need a configured baseline; off at Essential, native from Recommended",
+    "justification": "A configured baseline that cannot be loaded silences every breaking-change check; broken setup, Error from Recommended.",
     "dr": "DR-019"
   },
   "AS0004": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Changing the type of a published field blocks the schema upgrade and breaks dependents; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0005": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Renaming a published field breaks dependent extensions that reference it by name; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0006": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Renaming a published table breaks dependent extensions and the upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0007": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Moving a published object to another namespace breaks every dependent that references it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0008": {
@@ -2333,167 +2333,165 @@
   },
   "AS0009": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Changing the fields of a published key breaks the schema upgrade and dependent code; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0010": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published key breaks dependents that sort or filter on it and the upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0011": {
     "ladder": "None/Error/Error/Error",
-    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "justification": "Object or member without the mandatory affix fails AppSource submission; needs mandatoryAffixes, so off at Essential and Error from Recommended.",
     "dr": "DR-019"
   },
   "AS0013": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A table extension field outside the idRanges of the app can collide with other extensions and fails submission; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0014": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A manifest without idRanges cannot be validated or submitted; every app.json can declare them, so Error everywhere.",
     "dr": "DR-018"
   },
   "AS0015": {
     "ladder": "None/Error/Error/Error",
-    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "justification": "AppSource requires the TranslationFile feature; a marketplace check, off at Essential and Error from Recommended.",
     "dr": "DR-019"
   },
   "AS0016": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A Normal field without a real DataClassification fails AppSource submission and leaves privacy handling undefined; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0018": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Removing a public procedure breaks every dependent extension that calls it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0019": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Removing an event attribute breaks every subscriber in dependent extensions; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0020": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Changing an event from business to integration or back breaks its subscribers; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0021": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Turning an event attribute argument such as IncludeSender to false breaks subscribers that use it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0022": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Dropping the external scope of a procedure breaks dependent callers; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0023": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Changing the return type of an external procedure breaks dependent callers; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0024": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Adding or removing parameters of an external procedure breaks dependent callers; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0025": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Changing, renaming or removing event parameters breaks every subscriber; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0026": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Changing a parameter type or subtype of an event or external procedure breaks dependents; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0027": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Changing the array size of an event or external procedure parameter breaks dependents; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0028": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Shrinking an array parameter of an event or external procedure breaks dependents; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0029": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published page or page extension breaks dependents that extend or run it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0030": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Renaming a published page breaks dependent page extensions and references; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0031": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published action breaks dependent page extensions anchored on it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0032": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published page control breaks dependent page extensions anchored on it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0033": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published view breaks dependents that reference it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0034": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A table property change the upgrade cannot apply blocks schema sync or breaks dependents; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0035": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An unsupported page property change can break dependent page extensions but not data or the upgrade; Warning from Recommended."
   },
   "AS0036": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A field property change the upgrade cannot apply blocks schema sync or breaks dependents; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0038": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A key property change the upgrade cannot apply blocks schema sync; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0039": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Removing a table property whose removal is destructive blocks the schema upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0040": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Removing a page property that dependents rely on can break page extensions, not data or the upgrade; Warning from Recommended."
   },
   "AS0041": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Removing a field property whose removal is destructive blocks the schema upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0042": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Removing a key property whose removal is destructive blocks the schema upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0043": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting the clustered key of a published table blocks the schema upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0044": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A property change that destroys schema or data blocks the upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0047": {
@@ -2508,22 +2506,22 @@
   },
   "AS0049": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Narrowing the access of a published object breaks dependents that use it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0050": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Making a published object non-extensible breaks dependent extensions of it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0051": {
     "ladder": "None/Error/Error/Error",
-    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "justification": "AppSource requires EULA, privacy statement, help and similar manifest fields; marketplace check, off at Essential, Error from Recommended.",
     "dr": "DR-019"
   },
   "AS0052": {
     "ladder": "None/Error/Error/Error",
-    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "justification": "AppSource requires a valid url in the manifest; a marketplace check, off at Essential and Error from Recommended.",
     "dr": "DR-019"
   },
   "AS0053": {
@@ -2533,37 +2531,37 @@
   },
   "AS0054": {
     "ladder": "None/Error/Error/Error",
-    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "justification": "AppSource requires the affixes declared in AppSourceCop.json; fires in every unconfigured project, so off at Essential, Error from Recommended.",
     "dr": "DR-019"
   },
   "AS0055": {
     "ladder": "None/Hidden/Info/Info",
-    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "justification": "Reports that no supportedCountries list is configured; a marketplace hint, off at Essential and visible from Strict.",
     "dr": "DR-019"
   },
   "AS0056": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "justification": "A supportedCountries entry that is not an ISO 3166-1 code is broken marketplace configuration; Warning from Recommended.",
     "dr": "DR-019"
   },
   "AS0057": {
     "ladder": "None/Hidden/Info/Info",
-    "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended",
+    "justification": "Missing translations for a targeted locale; needs supportedCountries and XLIFF files, off at Essential and visible from Strict.",
     "dr": "DR-019"
   },
   "AS0058": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "AssertError outside a test codeunit puts test code in production logic and fails AppSource submission; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0059": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Writing to a reserved system table fails at runtime in a multi-tenant environment; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0060": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Calling an unsafe method such as an encryption key function is blocked in AppSource and risks tenant data; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0061": {
@@ -2578,77 +2576,73 @@
   },
   "AS0063": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Removing var from an event parameter silently drops values subscribers set; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0064": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published interface implementation breaks dependents that resolve it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0065": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Deleting a published interface breaks every dependent that implements or uses it; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0066": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A new method on a published interface breaks every dependent implementation; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0067": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "A new interface on a published enum without a default implementation breaks dependent enum extensions; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0068": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Retargeting a published table extension breaks the upgrade of its data and of dependents; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0069": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "An enum replacing an option field with fewer members loses stored values on upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0070": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "An enum replacing an option field with renamed members breaks the data upgrade and code; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0071": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "An enum replacing an option field with other ordinals corrupts stored values on upgrade; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0072": {
     "ladder": "None/Hidden/Info/Info",
-    "justification": "Hidden keeps the code action available; visible from Strict",
-    "dr": "DR-012"
+    "justification": "An obsolete tag that is not the next release version breaks the tag policy; needs obsoleteTag settings, visible from Strict."
   },
   "AS0073": {
     "ladder": "None/Hidden/Info/Info",
-    "justification": "Hidden keeps the code action available; visible from Strict",
-    "dr": "DR-012"
+    "justification": "An Obsolete attribute without a tag hides when the member goes away; needs obsoleteTag settings, visible from Strict."
   },
   "AS0074": {
     "ladder": "None/Hidden/Info/Info",
-    "justification": "Hidden keeps the code action available; visible from Strict",
-    "dr": "DR-012"
+    "justification": "An obsolete tag that differs between branches confuses the removal schedule; needs a baseline and tag policy, visible from Strict."
   },
   "AS0075": {
     "ladder": "None/Hidden/Hidden/Hidden",
-    "justification": "navcontainerhelper appsource.default.ruleset.json hides these two in AppSource validation",
+    "justification": "An Obsolete attribute without a reason is good practice that the AppSource validation ruleset hides; Hidden from Recommended.",
     "dr": "DR-021"
   },
   "AS0076": {
     "ladder": "None/Hidden/Info/Info",
-    "justification": "Hidden keeps the code action available; visible from Strict",
-    "dr": "DR-012"
+    "justification": "An obsolete tag that does not match the configured pattern; needs obsoleteTag settings, visible from Strict."
   },
   "AS0077": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Deployment blocker of one kind of extension at its native severity; the other kind opts out",
+    "justification": "Adding var to an event parameter lets subscribers change values the publisher never expected; silent without a baseline, Error everywhere.",
     "dr": "DR-018"
   },
   "AS0078": {
