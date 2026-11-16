@@ -72,7 +72,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a page part that references a page which is not a ListPart or CardPart; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0273",
@@ -87,7 +87,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a control named like an Area type, which dependent extensions cannot reference; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0299",
@@ -102,7 +102,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a qualified member name on something other than a trigger; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0374",
@@ -146,8 +146,8 @@
     "vNext": "Warning",
     "Basis": "DR-016",
     "Justification": "Uses an object marked for removal whose replacement may not be released yet; advisory at Recommended, a gate from Strict.",
-    "CIJustification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near",
-    "vNextJustification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+    "CIJustification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking.",
+    "vNextJustification": "Removal is one release closer on the next platform; vNext makes it a gate."
   },
   {
     "id": "AL0457",
@@ -192,7 +192,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a table field name longer than the SQL safe limit; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0472",
@@ -206,7 +206,7 @@
     "vNext": "=",
     "Basis": "DR-016",
     "Justification": "A translation unit whose source no longer matches the label is ignored, so users see the untranslated text; Warning from Recommended.",
-    "CIJustification": "Compiler warning at author severity from Recommended",
+    "CIJustification": "The translation round trip runs apart from the code change; CI advises instead of blocking.",
     "vNextJustification": "="
   },
   {
@@ -221,7 +221,7 @@
     "vNext": "=",
     "Basis": "DR-016",
     "Justification": "A translated string longer than the label allows is trimmed, so users see cut text; Warning from Recommended.",
-    "CIJustification": "Compiler warning at author severity from Recommended",
+    "CIJustification": "The translation round trip runs apart from the code change; CI advises instead of blocking.",
     "vNextJustification": "="
   },
   {
@@ -236,7 +236,7 @@
     "vNext": "=",
     "Basis": "DR-016",
     "Justification": "Two translation units for the same ID make the translation ambiguous; a defect in the XLIFF file, Warning from Recommended.",
-    "CIJustification": "Compiler warning at author severity from Recommended",
+    "CIJustification": "The translation round trip runs apart from the code change; CI advises instead of blocking.",
     "vNextJustification": "="
   },
   {
@@ -252,7 +252,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: the Image property on a field outside a CueGroup; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0482",
@@ -297,7 +297,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a member name another extension already defines on the same object; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0493",
@@ -312,7 +312,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an action in a list only area whose RunObject is not a List page; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0509",
@@ -357,7 +357,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a method whose name and parameter types another extension already defines on the object; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0524",
@@ -372,7 +372,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a method that duplicates one with the same signature on the base object; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0534",
@@ -387,7 +387,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a table key name longer than the SQL safe limit; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0545",
@@ -402,7 +402,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an area type the page type does not support; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0547",
@@ -417,7 +417,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an event publisher that exposes global variables; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0548",
@@ -432,7 +432,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: moving a page symbol from one area to another; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0550",
@@ -447,7 +447,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a group in an action area that holds something other than actions; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0551",
@@ -462,7 +462,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an action area that holds something other than actions; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0552",
@@ -477,7 +477,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an action area that directly holds something other than groups; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0556",
@@ -492,7 +492,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an action whose RunObject has an object type the area does not allow; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0557",
@@ -537,7 +537,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a part page that contains another part; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0560",
@@ -552,7 +552,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a Role Center area holding something other than parts and groups; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0561",
@@ -567,7 +567,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a FactBoxes area holding something other than parts; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0562",
@@ -582,7 +582,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a SystemPart with an invalid part kind; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0563",
@@ -597,7 +597,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a control type its parent control does not allow; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0567",
@@ -627,7 +627,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a group in an action area holding something other than actions or groups; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0569",
@@ -642,7 +642,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a procedure on a Role Center page; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0571",
@@ -657,7 +657,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a profile that uses Description where Caption belongs; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0573",
@@ -672,7 +672,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a client expression using more than simple types and field references; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0586",
@@ -687,7 +687,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an identifier with characters that are not valid; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0588",
@@ -717,7 +717,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: one name shared by report columns and data items, which blocks extending them; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0590",
@@ -732,7 +732,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a property set on a group kind that does not support it; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0592",
@@ -762,7 +762,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a subscriber parameter with a smaller capacity than the publisher's; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0598",
@@ -777,7 +777,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: moving or modifying an element in the same extension object that adds it; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0600",
@@ -792,7 +792,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an option related property on an element that is not an Option; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0601",
@@ -807,7 +807,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a reference to a symbol whose obsolete state is Removed; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0602",
@@ -822,7 +822,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: access to a member its protection level hides; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0603",
@@ -836,7 +836,7 @@
     "vNext": "=",
     "Basis": "DR-016",
     "Justification": "An implicit conversion that can lose data or fail at runtime, such as enum to Option or Text to Code; Warning from Recommended.",
-    "CIJustification": "Compiler warning at author severity from Recommended",
+    "CIJustification": "Fixing a conversion can depend on a publisher or dependency outside the change; CI advises instead of blocking.",
     "vNextJustification": "="
   },
   {
@@ -852,7 +852,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an unqualified member reached through implicit with; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0605",
@@ -882,7 +882,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an explicit with statement in cloud code; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0607",
@@ -912,7 +912,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an OrderBy property without any field; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0609",
@@ -972,7 +972,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a trigger declared with the wrong signature; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0614",
@@ -987,7 +987,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a reserved value assigned to a property; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0615",
@@ -1002,7 +1002,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an ODataKeyFields field that no page control uses as source; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0617",
@@ -1017,7 +1017,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: OnBeforeActionEvent on an action that sets RunObject; Warning from Essential gives the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0626",
@@ -1107,7 +1107,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an OnPrem-scoped method used as event subscriber, which fails at runtime against a Cloud publisher; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0639",
@@ -1122,7 +1122,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a report column of type Variant; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0640",
@@ -1257,7 +1257,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a comma in an enum value name or caption; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0650",
@@ -1272,7 +1272,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a translated text longer than the MaxLength of its target, which gets trimmed; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0655",
@@ -1287,7 +1287,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a DataItemLinkReference that points at a dataitem other than an ancestor; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0659",
@@ -1317,7 +1317,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a read-only property customized in a context that cannot change it; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0662",
@@ -1362,7 +1362,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a language feature or syntax Microsoft has deprecated; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0677",
@@ -1377,7 +1377,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a protected member on an object type that does not support protected access; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0678",
@@ -1437,7 +1437,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a CalcFormula target field longer than its source flow field, which can overflow at runtime; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0692",
@@ -1452,7 +1452,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an obsolete primary key, whose obsolete properties have no effect; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0694",
@@ -1467,7 +1467,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an obsolete field inside the primary key, whose obsolete properties have no effect; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0695",
@@ -1482,7 +1482,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a method used outside the target or runtime version it is available for; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0697",
@@ -1497,7 +1497,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a method argument that is not a valid Field type; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0700",
@@ -1512,7 +1512,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a special app such as System or Application declared as an explicit dependency instead of its app.json property; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0702",
@@ -1527,7 +1527,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a special app declared both through its app.json property and as an explicit dependency; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0711",
@@ -1542,7 +1542,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a member name duplicated across extensions where CueActions are defined; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0715",
@@ -1557,7 +1557,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a name reserved for future AL language features; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0717",
@@ -1602,7 +1602,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a property value used without the associated property it depends on; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0728",
@@ -1617,7 +1617,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a property value used without the associated property set to the one value it requires; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0729",
@@ -1632,7 +1632,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a property value used without the associated property set to one of the values it requires; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0731",
@@ -1647,7 +1647,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a name that does not exist in the current context; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0733",
@@ -1662,7 +1662,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an access modifier on a member of an object type that does not allow it; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0739",
@@ -1692,7 +1692,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an action property that is not valid inside its control type; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0745",
@@ -1707,7 +1707,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an action property that is not valid on a report request page; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0748",
@@ -1752,7 +1752,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: nested enum values; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0753",
@@ -1767,7 +1767,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a dataitem with an empty name, which can fail at runtime; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0755",
@@ -1782,7 +1782,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a member named like a built-in member of its object; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0756",
@@ -1812,7 +1812,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a metadata name that clashes with a member of another extension; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0768",
@@ -1827,7 +1827,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a property left out that the value of another property makes required; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0769",
@@ -1842,7 +1842,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a required property left out; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0773",
@@ -1872,7 +1872,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an explicit return value in a TryFunction, which the runtime discards; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0778",
@@ -1887,7 +1887,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an implicit Guid conversion into a text too short to hold it; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0780",
@@ -1902,7 +1902,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: ModifyAll on a FlowField or FlowFilter; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0782",
@@ -1917,7 +1917,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a page extension using a control add-in from outside its own extension; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0788",
@@ -1932,7 +1932,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a page area used on a page type that does not support it; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0789",
@@ -2006,8 +2006,8 @@
     "vNext": "Warning",
     "Basis": "DR-016",
     "Justification": "Use of an object marked to move to another app; the new home may not ship yet, so advisory first, a gate from Strict.",
-    "CIJustification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near",
-    "vNextJustification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+    "CIJustification": "A team cannot always replace a moved object in the same change, since the new app may not ship yet; CI advises instead of blocking.",
+    "vNextJustification": "The move is one release closer on the next platform."
   },
   {
     "id": "AL0803",
@@ -2022,7 +2022,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a method name that clashes with a method of another extension; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0804",
@@ -2037,7 +2037,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a reference to an element defined in a page customization; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0805",
@@ -2052,7 +2052,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an object ID written between quotes; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0807",
@@ -2082,7 +2082,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a query column whose source is a flow filter; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0816",
@@ -2097,7 +2097,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: two property values that exclude each other; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0818",
@@ -2112,7 +2112,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: an event defined twice with the same parameter types on the same object; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0820",
@@ -2187,7 +2187,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a type used as a type argument where that type is not allowed; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
   },
   {
     "id": "AL0830",
@@ -2202,7 +2202,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a try method as an interface implementation; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns a try method as interface implementation into a compile error."
   },
   {
     "id": "AL0835",
@@ -2247,7 +2247,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: symbols that produce the same translation ID and collide in XLIFF; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns duplicate translation IDs into a compile error."
   },
   {
     "id": "AL0842",
@@ -2277,7 +2277,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a duplicate EntityName or EntitySetName on API objects; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns a duplicate EntityName or EntitySetName into a compile error."
   },
   {
     "id": "AL0848",
@@ -2307,7 +2307,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: the unsupported ChartPart control type; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns the ChartPart control type into a compile error."
   },
   {
     "id": "AL0869",
@@ -2337,7 +2337,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a field referenced outside the base object and the current extension; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns a field reference outside the base object and current extension into a compile error."
   },
   {
     "id": "AL0888",
@@ -2397,7 +2397,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a FlowField or FlowFilter in a query DataItemLink; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns a FlowField in a query DataItemLink into a compile error."
   },
   {
     "id": "AL0912",
@@ -2412,7 +2412,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a symbol with an empty name, which can already fail at runtime; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns an empty symbol name into a compile error."
   },
   {
     "id": "AL0914",
@@ -2487,7 +2487,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a non-public method as an interface implementation; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns a non-public interface implementation into a compile error."
   },
   {
     "id": "AL0924",
@@ -2621,7 +2621,7 @@
     "vNext": "=",
     "Basis": "DR-016",
     "Justification": "An XML file such as a translation or layout fails schema validation and may be partly ignored; Warning from Recommended, relaxed in CI.",
-    "CIJustification": "Compiler warning at author severity from Recommended",
+    "CIJustification": "The XML file often belongs to a translation or layout round trip outside the code change; CI advises instead of blocking.",
     "vNextJustification": "="
   },
   {
@@ -2636,7 +2636,7 @@
     "vNext": "=",
     "Basis": "DR-016",
     "Justification": "A translation file names an invalid target language, so its translations are not applied; Warning from Recommended, relaxed in CI.",
-    "CIJustification": "Compiler warning at author severity from Recommended",
+    "CIJustification": "The translation round trip runs apart from the code change; CI advises instead of blocking.",
     "vNextJustification": "="
   },
   {
@@ -2651,7 +2651,7 @@
     "vNext": "=",
     "Basis": "DR-016",
     "Justification": "A translation file has no target language, so its translations are not applied; Warning from Recommended, relaxed in CI.",
-    "CIJustification": "Compiler warning at author severity from Recommended",
+    "CIJustification": "The translation round trip runs apart from the code change; CI advises instead of blocking.",
     "vNextJustification": "="
   },
   {
@@ -2772,7 +2772,7 @@
     "Basis": "DR-017",
     "Justification": "Becomes a compile error on a later runtime: a key vault URL in app.json that is not an HTTPS Azure Key Vault URL; Warning now so the team has the runway.",
     "CIJustification": "=",
-    "vNextJustification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+    "vNextJustification": "The next platform turns an invalid key vault URL into a compile error."
   },
   {
     "id": "AL1079",
@@ -3011,8 +3011,8 @@
     "vNext": "Warning",
     "Basis": "DR-016",
     "Justification": "A designer customization uses a page element marked for removal whose replacement may not exist yet; advisory, a gate from Strict like the other pending obsoletes.",
-    "CIJustification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near",
-    "vNextJustification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+    "CIJustification": "The replacement of the pending element may not be released yet; CI advises instead of blocking.",
+    "vNextJustification": "Removal of the pending element is one release closer on the next platform."
   },
   {
     "id": "AL1413",
@@ -8962,11 +8962,11 @@
     "Strict": "Warning",
     "Complete": "Warning",
     "Default": "=",
-    "CI": "=",
+    "CI": "Info",
     "vNext": "=",
     "Basis": "DR-022",
     "Justification": "A missing or unfinished translation shows source-language text to users in that locale; Warning from Recommended, silent without XLIFF files.",
-    "CIJustification": "=",
+    "CIJustification": "The translation round trip runs apart from the code change; CI advises instead of blocking.",
     "vNextJustification": "="
   },
   {

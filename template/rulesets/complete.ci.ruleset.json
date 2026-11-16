@@ -96,6 +96,7 @@
     { "id": "LC0082", "action": "Warning" },
     { "id": "LC0088", "action": "Warning" },
     { "id": "LC0089", "action": "Info" },
+    { "id": "LC0091", "action": "Info" },
     { "id": "LC0097", "action": "Info" },
     { "id": "LC0098", "action": "Warning" },
     { "id": "LC0099", "action": "Warning" },

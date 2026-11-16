@@ -21,7 +21,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -32,7 +32,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -43,7 +43,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -62,11 +62,11 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+        "justification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking."
       },
       "vnext": {
         "action": "Warning",
-        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+        "justification": "Removal is one release closer on the next platform; vNext makes it a gate."
       }
     },
     "dr": "DR-016"
@@ -85,7 +85,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -96,7 +96,7 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Compiler warning at author severity from Recommended"
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
       }
     },
     "dr": "DR-016"
@@ -107,7 +107,7 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Compiler warning at author severity from Recommended"
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
       }
     },
     "dr": "DR-016"
@@ -118,7 +118,7 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Compiler warning at author severity from Recommended"
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
       }
     },
     "dr": "DR-016"
@@ -129,7 +129,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -148,7 +148,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -159,7 +159,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -179,7 +179,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -190,7 +190,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -201,7 +201,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -212,7 +212,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -223,7 +223,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -234,7 +234,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -245,7 +245,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -256,7 +256,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -267,7 +267,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -278,7 +278,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -297,7 +297,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -308,7 +308,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -319,7 +319,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -330,7 +330,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -341,7 +341,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -356,7 +356,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -367,7 +367,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -378,7 +378,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -389,7 +389,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -400,7 +400,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -415,7 +415,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -426,7 +426,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -441,7 +441,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -452,7 +452,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -463,7 +463,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -474,7 +474,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -485,7 +485,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -496,7 +496,7 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Compiler warning at author severity from Recommended"
+        "justification": "Fixing a conversion can depend on a publisher or dependency outside the change; CI advises instead of blocking."
       }
     },
     "dr": "DR-016"
@@ -507,7 +507,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -522,7 +522,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -537,7 +537,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -560,7 +560,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -571,7 +571,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -582,7 +582,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -593,7 +593,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -624,7 +624,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -635,7 +635,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -678,7 +678,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -689,7 +689,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -700,7 +700,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -715,7 +715,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -734,7 +734,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -745,7 +745,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -768,7 +768,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -779,7 +779,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -790,7 +790,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -801,7 +801,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -812,7 +812,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -823,7 +823,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -834,7 +834,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -845,7 +845,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -856,7 +856,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -875,7 +875,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -886,7 +886,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -897,7 +897,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -908,7 +908,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -919,7 +919,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -934,7 +934,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -945,7 +945,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -964,7 +964,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -975,7 +975,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -986,7 +986,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1001,7 +1001,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1012,7 +1012,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1023,7 +1023,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1038,7 +1038,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1049,7 +1049,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1060,7 +1060,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1071,7 +1071,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1082,7 +1082,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1109,11 +1109,11 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+        "justification": "A team cannot always replace a moved object in the same change, since the new app may not ship yet; CI advises instead of blocking."
       },
       "vnext": {
         "action": "Warning",
-        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+        "justification": "The move is one release closer on the next platform."
       }
     },
     "dr": "DR-016"
@@ -1124,7 +1124,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1135,7 +1135,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1146,7 +1146,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1161,7 +1161,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1172,7 +1172,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1183,7 +1183,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1210,7 +1210,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
       }
     },
     "dr": "DR-017"
@@ -1221,7 +1221,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns a try method as interface implementation into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1240,7 +1240,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns duplicate translation IDs into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1255,7 +1255,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns a duplicate EntityName or EntitySetName into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1270,7 +1270,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns the ChartPart control type into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1285,7 +1285,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns a field reference outside the base object and current extension into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1308,7 +1308,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns a FlowField in a query DataItemLink into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1319,7 +1319,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns an empty symbol name into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1346,7 +1346,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns a non-public interface implementation into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1389,7 +1389,7 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Compiler warning at author severity from Recommended"
+        "justification": "The XML file often belongs to a translation or layout round trip outside the code change; CI advises instead of blocking."
       }
     },
     "dr": "DR-016"
@@ -1400,7 +1400,7 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Compiler warning at author severity from Recommended"
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
       }
     },
     "dr": "DR-016"
@@ -1411,7 +1411,7 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Compiler warning at author severity from Recommended"
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
       }
     },
     "dr": "DR-016"
@@ -1450,7 +1450,7 @@
     "stages": {
       "vnext": {
         "action": "Error",
-        "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext"
+        "justification": "The next platform turns an invalid key vault URL into a compile error."
       }
     },
     "dr": "DR-017"
@@ -1521,11 +1521,11 @@
     "stages": {
       "ci": {
         "action": "Info",
-        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+        "justification": "The replacement of the pending element may not be released yet; CI advises instead of blocking."
       },
       "vnext": {
         "action": "Warning",
-        "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near"
+        "justification": "Removal of the pending element is one release closer on the next platform."
       }
     },
     "dr": "DR-016"
@@ -3263,7 +3263,13 @@
   },
   "LC0091": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "A missing or unfinished translation shows source-language text to users in that locale; Warning from Recommended, silent without XLIFF files."
+    "justification": "A missing or unfinished translation shows source-language text to users in that locale; Warning from Recommended, silent without XLIFF files.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
+      }
+    }
   },
   "LC0092": {
     "ladder": "None/Info/Warning/Warning",

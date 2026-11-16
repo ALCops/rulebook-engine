@@ -8362,13 +8362,13 @@
     "essential.ci": "None",
     "essential.vnext": "None",
     "recommended.default": "Warning",
-    "recommended.ci": "Warning",
+    "recommended.ci": "Info",
     "recommended.vnext": "Warning",
     "strict.default": "Warning",
-    "strict.ci": "Warning",
+    "strict.ci": "Info",
     "strict.vnext": "Warning",
     "complete.default": "Warning",
-    "complete.ci": "Warning",
+    "complete.ci": "Info",
     "complete.vnext": "Warning"
   },
   "LC0092": {

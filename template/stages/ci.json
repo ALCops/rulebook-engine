@@ -3,15 +3,16 @@
   "name": "Rulebook stage CI",
   "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",
   "rules": [
-    { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near" },
-    { "id": "AL0472", "action": "Info", "justification": "Compiler warning at author severity from Recommended" },
-    { "id": "AL0473", "action": "Info", "justification": "Compiler warning at author severity from Recommended" },
-    { "id": "AL0479", "action": "Info", "justification": "Compiler warning at author severity from Recommended" },
-    { "id": "AL0603", "action": "Info", "justification": "Compiler warning at author severity from Recommended" },
-    { "id": "AL0801", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near" },
-    { "id": "AL1026", "action": "Info", "justification": "Compiler warning at author severity from Recommended" },
-    { "id": "AL1029", "action": "Info", "justification": "Compiler warning at author severity from Recommended" },
-    { "id": "AL1030", "action": "Info", "justification": "Compiler warning at author severity from Recommended" },
-    { "id": "AL1412", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near" }
+    { "id": "AL0432", "action": "Info", "justification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking." },
+    { "id": "AL0472", "action": "Info", "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking." },
+    { "id": "AL0473", "action": "Info", "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking." },
+    { "id": "AL0479", "action": "Info", "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking." },
+    { "id": "AL0603", "action": "Info", "justification": "Fixing a conversion can depend on a publisher or dependency outside the change; CI advises instead of blocking." },
+    { "id": "AL0801", "action": "Info", "justification": "A team cannot always replace a moved object in the same change, since the new app may not ship yet; CI advises instead of blocking." },
+    { "id": "AL1026", "action": "Info", "justification": "The XML file often belongs to a translation or layout round trip outside the code change; CI advises instead of blocking." },
+    { "id": "AL1029", "action": "Info", "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking." },
+    { "id": "AL1030", "action": "Info", "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking." },
+    { "id": "AL1412", "action": "Info", "justification": "The replacement of the pending element may not be released yet; CI advises instead of blocking." },
+    { "id": "LC0091", "action": "Info", "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking." }
   ]
 }
