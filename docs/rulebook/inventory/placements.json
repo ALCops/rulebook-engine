@@ -1217,7 +1217,7 @@
   },
   "AL0830": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a try method as an interface implementation; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1228,17 +1228,15 @@
   },
   "AL0835": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Two layouts write the same layout file, so builds overwrite each other's output; a likely defect, Warning from Recommended."
   },
   "AL0836": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/None/Info/Warning",
+    "justification": "A key mixes base table and table extension fields of the same app, legal today but a blocker if the objects are ever split; niche, advisory from Strict."
   },
   "AL0837": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: symbols that produce the same translation ID and collide in XLIFF; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1249,12 +1247,11 @@
   },
   "AL0842": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A public field of an internal type cannot be used by other apps, an extensibility defect in the public surface; Warning from Recommended."
   },
   "AL0845": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a duplicate EntityName or EntitySetName on API objects; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1265,12 +1262,11 @@
   },
   "AL0848": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An identifier that is a keyword on a newer runtime breaks the build when the runtime is raised; upgrade risk, Warning from Recommended."
   },
   "AL0864": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: the unsupported ChartPart control type; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1281,12 +1277,11 @@
   },
   "AL0869": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A symbol resolves only through another app's propagated dependencies, so the declared dependencies are wrong and the build is fragile; Warning from Recommended."
   },
   "AL0885": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a field referenced outside the base object and the current extension; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1296,23 +1291,20 @@
     "dr": "DR-017"
   },
   "AL0888": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A SecretText passed to a control add-in becomes readable in the browser debugger; a security exposure, Warning from Essential."
   },
   "AL0906": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "The ConfigurationDialog page type is in preview and may change under the app; advisory, a gate from Strict for teams that avoid preview features."
   },
   "AL0909": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "An analysis view definition depends on an app the project lacks, so its unresolved columns are silently dropped; Warning from Recommended."
   },
   "AL0910": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a FlowField or FlowFilter in a query DataItemLink; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1323,7 +1315,7 @@
   },
   "AL0912": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a symbol with an empty name, which can already fail at runtime; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1333,28 +1325,24 @@
     "dr": "DR-017"
   },
   "AL0914": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A table near the column limit leaves little room for extension fields; an extensibility concern that is costly to fix, advisory then a gate from Strict."
   },
   "AL0915": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "One table extension adding many fields eats the column budget other extensions share; advisory, a gate from Strict."
   },
   "AL0916": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A Variant argument makes a built-in call ambiguous and the compiler silently picks one overload, a likely wrong result; Warning from Recommended."
   },
   "AL0917": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An auto-upgraded Excel layout keeps its orphaned original sheet; cleanup of the layout, advisory then a gate from Strict."
   },
   "AL0920": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a non-public method as an interface implementation; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1364,116 +1352,101 @@
     "dr": "DR-017"
   },
   "AL0924": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An interface method announced as required is not implemented and the build breaks when the owner makes it required; a future compile error, Warning from Essential."
   },
   "AL0925": {
     "ladder": "None/Info/Info/Info",
-    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
-    "dr": "DR-015"
+    "justification": "The interface supplies a default implementation the codeunit may override; information about the build, never escalated."
   },
   "AL1000": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A /noconfig option in a response file is ignored, so the build runs with a different configuration than intended; Warning from Recommended."
   },
   "AL1003": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An analyzer cannot be instantiated, so its rules silently do not run and the ruleset checks nothing for it; broken configuration, Warning from Essential."
   },
   "AL1004": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A configured analyzer assembly holds no analyzers, so the intended rules never run; broken configuration, Warning from Essential."
   },
   "AL1005": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An analyzer assembly fails to load, so its rules silently do not run; broken configuration, Warning from Essential."
   },
   "AL1011": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A source file is passed to the compiler more than once, a sign of a misconfigured build; Warning from Recommended."
   },
   "AL1025": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A project file matches no known format and is left out of the build; Warning from Recommended so stray or misnamed files surface."
   },
   "AL1026": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
+    "justification": "An XML file such as a translation or layout fails schema validation and may be partly ignored; Warning from Recommended, relaxed in CI.",
     "stages": {
       "ci": {
         "action": "Info",
         "justification": "Compiler warning at author severity from Recommended"
       }
     },
-    "dr": "DR-012"
+    "dr": "DR-016"
   },
   "AL1029": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
+    "justification": "A translation file names an invalid target language, so its translations are not applied; Warning from Recommended, relaxed in CI.",
     "stages": {
       "ci": {
         "action": "Info",
         "justification": "Compiler warning at author severity from Recommended"
       }
     },
-    "dr": "DR-012"
+    "dr": "DR-016"
   },
   "AL1030": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
+    "justification": "A translation file has no target language, so its translations are not applied; Warning from Recommended, relaxed in CI.",
     "stages": {
       "ci": {
         "action": "Info",
         "justification": "Compiler warning at author severity from Recommended"
       }
     },
-    "dr": "DR-012"
+    "dr": "DR-016"
   },
   "AL1031": {
-    "ladder": "None/Info/Info/Info",
-    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
-    "dr": "DR-015"
+    "ladder": "None/None/None/Info",
+    "justification": "Reports which translation languages were included, a success log line on every build with translations; Info in Complete only."
   },
   "AL1055": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A downloaded symbol package is invalid and the build may resolve against stale symbols; clear the cache, Warning from Recommended."
   },
   "AL1056": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A dependency package could not be loaded, so symbols are missing or stale; Warning from Recommended."
   },
   "AL1058": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A dependency declares both appId and id and the appId is ignored, which can point at the wrong app; Warning from Recommended."
   },
   "AL1059": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A feature in app.json is enabled without the feature it requires, so it does not take effect; broken configuration, Warning from Essential."
   },
   "AL1072": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A preprocessor symbol with an invalid name is not defined, so conditional code compiles the wrong branch; broken configuration, Warning from Essential."
   },
   "AL1076": {
     "ladder": "None/Info/Info/Info",
-    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
-    "dr": "DR-015"
+    "justification": "A dependency was satisfied by an app whose name or publisher changed; information about the build, never escalated."
   },
   "AL1078": {
     "ladder": "Warning/Warning/Warning/Warning",
-    "justification": "Becomes a compile error on a later platform; Warning now, Error on vNext",
+    "justification": "Becomes a compile error on a later runtime: a key vault URL in app.json that is not an HTTPS Azure Key Vault URL; Warning now so the team has the runway.",
     "stages": {
       "vnext": {
         "action": "Error",
@@ -1484,82 +1457,67 @@
   },
   "AL1079": {
     "ladder": "None/Info/Info/Info",
-    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
-    "dr": "DR-015"
+    "justification": "Debugging is blocked even for the dev extension by the resource exposure policy; information about the build, never escalated."
   },
   "AL1080": {
     "ladder": "None/Info/Info/Info",
-    "justification": "Compiler information; never escalated, it describes the build rather than a defect",
-    "dr": "DR-015"
+    "justification": "Source stays visible through debugging although it is left out of symbols; information on the exposure policy, never escalated."
   },
   "AL1085": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "A package file is locked by another process and cannot be read; kept at the author's default as a build environment problem."
   },
   "AL1156": {
-    "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Comments in app.json can break CI/CD tools and other JSON consumers; advisory, a gate from Strict."
   },
   "AL1401": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization references a field or control that no longer exists; project builds report the error twin, kept at the author's default."
   },
   "AL1402": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization references an object that is missing; project builds report the error twin, kept at the author's default."
   },
   "AL1403": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization name is ambiguous between two extensions; project builds report the error twin, kept at the author's default."
   },
   "AL1404": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization targets an action that is not on the page and is ignored; project builds report the error twin, kept at the author's default."
   },
   "AL1405": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization targets a control that is not on the page and is ignored; project builds report the error twin, kept at the author's default."
   },
   "AL1406": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization targets a view that is not on the page and is ignored; project builds report the error twin, kept at the author's default."
   },
   "AL1407": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization move names no targets; project builds report the error twin, kept at the author's default."
   },
   "AL1408": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer profile names something other than a page as its role center; project builds report the error twin, kept at the author's default."
   },
   "AL1409": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer profile points at a role center page that is not of type RoleCenter; project builds report the error twin, kept at the author's default."
   },
   "AL1410": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "The target of a designer page customization or profile extension is missing; project builds report the error twin, kept at the author's default."
   },
   "AL1411": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer profile lists two customizations for the same page; project builds report the error twin, kept at the author's default."
   },
   "AL1412": {
     "ladder": "None/Info/Warning/Warning",
-    "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near",
+    "justification": "A designer customization uses a page element marked for removal whose replacement may not exist yet; advisory, a gate from Strict like the other pending obsoletes.",
     "stages": {
       "ci": {
         "action": "Info",
@@ -1574,93 +1532,76 @@
   },
   "AL1413": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization adds a member whose name another extension already uses; project builds report the error twin, kept at the author's default."
   },
   "AL1414": {
     "ladder": "None/Info/Info/Info",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer page customization changes nothing and can be removed; information about the customization, never escalated."
   },
   "AL1415": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization uses a page element that is already removed, so that part no longer works; Warning from Recommended, not relaxed.",
+    "dr": "DR-016"
   },
   "AL1416": {
     "ladder": "None/Info/Info/Info",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization move is ignored because its anchor is missing; information about the customization, never escalated."
   },
   "AL1417": {
     "ladder": "None/Info/Info/Info",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization addition lands at a default place because its anchor is missing; information about the customization, never escalated."
   },
   "AL1418": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer report customization targets a data item that is missing; project builds report the error twin, kept at the author's default."
   },
   "AL1419": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer report customization targets a data item or column that is missing; project builds report the error twin, kept at the author's default."
   },
   "AL1420": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer actionref targets something other than an action and is ignored; project builds report the error twin, kept at the author's default."
   },
   "AL1421": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization still uses the legacy Promoted properties, converted when the page is customized in the client; kept at the author's default."
   },
   "AL1422": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer actionref targets an action the page does not have and is ignored; project builds report the error twin, kept at the author's default."
   },
   "AL1423": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization calls a member the type does not define; project builds report the error twin, kept at the author's default."
   },
   "AL1424": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization uses a name that does not exist in its context; project builds report the error twin, kept at the author's default."
   },
   "AL1425": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization adds a field that cannot be a source expression and is ignored; project builds report the error twin, kept at the author's default."
   },
   "AL1426": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization references an unknown namespace; project builds report the error twin, kept at the author's default."
   },
   "AL1427": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization sets a property value the target does not allow and is ignored; project builds report the error twin, kept at the author's default."
   },
   "AL1428": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization targets an analysis view that is not on the page; project builds report the error twin, kept at the author's default."
   },
   "AL1429": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Page customization and profile warnings; treated like the other compiler warnings",
-    "dr": "DR-012"
+    "justification": "A designer customization moves a symbol between areas and the move is ignored; project builds report the error twin, kept at the author's default."
   },
   "AL1430": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "Compiler warning at author severity from Recommended",
-    "dr": "DR-012"
+    "justification": "Sorting on another app's extension field has no backing key and scans large tables; a performance risk, Warning from Recommended."
   },
   "AA0001": {
     "ladder": "None/None/Warning/Warning",
