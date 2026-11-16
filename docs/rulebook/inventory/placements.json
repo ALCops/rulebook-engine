@@ -1501,7 +1501,7 @@
   },
   "AL1408": {
     "ladder": "None/Warning/Warning/Warning",
-    "justification": "A designer profile names no valid object as its role center page, where a number or an object name is expected; project builds report the error twin, kept at the author's default."
+    "justification": "A designer profile's RoleCenter names an object that is not a page, so the message asks for a number or an object name; project builds report the error twin, kept at the author's default."
   },
   "AL1409": {
     "ladder": "None/Warning/Warning/Warning",
@@ -2063,7 +2063,7 @@
   },
   "PTE0003": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "A CompanyOpen subscriber runs at every session start in every company and increases login time for every user, so Microsoft rejects it; Error everywhere.",
+    "justification": "A CompanyOpen subscriber runs at every session start in every company and can increase login time, so Microsoft rejects it; Error everywhere.",
     "dr": "DR-018"
   },
   "PTE0004": {
@@ -2451,7 +2451,7 @@
   },
   "AS0061": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "A CompanyOpen subscriber runs at every session start in every company and increases login time for every user, so Microsoft rejects it; Error everywhere.",
+    "justification": "A CompanyOpen subscriber runs at every session start in every company and can increase login time, so Microsoft rejects it; Error everywhere.",
     "dr": "DR-018"
   },
   "AS0062": {
@@ -2908,7 +2908,7 @@
   },
   "PC0012": {
     "ladder": "Error/Error/Error/Error",
-    "justification": "Assigning a FlowFilter field sets no filter, so CalcFields sums every record; a definite wrong result, Error everywhere."
+    "justification": "Assigning a FlowFilter field sets no filter, so CalcFields computes over every record; a definite wrong result, Error everywhere."
   },
   "PC0013": {
     "ladder": "Error/Error/Error/Error",

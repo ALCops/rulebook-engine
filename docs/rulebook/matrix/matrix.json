@@ -2950,7 +2950,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-022",
-    "Justification": "A designer profile names no valid object as its role center page, where a number or an object name is expected; project builds report the error twin, kept at the author's default.",
+    "Justification": "A designer profile's RoleCenter names an object that is not a page, so the message asks for a number or an object name; project builds report the error twin, kept at the author's default.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -4975,7 +4975,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "A CompanyOpen subscriber runs at every session start in every company and increases login time for every user, so Microsoft rejects it; Error everywhere.",
+    "Justification": "A CompanyOpen subscriber runs at every session start in every company and can increase login time, so Microsoft rejects it; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -6160,7 +6160,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-018",
-    "Justification": "A CompanyOpen subscriber runs at every session start in every company and increases login time for every user, so Microsoft rejects it; Error everywhere.",
+    "Justification": "A CompanyOpen subscriber runs at every session start in every company and can increase login time, so Microsoft rejects it; Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
@@ -7645,7 +7645,7 @@
     "CI": "=",
     "vNext": "=",
     "Basis": "DR-022",
-    "Justification": "Assigning a FlowFilter field sets no filter, so CalcFields sums every record; a definite wrong result, Error everywhere.",
+    "Justification": "Assigning a FlowFilter field sets no filter, so CalcFields computes over every record; a definite wrong result, Error everywhere.",
     "CIJustification": "=",
     "vNextJustification": "="
   },
