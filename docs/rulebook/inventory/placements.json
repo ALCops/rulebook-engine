@@ -1,0 +1,3396 @@
+{
+  "AL0200": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A property Microsoft has obsoleted will be removed in a later version; an upgrade risk a healthy project fixes, Warning from Recommended."
+  },
+  "AL0235": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "The empty CONST() filter is deprecated syntax with the same meaning as CONST(\" \"); a cheap cleanup, advisory then a gate from Strict."
+  },
+  "AL0251": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A permission set names an object that is not in the project or its dependencies, so it grants nothing; broken setup, Warning from Recommended."
+  },
+  "AL0254": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Sorting on a field that no key covers forces SQL to sort without an index; a performance risk, Warning from Recommended."
+  },
+  "AL0269": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a page part that references a page which is not a ListPart or CardPart; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0273": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a control named like an Area type, which dependent extensions cannot reference; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0299": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a qualified member name on something other than a trigger; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0374": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A unique ID on an element where IDs are deprecated is dead syntax; harmless cleanup, advisory then a gate from Strict."
+  },
+  "AL0424": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "CaptionML style multilanguage text in an app that uses translation files bypasses the XLIFF round trip; translations go missing, Warning from Recommended."
+  },
+  "AL0432": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Uses an object marked for removal whose replacement may not be released yet; advisory at Recommended, a gate from Strict.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking."
+      },
+      "vnext": {
+        "action": "Warning",
+        "justification": "Removal is one release closer on the next platform; vNext makes it a gate."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL0457": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A label property sits outside its designated attribute, so translators and the Locked flag may not see it; Warning from Recommended."
+  },
+  "AL0467": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "The compiler cannot write a generated translation or layout file because it is read only, so that output is stale; kept at the author's default."
+  },
+  "AL0468": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a table field name longer than the SQL safe limit; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0472": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A translation unit whose source no longer matches the label is ignored, so users see the untranslated text; Warning from Recommended.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL0473": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A translated string longer than the label allows is trimmed, so users see cut text; Warning from Recommended.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL0479": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Two translation units for the same ID make the translation ambiguous; a defect in the XLIFF file, Warning from Recommended.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL0481": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: the Image property on a field outside a CueGroup; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0482": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An image name that is wrong or unsupported for the control is not shown to the user; a visible defect, Warning from Recommended."
+  },
+  "AL0483": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An Image on a nested action group in the Sections area is ignored by the client; cosmetic, advisory then a gate from Strict."
+  },
+  "AL0486": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a member name another extension already defines on the same object; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0493": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an action in a list only area whose RunObject is not a List page; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0509": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A constant outside the ordinal range of the option type is a value no caption maps to; a likely bug, Warning from Recommended."
+  },
+  "AL0520": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "References a symbol that is already removed, where the compiler still tolerates it; it breaks once the schema goes, Warning from Recommended.",
+    "dr": "DR-016"
+  },
+  "AL0523": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a method whose name and parameter types another extension already defines on the object; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0524": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a method that duplicates one with the same signature on the base object; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0534": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a table key name longer than the SQL safe limit; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0545": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an area type the page type does not support; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0547": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an event publisher that exposes global variables; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0548": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: moving a page symbol from one area to another; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0550": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a group in an action area that holds something other than actions; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0551": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an action area that holds something other than actions; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0552": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an action area that directly holds something other than groups; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0556": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an action whose RunObject has an object type the area does not allow; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0557": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A codeunit local variable named like a field of its table shadows that field, so code reads the variable instead; a likely bug, Warning from Recommended."
+  },
+  "AL0558": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A codeunit global variable named like a field of its table makes it unclear which one code refers to; a likely bug, Warning from Recommended."
+  },
+  "AL0559": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a part page that contains another part; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0560": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a Role Center area holding something other than parts and groups; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0561": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a FactBoxes area holding something other than parts; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0562": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a SystemPart with an invalid part kind; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0563": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a control type its parent control does not allow; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0567": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A table field named like a system field shadows it, so code and filters hit the wrong one; a likely bug, Warning from Recommended."
+  },
+  "AL0568": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a group in an action area holding something other than actions or groups; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0569": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a procedure on a Role Center page; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0571": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a profile that uses Description where Caption belongs; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0573": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a client expression using more than simple types and field references; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0586": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an identifier with characters that are not valid; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0588": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A subscriber declares Option where the publisher passes an enum, so the types drift apart; an upgrade risk, Warning from Recommended."
+  },
+  "AL0589": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: one name shared by report columns and data items, which blocks extending them; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0590": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a property set on a group kind that does not support it; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0592": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An enum conversion relies on AssignmentCompatibility and the compiler relays the enum author's reason; kept at the author's default."
+  },
+  "AL0593": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a subscriber parameter with a smaller capacity than the publisher's; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0598": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: moving or modifying an element in the same extension object that adds it; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0600": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an option related property on an element that is not an Option; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0601": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a reference to a symbol whose obsolete state is Removed; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0602": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: access to a member its protection level hides; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0603": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An implicit conversion that can lose data or fail at runtime, such as enum to Option or Text to Code; Warning from Recommended.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "Fixing a conversion can depend on a publisher or dependency outside the change; CI advises instead of blocking."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL0604": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an unqualified member reached through implicit with; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0605": {
+    "ladder": "None/Hidden/Hidden/Info",
+    "justification": "Hidden twin of the implicit with future error that feeds the qualify code action; Hidden from Recommended, Info in Complete."
+  },
+  "AL0606": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an explicit with statement in cloud code; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0607": {
+    "ladder": "None/Hidden/Hidden/Info",
+    "justification": "Hidden twin of the explicit with future error that feeds the code action removing with; Hidden from Recommended, Info in Complete."
+  },
+  "AL0608": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an OrderBy property without any field; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0609": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An action added to a CueGroup is not supported and the client does not render it; Warning from Essential like other dropped controls."
+  },
+  "AL0610": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Moving an action inside a CueGroup is not supported and the client ignores it; Warning from Essential like other dropped controls."
+  },
+  "AL0611": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Modifying an action inside a CueGroup is not supported and the change does not reach the client; Warning from Essential like other dropped controls."
+  },
+  "AL0613": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a trigger declared with the wrong signature; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0614": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a reserved value assigned to a property; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0615": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an ODataKeyFields field that no page control uses as source; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0617": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: OnBeforeActionEvent on an action that sets RunObject; Warning from Essential gives the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0626": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A preprocessor directive lacks its identifier or number, so it does not do what the author meant; Warning from Recommended."
+  },
+  "AL0627": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A pragma warning directive without disable or restore is ignored, so the suppression is not applied as intended; Warning from Recommended."
+  },
+  "AL0628": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An unrecognized pragma is ignored, usually a typo that leaves warnings unsuppressed or code unchanged; Warning from Recommended."
+  },
+  "AL0633": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An implicit with pragma without disable, enable or restore is ignored, so the with scope is not what the author meant; Warning from Recommended."
+  },
+  "AL0634": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Trailing text after a preprocessor directive is not allowed and the directive may be misread; Warning from Recommended."
+  },
+  "AL0635": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an OnPrem-scoped method used as event subscriber, which fails at runtime against a Cloud publisher; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0639": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a report column of type Variant; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0640": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Badly formed XML in a doc comment drops that documentation from the generated output; advisory, a gate from Strict."
+  },
+  "AL0641": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A parameter left out of an otherwise documented signature leaves the docs incomplete; advisory, a gate from Strict."
+  },
+  "AL0642": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "Every undocumented public member is reported once doc diagnostics are on, which is noisy for most apps; Info at Strict, a gate in Complete."
+  },
+  "AL0643": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A doc comment on a spot the compiler ignores is lost documentation; advisory, a gate from Strict."
+  },
+  "AL0644": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A param tag naming no actual parameter is stale documentation after a rename; advisory, a gate from Strict."
+  },
+  "AL0645": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A paramref naming no actual parameter is a stale doc reference after a rename; advisory, a gate from Strict."
+  },
+  "AL0646": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "The same parameter documented twice leaves contradicting docs; advisory, a gate from Strict."
+  },
+  "AL0647": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A doc comment cref that does not resolve is a broken documentation link; advisory, a gate from Strict."
+  },
+  "AL0649": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a comma in an enum value name or caption; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0650": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a translated text longer than the MaxLength of its target, which gets trimmed; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0655": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a DataItemLinkReference that points at a dataitem other than an ancestor; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0659": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Enum identifiers that share their leading characters beyond the limit can collide at runtime; Warning from Recommended."
+  },
+  "AL0660": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a read-only property customized in a context that cannot change it; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0662": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A BigInteger narrowed implicitly in a property expression can overflow at runtime; Warning from Recommended."
+  },
+  "AL0663": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A BigInteger narrowed implicitly to an enum in a property expression can overflow into a wrong enum value; Warning from Recommended."
+  },
+  "AL0667": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a language feature or syntax Microsoft has deprecated; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0677": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a protected member on an object type that does not support protected access; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0678": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Reports a metadata name clash with a member of another extension, often one the team does not own; compiler information, Info from Recommended."
+  },
+  "AL0679": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An object that no entitlement covers is unreachable for cloud users of an app that sells through entitlements; Warning from Recommended."
+  },
+  "AL0684": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Permissions on objects of another module inside an entitlement permission set are silently ignored; Warning from Recommended."
+  },
+  "AL0685": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a CalcFormula target field longer than its source flow field, which can overflow at runtime; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0692": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an obsolete primary key, whose obsolete properties have no effect; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0694": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an obsolete field inside the primary key, whose obsolete properties have no effect; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0695": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a method used outside the target or runtime version it is available for; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0697": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a method argument that is not a valid Field type; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0700": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a special app such as System or Application declared as an explicit dependency instead of its app.json property; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0702": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a special app declared both through its app.json property and as an explicit dependency; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0711": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a member name duplicated across extensions where CueActions are defined; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0715": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a name reserved for future AL language features; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0717": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A FlowField without CalcFormula never gets a value, a likely bug in the table design; Warning from Recommended."
+  },
+  "AL0719": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Joker or Variant passed where a Field is expected may or may not hold a field, so the compiler only informs; Info from Recommended."
+  },
+  "AL0727": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a property value used without the associated property it depends on; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0728": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a property value used without the associated property set to the one value it requires; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0729": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a property value used without the associated property set to one of the values it requires; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0731": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a name that does not exist in the current context; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0733": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an access modifier on a member of an object type that does not allow it; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0739": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A member with an empty name cannot be referenced or personalized reliably; Warning from Recommended."
+  },
+  "AL0743": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an action property that is not valid inside its control type; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0745": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an action property that is not valid on a report request page; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0748": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A public method returning an internal type is unusable outside the module, an extensibility gap; Warning from Recommended."
+  },
+  "AL0749": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A public method taking an internal parameter type cannot be called outside the module, an extensibility gap; Warning from Recommended."
+  },
+  "AL0751": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: nested enum values; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0753": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a dataitem with an empty name, which can fail at runtime; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0755": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a member named like a built-in member of its object; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0756": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Division by Abs of an integer changed behaviour in runtime 11 and can give a different result than intended; Warning from Recommended."
+  },
+  "AL0758": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a metadata name that clashes with a member of another extension; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0768": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a property left out that the value of another property makes required; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0769": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a required property left out; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0773": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "A file pattern matching over a thousand files slows the build without a code defect; describes the build, Info from Recommended."
+  },
+  "AL0775": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an explicit return value in a TryFunction, which the runtime discards; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0778": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an implicit Guid conversion into a text too short to hold it; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0780": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: ModifyAll on a FlowField or FlowFilter; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0782": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a page extension using a control add-in from outside its own extension; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0788": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a page area used on a page type that does not support it; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0789": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Using directives in a file without a namespace are ignored, dead lines that mislead the reader; advisory, a gate from Strict."
+  },
+  "AL0790": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A using directive repeated in the same namespace declaration is clutter; advisory, a gate from Strict."
+  },
+  "AL0792": {
+    "ladder": "None/Hidden/Hidden/Info",
+    "justification": "Unused using directives feed the remove action of the editor; Hidden until Complete, where they show as Info."
+  },
+  "AL0796": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Unwrapping a SecretText in a debuggable method exposes the secret through the debugger; Warning from Essential as a security rule."
+  },
+  "AL0801": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Use of an object marked to move to another app; the new home may not ship yet, so advisory first, a gate from Strict.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "A team cannot always replace a moved object in the same change, since the new app may not ship yet; CI advises instead of blocking."
+      },
+      "vnext": {
+        "action": "Warning",
+        "justification": "The move is one release closer on the next platform."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL0803": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a method name that clashes with a method of another extension; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0804": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a reference to an element defined in a page customization; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0805": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an object ID written between quotes; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0807": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An object named with a bare integer is easily confused with its ID; advisory, a gate from Strict."
+  },
+  "AL0814": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a query column whose source is a flow filter; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0816": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: two property values that exclude each other; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0818": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: an event defined twice with the same parameter types on the same object; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0820": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An ErrorInfo or Notification action points at a codeunit ID in no module of the build; it fails when clicked unless another app supplies it, so Warning from Essential."
+  },
+  "AL0821": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An ErrorInfo or Notification action naming a method the codeunit lacks, or with the wrong signature, fails when clicked; Error everywhere."
+  },
+  "AL0822": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A name defined by two extensions binds to one of them silently and can call the wrong object; Warning from Recommended."
+  },
+  "AL0823": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A field pending a move to another app kept in an active key blocks or breaks that move; Warning from Recommended."
+  },
+  "AL0826": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a type used as a type argument where that type is not allowed; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns this warning into a compile error; vNext shows the build that will break."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0830": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a try method as an interface implementation; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns a try method as interface implementation into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0835": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Two layouts write the same layout file, so builds overwrite each other's output; a likely defect, Warning from Recommended."
+  },
+  "AL0836": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "A key mixes base table and table extension fields of the same app, legal today but a blocker if the objects are ever split; niche, advisory from Strict."
+  },
+  "AL0837": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: symbols that produce the same translation ID and collide in XLIFF; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns duplicate translation IDs into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0842": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A public field of an internal type cannot be used by other apps, an extensibility defect in the public surface; Warning from Recommended."
+  },
+  "AL0845": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a duplicate EntityName or EntitySetName on API objects; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns a duplicate EntityName or EntitySetName into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0848": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An identifier that is a keyword on a newer runtime breaks the build when the runtime is raised; upgrade risk, Warning from Recommended."
+  },
+  "AL0864": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: the unsupported ChartPart control type; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns the ChartPart control type into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0869": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A symbol resolves only through another app's propagated dependencies, so the declared dependencies are wrong and the build is fragile; Warning from Recommended."
+  },
+  "AL0885": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a field referenced outside the base object and the current extension; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns a field reference outside the base object and current extension into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0888": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A SecretText passed to a control add-in becomes readable in the browser debugger; a security exposure, Warning from Essential."
+  },
+  "AL0906": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "The ConfigurationDialog page type is in preview and may change under the app; advisory, a gate from Strict for teams that avoid preview features."
+  },
+  "AL0909": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An analysis view definition depends on an app the project lacks, so its unresolved columns are silently dropped; Warning from Recommended."
+  },
+  "AL0910": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a FlowField or FlowFilter in a query DataItemLink; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns a FlowField in a query DataItemLink into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0912": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a symbol with an empty name, which can already fail at runtime; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns an empty symbol name into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0914": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A table near the column limit leaves little room for extension fields; an extensibility concern that is costly to fix, advisory then a gate from Strict."
+  },
+  "AL0915": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "One table extension adding many fields eats the column budget other extensions share; advisory, a gate from Strict."
+  },
+  "AL0916": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A Variant argument makes a built-in call ambiguous and the compiler silently picks one overload, a likely wrong result; Warning from Recommended."
+  },
+  "AL0917": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An auto-upgraded Excel layout keeps its orphaned original sheet; cleanup of the layout, advisory then a gate from Strict."
+  },
+  "AL0920": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a non-public method as an interface implementation; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns a non-public interface implementation into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL0924": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An interface method announced as required is not implemented and the build breaks when the owner makes it required; a future compile error, Warning from Essential."
+  },
+  "AL0925": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "The interface supplies a default implementation the codeunit may override; information about the build, never escalated."
+  },
+  "AL1000": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A /noconfig option in a response file is ignored, so the build runs with a different configuration than intended; Warning from Recommended."
+  },
+  "AL1003": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An analyzer cannot be instantiated, so its rules silently do not run and the ruleset checks nothing for it; broken configuration, Warning from Essential."
+  },
+  "AL1004": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A configured analyzer assembly holds no analyzers, so the intended rules never run; broken configuration, Warning from Essential."
+  },
+  "AL1005": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An analyzer assembly fails to load, so its rules silently do not run; broken configuration, Warning from Essential."
+  },
+  "AL1011": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A source file is passed to the compiler more than once, a sign of a misconfigured build; Warning from Recommended."
+  },
+  "AL1025": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A project file matches no known format and is left out of the build; Warning from Recommended so stray or misnamed files surface."
+  },
+  "AL1026": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An XML file such as a translation or layout fails schema validation and may be partly ignored; Warning from Recommended, relaxed in CI.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The XML file often belongs to a translation or layout round trip outside the code change; CI advises instead of blocking."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL1029": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A translation file names an invalid target language, so its translations are not applied; Warning from Recommended, relaxed in CI.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL1030": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A translation file has no target language, so its translations are not applied; Warning from Recommended, relaxed in CI.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL1031": {
+    "ladder": "None/None/None/Info",
+    "justification": "Reports which translation languages were included, a success log line on every build with translations; Info in Complete only."
+  },
+  "AL1055": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A downloaded symbol package is invalid and the build may resolve against stale symbols; clear the cache, Warning from Recommended."
+  },
+  "AL1056": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A dependency package could not be loaded, so symbols are missing or stale; Warning from Recommended."
+  },
+  "AL1058": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A dependency declares both appId and id and the appId is ignored, which can point at the wrong app; Warning from Recommended."
+  },
+  "AL1059": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A feature in app.json is enabled without the feature it requires, so it does not take effect; broken configuration, Warning from Essential."
+  },
+  "AL1072": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A preprocessor symbol with an invalid name is not defined, so conditional code compiles the wrong branch; broken configuration, Warning from Essential."
+  },
+  "AL1076": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "A dependency was satisfied by an app whose name or publisher changed; information about the build, never escalated."
+  },
+  "AL1078": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Becomes a compile error on a later runtime: a key vault URL in app.json that is not an HTTPS Azure Key Vault URL; Warning now so the team has the runway.",
+    "stages": {
+      "vnext": {
+        "action": "Error",
+        "justification": "The next platform turns an invalid key vault URL into a compile error."
+      }
+    },
+    "dr": "DR-017"
+  },
+  "AL1079": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Debugging is blocked even for the dev extension by the resource exposure policy; information about the build, never escalated."
+  },
+  "AL1080": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "Source stays visible through debugging although it is left out of symbols; information on the exposure policy, never escalated."
+  },
+  "AL1085": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A package file is locked by another process and cannot be read; kept at the author's default as a build environment problem."
+  },
+  "AL1156": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Comments in app.json can break CI/CD tools and other JSON consumers; advisory, a gate from Strict."
+  },
+  "AL1401": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization references a field or control that no longer exists; project builds report the error twin, kept at the author's default."
+  },
+  "AL1402": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization references an object that is missing; project builds report the error twin, kept at the author's default."
+  },
+  "AL1403": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization name is ambiguous between two extensions; project builds report the error twin, kept at the author's default."
+  },
+  "AL1404": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization targets an action that is not on the page and is ignored; project builds report the error twin, kept at the author's default."
+  },
+  "AL1405": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization targets a control that is not on the page and is ignored; project builds report the error twin, kept at the author's default."
+  },
+  "AL1406": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization targets a view that is not on the page and is ignored; project builds report the error twin, kept at the author's default."
+  },
+  "AL1407": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization move names no targets; project builds report the error twin, kept at the author's default."
+  },
+  "AL1408": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer profile's RoleCenter names an object that is not a page, so the message asks for a number or an object name; project builds report the error twin, kept at the author's default."
+  },
+  "AL1409": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer profile points at a role center page that is not of type RoleCenter; project builds report the error twin, kept at the author's default."
+  },
+  "AL1410": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "The target of a designer page customization or profile extension is missing; project builds report the error twin, kept at the author's default."
+  },
+  "AL1411": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer profile lists two customizations for the same page; project builds report the error twin, kept at the author's default."
+  },
+  "AL1412": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A designer customization uses a page element marked for removal whose replacement may not exist yet; advisory, a gate from Strict like the other pending obsoletes.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The replacement of the pending element may not be released yet; CI advises instead of blocking."
+      },
+      "vnext": {
+        "action": "Warning",
+        "justification": "Removal of the pending element is one release closer on the next platform."
+      }
+    },
+    "dr": "DR-016"
+  },
+  "AL1413": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization adds a member whose name another extension already uses; project builds report the error twin, kept at the author's default."
+  },
+  "AL1414": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "A designer page customization changes nothing and can be removed; information about the customization, never escalated."
+  },
+  "AL1415": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization uses a page element that is already removed, so that part no longer works; Warning from Recommended, not relaxed.",
+    "dr": "DR-016"
+  },
+  "AL1416": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "A designer customization move is ignored because its anchor is missing; information about the customization, never escalated."
+  },
+  "AL1417": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "A designer customization addition lands at a default place because its anchor is missing; information about the customization, never escalated."
+  },
+  "AL1418": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer report customization targets a data item that is missing; project builds report the error twin, kept at the author's default."
+  },
+  "AL1419": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer report customization targets a data item or column that is missing; project builds report the error twin, kept at the author's default."
+  },
+  "AL1420": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer actionref targets something other than an action and is ignored; project builds report the error twin, kept at the author's default."
+  },
+  "AL1421": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization still uses the legacy Promoted properties, converted when the page is customized in the client; kept at the author's default."
+  },
+  "AL1422": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer actionref targets an action the page does not have and is ignored; project builds report the error twin, kept at the author's default."
+  },
+  "AL1423": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization calls a member the type does not define; project builds report the error twin, kept at the author's default."
+  },
+  "AL1424": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization uses a name that does not exist in its context; project builds report the error twin, kept at the author's default."
+  },
+  "AL1425": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization adds a field that cannot be a source expression and is ignored; project builds report the error twin, kept at the author's default."
+  },
+  "AL1426": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization references an unknown namespace; project builds report the error twin, kept at the author's default."
+  },
+  "AL1427": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization sets a property value the target does not allow and is ignored; project builds report the error twin, kept at the author's default."
+  },
+  "AL1428": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization targets an analysis view that is not on the page; project builds report the error twin, kept at the author's default."
+  },
+  "AL1429": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A designer customization moves a symbol between areas and the move is ignored; project builds report the error twin, kept at the author's default."
+  },
+  "AL1430": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Sorting on another app's extension field has no backing key and scans large tables; a performance risk, Warning from Recommended."
+  },
+  "AA0001": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Spacing around binary operators is pure layout the formatter fixes; no behaviour changes, so a gate from Strict only."
+  },
+  "AA0002": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "A stray space after a unary operator is pure layout the formatter fixes; a gate from Strict only."
+  },
+  "AA0003": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Spacing after NOT is pure layout the formatter fixes; a gate from Strict only."
+  },
+  "AA0005": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "BEGIN..END around a single statement is clutter, not a defect; style gated from Strict."
+  },
+  "AA0008": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Parentheses on parameterless calls tell a call from a field or variable at a glance; advisory, a gate from Strict."
+  },
+  "AA0013": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Placement of BEGIN after THEN, ELSE or DO is pure layout the formatter fixes; a gate from Strict only."
+  },
+  "AA0018": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Control keywords that do not start a line are layout only and the formatter fixes them; a gate from Strict only."
+  },
+  "AA0021": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "Ordering declarations by type is a house style with no effect on behaviour and many hits in old code; Info at Strict, gated in Complete."
+  },
+  "AA0022": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "Rewriting IF ELSE chains as CASE is a readability opinion; Info at Strict, gated in Complete."
+  },
+  "AA0040": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Nested WITH makes it unclear which record a name binds to and can bind the wrong one; advisory, a gate from Strict."
+  },
+  "AA0050": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Granting permissions on another app's objects from a permission set extension breaks when that app changes and widens access silently; Warning from Recommended."
+  },
+  "AA0051": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Pulling another app's permission sets into an extension couples to permissions you do not own and widens access; Warning from Recommended."
+  },
+  "AA0052": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Including sets that carry permissions on another app's objects widens access through a set you do not control; Warning from Recommended."
+  },
+  "AA0053": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A wildcard in a permission set extension grants every object to everyone holding the base set; Warning from Essential as a security rule."
+  },
+  "AA0072": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in naming rule that suffixes names with their type; an opinion many codebases reject, Info in Complete only."
+  },
+  "AA0073": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A temporary record without the Temp prefix invites DeleteAll or Modify on what a reader thinks is real data; Warning from Recommended."
+  },
+  "AA0074": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Approved label suffixes (Msg, Err, Qst, Tok, Lbl) show how a text is used; naming advice, a gate from Strict."
+  },
+  "AA0087": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "The lower-permissions test library declared outside a test codeunit drags test tooling into production code; Warning from Recommended."
+  },
+  "AA0100": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Quoted identifiers make code harder to read and search; naming advice, a gate from Strict."
+  },
+  "AA0101": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "API page property values are a public contract that cannot be renamed after release; camelCase must be right before shipping, Warning from Recommended."
+  },
+  "AA0102": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "API page field names are the JSON contract and cannot be renamed after release; camelCase must be right before shipping, Warning from Recommended."
+  },
+  "AA0103": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "API query property values are a public contract that cannot be renamed after release; camelCase must be right before shipping, Warning from Recommended."
+  },
+  "AA0104": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "API query column names are the JSON contract and cannot be renamed after release; camelCase must be right before shipping, Warning from Recommended."
+  },
+  "AA0105": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A page part that embeds its own parent page recurses and fails when the page opens; Error everywhere."
+  },
+  "AA0106": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An API page that uses the same subpage twice fails when the API is called; Error everywhere."
+  },
+  "AA0131": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Arguments that do not match the placeholders leave raw %1 text or drop values in user messages; Warning from Recommended."
+  },
+  "AA0136": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Unreachable code usually means a misplaced exit or condition, a likely bug; Warning from Recommended."
+  },
+  "AA0137": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An unused variable is dead weight that hides typos; advisory, a gate from Strict."
+  },
+  "AA0139": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Assigning longer text to a shorter target overflows at runtime once the value is long enough; Warning from Recommended."
+  },
+  "AA0150": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A var parameter that is never written misleads callers about side effects; advisory, a gate from Strict."
+  },
+  "AA0161": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "AssertError belongs to the test runner; outside a test codeunit it signals test logic in production code; Warning from Recommended."
+  },
+  "AA0175": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Finding a record whose values are never used costs a database round trip for nothing; performance, Warning from Recommended."
+  },
+  "AA0181": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "FindSet or Find without Next fetches a result set that is never iterated; performance, Warning from Recommended."
+  },
+  "AA0189": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An invalid ApplicationArea value hides the control from users; user-facing defect, Warning from Recommended."
+  },
+  "AA0194": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An action with no trigger and no run object shows a button that does nothing; user-facing defect, Warning from Recommended."
+  },
+  "AA0198": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A local that shadows a global makes it easy to read or write the wrong one; advisory, a gate from Strict."
+  },
+  "AA0199": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "The order of ApplicationArea values has no effect; consistency only, Info at Strict, gated in Complete."
+  },
+  "AA0200": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Values listed next to All are redundant and suggest a misunderstanding of the setting; advisory, a gate from Strict."
+  },
+  "AA0201": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Basic without Suite can hide the control in experiences that enable Suite only; user-facing defect, Warning from Recommended."
+  },
+  "AA0202": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A local named like a field, method or action shadows it and code silently uses the local; advisory, a gate from Strict."
+  },
+  "AA0203": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A method named like a field or action makes calls and field access ambiguous to readers; advisory, a gate from Strict."
+  },
+  "AA0204": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A global named like a field, method or action shadows it across the object; advisory, a gate from Strict."
+  },
+  "AA0205": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Reading a variable before any assignment relies on a default value and often hides a missing initialisation; Warning from Recommended."
+  },
+  "AA0206": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A value assigned and never read is a dead store that can hide a lost result; advisory, a gate from Strict."
+  },
+  "AA0207": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A non-local event subscriber becomes callable API surface that cannot be changed later; extensibility risk, Warning from Recommended."
+  },
+  "AA0210": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Filtering on fields without a supporting key scans tables; a performance hint with false positives, advisory, a gate from Strict."
+  },
+  "AA0211": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "CalcFields on a field that is neither a FlowField nor a Blob throws a runtime error when it runs; Error everywhere."
+  },
+  "AA0213": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An obsolete marking without state or reason either does not obsolete at all or leaves consumers no guidance; Warning from Recommended."
+  },
+  "AA0214": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Modify on a record that was not changed costs a write for nothing or reveals a missing assignment; Warning from Recommended."
+  },
+  "AA0215": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "File naming conventions help navigation but renaming old files is churn; Info at Strict, gated in Complete."
+  },
+  "AA0216": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Concatenated user messages cannot be translated as a whole; localizability advice, a gate from Strict."
+  },
+  "AA0217": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A literal format string in StrSubstNo cannot be translated; localizability advice, a gate from Strict."
+  },
+  "AA0218": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Page fields and actions without a tooltip leave users without in-product help; advisory, a gate from Strict."
+  },
+  "AA0219": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in wording rule for tooltips starting with Specifies; style, Info in Complete only."
+  },
+  "AA0220": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An empty tooltip shows users a blank help bubble; user-facing defect, Warning from Recommended."
+  },
+  "AA0221": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Option controls without OptionCaption show untranslated raw option names; localizability advice, a gate from Strict."
+  },
+  "AA0222": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "SIFT on a primary or unique key maintains totals over single rows, a write cost with no benefit; performance, Warning from Recommended."
+  },
+  "AA0223": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An empty OptionCaption shows users blank option values; user-facing defect, Warning from Recommended."
+  },
+  "AA0224": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A caption count that differs from the options shows users wrong or missing values; user-facing defect, Warning from Recommended."
+  },
+  "AA0225": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Page fields without a caption fall back to the source name and may not translate; localizability advice, a gate from Strict."
+  },
+  "AA0226": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An empty caption shows users a field without a label; user-facing defect, Warning from Recommended."
+  },
+  "AA0227": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An unchecked Get or Find in an upgrade codeunit throws when data is missing and aborts the tenant upgrade; Warning from Essential as a deployment risk."
+  },
+  "AA0228": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An unused local method is dead code to maintain; advisory, a gate from Strict."
+  },
+  "AA0230": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Pinning a version on a platform assembly breaks the reference when the platform updates; upgrade risk, Warning from Recommended."
+  },
+  "AA0231": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "StrSubstNo or concatenation inside Error hides the label from telemetry and translation; advisory, a gate from Strict."
+  },
+  "AA0232": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A FlowField without a supporting SIFT key computes by scanning; a performance hint, advisory, a gate from Strict."
+  },
+  "AA0233": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Next after Get, FindFirst or FindLast loops on a single-row fetch and reads row by row; performance and likely bug, Warning from Recommended."
+  },
+  "AA0234": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule for tooltips on table fields; useful but noisy in older code, Info in Complete only."
+  },
+  "AA0235": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Per-company install code without a company-initialise subscriber leaves companies created later unconfigured; a real defect, raised to Warning from Recommended."
+  },
+  "AA0237": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A real record named Temp invites DeleteAll on what a reader thinks is a buffer, risking data loss; Warning from Recommended."
+  },
+  "AA0240": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "E-mail addresses and phone numbers in source leak personal data into the repository and the app; Warning from Recommended given test-data false positives."
+  },
+  "AA0241": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Lowercase keywords are style; Hidden keeps the code action available, visible from Strict."
+  },
+  "AA0242": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Reading a field not in SetLoadFields triggers an extra JIT load per record; performance, Warning from Recommended."
+  },
+  "AA0243": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Running a codeunit of subtype Upgrade throws a runtime error; Error everywhere."
+  },
+  "AA0244": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A parameter named like a global shadows it so the body may use the wrong one; advisory, a gate from Strict."
+  },
+  "AA0245": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A parameter named like a field, method or action shadows it within the method; advisory, a gate from Strict."
+  },
+  "AA0246": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A pragma that disables every diagnostic hides real errors and future warnings; Warning from Recommended."
+  },
+  "AA0247": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Namespaces avoid name clashes and are the platform direction; advisory while code migrates, a gate from Strict."
+  },
+  "AA0248": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "The this qualifier is a readability preference; Hidden keeps the code action available, visible from Strict."
+  },
+  "AA0249": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A page field trigger that a property disables never runs, so its logic is silently skipped; likely bug, Warning from Recommended."
+  },
+  "AA0250": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An obsoleted external business event without the marker keeps Power Automate users unaware of its removal; upgrade risk, Warning from Recommended."
+  },
+  "AA0251": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An event marked obsolete in its name but not by attribute is inconsistent metadata, not a runtime failure; Warning from Recommended, kept below the Error default."
+  },
+  "AA0252": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Moving a table that carries external business events moves the events and breaks subscribed external flows; an upgrade break, not a runtime failure, Warning from Recommended."
+  },
+  "AA0448": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "FieldName and TableName show untranslated names where FieldCaption and TableCaption translate; localizability advice, a gate from Strict."
+  },
+  "AA0462": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A CalcDate formula string without angle brackets is parsed in the user's language and gives wrong dates elsewhere; Warning from Recommended."
+  },
+  "AA0470": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Placeholders without a comment leave translators guessing what is substituted; localizability advice, a gate from Strict."
+  },
+  "AA0471": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule for AutoFormatType on decimal page fields; formatting advice, Info in Complete only."
+  },
+  "AA0472": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule for AutoFormatExpression on amount page fields; formatting advice, Info in Complete only."
+  },
+  "AA0473": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule for AutoFormatType on decimal table fields; formatting advice, Info in Complete only."
+  },
+  "AA0474": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in rule for AutoFormatExpression on amount table fields; formatting advice, Info in Complete only."
+  },
+  "AA0475": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Truncate outside its supported cases throws at runtime; Error everywhere."
+  },
+  "AA0476": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "An AI test suite file that fails schema validation cannot be loaded by the test tool; a definite test failure, Error from Recommended as only tests are hit."
+  },
+  "AA0477": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "Unordered using directives are cosmetic and the code action sorts them; Info at Strict, gated in Complete."
+  },
+  "AW0001": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "The web client never shows the request page of an XMLport, so its options are silently lost; Warning from Essential.",
+    "dr": "DR-003"
+  },
+  "AW0002": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A cue group that mixes actions and fields loses its actions in the web client without notice; Warning from Essential.",
+    "dr": "DR-003"
+  },
+  "AW0003": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A repeater that contains parts is not displayed by the web client, so the user never sees it; Warning from Essential.",
+    "dr": "DR-003"
+  },
+  "AW0004": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A page field bound to a Blob cannot be rendered by the web client and silently disappears; Warning from Essential.",
+    "dr": "DR-003"
+  },
+  "AW0005": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An action without an image shows a generic icon in the action bar; a polish point, advisory, a gate from Strict."
+  },
+  "AW0006": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A page or report without UsageCategory and ApplicationArea cannot be found through search; advisory, a gate from Strict."
+  },
+  "AW0007": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A FlowFilter field inside a repeater cannot be displayed and the page fails to render it at runtime; Error everywhere."
+  },
+  "AW0008": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A repeater on a page type other than List, ListPart or Worksheet is not shown by the web client; Warning from Essential.",
+    "dr": "DR-003"
+  },
+  "AW0009": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A Blob of subtype Bitmap on a page is a deprecated pattern that Media or MediaSet replaces; an upgrade risk, Warning from Recommended."
+  },
+  "AW0010": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A repeater placed after other content on a List page breaks the expected list layout; a healthy project fixes it, Warning from Recommended."
+  },
+  "AW0011": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Promoted actions without PromotedOnly appear twice in the command bar; a clutter issue, advisory, a gate from Strict."
+  },
+  "AW0012": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Teaching tip properties in a location the web client does not support are silently ignored; Warning from Essential.",
+    "dr": "DR-003"
+  },
+  "AW0013": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Promoted actions in a hidden group no longer reach the promoted side under the modern action bar, so users lose them; Warning from Essential."
+  },
+  "AW0014": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Actionrefs that target actions in a hidden group still render today but may be hidden later; an upgrade risk, Warning from Recommended."
+  },
+  "AW0015": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An action with repeater scope that is not promoted is never rendered on the repeater, so users lose it; Warning from Essential."
+  },
+  "AW0016": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A rich text editor field that shares its FastTab group with other controls does not render correctly; Warning from Essential.",
+    "dr": "DR-003"
+  },
+  "AW0017": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "MaskType inside a repeater is not supported by the web client and has no effect; Warning from Essential.",
+    "dr": "DR-003"
+  },
+  "PTE0001": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An object id outside the free range blocks deployment of a per-tenant extension; Error everywhere, an AppSource project opts out.",
+    "dr": "DR-018"
+  },
+  "PTE0002": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A field id outside the free range blocks deployment of a per-tenant extension; Error everywhere, an AppSource project opts out.",
+    "dr": "DR-018"
+  },
+  "PTE0003": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A CompanyOpen subscriber runs at every session start in every company and can increase login time, so Microsoft rejects it; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0004": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A table that no permission set covers fails with a permission error for every user without SUPER; Error everywhere."
+  },
+  "PTE0005": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A compilation target other than Cloud or Extension cannot be deployed to a multi-tenant SaaS environment; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0006": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Encryption key functions are not available to a cloud extension and fail there; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0007": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "AssertError in production code opens its own transaction scope and misbehaves at runtime; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0008": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A page control or action without ApplicationArea is invisible to users in the cloud; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0009": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "The translation-only manifest properties block deployment of a per-tenant extension; Error everywhere, an AppSource project opts out.",
+    "dr": "DR-018"
+  },
+  "PTE0010": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An extension name longer than the limit of its extension kind is rejected when the app is published; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0011": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A publisher name longer than the limit is rejected when the app is published; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0012": {
+    "ladder": "None/Info/Info/Warning",
+    "justification": "Using InternalsVisibleTo is legitimate for test apps; the reminder that it is no security boundary is advice, Info until Complete."
+  },
+  "PTE0013": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Entitlement objects are reserved for Microsoft and block deployment of an extension; Error everywhere, an AppSource project opts out.",
+    "dr": "DR-018"
+  },
+  "PTE0014": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Permissions defined in XML files are a legacy format the PermissionSet object replaces; an upgrade risk, Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "PTE0015": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An extension name the platform does not accept is rejected when the app is published; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0016": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A permission set extension that grants access to another app's objects can give users more than intended; Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "PTE0017": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A permission set extension that pulls in another app's permission set can give users more than intended; Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "PTE0018": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Including a set that carries another app's permissions through an extension widens access beyond intent; Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "PTE0019": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A wildcard in a permission set extension grants every object of a type to every holder of the extended set; a security exposure, Warning from Essential."
+  },
+  "PTE0020": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An explicit Base Application dependency instead of the application property ties the app to one variant; Warning from Recommended."
+  },
+  "PTE0021": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "The System and Microsoft namespaces are reserved and an app that defines them is rejected; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0022": {
+    "ladder": "None/None/None/Info",
+    "justification": "Advice on member ids outside the allowed range, which enum values bound to Dataverse trip legitimately; Info in Complete only."
+  },
+  "PTE0023": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An enum ordinal outside the app's range can collide with another extension's values; advisory, a gate from Strict.",
+    "dr": "DR-018"
+  },
+  "PTE0024": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Moving tables or fields between apps is not supported for a per-tenant extension and blocks deployment; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "PTE0025": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An object name that a dependency already uses causes runtime and compile problems for apps without namespaces; Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "PTE0026": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "A table field without an explicit AllowInCustomizations value is advice that feeds a code action; Hidden, visible from Strict.",
+    "dr": "DR-020"
+  },
+  "AS0001": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published table or table extension drops its data on upgrade and breaks dependents; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0002": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published field loses its data and breaks dependent extensions; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0003": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "A configured baseline that cannot be loaded silences every breaking-change check; broken setup, Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0004": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the type of a published field blocks the schema upgrade and breaks dependents; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0005": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Renaming a published field breaks dependent extensions that reference it by name; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0006": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Renaming a published table breaks dependent extensions and the upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0007": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Moving a published object to another namespace breaks every dependent that references it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0008": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "The System and Microsoft namespaces are reserved and an app that defines them is rejected; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0009": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the fields of a published key breaks the schema upgrade and dependent code; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0010": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published key breaks dependents that sort or filter on it and the upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0011": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Object or member without the mandatory affix fails AppSource submission; needs mandatoryAffixes, so off at Essential and Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0013": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A table extension field outside the idRanges of the app can collide with other extensions and fails submission; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0014": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A manifest without idRanges cannot be validated or submitted; every app.json can declare them, so Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0015": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "AppSource requires the TranslationFile feature; a marketplace check, off at Essential and Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0016": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A Normal field without a real DataClassification fails AppSource submission and leaves privacy handling undefined; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0018": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing a public procedure breaks every dependent extension that calls it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0019": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing an event attribute breaks every subscriber in dependent extensions; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0020": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing an event from business to integration or back breaks its subscribers; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0021": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Turning an event attribute argument such as IncludeSender to false breaks subscribers that use it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0022": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Dropping the external scope of a procedure breaks dependent callers; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0023": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the return type of an external procedure breaks dependent callers; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0024": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Adding or removing parameters of an external procedure breaks dependent callers; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0025": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing, renaming or removing event parameters breaks every subscriber; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0026": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing a parameter type or subtype of an event or external procedure breaks dependents; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0027": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the array size of an event or external procedure parameter breaks dependents; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0028": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Shrinking an array parameter of an event or external procedure breaks dependents; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0029": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published page or page extension breaks dependents that extend or run it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0030": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Renaming a published page breaks dependent page extensions and references; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0031": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published action breaks dependent page extensions anchored on it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0032": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published page control breaks dependent page extensions anchored on it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0033": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published view breaks dependents that reference it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0034": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A table property change the upgrade cannot apply blocks schema sync or breaks dependents; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0035": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An unsupported page property change can break dependent page extensions but not data or the upgrade; Warning from Recommended."
+  },
+  "AS0036": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A field property change the upgrade cannot apply blocks schema sync or breaks dependents; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0038": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A key property change the upgrade cannot apply blocks schema sync; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0039": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing a table property whose removal is destructive blocks the schema upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0040": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Removing a page property that dependents rely on can break page extensions, not data or the upgrade; Warning from Recommended."
+  },
+  "AS0041": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing a field property whose removal is destructive blocks the schema upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0042": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing a key property whose removal is destructive blocks the schema upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0043": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting the clustered key of a published table blocks the schema upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0044": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A property change that destroys schema or data blocks the upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0047": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An extension name longer than the limit of its extension kind is rejected when the app is published; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0048": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A publisher name longer than the limit is rejected when the app is published; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0049": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Narrowing the access of a published object breaks dependents that use it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0050": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Making a published object non-extensible breaks dependent extensions of it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0051": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "AppSource requires EULA, privacy statement, help and similar manifest fields; marketplace check, off at Essential, Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0052": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "AppSource requires a valid url in the manifest; a marketplace check, off at Essential and Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0053": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A compilation target other than Cloud or Extension cannot be deployed to a multi-tenant SaaS environment; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0054": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "AppSource requires the affixes declared in AppSourceCop.json; fires in every unconfigured project, so off at Essential, Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0055": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Reports that no supportedCountries list is configured; a marketplace hint, off at Essential and visible from Strict.",
+    "dr": "DR-019"
+  },
+  "AS0056": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A supportedCountries entry that is not an ISO 3166-1 code is broken marketplace configuration; Warning from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0057": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Missing translations for a targeted locale; needs supportedCountries and XLIFF files, off at Essential and visible from Strict.",
+    "dr": "DR-019"
+  },
+  "AS0058": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "AssertError outside a test codeunit puts test code in production logic and fails AppSource submission; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0059": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Writing to a reserved system table fails at runtime in a multi-tenant environment; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0060": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Calling an unsafe method such as an encryption key function is blocked in AppSource and risks tenant data; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0061": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A CompanyOpen subscriber runs at every session start in every company and can increase login time, so Microsoft rejects it; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0062": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A page control or action without ApplicationArea is invisible to users in the cloud; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0063": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing var from an event parameter silently drops values subscribers set; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0064": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published interface implementation breaks dependents that resolve it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0065": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published interface breaks every dependent that implements or uses it; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0066": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A new method on a published interface breaks every dependent implementation; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0067": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A new interface on a published enum without a default implementation breaks dependent enum extensions; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0068": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Retargeting a published table extension breaks the upgrade of its data and of dependents; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0069": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An enum replacing an option field with fewer members loses stored values on upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0070": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An enum replacing an option field with renamed members breaks the data upgrade and code; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0071": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An enum replacing an option field with other ordinals corrupts stored values on upgrade; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0072": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "An obsolete tag that is not the next release version breaks the tag policy; needs obsoleteTag settings, visible from Strict."
+  },
+  "AS0073": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "An Obsolete attribute without a tag hides when the member goes away; needs obsoleteTag settings, visible from Strict."
+  },
+  "AS0074": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "An obsolete tag that differs between branches confuses the removal schedule; needs a baseline and tag policy, visible from Strict."
+  },
+  "AS0075": {
+    "ladder": "None/Hidden/Hidden/Hidden",
+    "justification": "An Obsolete attribute without a reason is good practice that the AppSource validation ruleset hides; Hidden from Recommended.",
+    "dr": "DR-021"
+  },
+  "AS0076": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "An obsolete tag that does not match the configured pattern; needs obsoleteTag settings, visible from Strict."
+  },
+  "AS0077": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Adding var to an event parameter lets subscribers change values the publisher never expected; silent without a baseline, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0078": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Adding or dropping var on a published procedure breaks every caller that compiles against it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0079": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An unaffixed procedure in an extension object can clash with a later base or partner procedure; needs mandatoryAffixes, so off at Essential and Warning from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0080": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Shrinking a published field truncates or blocks schema sync of existing data; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0081": {
+    "ladder": "None/Info/Info/Warning",
+    "justification": "Using InternalsVisibleTo is legitimate for test apps; the reminder that it is no security boundary is advice, Info until Complete."
+  },
+  "AS0082": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Renaming a published enum value breaks dependents that reference it by name; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0083": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published enum value orphans stored data and breaks dependents; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0084": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Object ids outside the AppSource range assigned to the app block submission; marketplace only, so off at Essential and Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0085": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An explicit Base or System Application dependency instead of the application property pins versions and complicates upgrades; Warning from Recommended."
+  },
+  "AS0086": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A longer published field can overflow when dependents copy it into their shorter fields; an upgrade risk to review, Warning from Recommended."
+  },
+  "AS0087": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A comma in a translated enum caption splits it into extra option captions so users see shifted labels; Warning from Recommended."
+  },
+  "AS0088": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published object with an id breaks dependents and drops its data on upgrade; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0089": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Deleting a published id-less object can break dependents, but AL offers no way to obsolete these objects; Warning everywhere as in the Microsoft validation ruleset.",
+    "dr": "DR-021"
+  },
+  "AS0090": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Renaming a published object breaks dependents that reference it by name; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0091": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Missing dependencies of the baseline make the breaking-change checks impossible; needs a configured baseline, so off at Essential and Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0092": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An app without an Application Insights resource gives the publisher no telemetry; a marketplace expectation, off at Essential and Warning from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0094": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Permissions defined in XML files are a legacy format the PermissionSet object replaces; an upgrade risk, Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "AS0095": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Narrowing the access of a published table field breaks dependents that use it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0096": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the extension name breaks its identity for upgrade and submission; a blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0097": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the publisher name breaks the extension identity for upgrade and submission; a blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0098": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A new object or member without the mandatory affix can clash with other apps; needs mandatoryAffixes and a baseline, so off at Essential and Warning from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0099": {
+    "ladder": "None/None/None/Info",
+    "justification": "Advice on member ids outside the allowed range, which enum values bound to Dataverse trip legitimately; Info in Complete only."
+  },
+  "AS0100": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An app.json without the application property is rejected by AppSource and couples the app to explicit platform dependencies; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0101": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the Isolated argument of a published event changes how subscriber errors roll back for dependents; an upgrade blocker; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0102": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Adding a return value to a published procedure breaks dependents compiled against it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0103": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A table that no permission set covers fails with a permission error for every user without SUPER; Error everywhere."
+  },
+  "AS0104": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "An extension name the platform does not accept is rejected when the app is published; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0105": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A reference to an object whose ObsoleteTag is below the configured minimum is not allowed because the object is due for removal; fires only once the tag policy is set, Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0106": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing a public API variable breaks dependents that use it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0107": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Narrowing the access of a public API variable breaks dependents that use it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0108": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the type of a public API variable breaks dependents compiled against it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0109": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Turning a normal table temporary makes sync fail while it still holds data, which upgrade code must clear first; a risk to review, Warning from Recommended."
+  },
+  "AS0110": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A permission set extension that grants access to another app's objects can give users more than intended; Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "AS0111": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A permission set extension that pulls in another app's permission set can give users more than intended; Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "AS0112": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Including a set that carries another app's permissions through an extension widens access beyond intent; Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "AS0113": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A wildcard in a permission set extension grants every object of a type to every holder of the extended set; a security exposure, Warning from Essential."
+  },
+  "AS0114": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Renaming a published external business event breaks the flows that subscribe to it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0115": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing an element without a Pending phase gives dependents no warning before their build breaks; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0116": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "The app a symbol moved from is missing from the baseline, so the move cannot be validated; a setup gap to fix, Warning from Recommended."
+  },
+  "AS0117": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Moving an object to another app without PendingMove breaks dependents and the data handover; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0118": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the length of a primary key field blocks schema sync of existing data; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0119": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A MovedTo value that does not name the destination app breaks the move of the symbol and its data; an upgrade blocker; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0120": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A MovedFrom value that does not name the source app breaks the move of the symbol and its data; an upgrade blocker; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0121": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A moved symbol with a new name breaks dependents and the move itself; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0122": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "The moved symbol is not in the named source package, so the move cannot be validated; a setup gap to fix, Warning from Recommended."
+  },
+  "AS0123": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Declaring a clustered key on an existing table forces a schema change sync rejects; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0124": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Retargeting a published extension object breaks its schema and dependents on upgrade; a blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0125": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A changed XLIFF translation id drops the existing translations of that element; advisory, a gate from Strict."
+  },
+  "AS0126": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "InternalsVisibleTo naming another publisher exposes internals to an app the publisher does not control; Warning from Recommended."
+  },
+  "AS0127": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Objects outside a two-level namespace are an organization and naming concern, noisy on legacy code; advisory, a gate from Strict."
+  },
+  "AS0128": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing an extended interface from a published interface breaks implementers and callers; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0129": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Adding an extended interface to a published interface breaks every existing implementer; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0130": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An object name that a dependency already uses causes runtime and compile problems for apps without namespaces; Warning from Recommended.",
+    "dr": "DR-020"
+  },
+  "AS0131": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Reports tables added under the configured additive-change folder, a hotfix policy Microsoft leaves hidden; kept at the author's default, visible from Strict."
+  },
+  "AS0132": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Reports fields added under the configured additive-change folder, a hotfix policy Microsoft leaves hidden; kept at the author's default, visible from Strict."
+  },
+  "AS0133": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "Reports keys added under the configured additive-change folder, a hotfix policy Microsoft leaves hidden; kept at the author's default, visible from Strict."
+  },
+  "AS0134": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Changing the version of a published external business event can break the flows that consume it; Warning from Recommended."
+  },
+  "AS0135": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Removing an external business event without obsoleting it first breaks its subscribers without notice; an upgrade blocker; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0136": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Changing a field id without obsoleting the old field risks losing its data on upgrade; Warning from Recommended."
+  },
+  "AS0137": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Changing the id of a primary key field blocks schema sync of existing data; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0138": {
+    "ladder": "None/Hidden/Info/Info",
+    "justification": "A table field without an explicit AllowInCustomizations value is advice that feeds a code action; Hidden, visible from Strict.",
+    "dr": "DR-020"
+  },
+  "AS0139": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A new field without AllowInCustomizations leaves its exposure to user customization undecided; Warning from Recommended."
+  },
+  "AS0140": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Deleting a published analysis view breaks users and dependents that rely on it; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0141": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A table that looks moved from another app but lacks MovedFrom breaks the schema handover on upgrade; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0142": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A destination table without MovedFrom breaks the move of the table and its data; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0146": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A field widened from Integer to BigInteger can overflow dependents that read it into Integer; Warning from Recommended."
+  },
+  "AS0147": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A parameter widened from Integer to BigInteger can break dependents that call or subscribe with Integer; Warning from Recommended."
+  },
+  "AS0148": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Making an interface method required without RequiredPending breaks every existing implementer; an upgrade blocker that stays silent without a baseline; Error everywhere.",
+    "dr": "DR-018"
+  },
+  "AS0149": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Adding or removing a required interface method can fail dependent implementers at runtime; Warning from Recommended."
+  },
+  "AS0150": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "A fully namespaced object outside the compliant namespace fails the AppSource affix requirement; marketplace only, off at Essential and Error from Recommended.",
+    "dr": "DR-019"
+  },
+  "AS0151": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Affix settings are ignored once FullNamespaceScope is on, a confusing configuration; marketplace only, Info from Recommended and a gate from Strict.",
+    "dr": "DR-019"
+  },
+  "AS0152": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Removing a codeunit used as a default interface implementation can fail dependents at runtime; Warning from Recommended."
+  },
+  "PC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Only signal that a PlatformCop analyzer crashed and its checks did not run; always visible, never blocking."
+  },
+  "PC0001": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "An editable FlowField takes user input and the platform silently discards it; a user-facing defect, Warning from Essential."
+  },
+  "PC0002": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "AutoIncrement on a temporary table has no SQL to generate the value, so the insert fails at runtime; Error everywhere."
+  },
+  "PC0003": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "SetRange takes filter operators literally, so the filter matches the wrong records or none; a definite wrong result, Error everywhere."
+  },
+  "PC0004": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Index 0 on a one-based List raises an index-out-of-range error at runtime; Error everywhere."
+  },
+  "PC0005": {
+    "ladder": "None/None/None/Warning",
+    "justification": "Leaving Extensible implicit lets dependants extend objects you meant to keep closed; opt-in design advice, Complete only."
+  },
+  "PC0006": {
+    "ladder": "None/None/None/Warning",
+    "justification": "Leaving Access implicit locks helper objects into the public surface; opt-in design advice, Complete only."
+  },
+  "PC0007": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Passing a field that is neither FlowField nor Blob to SetAutoCalcFields raises a runtime error; Error everywhere."
+  },
+  "PC0008": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "With wildcard or case operators SetFilter leaves the placeholder unsubstituted and returns the wrong records; Error everywhere."
+  },
+  "PC0010": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A subscriber without var gets a copy, so its changes never reach the publisher; often harmless for a read only subscriber, Warning from Recommended."
+  },
+  "PC0011": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A handled flag passed by value can never be raised by subscribers, so the IsHandled pattern is broken for every extender; Warning from Essential."
+  },
+  "PC0012": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Assigning a FlowFilter field sets no filter, so CalcFields computes over every record; a definite wrong result, Error everywhere."
+  },
+  "PC0013": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Get arguments that do not match the primary key fetch the wrong record or fail with a type error at runtime; Error everywhere."
+  },
+  "PC0014": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Double quotes in a JPath make SelectToken find nothing; it returns false rather than a wrong value, a signalled miss and not a silent wrong result, so Warning from Essential."
+  },
+  "PC0015": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Comparing a Guid with an empty string fails to parse and throws at runtime; Error everywhere."
+  },
+  "PC0016": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Clear or ClearAll leaves a SingleInstance codeunit's state intact, so an intended reset silently does nothing; a likely bug, Warning from Recommended."
+  },
+  "PC0017": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A record that does not match the page's source table fails with a conversion error when the page or lookup runs; Error everywhere."
+  },
+  "PC0018": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "Record methods on a page without a source table have no buffer, so the page opens without the passed record; Error everywhere."
+  },
+  "PC0019": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "The not-empty filter escaped with three quotes filters on a single quote instead of empty; a definite wrong result, Error everywhere."
+  },
+  "PC0020": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "TransferFields between fields of one id with incompatible types throws at runtime, also in base app posting; Error everywhere."
+  },
+  "PC0021": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Same field id under different names across a TransferFields pair copies values into the wrong field; a likely bug, Warning from Recommended."
+  },
+  "PC0022": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Text that may exceed the target length through Validate, SetFilter, Get or a translated label throws at runtime; Warning from Recommended like AA0139."
+  },
+  "PC0023": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A subscriber that can lower the handled flag undoes an earlier subscriber's decision; an extensibility bug, Warning from Recommended."
+  },
+  "PC0024": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "ApplicationArea on an API page is ignored and only adds noise; cleanup advice, a gate from Strict."
+  },
+  "PC0025": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A business key in ODataKeyFields breaks Power Automate and stored links, and changing it after release breaks consumers; Warning from Essential."
+  },
+  "PC0026": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An API page without id and lastModifiedDateTime lacks a stable identifier and silently loses webhooks; Warning from Recommended."
+  },
+  "PC0027": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Running table triggers on a temporary record can write to the database through trigger code; a likely bug, Warning from Recommended."
+  },
+  "PC0028": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A field shorter than the field it relates to truncates looked up values and fails validation; a likely bug, Warning from Recommended."
+  },
+  "PC0029": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Random GUIDs in key fields fragment the SQL index and slow inserts; performance advice, a gate from Strict."
+  },
+  "PC0030": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Reads without SetLoadFields fetch every column; performance advice that fires on most reads, a gate from Strict."
+  },
+  "PC0031": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Partial records before a full-record write force a JIT load that costs a roundtrip and can fail under concurrency; Warning from Recommended."
+  },
+  "PC0032": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "A layout Caption or Summary over 250 characters makes the Report Layout Selection page fail at runtime; Error everywhere."
+  },
+  "PC0033": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Control names that collide after the OData name mapping make Edit in Excel and OData calls fail; Warning from Essential."
+  },
+  "PC0034": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A placeholder without a matching argument shows a literal placeholder to the user; a user-facing defect, Warning from Recommended like AA0131."
+  },
+  "PC0035": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "CalcFields inside a loop issues one query per row and FlowField; a performance defect, Warning from Recommended."
+  },
+  "PC0036": {
+    "ladder": "Error/Error/Error/Error",
+    "justification": "SetRecord does not accept a temporary record and raises a runtime error; Error everywhere."
+  },
+  "PC0037": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "Direct field assignment skips OnValidate and its subscribers, but fires on most assignments and is often deliberate; advice from Strict, a gate in Complete."
+  },
+  "PC0038": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A path that falls through returns an implicit default and can hide a logic bug; advisory, a gate from Strict."
+  },
+  "AC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Reports that an analyzer crashed, not a defect in the code; always visible, never blocking."
+  },
+  "AC0001": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A list page source table without lookup and drill-down pages leaves users no way to open the record from a field value; user-facing defect, Warning from Recommended."
+  },
+  "AC0002": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A blank single-field key lets a later delete or rename cascade into every unrelated record with an empty relation field; data-loss risk, Warning from Recommended."
+  },
+  "AC0003": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "NotBlank on a key filled by a number series rejects every new record in the client before OnInsert runs; Warning from Essential since detection is heuristic."
+  },
+  "AC0004": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A direct Confirm call fails at runtime in job queues and web service calls where no UI exists; likely bug, Warning from Recommended."
+  },
+  "AC0005": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Switching the session language by hand risks leaving it switched when the restore is missed or an error interrupts; advisory, a gate from Strict."
+  },
+  "AC0006": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Hardcoding the page for document and setup tables opens the wrong variant, for example a quote on the order page; Warning from Recommended."
+  },
+  "AC0007": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A public install or upgrade codeunit invites other apps to call it, so later cleanup becomes a breaking change; upgrade risk, Warning from Recommended."
+  },
+  "AC0008": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in check that records the per-company storage choice explicitly, since changing it later needs empty tables; Info in Complete only."
+  },
+  "AC0009": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A permission set caption without a length cap lets translations exceed 30 characters and get truncated in the list; advisory, a gate from Strict."
+  },
+  "AC0010": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Objects outside every permission set force administrators to grant access by hand before users can work; Warning from Recommended."
+  },
+  "AC0011": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Without a caption a user-facing element gets no translation unit and shows the AL identifier in every language; advisory, a gate from Strict."
+  },
+  "AC0012": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An integration event in an internal codeunit cannot be subscribed to from other apps, so the extension point is dead; Warning from Recommended."
+  },
+  "AC0013": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in check for DropDown and Brick field groups so lookups and tiles show useful fields; Info in Complete only."
+  },
+  "AC0014": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Tooltip text without closing punctuation is a style lapse against the user assistance guidelines; too cosmetic to advise, a gate from Strict."
+  },
+  "AC0015": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Field tooltips that do not open with Specifies break the wording convention of the standard application; style, a gate from Strict."
+  },
+  "AC0016": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A line break escape in a tooltip renders as a literal backslash in the client; visible defect, Warning from Recommended."
+  },
+  "AC0017": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Tooltips over 200 characters turn a quick hint into a block of text users must read; advisory, a gate from Strict."
+  },
+  "AC0018": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An unlocked empty caption adds a blank translation unit that translators must skip in every language; translation hygiene, advisory then a gate from Strict."
+  },
+  "AC0019": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A meaningful value at ordinal zero cannot be told apart from the default every new record gets; design advice, a gate from Strict."
+  },
+  "AC0020": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A token label left translatable can be translated and break the API key or identifier it carries; likely bug, Warning from Recommended."
+  },
+  "AC0021": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in naming check that marks every locked label as a token; Info in Complete only."
+  },
+  "AC0022": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A caption on the empty enum value is dead metadata the platform ignores; harmless clutter, advisory then a gate from Strict."
+  },
+  "AC0023": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "An enum value with an empty caption cannot be picked in dropdowns; user-facing defect, Warning from Recommended."
+  },
+  "AC0024": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A public event publisher freezes its signature as public API while subscribers need no public access; extensibility risk, Warning from Recommended."
+  },
+  "AC0025": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Assigning the magic number 10 for a line feed hides intent that the Type Helper separators state; readability, advisory then a gate from Strict."
+  },
+  "AC0026": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A field kept off every page can still be added and edited through page customization unless its exposure is set; advisory, a gate from Strict."
+  },
+  "AC0027": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A locked label whose text equals its name is a token and should say so with its suffix; naming refinement, advisory then a gate from Strict."
+  },
+  "AC0028": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A tooltip kept on the page instead of the table field must be copied to every page and goes stale; maintainability, a gate from Strict."
+  },
+  "AC0029": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A page tooltip that repeats the table field tooltip stops following later table edits; maintainability, advisory then a gate from Strict."
+  },
+  "AC0030": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "A discarded Get or Find result raises only the generic platform error, often deliberately; noisy advice, Info from Strict."
+  },
+  "AC0031": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Table access without declared object permissions fails for users who hold only indirect permissions; advisory, a gate from Strict."
+  },
+  "AC0032": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Declared permissions the code never uses mislead anyone auditing what the object touches; advisory, a gate from Strict."
+  },
+  "AC0033": {
+    "ladder": "None/None/None/Info",
+    "justification": "Advice that the app ships its own Rest Client handler so its own HTTP setting governs its calls; ALCops makes it opt-in upstream, Info in Complete only."
+  },
+  "AC0034": {
+    "ladder": "None/None/None/Info",
+    "justification": "Advice that the app carries its own Telemetry Logger instead of relying on another app of the publisher; ALCops makes it opt-in upstream, Info in Complete only."
+  },
+  "LC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "Only signal that a LinterCop analyzer crashed and checked nothing; always visible, never blocking."
+  },
+  "LC0003": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A numeric object id compiles silently when the object is renumbered or renamed, hiding drift a name would catch; Warning from Recommended."
+  },
+  "LC0007": {
+    "ladder": "None/None/None/Info",
+    "justification": "Reports a maintainability score, not a defect; Info in Complete only."
+  },
+  "LC0008": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A low maintainability score marks code that is costly to change safely; advisory, a gate from Strict."
+  },
+  "LC0009": {
+    "ladder": "None/None/None/Info",
+    "justification": "Reports a cyclomatic complexity number, not a defect; Info in Complete only."
+  },
+  "LC0010": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Too many execution paths make a procedure hard to test and change safely; advisory, a gate from Strict."
+  },
+  "LC0019": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A field repeating the table data classification keeps the old value when the table changes; advisory, a gate from Strict."
+  },
+  "LC0020": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A control repeating the page application area keeps the old value when the page changes; advisory, a gate from Strict."
+  },
+  "LC0028": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "String literals in subscriber arguments break go to definition and references; advisory, a gate from Strict."
+  },
+  "LC0031": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "LockTable widens locks to every read of the table and disables optimistic reads; advisory because the fix is not mechanical, a gate from Strict."
+  },
+  "LC0033": {
+    "ladder": "None/Info/Info/Info",
+    "justification": "A runtime behind the target only withholds newer language features and is often kept low on purpose for older servers; Info from Recommended."
+  },
+  "LC0040": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A bare Insert, Modify or Delete hides whether skipping triggers was intended; advisory, a gate from Strict."
+  },
+  "LC0043": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "Credential held in Text is readable in the debugger and snapshot sessions; Warning from Essential as a security rule.",
+    "dr": "DR-004"
+  },
+  "LC0048": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Error with plain Text replaces the message in telemetry with a placeholder, so failures cannot be diagnosed; Warning from Recommended."
+  },
+  "LC0052": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An internal procedure nobody calls is dead code or a missing call; advisory, a gate from Strict."
+  },
+  "LC0053": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An internal procedure used only in its own object exposes more scope than it needs; advisory, a gate from Strict."
+  },
+  "LC0054": {
+    "ladder": "None/None/None/None",
+    "justification": "The interface prefix contradicts the mandatory AppSource affixes and is opinion elsewhere; None everywhere.",
+    "dr": "DR-005"
+  },
+  "LC0063": {
+    "ladder": "None/Info/Info/Warning",
+    "justification": "Non-canonical API field names force consumers to map fields, but renaming a published field breaks integrations; Info until Complete."
+  },
+  "LC0081": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "Comparing Count with zero scans every matching row where IsEmpty reads one; a performance fix from Recommended."
+  },
+  "LC0082": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Count equal to one scans every matching row where Find and Next read two; advisory since the rewrite needs judgment, a gate from Strict."
+  },
+  "LC0083": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Numeric-argument date functions and Format round-trips obscure which part is read; readability advice, a gate from Strict."
+  },
+  "LC0086": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A misspelled style string compiles and silently drops the styling the user should see; Warning from Recommended."
+  },
+  "LC0088": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Option values cannot be extended by other apps and invite magic numbers; advisory, a gate from Strict."
+  },
+  "LC0089": {
+    "ladder": "None/None/None/Info",
+    "justification": "Reports a cognitive complexity number, not a defect; Info in Complete only."
+  },
+  "LC0089i": {
+    "ladder": "None/None/None/None",
+    "justification": "One message per complexity increment is noise next to the metric and the threshold rule; None everywhere.",
+    "dr": "DR-006"
+  },
+  "LC0090": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Deep nesting makes a procedure hard to read and easy to break three levels down; advisory, a gate from Strict."
+  },
+  "LC0091": {
+    "ladder": "None/Warning/Warning/Warning",
+    "justification": "A missing or unfinished translation shows source-language text to users in that locale; Warning from Recommended, silent without XLIFF files.",
+    "stages": {
+      "ci": {
+        "action": "Info",
+        "justification": "The translation round trip runs apart from the code change; CI advises instead of blocking."
+      }
+    }
+  },
+  "LC0092": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Inconsistent identifier naming makes symbol search unreliable and slows review; advisory, a gate from Strict."
+  },
+  "LC0094": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A field repeating the object AllowInCustomizations value is redundant noise; advisory, a gate from Strict."
+  },
+  "LC0095": {
+    "ladder": "None/Info/Info/Warning",
+    "justification": "An unused parameter clutters the signature, but removing one from a public procedure breaks dependent apps; Info until Complete."
+  },
+  "LC0096": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Passing a record to a method already called on it misleads readers about what the method needs; advisory, a gate from Strict."
+  },
+  "LC0097": {
+    "ladder": "None/None/None/Info",
+    "justification": "Mixing exit and named return assignments is a style choice of an opt-in rule; Info in Complete only.",
+    "dr": "DR-007"
+  },
+  "LC0098": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A subscriber name that does not encode source and event hides what it reacts to; advisory, a gate from Strict."
+  },
+  "LC0099": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "An unused subscriber parameter clutters the signature and is safe to drop; advisory, a gate from Strict."
+  },
+  "DC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "The only sign that the documentation analyzer crashed and skipped code; visible at every level, never blocking."
+  },
+  "DC0001": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A manual commit without a reason invites a later refactor to remove or copy it blindly; advisory, a gate from Strict."
+  },
+  "DC0002": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A write to a calculated field is not stored and looks like a bug unless a comment says why; advisory, a gate from Strict."
+  },
+  "DC0003": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A stray semicolon is either leftover code or an undocumented no-op; advisory, a gate from Strict."
+  },
+  "DC0004": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Public procedures without XML docs leave callers guessing in IntelliSense; too noisy for most projects below Strict."
+  },
+  "DC0005": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "XML docs that name missing parameters mislead callers in signature help; advisory, a gate from Strict."
+  },
+  "DC0006": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in documentation for internal procedures; Info in Complete only."
+  },
+  "DC0007": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Public objects without XML docs leave consumers without a stated purpose; too noisy for most projects below Strict."
+  },
+  "DC0008": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in documentation for internal objects; Info in Complete only."
+  },
+  "DC0009": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Published events without XML docs leave subscribers guessing at when they fire; too noisy for most projects below Strict."
+  },
+  "DC0010": {
+    "ladder": "None/None/None/Info",
+    "justification": "Opt-in documentation for internal events; Info in Complete only."
+  },
+  "FC0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "The only sign that the formatting analyzer crashed and skipped code; visible at every level, never blocking."
+  },
+  "FC0001": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A semicolon after a procedure header is harmless style noise; advisory below the author default, a gate from Strict."
+  },
+  "FC0002": {
+    "ladder": "None/None/Warning/Warning",
+    "justification": "Casing that differs from the declaration is pure style with a code fix; floods legacy code, so a gate from Strict."
+  },
+  "FC0003": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A call without parentheses reads like a property access; style below the author default, a gate from Strict."
+  },
+  "FC0004": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Unsorted permission entries cause avoidable merge conflicts and a code fix sorts them; advisory, a gate from Strict."
+  },
+  "FC0005": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "Assignment syntax hides that a method runs; style below the author default, a gate from Strict."
+  },
+  "FC0006": {
+    "ladder": "None/None/Info/Warning",
+    "justification": "Uppercase permission letters wrongly suggest a direct grant but change nothing at runtime; opinion, Warning in Complete."
+  },
+  "FC0007": {
+    "ladder": "None/None/None/Info",
+    "justification": "Blank lines between statement blocks are an opt-in layout preference; Info in Complete only.",
+    "dr": "DR-007"
+  },
+  "TA0000": {
+    "ladder": "Info/Info/Info/Info",
+    "justification": "The only sign that the test automation analyzer crashed and skipped code; visible at every level, never blocking."
+  },
+  "TA0001": {
+    "ladder": "None/Info/Warning/Warning",
+    "justification": "A global procedure in a test codeunit is either a missed test attribute or a misplaced helper; advisory, a gate from Strict."
+  },
+  "TA0002": {
+    "ladder": "None/Error/Error/Error",
+    "justification": "Invoking an action on a part opened on its own fails the test at runtime; Error from Recommended as only test code is hit."
+  },
+  "CM0001": {
+    "ladder": "Warning/Warning/Warning/Warning",
+    "justification": "A broken or unreadable alcops.json is replaced by built-in defaults, so thresholds and settings you set do not apply; Warning at every level."
+  }
+}

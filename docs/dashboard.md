@@ -224,7 +224,7 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
       "name": "Recommended",
       "slug": "recommended",
       "basedOn": "essential",
-      "description": "Every default-on rule at its author severity; marketplace checks join here.",
+      "description": "What a healthy project runs, each rule placed on its own merit; marketplace checks join here.",
       "file": "base/recommended.ruleset.json",
       "chain": ["essential", "recommended"],
       "basedOnName": "Essential",
@@ -244,7 +244,7 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
     {
       "name": "CI",
       "slug": "ci",
-      "description": "Pull request and release builds. Postponable diagnostics relaxed to Info.",
+      "description": "Pull request and release builds. What a team cannot fix in the same change relaxed to Info.",
       "file": "stages/ci.json",
       "entryCount": 3,
       "quarantineCount": 1,
@@ -253,7 +253,7 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
         { "level": "essential", "error": 7, "warning": 7, "info": 4, "hidden": 1, "none": 11, "listed": 12 }
       ],
       "entries": [
-        { "id": "AL0432", "analyzer": "AL", "title": "", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI; S-2", "noEffect": ["essential"], "quarantined": false, "overridden": [] }
+        { "id": "AL0432", "analyzer": "AL", "title": "", "action": "Info", "justification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking.", "noEffect": ["essential"], "quarantined": false, "overridden": [] }
       ]
     }
   ],
@@ -265,7 +265,7 @@ Key order: `generatedAt`, `repository` (when the Publish action knows it), `base
       "docsUrl": "",
       "default": "Warning",
       "enabledByDefault": true,
-      "justifications": { "stage:ci": "Replacement may not exist yet; advisory in CI; S-2" },
+      "justifications": { "stage:ci": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking." },
       "cells": {
         "essential.ci": { "action": "None", "source": "level:essential" },
         "recommended.ci": { "action": "Info", "source": "stage:ci" }

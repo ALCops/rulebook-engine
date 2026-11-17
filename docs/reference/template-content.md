@@ -56,16 +56,16 @@ Let `cell(id, level, stage)` be the value in `docs/rulebook/matrix/resolved.json
 |---|---|---|
 | Root level (`essential`, no `basedOn`) | every id where `cell(id, level, default) != default(id)` | `resolved.json` key `<slug>.default` |
 | Every other level | every id where `cell(id, level, default) != cell(id, basedOn, default)` | the same file |
-| Stage file (`ci`, `vnext`) | every id whose `matrix.json` column named after the stage (`CI`, `vNext`) is not `=`, with that action | `matrix.json` |
+| Stage file (`ci`, `vnext`) | every id whose `matrix.json` column named after the stage (`CI`, `vNext`) is not `=`, with that action and the sentence of the column `<stage name>Justification` | `matrix.json` |
 | `base/twins.json` | the pairs of `matrix/twins.json`, sorted by `Get-DiagnosticSortKey` of the PTE side | `matrix/twins.json` |
 
 - Entries follow the inventory order, which is ascending `Get-DiagnosticSortKey` (check V1). The generators never re-sort; the Template suite asserts the order of every file.
-- Every level and stage entry carries the `Justification` of its matrix row, verbatim; a stage entry has the same text as the level entry of that id.
+- Every level entry carries the `Justification` of its matrix row, verbatim; a stage entry carries the stage sentence of its row (`CIJustification`, `vNextJustification`), which says why the stage differs from the level.
 - Levels come from `matrix/levels.json` and stages from `matrix/stages.json`, in that order. `basedOn` holds the display name and is matched case-insensitively; the slug is the lowercased name.
 - Why two sources for the stages: `resolved.json` cannot tell "the stage pins the id at the level action" from "no stage entry", while the stage column can. The level cells come from `resolved.json` because the V13 test compares the composed files against the same file.
 - File-level text: a level file is named `Rulebook <Name>`, a stage file `Rulebook stage <Name>`, with the descriptions of composition.md section 5; both carry the delta profile URL in `$schema`. `base/twins.json` carries the twins schema URL and `"generatedBy": "tools/rulebook/Build-Template.ps1"`.
 
-`Build-RulebookBase` checks its input and throws, as an engine tool, when the matrix rows do not mirror the inventory row by row, an id has no resolved cells, a level name is not a slug or disagrees with its `slug`, a `basedOn` names no level or forms a cycle, `stages.json` has no `default`, a stage names no matrix column, or a cell or stage column holds something other than an action (`=` allowed in a stage column).
+`Build-RulebookBase` checks its input and throws, as an engine tool, when the matrix rows do not mirror the inventory row by row, an id has no resolved cells, a level name is not a slug or disagrees with its `slug`, a `basedOn` names no level or forms a cycle, `stages.json` has no `default`, a stage names no matrix column or no `<stage name>Justification` column, a cell or stage column holds something other than an action (`=` allowed in a stage column), or a stage justification is `=` where the stage column is not, or the reverse.
 
 ## 3. Build-Template.ps1
 
@@ -93,7 +93,7 @@ Step 5 reads the settings as an organization repository would, so a settings fil
 
 ```powershell
 pwsh ./tools/rulebook/Build-Matrix.ps1      # when the placement rules or the inventory changed
-pwsh ./tools/rulebook/Test-Rulebook.ps1     # V1 to V14
+pwsh ./tools/rulebook/Test-Rulebook.ps1     # V1 to V15
 pwsh ./tools/rulebook/Build-Template.ps1    # regenerate template/ and docs/levels/
 Invoke-Pester -Path ./tests -Output Detailed
 ```

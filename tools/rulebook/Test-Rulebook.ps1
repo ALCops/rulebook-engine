@@ -1,7 +1,7 @@
 #requires -Version 7.4
 <#
 .SYNOPSIS
-  Runs the checks V1 to V14 from docs/rulebook/verification.md against the inventory, the matrix and the docs.
+  Runs the checks V1 to V15 from docs/rulebook/verification.md against the inventory, the matrix and the docs.
   Exit code 1 when any check fails.
 #>
 [CmdletBinding(PositionalBinding = $false)]
@@ -55,7 +55,10 @@ $algorithmDoc = Get-Content -Raw (Join-Path $RulebookDir '02-placement-algorithm
 $decisionsDoc = Get-Content -Raw (Join-Path $RulebookDir 'decisions.md')
 $overlapsDoc = Get-Content -Raw (Join-Path $RulebookDir 'overlaps.md')
 $readmeDoc = Get-Content -Raw (Join-Path $RulebookDir 'README.md')
-$matrixColumns = @('ID','Essential','Recommended','Strict','Complete','Default','CI','vNext','Basis','Justification')
+$placementsPath = Join-Path $RulebookDir 'inventory' 'placements.json'
+$placements = if (Test-Path -LiteralPath $placementsPath) { Get-Content -Raw -LiteralPath $placementsPath | ConvertFrom-Json -AsHashtable } else { [ordered]@{} }
+function Test-Placed([string]$id) { return $script:placements.Contains($id) }
+$matrixColumns = @('ID','Essential','Recommended','Strict','Complete','Default','CI','vNext','Basis','Justification','CIJustification','vNextJustification')
 
 # ---- V1 inventory files vs json, inventory order ----
 # Expected ids per prefix: a check input. Its keys are the prefixes in inventory order and name the per-prefix files.
@@ -110,11 +113,21 @@ foreach ($m in $matrix) {
 }
 
 # ---- V4 Error placement ----
+# A placed id may be Error only when its author ships it enabled (an opt-in rule is never Error), and vNext may raise to
+# Error only an id whose every active level action is already Warning or Error. An unplaced id (fallback rows) keeps
+# the old confinement: runtime and the PTE/AS Error defaults in the ladder, future-error on vNext.
 foreach ($m in $matrix) {
     $r = $byId[$m.id]
-    $mayError = ($r.family -eq 'runtime') -or ($r.prefix -in 'PTE','AS' -and $r.default -eq 'Error')
-    foreach ($a in $m.Essential, $m.Recommended, $m.Strict, $m.Complete) { if ($a -eq 'Error' -and -not $mayError) { Fail 'V4' "$($m.id) has Error in the ladder but is neither runtime nor a PTE/AS Error default" } }
-    if ($m.vNext -eq 'Error' -and $r.family -ne 'future-error') { Fail 'V4' "$($m.id) vNext Error outside family future-error" }
+    $lad = @($m.Essential, $m.Recommended, $m.Strict, $m.Complete)
+    if (Test-Placed $m.id) {
+        if ($lad -contains 'Error' -and -not $r.enabled) { Fail 'V4' "$($m.id) is Error in the ladder but its author ships it disabled" }
+        if ($m.vNext -eq 'Error' -and -not $r.enabled) { Fail 'V4' "$($m.id) is Error on vNext but its author ships it disabled" }
+        if ($m.vNext -eq 'Error') { foreach ($a in $lad) { if ($a -notin 'None','Warning','Error') { Fail 'V4' "$($m.id) vNext Error raises $a; only Warning or Error may become Error" } } }
+    } else {
+        $mayError = ($r.family -eq 'runtime') -or ($r.prefix -in 'PTE','AS' -and $r.default -eq 'Error')
+        foreach ($a in $lad) { if ($a -eq 'Error' -and -not $mayError) { Fail 'V4' "$($m.id) has Error in the ladder but is neither runtime nor a PTE/AS Error default" } }
+        if ($m.vNext -eq 'Error' -and $r.family -ne 'future-error') { Fail 'V4' "$($m.id) vNext Error outside family future-error" }
+    }
     if ($m.Default -ne '=') { Fail 'V4' "$($m.id) Default column must be =" }
 }
 
@@ -131,7 +144,7 @@ foreach ($r in $inv) {
     }
 }
 
-# ---- V6 twins: declared, symmetric, exported, both sides at their native ladder ----
+# ---- V6 twins: declared, symmetric, exported, both sides with one ladder, one pair of stage columns and one set of sentences ----
 $flagPairs = @{}
 foreach ($r in $inv | Where-Object prefix -eq 'PTE') {
     $tw = @($r.flags | Where-Object { $_ -match '^twin:' } | ForEach-Object { $_.Substring(5) })
@@ -142,18 +155,29 @@ foreach ($r in $inv | Where-Object prefix -eq 'PTE') {
     if ("twin:$($r.id)" -notin @($byId[$as].flags)) { Fail 'V6' "twin flag of $($r.id) is not mirrored on $as" }
     $flagPairs[$r.id] = $as
     if ($overlapsDoc -notmatch "\| $($r.id) \| $as \|") { Fail 'V6' "$($r.id) / $as not in the twins table of overlaps.md" }
-    foreach ($id in $r.id, $as) {
-        $nat = Get-NativeLadder $byId[$id]; $m = $mById[$id]
-        $lad = @($m.Essential, $m.Recommended, $m.Strict, $m.Complete)
-        if ($m.Basis -notmatch '^OV-' -and (($lad -join '/') -ne ($nat -join '/'))) { Fail 'V6' "twin side $id is $($lad -join '/') but its native ladder is $($nat -join '/')" }
+    $p = $mById[$r.id]; $a = $mById[$as]
+    foreach ($c in 'Essential','Recommended','Strict','Complete','CI','vNext') {
+        if ($p.$c -ne $a.$c) { Fail 'V6' "twins $($r.id) and $as differ in $c ($($p.$c) / $($a.$c)); both sides share one ladder and one pair of stage columns" }
+    }
+    foreach ($c in 'Justification','CIJustification','vNextJustification') {
+        if ($p.$c -cne $a.$c) { Fail 'V6' "twins $($r.id) and $as differ in $c; both sides share one sentence" }
     }
 }
 if ($twins.count -ne $flagPairs.Count -or @($twins.pairs).Count -ne $flagPairs.Count) { Fail 'V6' "twins.json lists $($twins.count) pairs, inventory flags give $($flagPairs.Count)" }
 foreach ($p in $twins.pairs) { if ($flagPairs[$p.pte] -ne $p.appsource) { Fail 'V6' "twins.json pair $($p.pte)/$($p.appsource) does not match the inventory flags" } }
 if (($twins.values -join ',') -ne 'both,appsource,pte') { Fail 'V6' 'twins.json values must be both, appsource, pte' }
 
-# ---- V7 native severity of the cop-specific families ----
+# ---- V7 native severity of the cop-specific families (unplaced ids; placed ids are listed as a review aid) ----
+$aidMarketplace = [System.Collections.Generic.List[string]]::new(); $aidErrorDefault = [System.Collections.Generic.List[string]]::new()
 foreach ($r in $inv) {
+    if (Test-Placed $r.id) {
+        if ($r.family -eq 'marketplace' -and $resolved[$r.id]['essential.default'] -ne 'None') { $aidMarketplace.Add($r.id) }
+        if ($r.prefix -in 'PTE','AS' -and $r.default -eq 'Error' -and $r.enabled) {
+            $below = @($resolved[$r.id].Keys | Where-Object { $resolved[$r.id][$_] -ne 'Error' })
+            if ($below.Count) { $aidErrorDefault.Add("$($r.id) ($($mById[$r.id].Essential)/$($mById[$r.id].Recommended)/$($mById[$r.id].Strict)/$($mById[$r.id].Complete))") }
+        }
+        continue
+    }
     $nat = Get-NativeLadder $r
     if ($r.family -eq 'marketplace' -or $r.id -in 'AS0003','AS0091') {
         foreach ($s in $stages) { if ($resolved[$r.id]["essential.$s"] -ne 'None') { Fail 'V7' "$($r.id) must be None at essential.$s" } }
@@ -172,6 +196,12 @@ foreach ($r in $inv) {
 $drs = @([regex]::Matches($decisionsDoc, '^### (DR-\d{3})', 'Multiline') | ForEach-Object { $_.Groups[1].Value })
 $superseded = @(($decisionsDoc -split '(?m)^### ') | Where-Object { $_ -match '^(DR-\d{3})' -and $_ -match '\*\*Superseded\*\*' } | ForEach-Object { ($_ -split '\s')[0] })
 foreach ($m in $matrix) {
+    if ($m.Basis -match '^DR-\d{3}$') {
+        if ($m.Basis -notin $drs) { Fail 'V8' "$($m.id) basis $($m.Basis) is not in decisions.md" }
+        if ($m.Basis -in $superseded) { Fail 'V8' "$($m.id) basis $($m.Basis) is superseded" }
+        if ($algorithmDoc -notmatch "(?m)^\| $([regex]::Escape($m.Basis)) \| \d+ \|") { Fail 'V8' "$($m.id) basis $($m.Basis) is not in the per-rule placements table of 02-placement-algorithm.md" }
+        continue
+    }
     if ($m.Basis -notmatch '^(OV|F|D)-\d{2}$') { Fail 'V8' "$($m.id) basis $($m.Basis) malformed" }
     if ($algorithmDoc -notmatch "\| $([regex]::Escape($m.Basis)) \|") { Fail 'V8' "$($m.id) basis $($m.Basis) not in 02-placement-algorithm.md" }
 }
@@ -182,7 +212,19 @@ foreach ($rowm in [regex]::Matches($algorithmDoc, '\| ((?:OV|F|D)-\d{2}) \|[^\n]
 foreach ($dr in $drs) { if ($dr -notin $superseded -and $algorithmDoc -notmatch "\b$dr\b") { Fail 'V8' "$dr is not referenced in 02-placement-algorithm.md" } }
 
 # ---- V9 justification ----
-foreach ($m in $matrix) { $j = $m.Justification; if (-not $j -or $j.Length -gt 120 -or $j -match '\||\r|\n') { Fail 'V9' "$($m.id) justification invalid" }; if ($j -notmatch "; $([regex]::Escape($m.Basis))$") { Fail 'V9' "$($m.id) justification does not end with its basis" } }
+function Test-JustificationText([string]$id, [string]$what, $j) {
+    if (-not $j -or $j.Length -gt 200 -or $j -match '\||\r|\n') { Fail 'V9' "$id $what invalid (1 to 200 characters, no pipe, no line break)" }
+    elseif ($j -match '; (OV|F|D|S)-\d+$|; DR-\d{3}$') { Fail 'V9' "$id $what ends in a basis token" }
+}
+foreach ($m in $matrix) {
+    Test-JustificationText $m.id 'justification' $m.Justification
+    foreach ($c in 'CI','vNext') {
+        $j = $m."$($c)Justification"
+        if ($m.$c -eq '=') { if ($j -ne '=') { Fail 'V9' "$($m.id) $($c)Justification must be = when the $c column is =" } }
+        elseif ($j -eq '=') { Fail 'V9' "$($m.id) $($c)Justification is = but the $c column is $($m.$c)" }
+        else { Test-JustificationText $m.id "$($c)Justification" $j }
+    }
+}
 
 # ---- V10 stages never activate a None ----
 foreach ($m in $matrix) {
@@ -201,9 +243,9 @@ foreach ($s in $stages) { for ($i = 1; $i -lt 4; $i++) {
     }
 } }
 
-# ---- V12 same fixed basis -> same ladder ----
+# ---- V12 same fixed basis -> same ladder (unplaced ids only) ----
 $fixedBases = @('F-01','F-02','F-03','F-04','F-05','F-06','D-01','D-02','D-03','D-04','D-05','D-06','D-07','D-08','D-09','D-10','D-11','D-12','D-13')
-foreach ($g in $matrix | Group-Object { $_.Basis } | Where-Object { $_.Name -in $fixedBases }) {
+foreach ($g in $matrix | Where-Object { -not (Test-Placed $_.id) } | Group-Object { $_.Basis } | Where-Object { $_.Name -in $fixedBases }) {
     $sig = $g.Group | ForEach-Object { "$($_.Essential)/$($_.Recommended)/$($_.Strict)/$($_.Complete)" } | Sort-Object -Unique
     if ($sig.Count -gt 1) { Fail 'V12' "basis $($g.Name) produces $($sig.Count) different ladders" }
 }
@@ -279,13 +321,44 @@ $fileLines = Get-Content -LiteralPath (Join-Path $RulebookDir 'matrix' 'counts.m
 if ($fileLines.Count -ne 6) { Fail 'V14' "counts.md has $($fileLines.Count) file rows, expected 6" }
 foreach ($line in $fileLines) { if ($readmeDoc -notmatch [regex]::Escape($line)) { Fail 'V14' "README.md is missing file row: $line" } }
 
+# ---- V15 placements.json covers the inventory and the matrix follows it ----
+$invOrder = @{}; for ($i = 0; $i -lt $inv.Count; $i++) { $invOrder[$inv[$i].id] = $i }
+$prev = -1
+foreach ($id in $placements.Keys) {
+    if (-not $invOrder.ContainsKey($id)) { Fail 'V15' "placements.json has unknown id $id"; continue }
+    if ($invOrder[$id] -le $prev) { Fail 'V15' "placements.json: $id is out of inventory order" }
+    $prev = $invOrder[$id]
+    $e = $placements[$id]; $m = $mById[$id]
+    if ($e -isnot [System.Collections.IDictionary]) { Fail 'V15' "$id entry in placements.json is not an object"; continue }
+    foreach ($k in $e.Keys) { if ($k -cnotin 'ladder','justification','stages','dr') { Fail 'V15' "$id has unknown key '$k' in placements.json (allowed: ladder, justification, stages, dr)" } }
+    if ($e.Contains('stages')) {
+        if ($e['stages'] -isnot [System.Collections.IDictionary]) { Fail 'V15' "$id stages in placements.json is not an object"; continue }
+        else { foreach ($k in $e['stages'].Keys) { if ($k -cnotin 'ci','vnext') { Fail 'V15' "$id has stage key '$k' in placements.json (allowed: ci, vnext)" } } }
+    }
+    if (("$($m.Essential)/$($m.Recommended)/$($m.Strict)/$($m.Complete)") -cne [string]$e['ladder']) { Fail 'V15' "$id ladder in the matrix differs from placements.json" }
+    if ($m.Justification -cne [string]$e['justification']) { Fail 'V15' "$id justification in the matrix differs from placements.json" }
+    $dr = if ($e.Contains('dr')) { [string]$e['dr'] } else { 'DR-022' }
+    if ($m.Basis -cne $dr) { Fail 'V15' "$id basis $($m.Basis), placements.json gives $dr" }
+    $st = if ($e.Contains('stages')) { $e['stages'] } else { @{} }
+    foreach ($pair in @(@('ci','CI'), @('vnext','vNext'))) {
+        $se = if ($st.Contains($pair[0])) { $st[$pair[0]] } else { $null }
+        $wantAction = if ($se) { [string]$se['action'] } else { '=' }
+        $wantText = if ($se) { [string]$se['justification'] } else { '=' }
+        if ($m.($pair[1]) -cne $wantAction) { Fail 'V15' "$id $($pair[1]) column $($m.($pair[1])), placements.json gives $wantAction" }
+        if ($m."$($pair[1])Justification" -cne $wantText) { Fail 'V15' "$id $($pair[1])Justification differs from placements.json" }
+    }
+}
+foreach ($r in $inv) { if (-not $placements.Contains($r.id)) { Fail 'V15' "$($r.id) has no entry in inventory/placements.json" } }
+
 # ---- report ----
 if ($failures.Count) {
     Write-Host "FAILED: $($failures.Count) finding(s)" -ForegroundColor Red
     $failures | Select-Object -First 60 | ForEach-Object { Write-Host "  $_" }
     exit 1
 }
-Write-Host "All checks V1-V14 passed. Inventory $($inv.Count) ids, matrix $($matrix.Count) rows, $($twins.count) twin pairs."
+if ($aidMarketplace.Count) { Write-Host "Review aid (V7): marketplace ids active at Essential: $($aidMarketplace -join ', ')" }
+if ($aidErrorDefault.Count) { Write-Host "Review aid (V7): PTE/AS Error defaults below Error in some cell: $($aidErrorDefault -join ', ')" }
+Write-Host "All checks V1-V15 passed. Inventory $($inv.Count) ids, matrix $($matrix.Count) rows, $($twins.count) twin pairs."
 Write-Host "Delta files (entries per file): $fileSizes"
 Write-Host "Sparse endpoints (listed ids per file): $sizes"
 exit 0

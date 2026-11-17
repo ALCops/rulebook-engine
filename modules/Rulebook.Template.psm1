@@ -184,6 +184,15 @@ function Read-MatrixInput {
             if ($column -cne '=' -and $column -cnotin $script:Actions) {
                 throw "matrix/matrix.json: $id has '$column' in column $($stage.Name); allowed are =, Error, Warning, Info, Hidden and None"
             }
+            $textColumn = "$($stage.Name)Justification"
+            if (-not $matrixRow.Contains($textColumn)) { throw "matrix/matrix.json: $id has no column '$textColumn' for stage '$($stage.Slug)'" }
+            $text = [string]$matrixRow[$textColumn]
+            if ($column -cne '=' -and [string]::IsNullOrWhiteSpace($text)) {
+                throw "matrix/matrix.json: $id has an empty $textColumn; column $($stage.Name) is $column and needs its sentence"
+            }
+            if (($column -ceq '=') -ne ($text -ceq '=')) {
+                throw "matrix/matrix.json: $id has '$text' in column $textColumn; it is = exactly when column $($stage.Name) is ="
+            }
         }
     }
 
@@ -387,7 +396,8 @@ function Build-RulebookStages {
     Writes one stages/<slug>.json per non-default entry of matrix/stages.json.
     .DESCRIPTION
     Lists the ids whose matrix.json column named after the stage (CI, vNext) is not '=', in inventory order, with
-    that action and the matrix row Justification, and the delta profile URL in $schema. There is no file for the
+    that action and the stage sentence of the column <StageName>Justification (CIJustification, vNextJustification),
+    and the delta profile URL in $schema. There is no file for the
     default stage; other *.json files in the folder are deleted. Same change reporting and -WhatIf as
     Build-RulebookBase.
     #>
@@ -404,7 +414,7 @@ function Build-RulebookStages {
             $matrixRow = $matrixInput.ByMatrixId[$id]
             $column = [string]$matrixRow[$stage.Name]
             if ($column -cne '=') {
-                $justification = Get-TextValue $matrixRow['Justification'] -What "matrix/matrix.json: the justification of $id"
+                $justification = Get-TextValue $matrixRow["$($stage.Name)Justification"] -What "matrix/matrix.json: the $($stage.Name) justification of $id"
                 $rules.Add([pscustomobject]@{ Id = $id; Action = $column; Justification = $justification })
             }
         }

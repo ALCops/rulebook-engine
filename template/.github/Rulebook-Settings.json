@@ -7,15 +7,15 @@
   "twins": "both",
   "quarantine": { "stages": null, "prereleaseStages": null },
   "levels": [
-    { "name": "Essential", "description": "Cannot ship without: runtime failures, the deployment blockers of both Microsoft cops, compiler future errors, PlatformCop." },
-    { "name": "Recommended", "basedOn": "Essential", "description": "Every default-on rule at its author severity; marketplace checks join here." },
-    { "name": "Strict", "basedOn": "Recommended", "description": "Recommended with advisory rules promoted to Warning." },
-    { "name": "Complete", "basedOn": "Strict", "description": "Strict plus every opt-in rule." }
+    { "name": "Essential", "description": "Cannot ship without: runtime failures, deployment blockers, compiler future errors, security exposures and broken configuration." },
+    { "name": "Recommended", "basedOn": "Essential", "description": "What a healthy project runs, each rule placed on its own merit; marketplace checks join here." },
+    { "name": "Strict", "basedOn": "Recommended", "description": "The quality gate: advisory rules a clean project satisfies become Warning." },
+    { "name": "Complete", "basedOn": "Strict", "description": "Everything the analyzers report, opt-in rules included." }
   ],
   "stages": [
     { "name": "default", "description": "Editor and any consumer without its own stage. The level result as is." },
-    { "name": "CI", "description": "Pull request and release builds. Postponable diagnostics relaxed to Info." },
-    { "name": "vNext", "description": "Builds against the next platform. Future errors at Error, obsolete-pending at Warning." }
+    { "name": "CI", "description": "Pull request and release builds. What a team cannot fix in the same change relaxed to Info." },
+    { "name": "vNext", "description": "Builds against the next platform. Future errors at Error, pending removals at Warning." }
   ],
   "ghTokenWorkflowSecretName": "GHTOKENWORKFLOW",
   "commitOptions": { "createPullRequest": true, "pullRequestLabels": ["rulebook"] },

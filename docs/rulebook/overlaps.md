@@ -6,7 +6,7 @@ Pairs of diagnostics that report the same construct, extend each other, or contr
 
 | Kind | Meaning | Resolution |
 |---|---|---|
-| `twin` | A PerTenantExtensionCop rule and an AppSourceCop rule with the identical title and check. Both fire when both cops are loaded. | Both sides are active at their native ladder (DR-020). An organization that builds only one kind of extension picks a side with the `twins` setting (`both`, `appsource`, `pte`) of its Rulebook repository; the generator writes the other side at `None`. The pairs are exported to `matrix/twins.json`; check V6 keeps flags, table and export in sync. |
+| `twin` | A PerTenantExtensionCop rule and an AppSourceCop rule with the identical title and check. Both fire when both cops are loaded. | Both sides are active and share one ladder, one pair of stage columns and one justification (DR-020, DR-022). An organization that builds only one kind of extension picks a side with the `twins` setting (`both`, `appsource`, `pte`) of its Rulebook repository; the generator writes the other side at `None`. The pairs are exported to `matrix/twins.json`; check V6 keeps flags, table and export in sync. |
 | `extends` | An ALCops rule that fires only in the gap its Microsoft counterpart leaves. | Keep both. The pair never reports the same location twice. |
 | `complements` | Two rules that look at the same property from different angles. | Keep both. |
 | `contradicts` | Two rules whose fixes pull in opposite directions. | One side loses at every level; recorded as an override with a `DR`. |

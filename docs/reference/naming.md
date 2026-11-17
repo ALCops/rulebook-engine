@@ -183,7 +183,7 @@ The fixtures under `tests/fixtures/schemas/<valid|invalid>/<schema-basename>/<re
 
 ## 7. Examples
 
-Each example is a valid fixture, quoted as is.
+Each example is a valid fixture under `tests/fixtures/schemas/valid/`, quoted as committed. Their justification texts are fixture text in the older `<reason>; <basis>` style; the shipped files carry one sentence per rule without a basis token ([rulebook/02-placement-algorithm.md](../rulebook/02-placement-algorithm.md) section 6).
 
 Level file, `tests/fixtures/schemas/valid/ruleset.delta/level-recommended.json`:
 

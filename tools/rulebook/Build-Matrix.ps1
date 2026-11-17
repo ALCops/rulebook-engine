@@ -1,20 +1,24 @@
 #requires -Version 7.4
 <#
 .SYNOPSIS
-  Applies the placement algorithm to docs/rulebook/inventory/inventory.json and writes
-  docs/rulebook/matrix/<PREFIX>.md, docs/rulebook/matrix/resolved.json, docs/rulebook/matrix/twins.json,
-  docs/rulebook/matrix/levels.json, docs/rulebook/matrix/stages.json, docs/rulebook/matrix/counts.md and
-  docs/rulebook/02-placement-algorithm.md.
+  Applies the placements of docs/rulebook/inventory/placements.json to docs/rulebook/inventory/inventory.json and
+  writes docs/rulebook/matrix/<PREFIX>.md, docs/rulebook/matrix/matrix.json, docs/rulebook/matrix/resolved.json,
+  docs/rulebook/matrix/twins.json, docs/rulebook/matrix/levels.json, docs/rulebook/matrix/stages.json,
+  docs/rulebook/matrix/counts.md and docs/rulebook/02-placement-algorithm.md.
 .DESCRIPTION
-  The rule tables below ARE the placement algorithm. 02-placement-algorithm.md is generated from them so the
-  documentation can never drift from what produced the matrix. Evaluation order per id:
+  Every id is placed by hand in placements.json (D60, DR-022): its ladder (one action per level), its CI and vNext
+  actions with their own justification, its justification and its decision record. The Basis of a placed row is
+  that decision record (DR-022 when the entry names none).
+  An id without an entry (only possible after an inventory refresh) gets a proposal from the rule tables below,
+  first match wins:
     1. override rows  (OV-nn)  explicit ids
     2. family rows    (F-nn)   by Family or flag
     3. decision rows  (D-nn)   by analyzer, default severity and enablement
-  The first matching row gives the ladder (one action per level). The stage columns (Default, CI, vNext) are
-  then derived by the stage rules (S-n) unless the matched row pins them. There is no target dimension (D21):
-  every rule has one ladder for every AL project. Levels and stages are named by their slug (lowercased name)
-  in every generated key and file name (D28): essential, recommended, strict, complete; default, ci, vnext.
+  then the stage rules (S-n) unless the matched row pins them. The script prints the unplaced ids with their
+  proposed ladders; check V15 fails until each one has an entry. 02-placement-algorithm.md is generated from these
+  tables and from the placements. There is no target dimension (D21): every rule has one ladder for every AL
+  project. Levels and stages are named by their slug (lowercased name) in every generated key and file name (D28):
+  essential, recommended, strict, complete; default, ci, vnext.
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -30,6 +34,49 @@ $levelNames = @('Essential','Recommended','Strict','Complete')
 $levelSlugs = @($levelNames | ForEach-Object { $_.ToLowerInvariant() })
 $stageNames = @('default','CI','vNext')
 $stageSlugs = @($stageNames | ForEach-Object { $_.ToLowerInvariant() })
+
+# ---------------------------------------------------------------------------------------------
+# placements.json: one hand-maintained entry per id, keys in inventory order (D60, DR-022).
+# ---------------------------------------------------------------------------------------------
+$actionNames = @('None','Hidden','Info','Warning','Error')
+function Assert-PlacementText([string]$id, [string]$what, $text) {
+    if ($text -isnot [string] -or $text.Length -lt 1 -or $text.Length -gt 200 -or $text -match '\||\r|\n') {
+        throw "placements.json: the $what of $id must be 1 to 200 characters without a pipe or a line break"
+    }
+    if ($text -ceq '=') { throw "placements.json: the $what of $id is '='; a justification is a sentence" }
+}
+$placementsPath = Join-Path $RulebookDir 'inventory' 'placements.json'
+$placements = [ordered]@{}
+if (Test-Path -LiteralPath $placementsPath) {
+    $raw = Get-Content -Raw -LiteralPath $placementsPath | ConvertFrom-Json -AsHashtable
+    if ($raw -isnot [System.Collections.IDictionary]) { throw 'placements.json must be an object keyed by id' }
+    $invIndex = @{}; for ($i = 0; $i -lt $inv.Count; $i++) { $invIndex[$inv[$i].id] = $i }
+    $last = -1; $lastId = $null
+    foreach ($id in $raw.Keys) {
+        if (-not $invIndex.ContainsKey($id)) { throw "placements.json: unknown id $id" }
+        if ($invIndex[$id] -le $last) { throw "placements.json: $id is out of inventory order (after $lastId)" }
+        $last = $invIndex[$id]; $lastId = $id
+        $e = $raw[$id]
+        if ($e -isnot [System.Collections.IDictionary]) { throw "placements.json: the entry of $id is not an object" }
+        foreach ($k in $e.Keys) { if ($k -cnotin 'ladder','justification','stages','dr') { throw "placements.json: $id has unknown key '$k'" } }
+        $lad = @(([string]$e['ladder']) -split '/')
+        if ($lad.Count -ne 4 -or @($lad | Where-Object { $_ -cnotin $actionNames }).Count) { throw "placements.json: $id has ladder '$($e['ladder'])'; expected four actions E/R/S/C" }
+        Assert-PlacementText $id 'justification' $e['justification']
+        if ($e.Contains('dr') -and ([string]$e['dr']) -cnotmatch '^DR-\d{3}$') { throw "placements.json: $id has dr '$($e['dr'])'; expected DR-nnn" }
+        if ($e.Contains('stages')) {
+            if ($e['stages'] -isnot [System.Collections.IDictionary]) { throw "placements.json: the stages of $id are not an object" }
+            foreach ($s in $e['stages'].Keys) {
+                if ($s -cnotin @($stageSlugs | Select-Object -Skip 1)) { throw "placements.json: $id names stage '$s'; expected one of $(@($stageSlugs | Select-Object -Skip 1) -join ', ')" }
+                $se = $e['stages'][$s]
+                if ($se -isnot [System.Collections.IDictionary]) { throw "placements.json: stage $s of $id is not an object" }
+                foreach ($k in $se.Keys) { if ($k -cnotin 'action','justification') { throw "placements.json: stage $s of $id has unknown key '$k'" } }
+                if ([string]$se['action'] -cnotin 'Error','Warning','Info','Hidden') { throw "placements.json: stage $s of $id has action '$($se['action'])'; expected Error, Warning, Info or Hidden" }
+                Assert-PlacementText $id "$s justification" $se['justification']
+            }
+        }
+        $placements[$id] = $e
+    }
+}
 
 function L([string]$s) { return $s }   # readability marker for ladders
 
@@ -146,8 +193,8 @@ function Get-StageColumn($row, $pinnedCi, $pinnedVnext) {
 }
 $StageRules = @(
     @{ id='S-1'; text='The default stage equals the level action; developers see exactly what the pipeline sees. It has no stage file.' }
-    @{ id='S-2'; text="CI = Info for diagnostics a team cannot always fix in the same change: family obsolete (F-05) and $($ciRelaxed -join ', ') (implicit conversions, XML validation, translation file mismatches). Shipped as ``stages/ci.json``." }
-    @{ id='S-3'; text='vNext = Error for family future-error (F-04) and Warning for family obsolete (F-05); everything else equals the level action. Shipped as `stages/vnext.json`.' }
+    @{ id='S-2'; text="CI = Info for diagnostics a team cannot always fix in the same change: family obsolete (F-05) and $($ciRelaxed -join ', ') (implicit conversions, XML validation, translation file mismatches)." }
+    @{ id='S-3'; text='vNext = Error for family future-error (F-04) and Warning for family obsolete (F-05); everything else equals the level action.' }
     @{ id='S-4'; text='A stage entry never enables an id the level left at None (see the resolution recipe in 00-conventions.md); this binds every stage file, shipped or custom (D27). New ids that appear in a prerelease compiler are a scan-time concern of WP08, not of the matrix.' }
 )
 
@@ -163,7 +210,26 @@ function Resolve-Ladder($row, $ladderSpec) {
     throw "No decision row for $($row.id)"
 }
 $matrix = [System.Collections.Generic.List[object]]::new()
+$unplaced = [System.Collections.Generic.List[object]]::new()
 foreach ($row in $inv) {
+    if ($placements.Contains($row.id)) {
+        $e = $placements[$row.id]
+        $lad = ([string]$e['ladder']) -split '/'
+        $st = if ($e.Contains('stages')) { $e['stages'] } else { @{} }
+        $ciText = if ($st.Contains('ci')) { $st['ci'] } else { $null }
+        $vnText = if ($st.Contains('vnext')) { $st['vnext'] } else { $null }
+        $matrix.Add([ordered]@{
+            id = $row.id; prefix = $row.prefix; Essential = $lad[0]; Recommended = $lad[1]; Strict = $lad[2]; Complete = $lad[3]
+            Default = '='
+            CI = $(if ($ciText) { [string]$ciText['action'] } else { '=' })
+            vNext = $(if ($vnText) { [string]$vnText['action'] } else { '=' })
+            Basis = $(if ($e.Contains('dr')) { [string]$e['dr'] } else { 'DR-022' })
+            Justification = [string]$e['justification']
+            CIJustification = $(if ($ciText) { [string]$ciText['justification'] } else { '=' })
+            vNextJustification = $(if ($vnText) { [string]$vnText['justification'] } else { '=' })
+        })
+        continue
+    }
     $hit = $null; $basis = $null; $why = $null; $pinCi = $null; $pinVnext = $null; $ladder = $null
     foreach ($o in $OvRows) { if ($row.id -in $o.ids) { $hit = $o; break } }
     if ($hit) {
@@ -185,13 +251,17 @@ foreach ($row in $inv) {
     }
     $lad = Expand-Ladder $ladder
     $sc = Get-StageColumn $row $pinCi $pinVnext
-    $max = 120 - ("; $basis").Length
-    if ($why.Length -gt $max) { $why = $why.Substring(0, $max - 3).TrimEnd() + '...' }
-    $just = "$why; $basis"
     $matrix.Add([ordered]@{
         id = $row.id; prefix = $row.prefix; Essential = $lad[0]; Recommended = $lad[1]; Strict = $lad[2]; Complete = $lad[3]
-        Default = $sc[0]; CI = $sc[1]; vNext = $sc[2]; Basis = $basis; Justification = $just
+        Default = $sc[0]; CI = $sc[1]; vNext = $sc[2]; Basis = $basis; Justification = $why
+        CIJustification = $(if ($sc[1] -ne '=') { $why } else { '=' })
+        vNextJustification = $(if ($sc[2] -ne '=') { $why } else { '=' })
     })
+    $unplaced.Add("$($row.id) $($lad -join '/') CI $($sc[1]) vNext $($sc[2]) ($basis)")
+}
+Write-Host "placed $($placements.Count) / unplaced $($unplaced.Count)"
+if ($unplaced.Count) {
+    Write-Warning "Ids without an entry in inventory/placements.json (proposed ladder from the rule tables; check V15 fails until each is placed):`n  $($unplaced -join "`n  ")"
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -276,9 +346,9 @@ foreach ($p in $prefixes) {
     [void]$sb.AppendLine()
     [void]$sb.AppendLine("Generated by ``tools/rulebook/Build-Matrix.ps1`` from [inventory/$p.md](../inventory/$p.md) and the rules in [02-placement-algorithm.md](../02-placement-algorithm.md). Columns and the resolution recipe are defined in [00-conventions.md](../00-conventions.md).")
     [void]$sb.AppendLine()
-    [void]$sb.AppendLine('| ID | Essential | Recommended | Strict | Complete | Default | CI | vNext | Basis | Justification |')
-    [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|---|---|')
-    foreach ($m in $set) { [void]$sb.AppendLine("| $($m.id) | $($m.Essential) | $($m.Recommended) | $($m.Strict) | $($m.Complete) | $($m.Default) | $($m.CI) | $($m.vNext) | $($m.Basis) | $($m.Justification) |") }
+    [void]$sb.AppendLine('| ID | Essential | Recommended | Strict | Complete | Default | CI | vNext | Basis | Justification | CIJustification | vNextJustification |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|---|---|---|---|')
+    foreach ($m in $set) { [void]$sb.AppendLine("| $($m.id) | $($m.Essential) | $($m.Recommended) | $($m.Strict) | $($m.Complete) | $($m.Default) | $($m.CI) | $($m.vNext) | $($m.Basis) | $($m.Justification) | $($m.CIJustification) | $($m.vNextJustification) |") }
     [void]$sb.AppendLine()
     [void]$sb.AppendLine("Count: $($set.Count)")
     Set-Content -LiteralPath (Join-Path $matrixDir "$p.md") -Value $sb.ToString() -Encoding utf8NoBOM -NoNewline
@@ -291,27 +361,63 @@ function Format-Ladder($row) { if ($row.ladder -is [scriptblock]) { return $row.
 $doc = [System.Text.StringBuilder]::new()
 [void]$doc.AppendLine('# Placement algorithm')
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('Generated by `tools/rulebook/Build-Matrix.ps1`; the tables below are the rule tables inside that script, printed so the documentation cannot drift from the matrix. To change a placement, change the script and rebuild.')
+[void]$doc.AppendLine('Generated by `tools/rulebook/Build-Matrix.ps1` from `inventory/placements.json` and the fallback rule tables inside that script, printed so the documentation cannot drift from the matrix. To change a placement, edit the entry of the id in `inventory/placements.json` and rebuild (D60, DR-022).')
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('## 1. Evaluation order')
+[void]$doc.AppendLine('## 1. How an id is placed')
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('For every id in the inventory, in this order, the first matching row gives the ladder and the `Basis` token:')
+[void]$doc.AppendLine('For every id in the inventory:')
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('1. **Override rows** `OV-nn`: explicit ids.')
-[void]$doc.AppendLine('2. **Family rows** `F-nn`: by `Family` or flag from the inventory. A row whose ladder is "by decision row" keeps the ladder of the decision row that would otherwise match.')
-[void]$doc.AppendLine('3. **Decision rows** `D-nn`: by analyzer, default severity and enablement.')
+[void]$doc.AppendLine('1. **Placements entry.** The entry of the id in `inventory/placements.json` gives the ladder, the `CI` and `vNext` actions with their own justification, and the justification of the row. `Basis` is the decision record the entry names, `DR-022` when it names none. Every id has an entry; check V15 fails on an id without one.')
+[void]$doc.AppendLine('2. **Fallback rows, only for an id without an entry** (an inventory refresh adds ids before they are reviewed): the override rows `OV-nn` (explicit ids), then the family rows `F-nn` (by `Family` or flag), then the decision rows `D-nn` (by analyzer, default severity and enablement); the first matching row gives the ladder, the justification and the `Basis` token, and the stage rules `S-n` fill the stage columns unless the row pins them. `Build-Matrix.ps1` prints these ids with the proposed ladder; the proposal is a starting point for the review, not a placement.')
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('Then the **stage rules** `S-n` fill `Default`, `CI` and `vNext`, unless the matched row pins a value. The resolution recipe in [00-conventions.md](00-conventions.md) turns a row into 12 cells, one per level and stage, keyed `<level>.<stage>` by slug (`essential.default`, `recommended.ci`). In an organization repository the `CI` and `vNext` columns become the stage files `stages/ci.json` and `stages/vnext.json`, applied on top of every level (D27); the `Default` column is always `=` and has no file. There is no target dimension: every rule has one ladder for every AL project (D21).')
+[void]$doc.AppendLine('The resolution recipe in [00-conventions.md](00-conventions.md) turns a row into 12 cells, one per level and stage, keyed `<level>.<stage>` by slug (`essential.default`, `recommended.ci`). In an organization repository the `CI` and `vNext` columns become the stage files `stages/ci.json` and `stages/vnext.json`, applied on top of every level (D27); the `Default` column is always `=` and has no file. There is no target dimension: every rule has one ladder for every AL project (D21).')
 [void]$doc.AppendLine()
 [void]$doc.AppendLine('Ladders are written `Essential/Recommended/Strict/Complete`. `native` stands for the ladder derived from the author severity: Error -> `Error/Error/Error/Error`, Warning -> `None/Warning/Warning/Warning`, Info -> `None/Info/Warning/Warning`, Hidden -> `None/Hidden/Info/Info`.')
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('## 2. Override rows')
+[void]$doc.AppendLine('## 2. Per-rule placements')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('Placed ids per decision record. DR-022 is the per-rule review itself; an older record is named where it speaks about the id or its family.')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('| Decision record | Placed ids |')
+[void]$doc.AppendLine('|---|---|')
+foreach ($g in @($matrix | Where-Object { $_.Basis -match '^DR-' } | Group-Object { $_.Basis } | Sort-Object Name)) { [void]$doc.AppendLine("| $($g.Name) | $($g.Count) |") }
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('## 3. Level and severity intent')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('Every entry is a judgment of what the rule catches and what breaks or degrades when it is ignored. The levels say what the judgment is for:')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('| Level | What is on | Severity rule |')
+[void]$doc.AppendLine('|---|---|---|')
+[void]$doc.AppendLine('| Essential | The bare minimum a project cannot ship without: definite runtime failures, deployment blockers of either kind of extension, compiler future errors, security leaks and broken configuration. It stays usable without `AppSourceCop.json`: no marketplace check is above None here. | Error for a definite defect, Warning for the rest. |')
+[void]$doc.AppendLine('| Recommended | What a healthy project runs: the Rulebook opinion per rule, which may sit above or below the author severity when the benefit justifies it. | Error for a definite defect; style, naming and advice at most Warning. |')
+[void]$doc.AppendLine('| Strict | The quality gate: advisory rules that a clean project satisfies become Warning. | As Recommended. |')
+[void]$doc.AppendLine('| Complete | Everything the analyzers can tell you, opt-in rules included, except LC0089i and contradiction losers. | No Error for an opt-in rule. |')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('Error is placed only when the rule proves a definite defect (a runtime failure, a definite wrong result, data loss, a security leak, a deployment or submission blocker) and the justification names it. Style, naming and advice stop at Warning. A rule its author ships disabled is never Error, and `vNext` raises to Error only a rule that is already Warning or Error on every level where it is on. Ladders never get weaker from one level to the next (V3, V11).')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('## 4. Project kinds and twins')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('The matrix does not know whether a project is a per-tenant extension or an AppSource app (D21). Both Microsoft cops are active, so a per-tenant project sees the AppSourceCop blockers (AS0084 and AS0013 on id ranges, the marketplace manifest checks from Recommended) and an AppSource project sees the PerTenantExtensionCop blockers (PTE0001, PTE0002, PTE0009, PTE0013, PTE0024). The project opts out of the side that does not apply: by disabling a cop in `al.codeAnalyzers`, by `suppressWarnings` in `app.json` (which works for a rule that is not listed in the endpoint, D22), or by a rule in its project ruleset file. The user documentation of the Rulebook template (`docs/pte-or-appsource.md`) carries the ready-made lists. DR-018 and DR-019 record the cop-specific placements.')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine("The $($pairs.Count) twin pairs (identical check in both cops, listed in [overlaps.md](overlaps.md) and exported to ``matrix/twins.json``) share one ladder, one pair of stage columns and one justification. An organization that builds only one kind of extension picks a side with the ``twins`` setting of its Rulebook repository (``both``, ``appsource`` or ``pte``); the generator writes the losing side at ``None``. DR-020 records the policy, DR-022 the shared ladder.")
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('## 5. Stages')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('`CI` never blocks on what a team cannot fix in the same change; an entry there lowers the level action and says why. `vNext` previews what the next platform breaks; an entry there raises the level action and says why. A stage entry never enables an id the level left at `None` (see the resolution recipe in [00-conventions.md](00-conventions.md)); this binds every stage file, shipped or custom (D27).')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('## 6. Justification')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('Every matrix row carries the justification of its placement: one sentence of 1 to 200 characters, without a pipe or a line break, that says what the rule catches and why it sits where it sits. The generated level file entries copy it verbatim into the `justification` property. A stage entry carries its own sentence in the `CIJustification` or `vNextJustification` column, which the stage file entry copies; the column is `=` when the stage keeps the level action.')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('## 7. Fallback: override rows')
+[void]$doc.AppendLine()
+[void]$doc.AppendLine('Used only for an id without a placements entry. A row whose ladder is "by decision row" keeps the ladder of the decision row that would otherwise match.')
 [void]$doc.AppendLine()
 [void]$doc.AppendLine('| Row | Ids | Ladder | Decision record | Reason |')
 [void]$doc.AppendLine('|---|---|---|---|---|')
 foreach ($o in $OvRows) { [void]$doc.AppendLine("| $($o.id) | $($o.ids -join ', ') | $(Format-Ladder $o) | $($o.dr) | $($o.why) |") }
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('## 3. Family rows')
+[void]$doc.AppendLine('## 8. Fallback: family rows')
 [void]$doc.AppendLine()
 [void]$doc.AppendLine('| Row | Selector | Ladder | CI | vNext | Decision record | Reason |')
 [void]$doc.AppendLine('|---|---|---|---|---|---|---|')
@@ -319,34 +425,15 @@ foreach ($f in $FamilyRows) { [void]$doc.AppendLine("| $($f.id) | $($f.name) | $
 [void]$doc.AppendLine()
 [void]$doc.AppendLine('Family membership is assigned by hand in `inventory/annotations.json` and printed in the `Family` and `Flags` columns of the inventory. The `runtime` whitelist is: ' + (($inv | Where-Object family -eq 'runtime' | ForEach-Object id) -join ', ') + '.')
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('## 4. Decision rows')
+[void]$doc.AppendLine('## 9. Fallback: decision rows')
 [void]$doc.AppendLine()
 [void]$doc.AppendLine('| Row | Selector | Ladder | Decision record | Reason |')
 [void]$doc.AppendLine('|---|---|---|---|---|')
 foreach ($d in $DecisionRows) { [void]$doc.AppendLine("| $($d.id) | $($d.name) | $(Format-Ladder $d) | $($d.dr) | $($d.why) |") }
 [void]$doc.AppendLine()
-[void]$doc.AppendLine('The level intent behind the rows:')
-[void]$doc.AppendLine()
-[void]$doc.AppendLine('| Level | What is on | Severity rule |')
-[void]$doc.AppendLine('|---|---|---|')
-[void]$doc.AppendLine('| Essential | Runtime failures, the Error defaults of PerTenantExtensionCop and AppSourceCop (deployment blockers of either kind of extension, except the marketplace and baseline-missing checks), compiler future errors, every default-on PlatformCop rule, the web-client and security overrides, CM0001 and the X0000 rules. Everything else is None. | Error only for family runtime and the PerTenantExtensionCop and AppSourceCop Error defaults; the rest Warning (Info for PlatformCop Info rules). |')
-[void]$doc.AppendLine('| Recommended | Every default-on rule of every analyzer at its author severity; the marketplace and baseline-missing checks join here; obsolete-pending at Info. | Author default, except the documented downgrades. |')
-[void]$doc.AppendLine('| Strict | Same set; default-on Info becomes Warning, default-on Hidden becomes Info. Compiler Info stays Info. | Advisory rules become CI-blocking. |')
-[void]$doc.AppendLine('| Complete | Adds every opt-in rule at its author severity, except LC0089i and contradiction losers; Hidden-by-default rules appear as Info. | No further escalation. |')
-[void]$doc.AppendLine()
-[void]$doc.AppendLine('## 5. Project kinds and twins')
-[void]$doc.AppendLine()
-[void]$doc.AppendLine('The matrix does not know whether a project is a per-tenant extension or an AppSource app (D21). Both Microsoft cops run at their native severity, so a per-tenant project sees the AppSourceCop blockers (AS0084 and AS0013 on id ranges, the marketplace manifest checks from Recommended) and an AppSource project sees the PerTenantExtensionCop blockers (PTE0001, PTE0002, PTE0009, PTE0013, PTE0024). The project opts out of the side that does not apply: by disabling a cop in `al.codeAnalyzers`, by `suppressWarnings` in `app.json` (which works because a rule at its native severity is not listed in the endpoint, D22), or by a rule in its project ruleset file. The user documentation of the Rulebook template (`docs/pte-or-appsource.md`) carries the ready-made lists. DR-018 and DR-019 record the placements.')
-[void]$doc.AppendLine()
-[void]$doc.AppendLine("The $($pairs.Count) twin pairs (identical check in both cops, listed in [overlaps.md](overlaps.md) and exported to ``matrix/twins.json``) are both active at their native ladder. An organization that builds only one kind of extension picks a side with the ``twins`` setting of its Rulebook repository (``both``, ``appsource`` or ``pte``); the generator writes the losing side at ``None``. DR-020 records the policy.")
-[void]$doc.AppendLine()
-[void]$doc.AppendLine('## 6. Stage rules')
+[void]$doc.AppendLine('## 10. Fallback: stage rules')
 [void]$doc.AppendLine()
 foreach ($s in $StageRules) { [void]$doc.AppendLine("- **$($s.id)** $($s.text)") }
-[void]$doc.AppendLine()
-[void]$doc.AppendLine('## 7. Justification')
-[void]$doc.AppendLine()
-[void]$doc.AppendLine('Every matrix row carries `<reason of the matched row>; <Basis>` as its justification, at most 120 characters, and the generated level and stage file entries copy it verbatim into the `justification` property.')
 Set-Content -LiteralPath (Join-Path $RulebookDir '02-placement-algorithm.md') -Value $doc.ToString() -Encoding utf8NoBOM -NoNewline
 
 # ---------------------------------------------------------------------------------------------

@@ -38,7 +38,7 @@ The matrix in `matrix/` remains the only place where a shipped placement is deci
 | Organization repository, published | `rulesets/<level>.ruleset.json`, `rulesets/<level>.<stage>.ruleset.json` | The generated endpoints: the ids whose effective action differs from the analyzer default, no justification. One per level for the `default` stage, one per level and other stage. Committed and published. | 12 |
 | Organization repository, published | `skeletons/<level>.<stage>.ruleset.json` | The file an AL project copies: one include of the endpoint URL, project exceptions in `rules`. The stage suffix is always present here. | 12 |
 
-The shipped files today: `essential` 353 entries, `recommended` 352, `strict` 65, `complete` 24, `stages/ci.json` 10, `stages/vnext.json` 95 (the file table in `matrix/counts.md`).
+The shipped files today: `essential` 356 entries, `recommended` 319, `strict` 134, `complete` 42, `stages/ci.json` 11, `stages/vnext.json` 95 (the file table in `matrix/counts.md`).
 
 ## 3. Generator contract
 
@@ -46,7 +46,7 @@ Let `cell(id, level, stage)` be the resolved action from `matrix/resolved.json` 
 
 **Level files:** `base/essential.ruleset.json` has one entry per id where `cell(id, essential, default) != default(id)`, in inventory order, with that action and the matrix `Justification`. `base/<level>.ruleset.json` for every other shipped level has one entry per id where `cell(id, level, default) != cell(id, basedOn(level), default)`. The file-level `description` names the `basedOn` level.
 
-**Stage files:** `stages/<stage>.json` has one entry per id whose stage column is not `=`, with that action and the matrix `Justification` of the row, verbatim (the same text as the level entry of that id). There is no file for `default`.
+**Stage files:** `stages/<stage>.json` has one entry per id whose stage column is not `=`, with that action and the stage sentence of the row (`CIJustification`, `vNextJustification`: the column named `<stage name>Justification`), verbatim. There is no file for `default`.
 
 `modules/Rulebook.Template` implements these two derivations for the template (`Build-RulebookBase`, `Build-RulebookStages`, run by `tools/rulebook/Build-Template.ps1`); [../reference/template-content.md](../reference/template-content.md) describes the generated `template/` file by file.
 
@@ -88,8 +88,8 @@ Quarantine entries carry `id` and an optional `justification` only; the action i
 
 | File | Entry |
 |---|---|
-| `base/<level>.ruleset.json` | `{ "id": "AL0200", "action": "Warning", "justification": "Compiler warning at author severity from Recommended; D-01" }` |
-| `stages/<stage>.json` | `{ "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" }` (the matrix row justification) |
+| `base/<level>.ruleset.json` | `{ "id": "AL0200", "action": "Warning", "justification": "A property Microsoft has obsoleted will be removed in a later version; an upgrade risk a healthy project fixes, Warning from Recommended." }` |
+| `stages/<stage>.json` | `{ "id": "AL0432", "action": "Info", "justification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking." }` (the stage sentence of the matrix row) |
 | `rulesets/` | `{ "id": "AL0432", "action": "Info" }` |
 | `base/twins.json` | `{ "pte": "PTE0011", "appsource": "AS0048", "title": "The publisher name is too long" }` inside `pairs` |
 | `overrides.json` | `{ "id": "AL0432", "action": "None", "levels": ["*"], "stages": ["ci"], "justification": "Obsoletion backlog tracked in DEV-1234" }` |
@@ -110,10 +110,10 @@ Quarantine entries carry `id` and an optional `justification` only; the action i
   "name": "Rulebook Recommended",
   "description": "Level recommended, basedOn essential. Lists the ids whose action differs from essential. Generated from docs/rulebook; do not edit.",
   "rules": [
-    { "id": "AL0200", "action": "Warning", "justification": "Compiler warning at author severity from Recommended; D-01" },
-    { "id": "AL0432", "action": "Info",    "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
-    { "id": "AS0003", "action": "Error",   "justification": "Baseline-missing diagnostics need a configured baseline; off at Essential, native from Recommended; OV-08" },
-    { "id": "AS0084", "action": "Error",   "justification": "Needs AppSourceCop.json or marketplace manifest fields; off at Essential, native from Recommended; F-07" }
+    { "id": "AL0200", "action": "Warning", "justification": "A property Microsoft has obsoleted will be removed in a later version; an upgrade risk a healthy project fixes, Warning from Recommended." },
+    { "id": "AL0432", "action": "Info",    "justification": "Uses an object marked for removal whose replacement may not be released yet; advisory at Recommended, a gate from Strict." },
+    { "id": "AS0003", "action": "Error",   "justification": "A configured baseline that cannot be loaded silences every breaking-change check; broken setup, Error from Recommended." },
+    { "id": "AS0084", "action": "Error",   "justification": "Object ids outside the AppSource range assigned to the app block submission; marketplace only, so off at Essential and Error from Recommended." }
   ]
 }
 ```
@@ -128,8 +128,8 @@ AS0001 and PTE0001 are absent from this file because Recommended does not change
   "name": "Rulebook stage CI",
   "description": "Stage ci. Applied on top of every level where the level result is not None. Generated from docs/rulebook; do not edit.",
   "rules": [
-    { "id": "AL0432", "action": "Info", "justification": "Replacement may not exist yet; advisory in CI, Warning on vNext where removal is near; F-05" },
-    { "id": "AL0603", "action": "Info", "justification": "Compiler warning at author severity from Recommended; D-01" }
+    { "id": "AL0432", "action": "Info", "justification": "A team cannot always replace the object marked for removal in the same change; CI advises instead of blocking." },
+    { "id": "AL0603", "action": "Info", "justification": "Fixing a conversion can depend on a publisher or dependency outside the change; CI advises instead of blocking." }
   ]
 }
 ```

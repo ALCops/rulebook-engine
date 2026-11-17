@@ -513,7 +513,7 @@ Describe 'ConvertTo-RulebookManifestJson' {
         $second | Should-Be $first
         $lines = $first.Split("`n")
         $lines[0..3] | Should-BeCollection @('{', '  "generatedAt": "2026-10-06T12:00:00Z",', '  "repository": "Contoso/Rulebook",', "  `"baseUrl`": `"$baseUrl`",")
-        $lines | Should-ContainCollection @('    { "name": "Recommended", "slug": "recommended", "basedOn": "essential", "description": "Every default-on rule at its author severity; marketplace checks join here." },')
+        $lines | Should-ContainCollection @('    { "name": "Recommended", "slug": "recommended", "basedOn": "essential", "description": "What a healthy project runs, each rule placed on its own merit; marketplace checks join here." },')
         $first.EndsWith("}`n") | Should-BeTrue
         $first.Contains("`r") | Should-BeFalse
         $first.Contains("`n`n") | Should-BeFalse

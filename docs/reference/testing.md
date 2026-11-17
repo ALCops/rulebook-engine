@@ -64,7 +64,7 @@ The suites dot-source these in `BeforeAll`:
 
 ## 4. CI reporting and coverage
 
-The `test` job of `.github/workflows/ci.yml` runs PSScriptAnalyzer, the matrix checks V1 to V14 and then Pester from `tests/` with `Normal` verbosity, NUnit results in `testResults.xml` and JaCoCo line coverage of `modules/`, `actions/` and `scripts/` in `coverage.xml` (profiler tracer, `UseBreakpoints` false). Coverage is a report, not a gate ([D51](../adr/0051-test-coverage-is-a-report-not-a-gate.md)): `CoveragePercentTarget` is 0, so Pester's console line ends in `/ 0%` and is always met. `tools/rulebook/` is not measured; `Test-Rulebook.ps1` and the template drift test prove it.
+The `test` job of `.github/workflows/ci.yml` runs PSScriptAnalyzer, the matrix checks V1 to V15 and then Pester from `tests/` with `Normal` verbosity, NUnit results in `testResults.xml` and JaCoCo line coverage of `modules/`, `actions/` and `scripts/` in `coverage.xml` (profiler tracer, `UseBreakpoints` false). Coverage is a report, not a gate ([D51](../adr/0051-test-coverage-is-a-report-not-a-gate.md)): `CoveragePercentTarget` is 0, so Pester's console line ends in `/ 0%` and is always met. `tools/rulebook/` is not measured; `Test-Rulebook.ps1` and the template drift test prove it.
 
 The `Test summary` step runs `tools/ci/Write-TestSummary.ps1` with `if: always()`:
 
@@ -159,7 +159,7 @@ The line numbers are those of the WP12 testing-docs pull request on its Linux CI
 | `modules/Rulebook.Scan.psm1` | 748 | 1 | A planned deletion whose file is already gone in the clone (someone deleted it in between). |
 | `modules/Rulebook.Scan.psm1` | 779-781 | 3 | Closing a stale scan pull request fails (API error); the failure path of the living pull request. |
 | `modules/Rulebook.Scan.psm1` | 792 | 1 | The effective diff fails in the clone after the push; the result carries a note instead. |
-| `modules/Rulebook.Template.psm1` | 41, 116, 121 | 3 | Malformed `docs/rulebook/` input; `Test-Rulebook.ps1` (V1 to V14) rejects it before the template build. |
+| `modules/Rulebook.Template.psm1` | 41, 116, 121 | 3 | Malformed `docs/rulebook/` input; `Test-Rulebook.ps1` (V1 to V15) rejects it before the template build. |
 | `modules/Rulebook.Template.psm1` | 68 | 1 | Writer branch for an empty array; no shipped or fixture file has one. |
 | `modules/Rulebook.Update.psm1` | 171 | 1 | A template folder whose workflows sit one or two levels down (the zipball layout); the suites pass the folder itself. |
 | `modules/Rulebook.Update.psm1` | 203 | 1 | `templateSha` not on a line of its own; the settings writer always puts it on its own line. |

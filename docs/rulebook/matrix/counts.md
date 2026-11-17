@@ -1,23 +1,23 @@
 | Level | Stage | Error | Warning | Info | Hidden | None | Listed |
 |---|---|---|---|---|---|---|---|
-| Essential | default | 119 | 124 | 10 | 0 | 375 | 353 |
-| Essential | ci | 119 | 124 | 10 | 0 | 375 | 353 |
-| Essential | vnext | 211 | 32 | 10 | 0 | 375 | 445 |
-| Recommended | default | 128 | 391 | 68 | 18 | 23 | 9 |
-| Recommended | ci | 128 | 384 | 75 | 18 | 23 | 16 |
-| Recommended | vnext | 220 | 302 | 65 | 18 | 23 | 98 |
-| Strict | default | 128 | 443 | 29 | 5 | 23 | 68 |
-| Strict | ci | 128 | 433 | 39 | 5 | 23 | 78 |
-| Strict | vnext | 220 | 351 | 29 | 5 | 23 | 160 |
-| Complete | default | 128 | 445 | 51 | 2 | 2 | 92 |
-| Complete | ci | 128 | 435 | 61 | 2 | 2 | 102 |
-| Complete | vnext | 220 | 353 | 51 | 2 | 2 | 184 |
+| Essential | default | 127 | 127 | 6 | 0 | 368 | 356 |
+| Essential | ci | 127 | 127 | 6 | 0 | 368 | 356 |
+| Essential | vnext | 219 | 35 | 6 | 0 | 368 | 448 |
+| Recommended | default | 138 | 304 | 120 | 17 | 49 | 114 |
+| Recommended | ci | 138 | 296 | 128 | 17 | 49 | 122 |
+| Recommended | vnext | 230 | 215 | 117 | 17 | 49 | 203 |
+| Strict | default | 138 | 415 | 44 | 4 | 27 | 89 |
+| Strict | ci | 138 | 404 | 55 | 4 | 27 | 100 |
+| Strict | vnext | 230 | 323 | 44 | 4 | 27 | 181 |
+| Complete | default | 138 | 431 | 56 | 1 | 2 | 105 |
+| Complete | ci | 138 | 420 | 67 | 1 | 2 | 116 |
+| Complete | vnext | 230 | 339 | 56 | 1 | 2 | 197 |
 
 | File | Entries |
 |---|---|
-| `base/essential.ruleset.json` | 353 |
-| `base/recommended.ruleset.json` | 352 |
-| `base/strict.ruleset.json` | 65 |
-| `base/complete.ruleset.json` | 24 |
-| `stages/ci.json` | 10 |
+| `base/essential.ruleset.json` | 356 |
+| `base/recommended.ruleset.json` | 319 |
+| `base/strict.ruleset.json` | 134 |
+| `base/complete.ruleset.json` | 42 |
+| `stages/ci.json` | 11 |
 | `stages/vnext.json` | 95 |

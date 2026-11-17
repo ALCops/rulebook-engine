@@ -25,14 +25,14 @@ The template ships four levels in one ladder:
 
 | Level | Intent | What is on | Default-stage counts (628 diagnostics) | Page |
 |---|---|---|---|---|
-| Essential (root) | You cannot ship without this. | Definite runtime failures, the Error defaults of PerTenantExtensionCop and AppSourceCop except the marketplace and baseline checks, compiler warnings that become errors later, PlatformCop, a few blockers; everything else off. | 119 Error, 124 Warning, 10 Info, 375 None; the endpoint lists 353 | [essential.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/essential.md) |
-| Recommended | What a healthy project runs. | Every rule its analyzer enables by default, at the author's severity, with nine documented deviations. | 128 Error, 391 Warning, 68 Info, 18 Hidden, 23 None; lists 9 | [recommended.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/recommended.md) |
-| Strict | The quality gate. | Recommended with default-on Info rules raised to Warning and Hidden ones to Info. | 128 Error, 443 Warning, 29 Info, 5 Hidden, 23 None; lists 68 | [strict.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/strict.md) |
-| Complete | Everything the analyzers can tell you. | Strict plus every opt-in rule; off only LC0054 and LC0089i. | 128 Error, 445 Warning, 51 Info, 2 Hidden, 2 None; lists 92 | [complete.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/complete.md) |
+| Essential (root) | You cannot ship without this. | Definite runtime failures, the deployment blockers of PerTenantExtensionCop and AppSourceCop except the marketplace and baseline checks, compiler warnings that become errors later, security exposures, dropped controls and broken configuration; everything else off. | 127 Error, 127 Warning, 6 Info, 368 None; the endpoint lists 356 | [essential.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/essential.md) |
+| Recommended | What a healthy project runs. | Decided rule by rule: likely bugs, performance, upgrade and user-facing defects block, good practice is advice, layout and noisy style wait for Strict. | 138 Error, 304 Warning, 120 Info, 17 Hidden, 49 None; lists 114 | [recommended.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/recommended.md) |
+| Strict | The quality gate. | Recommended with the advice a clean project satisfies raised to Warning, and the formatting, documentation and house-style rules added. | 138 Error, 415 Warning, 44 Info, 4 Hidden, 27 None; lists 89 | [strict.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/strict.md) |
+| Complete | Everything the analyzers can tell you. | Strict plus every opt-in rule; off only LC0054 and LC0089i. | 138 Error, 431 Warning, 56 Info, 1 Hidden, 2 None; lists 105 | [complete.md](https://github.com/ALCops/rulebook-engine/blob/main/docs/levels/complete.md) |
 
 Each engine page lists the entries of the level file grouped by analyzer, with the action of the level below ("From"), the new action ("To"), a `lowered` mark where the action goes down, the justification and the docs link, and the counts for every stage. The "lists" figure is the number of diagnostics the endpoint writes: an endpoint names only the rules whose action differs from the analyzer default. The engine pages describe the shipped levels. Every level of your settings, your own levels included, also gets a page on the dashboard of your site at `<baseUrl>/levels/<slug>/`, with the same facts for your rulebook ([dashboard.md](dashboard.md)).
 
-Stages modify the level result per rule: `default` is the level as it is, `CI` relaxes a few postponable diagnostics to Info, `vNext` raises compiler future errors to Error and obsolete-pending diagnostics to Warning. Each stage other than `default` is one file `stages/<slug>.json`, applied on top of every level, and never turns on a rule the level left off.
+Every rule's place in every level and stage is decided on its own and carries a one-sentence justification, which the level and stage files, the engine pages and your dashboard show. Error is used only for a definite defect: a runtime failure, a definite wrong result, data loss, a security leak or a deployment blocker. Stages modify the level result per rule: `default` is the level as it is, `CI` relaxes to Info the diagnostics a team cannot fix in the same change, `vNext` raises compiler future errors to Error and obsolete-pending diagnostics to Warning. Each stage other than `default` is one file `stages/<slug>.json`, applied on top of every level, and never turns on a rule the level left off.
 
 ## 2. Picking a starting point
 
@@ -78,15 +78,15 @@ The update's own pull request or commit may say "No effective change." under its
 
 ## 4. Adding a level
 
-Add an entry to `levels` at the position where it should appear, and create its file with the rules it changes. To put it into the ladder, point the next level's `basedOn` at it. In the live run a level House between Recommended and Strict (*observed*):
+Add an entry to `levels` at the position where it should appear, and create its file with the rules it changes. To put it into the ladder, point the next level's `basedOn` at it. In the live run a level House between Recommended and Strict (*observed*; the shipped descriptions are shown as the template has them since beta.9):
 
 ```json
   "levels": [
-    { "name": "Essential", "description": "Cannot ship without: runtime failures, the deployment blockers of both Microsoft cops, compiler future errors, PlatformCop." },
-    { "name": "Recommended", "basedOn": "Essential", "description": "Every default-on rule at its author severity; marketplace checks join here." },
+    { "name": "Essential", "description": "Cannot ship without: runtime failures, deployment blockers, compiler future errors, security exposures and broken configuration." },
+    { "name": "Recommended", "basedOn": "Essential", "description": "What a healthy project runs, each rule placed on its own merit; marketplace checks join here." },
     { "name": "House", "basedOn": "Recommended", "description": "Recommended plus the house rules." },
-    { "name": "Strict", "basedOn": "House", "description": "Recommended with advisory rules promoted to Warning." },
-    { "name": "Complete", "basedOn": "Strict", "description": "Strict plus every opt-in rule." }
+    { "name": "Strict", "basedOn": "House", "description": "The quality gate: advisory rules a clean project satisfies become Warning." },
+    { "name": "Complete", "basedOn": "Strict", "description": "Everything the analyzers report, opt-in rules included." }
   ]
 ```
 
